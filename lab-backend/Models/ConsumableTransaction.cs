@@ -1,0 +1,25 @@
+namespace LabManagementAPI.Models
+{
+    public class ConsumableTransaction
+    {
+        public long Id { get; set; }
+
+        public int ConsumableId { get; set; }
+        public Consumable? Consumable { get; set; }
+
+        public string Type { get; set; } = string.Empty;
+
+        public int Quantity { get; set; }
+
+        public int BeforeQuantity { get; set; }
+
+        public int AfterQuantity { get; set; }
+
+        public string Reason { get; set; } = string.Empty;
+
+        public int? UserId { get; set; }
+        public User? User { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+}

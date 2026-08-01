@@ -1,0 +1,21 @@
+@LabManagementAPI_HostAddress = http://localhost:5248
+@token = PASTE_JWT_HERE
+
+GET {{LabManagementAPI_HostAddress}}/health
+Accept: application/json
+
+###
+
+POST {{LabManagementAPI_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "ChangeMe123!"
+}
+
+###
+
+GET {{LabManagementAPI_HostAddress}}/api/equipment
+Authorization: Bearer {{token}}
+Accept: application/json

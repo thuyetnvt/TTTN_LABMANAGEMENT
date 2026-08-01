@@ -1,0 +1,62 @@
+body,
+html,
+#app {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* CSS cho Dark Mode */
+body.dark-mode {
+  background-color: #121212 !important;
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .ant-layout {
+  background-color: #1e1e1e !important;
+}
+
+body.dark-mode .ant-layout-sider,
+body.dark-mode .ant-layout-header,
+body.dark-mode .ant-card,
+body.dark-mode .ant-table,
+body.dark-mode .ant-modal-content {
+  background-color: #242424 !important;
+  color: #e0e0e0 !important;
+  border-color: #333 !important;
+}
+
+body.dark-mode .ant-menu {
+  background-color: #242424 !important;
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .ant-menu-item-selected {
+  background-color: #333 !important;
+}
+
+body.dark-mode .ant-table-thead > tr > th {
+  background-color: #1e1e1e !important;
+  color: #e0e0e0 !important;
+  border-color: #333 !important;
+}
+
+body.dark-mode .ant-table-tbody > tr > td {
+  border-color: #333 !important;
+}
+
+body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, body.dark-mode h4, body.dark-mode h5, body.dark-mode h6 {
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .ant-table-tbody > tr:hover > td {
+  background-color: #333 !important;
+}
+
+body.dark-mode .ladi-header .search-bar {
+  background-color: #1e1e1e !important;
+  border-color: #333 !important;
+}
+
+body.dark-mode .ant-statistic-title,
+body.dark-mode .ant-statistic-content-value {
+  color: #e0e0e0 !important;
+}

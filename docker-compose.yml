@@ -1,0 +1,81 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lab_management}
+      MYSQL_USER: ${MYSQL_USER:-lab_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      TZ: Asia/Ho_Chi_Minh
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -u root -p"$${MYSQL_ROOT_PASSWORD}" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - lab_internal
+
+  backend:
+    build:
+      context: ./lab-backend
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Server=db;Port=3306;Database=${MYSQL_DATABASE:-lab_management};Uid=${MYSQL_USER:-lab_app};Pwd=${MYSQL_PASSWORD};CharSet=utf8mb4;
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env}
+      Jwt__Issuer: LabManagementAPI
+      Jwt__Audience: LabManagementApp
+      Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-30}
+      App__FrontendBaseUrl: ${APP_ORIGIN:-http://localhost:8080}
+      Cors__AllowedOrigins__0: ${APP_ORIGIN:-http://localhost:8080}
+      Email__Host: ${SMTP_HOST:-}
+      Email__Port: ${SMTP_PORT:-587}
+      Email__UseStartTls: ${SMTP_USE_STARTTLS:-true}
+      Email__Username: ${SMTP_USERNAME:-}
+      Email__Password: ${SMTP_PASSWORD:-}
+      Email__FromEmail: ${SMTP_FROM_EMAIL:-}
+      Email__FromName: ${SMTP_FROM_NAME:-Lab Management}
+      Database__ApplyMigrations: "true"
+      Seed__Enabled: ${SEED_ENABLED:-true}
+      Seed__DefaultPassword: ${SEED_DEFAULT_PASSWORD:?Set SEED_DEFAULT_PASSWORD in .env}
+      ForwardedHeaders__TrustAll: "true"
+      Security__UseHttpsRedirection: "false"
+    volumes:
+      - equipment_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - lab_internal
+
+  frontend:
+    build:
+      context: ./lab-frontend
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_SIGNALR_URL: /notificationHub
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - lab_internal
+
+volumes:
+  mysql_data:
+  equipment_uploads:
+
+networks:
+  lab_internal:
+    driver: bridge
