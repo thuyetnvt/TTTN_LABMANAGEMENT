@@ -4,10 +4,6 @@
       <template v-if="column.key === 'role'">
         <a-tag :color="record.role === 'Admin' ? 'gold' : 'blue'">{{ record.role }}</a-tag>
       </template>
-      <template v-else-if="column.key === 'protected'">
-        <a-tag v-if="record.username === 'admin'" color="red">Không được xóa</a-tag>
-        <span v-else>-</span>
-      </template>
       <template v-else-if="column.key === 'action'">
         <template v-if="role === 'Admin'">
           <a-button type="link" size="small" @click="$emit('edit', record)">Sửa</a-button>
@@ -39,7 +35,6 @@ const columns = [
   { title: 'Tài khoản', dataIndex: 'username', key: 'username' },
   { title: 'Email', dataIndex: 'email', key: 'email' },
   { title: 'Vai trò', dataIndex: 'role', key: 'role' },
-  { title: 'Lưu ý', key: 'protected', width: 150, align: 'center' },
   { title: 'Hành động', key: 'action', width: 150, align: 'center' }
 ]
 </script>

@@ -1,26 +1,21 @@
 <template>
   <div class="split-layout">
-    <!-- Nửa trái: Thông tin giới thiệu (Blue side) - Đồng bộ với trang Login -->
     <div class="left-side">
       <div class="left-content">
-        <!-- Header -->
         <div class="brand-header">
           <div class="logo">
-            <experiment-outlined /> <span>LabManagement</span>
+            <experiment-outlined />
+            <span>LabManagement</span>
             <span class="platform-tag">Platform</span>
           </div>
           <div class="tag-pill">{{ $t('hero.brandTag') }}</div>
         </div>
 
-        <!-- Hero Text -->
         <h1 class="hero-title">
           {{ $t('hero.title1') }}<br />{{ $t('hero.title2') }}<br /><span class="text-yellow">{{ $t('hero.title3') }}</span>
         </h1>
-        <p class="hero-desc">
-          {{ $t('hero.desc') }}
-        </p>
+        <p class="hero-desc">{{ $t('hero.desc') }}</p>
 
-        <!-- Features Grid -->
         <div class="features-grid">
           <div class="feature-item">
             <div class="feature-icon"><desktop-outlined /></div>
@@ -52,7 +47,6 @@
           </div>
         </div>
 
-        <!-- Statistics -->
         <div class="stats-section">
           <div class="stats-title">{{ $t('hero.statsTitle') }}</div>
           <div class="stats-row">
@@ -77,7 +71,6 @@
       </div>
     </div>
 
-    <!-- Nửa phải: Form Khôi phục (White side) -->
     <div class="right-side">
       <div class="right-content">
         <div class="login-header">
@@ -86,24 +79,22 @@
         </div>
 
         <a-form :model="formState" @finish="handleResetPassword" layout="vertical" class="login-form">
-          <!-- Email / Mã SV -->
-          <a-form-item 
-            :label="$t('forgot.email')" 
-            name="email" 
+          <a-form-item
+            :label="$t('forgot.email')"
+            name="email"
             :rules="[
               { required: true, message: $t('forgot.emailRequired') },
-              { type: 'email', message: 'Email không hợp lệ' }
+              { type: 'email', message: $t('forgot.emailInvalid') }
             ]"
           >
             <a-input v-model:value="formState.email" :placeholder="$t('forgot.emailPlaceholder')" size="large" />
           </a-form-item>
 
-          <!-- Nút Submit -->
-          <a-button type="primary" html-type="submit" :loading="isLoading" block size="large" class="submit-btn" style="margin-top: 16px;">
-            {{ isLoading ? $t('forgot.sending') : $t('forgot.submit') }} <arrow-right-outlined />
+          <a-button type="primary" html-type="submit" :loading="isLoading" block size="large" class="submit-btn">
+            {{ isLoading ? $t('forgot.sending') : $t('forgot.submit') }}
+            <arrow-right-outlined />
           </a-button>
 
-          <!-- Liên kết phụ -->
           <div class="extra-links">
             <router-link to="/login" class="back-link">{{ $t('forgot.back') }}</router-link>
           </div>
@@ -130,11 +121,11 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import authApi from '../api/authApi'
-import { 
-  ExperimentOutlined, 
-  DesktopOutlined, 
-  HistoryOutlined, 
-  AppstoreOutlined, 
+import {
+  ExperimentOutlined,
+  DesktopOutlined,
+  HistoryOutlined,
+  AppstoreOutlined,
   ToolOutlined,
   ArrowRightOutlined
 } from '@ant-design/icons-vue'
@@ -165,12 +156,14 @@ const handleResetPassword = async () => {
 .split-layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
   font-family: 'Inter', sans-serif;
+  overflow: hidden;
 }
 
-/* Nửa trái (Blue) */
 .left-side {
   flex: 1;
+  min-width: 0;
   background-color: #272cd4;
   color: white;
   display: flex;
@@ -178,13 +171,16 @@ const handleResetPassword = async () => {
   align-items: center;
   padding: 40px;
 }
+
 .left-content {
   max-width: 600px;
   width: 100%;
 }
+
 .brand-header {
   margin-bottom: 40px;
 }
+
 .logo {
   font-size: 24px;
   font-weight: 700;
@@ -193,14 +189,16 @@ const handleResetPassword = async () => {
   gap: 8px;
   margin-bottom: 16px;
 }
+
 .platform-tag {
   font-size: 14px;
   font-weight: 400;
   opacity: 0.8;
-  border-left: 1px solid rgba(255,255,255,0.3);
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
   padding-left: 12px;
   margin-left: 4px;
 }
+
 .tag-pill {
   display: inline-block;
   background: rgba(255, 255, 255, 0.1);
@@ -209,6 +207,7 @@ const handleResetPassword = async () => {
   font-size: 13px;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
+
 .hero-title {
   font-size: 48px;
   font-weight: 800;
@@ -216,9 +215,11 @@ const handleResetPassword = async () => {
   color: white;
   margin-bottom: 24px;
 }
+
 .text-yellow {
   color: #ffde59;
 }
+
 .hero-desc {
   font-size: 16px;
   line-height: 1.6;
@@ -226,20 +227,23 @@ const handleResetPassword = async () => {
   margin-bottom: 40px;
   max-width: 500px;
 }
+
 .features-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px 32px;
   margin-bottom: 48px;
 }
+
 .feature-item {
   display: flex;
   gap: 16px;
 }
+
 .feature-icon {
   width: 40px;
   height: 40px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   display: flex;
   justify-content: center;
@@ -247,22 +251,26 @@ const handleResetPassword = async () => {
   font-size: 20px;
   flex-shrink: 0;
 }
+
 .feature-text h4 {
   color: white;
-  margin: 0 0 4px 0;
+  margin: 0 0 4px;
   font-size: 15px;
   font-weight: 600;
 }
+
 .feature-text p {
-  color: rgba(255,255,255,0.7);
+  color: rgba(255, 255, 255, 0.7);
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
 }
+
 .stats-section {
-  border-top: 1px solid rgba(255,255,255,0.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
   padding-top: 24px;
 }
+
 .stats-title {
   font-size: 12px;
   font-weight: 600;
@@ -271,25 +279,28 @@ const handleResetPassword = async () => {
   margin-bottom: 16px;
   text-transform: uppercase;
 }
+
 .stats-row {
   display: flex;
   justify-content: space-between;
 }
+
 .stat-box h3 {
   color: white;
   font-size: 24px;
   font-weight: 800;
-  margin: 0 0 4px 0;
+  margin: 0 0 4px;
 }
+
 .stat-box p {
-  color: rgba(255,255,255,0.7);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 12px;
   margin: 0;
 }
 
-/* Nửa phải (White) */
 .right-side {
   flex: 1;
+  min-width: 0;
   background: white;
   display: flex;
   flex-direction: column;
@@ -297,52 +308,64 @@ const handleResetPassword = async () => {
   align-items: center;
   position: relative;
 }
+
 .right-content {
   width: 100%;
-  max-width: 360px;
-  padding: 40px 0;
+  max-width: 450px;
+  padding: 40px 24px;
 }
+
 .login-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 }
+
 .login-header h2 {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   color: #111827;
   margin-bottom: 8px;
 }
+
 .login-header p {
   color: #6b7280;
-  font-size: 14px;
+  font-size: 15px;
 }
+
 .login-form :deep(.ant-form-item-label > label) {
   font-weight: 500;
   color: #374151;
 }
+
 .submit-btn {
   background-color: #272cd4;
   border-color: #272cd4;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 600;
-  height: 44px;
+  height: 46px;
+  margin-top: 16px;
 }
+
 .submit-btn:hover {
   background-color: #1c209c;
   border-color: #1c209c;
 }
+
 .extra-links {
   text-align: center;
   margin-top: 24px;
   font-size: 14px;
 }
+
 .back-link {
   color: #272cd4;
   font-weight: 500;
 }
+
 .back-link:hover {
   text-decoration: underline;
 }
+
 .right-footer {
   position: absolute;
   bottom: 24px;
@@ -350,28 +373,37 @@ const handleResetPassword = async () => {
   width: 100%;
   text-align: center;
 }
+
 .footer-links {
   font-size: 12px;
   color: #9ca3af;
   margin-bottom: 8px;
 }
+
 .footer-links a {
   color: #9ca3af;
 }
+
 .footer-links a:hover {
   color: #6b7280;
 }
+
 .divider {
   margin: 0 8px;
 }
+
 .copyright {
   font-size: 12px;
   color: #d1d5db;
 }
 
-/* Responsive */
 @media (max-width: 992px) {
-  .left-side { display: none; }
-  .right-side { width: 100%; }
+  .left-side {
+    display: none;
+  }
+
+  .right-side {
+    width: 100%;
+  }
 }
 </style>

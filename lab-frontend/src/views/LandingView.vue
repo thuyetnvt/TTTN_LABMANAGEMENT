@@ -19,9 +19,9 @@
     <section class="hero-section">
       <div class="hero-container">
         <div class="hero-content">
-          <div class="badge">Hệ thống quản lý phòng lab thông minh</div>
-          <h1 class="hero-title">Quản lý thiết bị, tài sản<br><span class="highlight">mượn trả rõ ràng</span></h1>
-          <p class="hero-subtitle">Theo dõi tài sản, danh mục, yêu cầu mượn trả, bảo trì và bồi thường trong một nền tảng gọn gàng cho phòng thí nghiệm.</p>
+          <div class="badge">Hệ thống quản lý phòng thí nghiệm</div>
+          <h1 class="hero-title">Quản lý thiết bị và tài sản<br><span class="highlight">minh bạch, dễ kiểm soát</span></h1>
+          <p class="hero-subtitle">Theo dõi danh mục tài sản, yêu cầu mượn trả, bảo trì, vật tư và bồi thường trong một nền tảng thống nhất cho phòng thí nghiệm.</p>
           <div class="hero-cta">
             <a-button type="primary" size="large" class="cta-btn primary-cta" @click="$router.push('/login')">
               Vào hệ thống
@@ -49,7 +49,7 @@
           <p>Tài sản quản lý</p>
         </div>
         <div class="stat-item">
-          <h2>1,200+</h2>
+          <h2>1.200+</h2>
           <p>Lượt mượn trả</p>
         </div>
         <div class="stat-item">
@@ -66,8 +66,8 @@
     <!-- Features Section -->
     <section class="features-section" id="features">
       <div class="section-header">
-        <h2>Tính năng dành cho phòng lab</h2>
-        <p>Quản lý tài sản theo danh mục, theo dõi mượn trả và kiểm tra sau khi hoàn trả.</p>
+        <h2>Tính năng dành cho phòng thí nghiệm</h2>
+        <p>Quản lý tài sản theo danh mục, theo dõi mượn trả, cấp phát vật tư và kiểm tra sau hoàn trả.</p>
       </div>
       
       <div class="features-grid">
@@ -83,7 +83,7 @@
           <div class="feature-icon-wrapper green">
             <history-outlined class="feature-icon" />
           </div>
-          <h3>Mượn trả có duyệt</h3>
+          <h3>Mượn trả có phê duyệt</h3>
           <p>Người dùng gửi yêu cầu, giảng viên bảo lãnh khi cần, quản lý duyệt và theo dõi hạn trả.</p>
         </div>
         
@@ -91,8 +91,8 @@
           <div class="feature-icon-wrapper red">
             <tool-outlined class="feature-icon" />
           </div>
-          <h3>Kiểm tra và xử lý</h3>
-          <p>Khi trả tài sản, hệ thống ghi nhận Rảnh, bảo hành, sửa chữa hoặc bồi thường.</p>
+          <h3>Kiểm tra và xử lý sau trả</h3>
+          <p>Khi hoàn trả tài sản, hệ thống ghi nhận tình trạng, bảo hành, sửa chữa hoặc bồi thường nếu có.</p>
         </div>
       </div>
     </section>
@@ -104,14 +104,14 @@
           <img src="/feature.png" alt="Lab Equipment Interface" class="shadow-img" />
         </div>
         <div class="split-content">
-          <h2>Luồng nghiệp vụ rõ ràng từ nhập kho đến hoàn trả</h2>
-          <p class="split-desc">Tài sản được phân loại theo danh mục như IoT, AI, thiết bị đo hoặc linh kiện; mỗi lần mượn trả đều có trạng thái và lịch sử kiểm tra.</p>
+          <h2>Quy trình rõ ràng từ nhập kho đến hoàn trả</h2>
+          <p class="split-desc">Tài sản được phân loại theo danh mục như IoT, AI, thiết bị đo hoặc linh kiện; mỗi lần mượn trả đều có trạng thái, người xử lý và lịch sử kiểm tra.</p>
           
           <ul class="benefit-list">
             <li>
               <check-circle-filled class="check-icon" />
               <div>
-                <strong>Danh mục linh hoạt.</strong> Tạo nhóm tài sản phù hợp với từng phòng lab.
+                <strong>Danh mục linh hoạt.</strong> Tạo nhóm tài sản phù hợp với từng phòng thí nghiệm.
               </div>
             </li>
             <li>
@@ -139,7 +139,7 @@
           <span>LabManagement</span>
         </div>
         <div class="footer-copy">
-          © 2026 LabManagement. Quản lý phòng lab và tài sản.
+          © 2026 LabManagement. Quản lý phòng thí nghiệm và tài sản.
         </div>
       </div>
     </footer>
