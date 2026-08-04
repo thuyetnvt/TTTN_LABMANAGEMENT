@@ -14,7 +14,8 @@
 
         <!-- Hero Text -->
         <h1 class="hero-title">
-          {{ $t('hero.title1') }}<br />{{ $t('hero.title2') }}<br /><span class="text-yellow">{{ $t('hero.title3') }}</span>
+          {{ $t('hero.title1') }} {{ $t('hero.title2') }}<br />
+          <span class="text-yellow">{{ $t('hero.title3') }}</span>
         </h1>
         <p class="hero-desc">
           {{ $t('hero.desc') }}
@@ -183,7 +184,7 @@ const handleLogin = () => {
 <style scoped>
 .split-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   width: 100%;
   font-family: 'Inter', sans-serif;
   overflow: hidden;
@@ -191,9 +192,12 @@ const handleLogin = () => {
 
 /* Nửa trái (Blue) */
 .left-side {
-  flex: 1;
+  width: 55%;
+  flex: none;
   min-width: 0;
-  background-color: #272cd4; /* Màu xanh ladi */
+  overflow-y: auto;
+  background: linear-gradient(135deg, rgba(28,32,156,0.85) 0%, rgba(39,44,212,0.92) 100%), url('/lab-bg.png') no-repeat center center;
+  background-size: cover;
   color: white;
   display: flex;
   justify-content: center;
@@ -232,9 +236,9 @@ const handleLogin = () => {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 .hero-title {
-  font-size: 48px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-size: clamp(36px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.3;
   color: white;
   margin-bottom: 24px;
 }
@@ -311,8 +315,10 @@ const handleLogin = () => {
 
 /* Nửa phải (White) */
 .right-side {
-  flex: 1;
+  width: 45%;
+  flex: none;
   min-width: 0;
+  overflow-y: auto;
   background: white;
   display: flex;
   flex-direction: column;

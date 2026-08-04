@@ -103,7 +103,7 @@
 
       <a-col :xs="24" :xl="8">
         <a-card title="Trạng thái thiết bị" :bordered="false" class="chart-card">
-          <apexchart type="pie" height="220" :options="pieOptions" :series="pieSeries"></apexchart>
+          <apexchart type="donut" height="220" :options="pieOptions" :series="pieSeries"></apexchart>
         </a-card>
       </a-col>
     </a-row>
@@ -174,8 +174,9 @@ const barOptions = ref({
 const barSeries = ref([{ name: 'Lượt mượn', data: [] }])
 
 const pieOptions = ref({
+  chart: { type: 'donut' },
   labels: ['Rảnh', 'Đang mượn', 'Bảo hành', 'Hỏng'],
-  colors: ['#10b981', '#f59e0b', '#6366f1', '#ef4444'],
+  colors: ['#52c41a', '#1890ff', '#faad14', '#f5222d'],
   legend: { position: 'bottom' },
   dataLabels: { enabled: true }
 })

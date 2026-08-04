@@ -12,7 +12,8 @@
         </div>
 
         <h1 class="hero-title">
-          {{ $t('hero.title1') }}<br />{{ $t('hero.title2') }}<br /><span class="text-yellow">{{ $t('hero.title3') }}</span>
+          {{ $t('hero.title1') }} {{ $t('hero.title2') }}<br />
+          <span class="text-yellow">{{ $t('hero.title3') }}</span>
         </h1>
         <p class="hero-desc">{{ $t('hero.desc') }}</p>
 
@@ -155,16 +156,19 @@ const handleResetPassword = async () => {
 <style scoped>
 .split-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   width: 100%;
   font-family: 'Inter', sans-serif;
   overflow: hidden;
 }
 
 .left-side {
-  flex: 1;
+  width: 55%;
+  flex: none;
   min-width: 0;
-  background-color: #272cd4;
+  overflow-y: hidden;
+  background: linear-gradient(135deg, rgba(28,32,156,0.85) 0%, rgba(39,44,212,0.92) 100%), url('/lab-bg.png') no-repeat center center;
+  background-size: cover;
   color: white;
   display: flex;
   justify-content: center;
@@ -209,9 +213,9 @@ const handleResetPassword = async () => {
 }
 
 .hero-title {
-  font-size: 48px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-size: clamp(36px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.3;
   color: white;
   margin-bottom: 24px;
 }
@@ -299,8 +303,10 @@ const handleResetPassword = async () => {
 }
 
 .right-side {
-  flex: 1;
+  width: 45%;
+  flex: none;
   min-width: 0;
+  overflow-y: hidden;
   background: white;
   display: flex;
   flex-direction: column;
@@ -311,17 +317,17 @@ const handleResetPassword = async () => {
 
 .right-content {
   width: 100%;
-  max-width: 450px;
-  padding: 40px 24px;
+  max-width: 360px;
+  padding: 40px 0;
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: 36px;
+  margin-bottom: 40px;
 }
 
 .login-header h2 {
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 700;
   color: #111827;
   margin-bottom: 8px;
@@ -329,7 +335,7 @@ const handleResetPassword = async () => {
 
 .login-header p {
   color: #6b7280;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .login-form :deep(.ant-form-item-label > label) {

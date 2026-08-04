@@ -1,8 +1,16 @@
-﻿<template>
+<template>
   <div class="table-actions">
-    <a-button v-if="role === 'Sinh viên' || role === 'Giảng viên'" type="primary" @click="showScannerModal">
-      Quét QR để mượn
-    </a-button>
+    <div class="left-actions">
+      <a-button v-if="role === 'Sinh viên' || role === 'Giảng viên'" type="primary" @click="showScannerModal">
+        Quét QR để mượn
+      </a-button>
+      <a-input-search
+        v-model:value="searchQuery"
+        placeholder="Tìm kiếm theo tên thiết bị..."
+        style="width: 250px"
+        @change="handleSearchChange"
+      />
+    </div>
     <div class="right-actions">
       <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="primary" ghost @click="handleExport">
         Xuất Excel
@@ -38,8 +46,19 @@
       </template>
       <template v-else-if="column.key === 'action'">
         <a-space>
-          <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)">Sửa</a-button>
-          <a-button v-if="role === 'Admin'" type="link" danger size="small" @click="handleDelete(record.id)">Xóa</a-button>
+          <a-button type="link" size="small" @click="showViewModal(record)" title="Xem chi tiết">
+            <template #icon><EyeOutlined /></template>
+          </a-button>
+          <a-tooltip :title="!['Admin', 'Trưởng lab', 'Phó lab'].includes(role) ? 'Chỉ dành cho Admin/Quản lý' : 'Sửa'">
+            <a-button :disabled="!['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip :title="role !== 'Admin' ? 'Chỉ dành cho Admin' : 'Xóa'">
+            <a-button :disabled="role !== 'Admin'" type="link" danger size="small" @click="handleDelete(record.id)">
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
+          </a-tooltip>
           <a-button v-if="['Sinh viên', 'Giảng viên'].includes(role) && record.status === 'Rảnh'" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
         </a-space>
       </template>
@@ -74,62 +93,121 @@
     </a-form>
   </a-modal>
 
-  <a-modal v-model:open="isFormVisible" :title="isEditMode ? 'Sửa thiết bị' : 'Thêm thiết bị'" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting">
+  <a-modal v-model:open="isFormVisible" :title="isEditMode ? 'Sửa thiết bị' : 'Thêm thiết bị'" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting" width="800px">
     <a-form layout="vertical">
-      <a-form-item label="Tên thiết bị" required>
-        <a-input v-model:value="formData.name" />
-      </a-form-item>
-      <a-form-item label="Danh mục phân loại">
-        <a-select v-model:value="formData.assetCategoryId" placeholder="Chọn danh mục" allowClear>
-          <a-select-option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</a-select-option>
-        </a-select>
-      </a-form-item>
-      <a-form-item label="Model" required>
-        <a-input v-model:value="formData.model" />
-      </a-form-item>
-      <a-form-item label="Số seri" required>
-        <a-input v-model:value="formData.serial" />
-      </a-form-item>
-      <a-form-item label="Tên seri">
-        <a-input v-model:value="formData.serialName" />
-      </a-form-item>
-      <a-form-item label="Vị trí" required>
-        <a-input v-model:value="formData.location" />
-      </a-form-item>
-      <a-form-item label="Người chịu trách nhiệm">
-        <a-input v-model:value="formData.responsiblePerson" />
-      </a-form-item>
-      <a-form-item label="File quyết định mua/thêm thiết bị" :required="!isEditMode">
-        <a-upload
-          v-model:file-list="decisionFileList"
-          :before-upload="beforeDecisionUpload"
-          :max-count="1"
-          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-        >
-          <a-button>Chọn file quyết định</a-button>
-        </a-upload>
-        <div v-if="isEditMode && formData.decisionFileName" class="file-hint">
-          File hiện tại: {{ formData.decisionFileName }}
-        </div>
-      </a-form-item>
-      <a-form-item label="Ngày nhập">
-        <a-date-picker v-model:value="formData.entryDate" style="width: 100%" />
-      </a-form-item>
-      <a-form-item label="Hạn bảo hành">
-        <a-date-picker v-model:value="formData.warrantyExpiry" style="width: 100%" />
-      </a-form-item>
-      <a-form-item label="Số hóa đơn">
-        <a-input v-model:value="formData.invoiceNumber" />
-      </a-form-item>
-      <a-form-item label="Trạng thái" required>
-        <a-select v-model:value="formData.status">
-          <a-select-option value="Rảnh">Rảnh</a-select-option>
-          <a-select-option v-if="formData.status === 'Đang mượn'" value="Đang mượn" disabled>Đang mượn</a-select-option>
-          <a-select-option value="Bảo hành">Bảo hành</a-select-option>
-          <a-select-option value="Hỏng">Hỏng</a-select-option>
-        </a-select>
-      </a-form-item>
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="Tên thiết bị" required>
+            <a-input v-model:value="formData.name" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="Danh mục phân loại">
+            <a-select v-model:value="formData.assetCategoryId" placeholder="Chọn danh mục" allowClear>
+              <a-select-option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="Model" required>
+            <a-input v-model:value="formData.model" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="Số seri" required>
+            <a-input v-model:value="formData.serial" />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="Tên seri">
+            <a-input v-model:value="formData.serialName" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="Vị trí" required>
+            <a-input v-model:value="formData.location" />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="Người chịu trách nhiệm">
+            <a-input v-model:value="formData.responsiblePerson" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="Trạng thái" required>
+            <a-select v-model:value="formData.status">
+              <a-select-option value="Rảnh">Rảnh</a-select-option>
+              <a-select-option v-if="formData.status === 'Đang mượn'" value="Đang mượn" disabled>Đang mượn</a-select-option>
+              <a-select-option value="Bảo hành">Bảo hành</a-select-option>
+              <a-select-option value="Hỏng">Hỏng</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="Ngày nhập">
+            <a-date-picker v-model:value="formData.entryDate" style="width: 100%" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="Hạn bảo hành">
+            <a-date-picker v-model:value="formData.warrantyExpiry" style="width: 100%" />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <a-row :gutter="16">
+        <a-col :span="12">
+          <a-form-item label="Số hóa đơn">
+            <a-input v-model:value="formData.invoiceNumber" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="File quyết định mua/thêm thiết bị" :required="!isEditMode">
+            <a-upload
+              v-model:file-list="decisionFileList"
+              :before-upload="beforeDecisionUpload"
+              :max-count="1"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            >
+              <a-button>Chọn file quyết định</a-button>
+            </a-upload>
+            <div v-if="isEditMode && formData.decisionFileName" class="file-hint">
+              File hiện tại: {{ formData.decisionFileName }}
+            </div>
+          </a-form-item>
+        </a-col>
+      </a-row>
     </a-form>
+  </a-modal>
+
+  <a-modal v-model:open="isViewVisible" title="Chi tiết thiết bị" :footer="null" width="700px">
+    <a-descriptions bordered :column="2">
+      <a-descriptions-item label="Tên thiết bị">{{ viewData.name }}</a-descriptions-item>
+      <a-descriptions-item label="Danh mục">{{ viewData.categoryName }}</a-descriptions-item>
+      <a-descriptions-item label="Model">{{ viewData.model }}</a-descriptions-item>
+      <a-descriptions-item label="Số seri">{{ viewData.serial }}</a-descriptions-item>
+      <a-descriptions-item label="Tên seri" :span="2">{{ viewData.serialName || 'Không có' }}</a-descriptions-item>
+      <a-descriptions-item label="Vị trí">{{ viewData.location }}</a-descriptions-item>
+      <a-descriptions-item label="Người chịu trách nhiệm">{{ viewData.responsiblePerson || 'Không có' }}</a-descriptions-item>
+      <a-descriptions-item label="Ngày nhập">{{ viewData.entryDate ? new Date(viewData.entryDate).toLocaleDateString('vi-VN') : 'Không có' }}</a-descriptions-item>
+      <a-descriptions-item label="Hạn bảo hành">{{ viewData.warrantyExpiry ? new Date(viewData.warrantyExpiry).toLocaleDateString('vi-VN') : 'Không có' }}</a-descriptions-item>
+      <a-descriptions-item label="Số hóa đơn">{{ viewData.invoiceNumber || 'Không có' }}</a-descriptions-item>
+      <a-descriptions-item label="Trạng thái">
+        <a-tag :color="statusColor(viewData.status)">{{ viewData.status }}</a-tag>
+      </a-descriptions-item>
+    </a-descriptions>
   </a-modal>
 </template>
 
@@ -140,6 +218,7 @@ import dayjs from 'dayjs'
 import QrcodeVue from 'qrcode.vue'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import { message, Modal, Upload } from 'ant-design-vue'
+import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { equipmentApi } from '../api/equipmentApi'
 import { borrowApi } from '../api/borrowApi'
@@ -174,17 +253,46 @@ const columns = [
   { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 180 }
 ]
 
+const statusColor = (status) => {
+  if (status === 'Rảnh' || status === 'Sẵn sàng') return 'green'
+  if (status === 'Đang mượn') return 'orange'
+  if (status === 'Bảo trì' || status === 'Hỏng') return 'red'
+  return 'default'
+}
+
+const searchQuery = ref('')
+const debouncedSearchQuery = ref('')
+let searchTimeout = null
+
+const handleSearchChange = (e) => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    debouncedSearchQuery.value = e.target.value
+  }, 500)
+}
+
 const filteredDataSource = computed(() => {
+  let result = dataSource.value
+
   const status = route.query.status
-  if (!status || status === 'all') {
-    return dataSource.value
+  if (status && status !== 'all') {
+    if (status === 'problem') {
+      result = result.filter(item => ['Hỏng', 'Bảo hành'].includes(item.status))
+    } else {
+      result = result.filter(item => item.status === status)
+    }
   }
 
-  if (status === 'problem') {
-    return dataSource.value.filter(item => ['Hỏng', 'Bảo hành'].includes(item.status))
+  const search = debouncedSearchQuery.value.trim().toLowerCase()
+  if (search) {
+    result = result.filter(item => 
+      (item.name && item.name.toLowerCase().includes(search)) ||
+      (item.serial && item.serial.toLowerCase().includes(search)) ||
+      (item.model && item.model.toLowerCase().includes(search))
+    )
   }
 
-  return dataSource.value.filter(item => item.status === status)
+  return result
 })
 
 const emptyForm = () => ({
@@ -204,6 +312,8 @@ const emptyForm = () => ({
 
 const isFormVisible = ref(false)
 const isEditMode = ref(false)
+const isViewVisible = ref(false)
+const viewData = ref({})
 const currentEditId = ref(null)
 const formData = ref(emptyForm())
 const decisionFileList = ref([])
@@ -237,12 +347,7 @@ const normalizeDate = (value, endOfDay = false) => {
 }
 const disablePastDate = (current) => current && current.valueOf() < new Date().setHours(0, 0, 0, 0)
 
-const statusColor = (status) => {
-  if (status === 'Rảnh') return 'green'
-  if (status === 'Đang mượn') return 'blue'
-  if (status === 'Bảo hành') return 'orange'
-  return 'red'
-}
+
 
 const fetchCategories = async () => {
   try {
@@ -290,6 +395,11 @@ const showEditModal = (record) => {
   }
   decisionFileList.value = []
   isFormVisible.value = true
+}
+
+const showViewModal = (record) => {
+  viewData.value = { ...record }
+  isViewVisible.value = true
 }
 
 const beforeDecisionUpload = (file) => {
@@ -492,10 +602,15 @@ const onScanSuccess = (decodedText) => {
 <style scoped>
 .table-actions {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.left-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .right-actions {

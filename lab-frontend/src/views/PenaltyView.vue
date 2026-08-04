@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="penalty-container">
     <div class="toolbar">
       <h2>Quản lý Đền bù & Phạt</h2>
@@ -6,7 +6,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered>
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'amount'">
             <span style="color: #ef4444; font-weight: 600;">{{ record.amount.toLocaleString('vi-VN') }} ₫</span>

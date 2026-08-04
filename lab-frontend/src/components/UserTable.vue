@@ -1,13 +1,17 @@
 <template>
-  <a-table :dataSource="dataSource" :columns="columns" bordered rowKey="id">
+  <a-table :dataSource="dataSource" :columns="columns" bordered rowKey="id" :scroll="{ x: 'max-content' }">
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'role'">
         <a-tag :color="record.role === 'Admin' ? 'gold' : 'blue'">{{ record.role }}</a-tag>
       </template>
       <template v-else-if="column.key === 'action'">
         <template v-if="role === 'Admin'">
-          <a-button type="link" size="small" @click="$emit('edit', record)">Sửa</a-button>
-          <a-button v-if="record.username !== 'admin'" type="link" danger size="small" @click="$emit('delete', record)">Xóa</a-button>
+          <a-button type="link" size="small" @click="$emit('edit', record)" title="Sửa">
+            <template #icon><EditOutlined /></template>
+          </a-button>
+          <a-button v-if="record.username !== 'admin'" type="link" danger size="small" @click="$emit('delete', record)" title="Xóa">
+            <template #icon><DeleteOutlined /></template>
+          </a-button>
         </template>
         <span v-else style="color: #9ca3af;">Chỉ xem</span>
       </template>
@@ -18,6 +22,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '../stores/authStore'
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 
 defineProps({
   dataSource: {

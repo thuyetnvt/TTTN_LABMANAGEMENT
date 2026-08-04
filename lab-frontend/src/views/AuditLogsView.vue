@@ -41,7 +41,7 @@
         rowKey="id"
         bordered
         :pagination="pagination"
-        :scroll="{ x: 1050 }"
+        :scroll="{ x: 'max-content' }"
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
@@ -52,7 +52,9 @@
             {{ formatDateTime(record.createdAt) }}
           </template>
           <template v-else-if="column.key === 'details'">
-            <a-button type="link" size="small" @click="showDetails(record)">Xem chi tiết</a-button>
+            <a-button type="link" size="small" @click="showDetails(record)" title="Xem chi tiết">
+              <template #icon><EyeOutlined /></template>
+            </a-button>
           </template>
         </template>
       </a-table>
@@ -67,7 +69,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { ReloadOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { auditApi } from '../api/auditApi'
 
 const logs = ref([])

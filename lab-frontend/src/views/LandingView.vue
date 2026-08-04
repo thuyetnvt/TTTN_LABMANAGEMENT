@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="landing-container">
     <!-- Navbar -->
     <header class="navbar">
@@ -19,9 +19,9 @@
     <section class="hero-section">
       <div class="hero-container">
         <div class="hero-content">
-          <div class="badge">Hệ thống quản lý phòng thí nghiệm</div>
-          <h1 class="hero-title">Quản lý thiết bị và tài sản<br><span class="highlight">minh bạch, dễ kiểm soát</span></h1>
-          <p class="hero-subtitle">Theo dõi danh mục tài sản, yêu cầu mượn trả, bảo trì, vật tư và bồi thường trong một nền tảng thống nhất cho phòng thí nghiệm.</p>
+          <div class="badge">Nền tảng LabManagement 2.0</div>
+          <h1 class="hero-title">Chuyển đổi số toàn diện <span class="highlight">không gian phòng lab</span></h1>
+          <p class="hero-subtitle">Nền tảng tiên phong giúp tối ưu hóa quản lý thiết bị, kiểm soát quy trình mượn trả và tự động hóa bảo trì. Đưa phòng thí nghiệm của bạn vận hành chuyên nghiệp, thông minh và hiệu quả hơn bao giờ hết.</p>
           <div class="hero-cta">
             <a-button type="primary" size="large" class="cta-btn primary-cta" @click="$router.push('/login')">
               Vào hệ thống
@@ -66,8 +66,8 @@
     <!-- Features Section -->
     <section class="features-section" id="features">
       <div class="section-header">
-        <h2>Tính năng dành cho phòng thí nghiệm</h2>
-        <p>Quản lý tài sản theo danh mục, theo dõi mượn trả, cấp phát vật tư và kiểm tra sau hoàn trả.</p>
+        <h2>Hệ sinh thái quản lý toàn diện</h2>
+        <p>Được thiết kế chuyên biệt cho môi trường học thuật và nghiên cứu, giúp tự động hóa và số hóa toàn bộ các quy trình nghiệp vụ thủ công.</p>
       </div>
       
       <div class="features-grid">
@@ -75,24 +75,24 @@
           <div class="feature-icon-wrapper blue">
             <desktop-outlined class="feature-icon" />
           </div>
-          <h3>Quản lý tài sản</h3>
-          <p>Lưu số seri, vị trí, người chịu trách nhiệm, ngày nhập, hạn bảo hành và số hóa đơn.</p>
+          <h3>Kiểm soát tài sản thông minh</h3>
+          <p>Lưu trữ chi tiết thông số kỹ thuật, vị trí lưu trữ, lịch sử vòng đời thiết bị và tự động cảnh báo khi đến hạn bảo hành.</p>
         </div>
         
         <div class="feature-card">
           <div class="feature-icon-wrapper green">
             <history-outlined class="feature-icon" />
           </div>
-          <h3>Mượn trả có phê duyệt</h3>
-          <p>Người dùng gửi yêu cầu, giảng viên bảo lãnh khi cần, quản lý duyệt và theo dõi hạn trả.</p>
+          <h3>Quy trình mượn trả khép kín</h3>
+          <p>Tích hợp phê duyệt đa tầng, quét mã QR nhận diện thiết bị siêu tốc và hệ thống nhắc nhở lịch trả hoàn toàn tự động.</p>
         </div>
         
         <div class="feature-card">
           <div class="feature-icon-wrapper red">
             <tool-outlined class="feature-icon" />
           </div>
-          <h3>Kiểm tra và xử lý sau trả</h3>
-          <p>Khi hoàn trả tài sản, hệ thống ghi nhận tình trạng, bảo hành, sửa chữa hoặc bồi thường nếu có.</p>
+          <h3>Đánh giá & Bảo trì tự động</h3>
+          <p>Ghi nhận chính xác tình trạng thiết bị sau mỗi lần sử dụng. Phân luồng xử lý sửa chữa, bảo hành minh bạch và rõ ràng.</p>
         </div>
       </div>
     </section>
@@ -104,26 +104,26 @@
           <img src="/feature.png" alt="Lab Equipment Interface" class="shadow-img" />
         </div>
         <div class="split-content">
-          <h2>Quy trình rõ ràng từ nhập kho đến hoàn trả</h2>
-          <p class="split-desc">Tài sản được phân loại theo danh mục như IoT, AI, thiết bị đo hoặc linh kiện; mỗi lần mượn trả đều có trạng thái, người xử lý và lịch sử kiểm tra.</p>
+          <h2>Quản trị dữ liệu tập trung, quyết định chính xác</h2>
+          <p class="split-desc">Triển khai hệ thống phân loại linh hoạt từ thiết bị IoT, AI đến vật tư tiêu hao. Mọi lịch sử tác động đều được số hóa, lưu vết hoàn chỉnh và minh bạch tuyệt đối.</p>
           
           <ul class="benefit-list">
             <li>
               <check-circle-filled class="check-icon" />
               <div>
-                <strong>Danh mục linh hoạt.</strong> Tạo nhóm tài sản phù hợp với từng phòng thí nghiệm.
+                <strong>Cấu trúc linh hoạt.</strong> Tùy biến không gian lưu trữ và phân nhóm tài sản theo đặc thù của từng phòng nghiên cứu.
               </div>
             </li>
             <li>
               <check-circle-filled class="check-icon" />
               <div>
-          <strong>Phân quyền rõ.</strong> Admin, Trưởng lab, Phó lab, Giảng viên và Sinh viên dùng đúng vai trò.
+          <strong>Phân quyền đa lớp.</strong> Phân bổ quyền hạn chi tiết từ Ban quản lý đến Sinh viên, đảm bảo tính toàn vẹn của dữ liệu.
               </div>
             </li>
             <li>
               <check-circle-filled class="check-icon" />
               <div>
-                <strong>Hậu kiểm chặt.</strong> Trả tốt thì đưa về Rảnh, hỏng thì xét bảo hành hoặc bồi thường.
+                <strong>Quy trình chuẩn hóa.</strong> Giám sát chặt chẽ vòng đời thiết bị từ lúc nhập kho đến khi thanh lý, tối đa hóa tuổi thọ tài sản.
               </div>
             </li>
           </ul>
@@ -251,10 +251,10 @@ const scrollToFeatures = () => {
   border: 1px solid #bae0ff;
 }
 .hero-title {
-  font-size: 52px;
-  font-weight: 900;
-  line-height: 1.2;
-  margin-bottom: 24px;
+  font-size: clamp(36px, 4vw, 48px);
+  font-weight: 800;
+  line-height: 1.3;
+  margin-bottom: 20px;
   color: #001529;
   letter-spacing: -1px;
 }

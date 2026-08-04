@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="asset-requests-container">
     <div class="toolbar">
       <h2>{{ isManager ? 'Duyệt cấp phát vật tư' : 'Yêu cầu cấp phát vật tư của tôi' }}</h2>
@@ -6,7 +6,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered>
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="record.status === 'Đã cấp phát' ? 'green' : (record.status === 'Từ chối' ? 'red' : 'orange')">

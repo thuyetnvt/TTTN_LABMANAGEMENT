@@ -1,18 +1,22 @@
-﻿<template>
+<template>
   <div>
     <div class="table-actions" v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)">
       <a-button type="primary" @click="showAddModal">+ Thêm danh mục</a-button>
     </div>
 
-    <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered>
+    <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'createdAt'">
           {{ new Date(record.createdAt).toLocaleDateString('vi-VN') }}
         </template>
         <template v-else-if="column.key === 'action'">
           <a-space>
-            <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)">Sửa</a-button>
-            <a-button v-if="role === 'Admin'" type="link" danger size="small" @click="handleDelete(record)">Xóa</a-button>
+            <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+            <a-button v-if="role === 'Admin'" type="link" danger size="small" @click="handleDelete(record)" title="Xóa">
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
           </a-space>
         </template>
       </template>
@@ -34,6 +38,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
+import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
 

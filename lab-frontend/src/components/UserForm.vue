@@ -1,23 +1,33 @@
-﻿<template>
+<template>
   <a-form :model="formState" layout="vertical" ref="formRef">
-    <a-form-item label="Tài khoản" name="username" :rules="[{ required: true, message: 'Vui lòng nhập tài khoản!' }]">
-      <a-input v-model:value="formState.username" placeholder="Nhập tên tài khoản..." :disabled="isProtected" />
-    </a-form-item>
-    <a-form-item label="Email" name="email" :rules="[{ type: 'email', message: 'Email không hợp lệ!' }]">
-      <a-input v-model:value="formState.email" placeholder="Nhập địa chỉ email..." />
-    </a-form-item>
-    <a-form-item label="Mật khẩu" name="password" :help="isEditing ? 'Để trống nếu không muốn đổi mật khẩu' : ''" :rules="passwordRules">
-      <a-input-password v-model:value="formState.password" placeholder="Nhập mật khẩu..." />
-    </a-form-item>
-    <a-form-item label="Vai trò" name="role" :rules="[{ required: true, message: 'Vui lòng chọn vai trò!' }]">
-      <a-select v-model:value="formState.role" placeholder="Chọn vai trò" :disabled="isProtected">
-        <a-select-option value="Admin">Admin (Quản trị hệ thống)</a-select-option>
-        <a-select-option value="Trưởng lab">Trưởng lab</a-select-option>
-        <a-select-option value="Phó lab">Phó lab</a-select-option>
-        <a-select-option value="Giảng viên">Giảng viên</a-select-option>
-        <a-select-option value="Sinh viên">Sinh viên</a-select-option>
-      </a-select>
-    </a-form-item>
+    <a-row :gutter="16">
+      <a-col :xs="24" :sm="12">
+        <a-form-item label="Tài khoản" name="username" :rules="[{ required: true, message: 'Vui lòng nhập tài khoản!' }]">
+          <a-input v-model:value="formState.username" placeholder="Nhập tên tài khoản..." :disabled="isProtected" />
+        </a-form-item>
+      </a-col>
+      <a-col :xs="24" :sm="12">
+        <a-form-item label="Email" name="email" :rules="[{ type: 'email', message: 'Email không hợp lệ!' }]">
+          <a-input v-model:value="formState.email" placeholder="Nhập địa chỉ email..." />
+        </a-form-item>
+      </a-col>
+      <a-col :xs="24" :sm="12">
+        <a-form-item label="Mật khẩu" name="password" :help="isEditing ? 'Để trống nếu không muốn đổi mật khẩu' : ''" :rules="passwordRules">
+          <a-input-password v-model:value="formState.password" placeholder="Nhập mật khẩu..." />
+        </a-form-item>
+      </a-col>
+      <a-col :xs="24" :sm="12">
+        <a-form-item label="Vai trò" name="role" :rules="[{ required: true, message: 'Vui lòng chọn vai trò!' }]">
+          <a-select v-model:value="formState.role" placeholder="Chọn vai trò" :disabled="isProtected">
+            <a-select-option value="Admin">Admin (Quản trị hệ thống)</a-select-option>
+            <a-select-option value="Trưởng lab">Trưởng lab</a-select-option>
+            <a-select-option value="Phó lab">Phó lab</a-select-option>
+            <a-select-option value="Giảng viên">Giảng viên</a-select-option>
+            <a-select-option value="Sinh viên">Sinh viên</a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-col>
+    </a-row>
   </a-form>
 </template>
 

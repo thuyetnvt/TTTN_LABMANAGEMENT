@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="maintenance-container">
     <div class="toolbar">
       <h2>Lịch sử Bảo trì & Hiệu chuẩn</h2>
@@ -6,7 +6,7 @@
     </div>
     
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered>
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'maintenanceDate'">
              {{ formatDate(record[column.key]) }}
@@ -42,25 +42,37 @@
       </a-table>
     </a-card>
 
-    <a-modal v-model:open="isFormVisible" title="Thêm lịch sử bảo trì" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting">
+    <a-modal v-model:open="isFormVisible" title="Thêm lịch sử bảo trì" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting" width="700px" wrapClassName="responsive-modal">
       <a-form layout="vertical">
-        <a-form-item label="Chọn thiết bị" required>
-          <a-select v-model:value="formData.equipmentId" placeholder="-- Chọn thiết bị --">
-             <a-select-option v-for="eq in equipments" :key="eq.id" :value="eq.id">{{ eq.name }} - {{ eq.serial }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="Ngày thực hiện" required>
-          <a-date-picker v-model:value="formData.maintenanceDate" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="Nội dung bảo trì" required>
-          <a-textarea v-model:value="formData.description" :rows="3" placeholder="VD: Thay dầu, lau ống kính..." />
-        </a-form-item>
-        <a-form-item label="Người thực hiện" required>
-          <a-input v-model:value="formData.performedBy" placeholder="Nhân viên / Kỹ thuật viên..." />
-        </a-form-item>
-        <a-form-item label="Chi phí (VNĐ)" required>
-          <a-input-number v-model:value="formData.cost" style="width: 100%" :min="0" />
-        </a-form-item>
+        <a-row :gutter="16">
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Chọn thiết bị" required>
+              <a-select v-model:value="formData.equipmentId" placeholder="-- Chọn thiết bị --">
+                 <a-select-option v-for="eq in equipments" :key="eq.id" :value="eq.id">{{ eq.name }} - {{ eq.serial }}</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Ngày thực hiện" required>
+              <a-date-picker v-model:value="formData.maintenanceDate" style="width: 100%" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Người thực hiện" required>
+              <a-input v-model:value="formData.performedBy" placeholder="Nhân viên / Kỹ thuật viên..." />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Chi phí (VNĐ)" required>
+              <a-input-number v-model:value="formData.cost" style="width: 100%" :min="0" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="24">
+            <a-form-item label="Nội dung bảo trì" required>
+              <a-textarea v-model:value="formData.description" :rows="3" placeholder="VD: Thay dầu, lau ống kính..." />
+            </a-form-item>
+          </a-col>
+        </a-row>
       </a-form>
     </a-modal>
 

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div>
     <div class="table-actions" v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)">
       <a-button type="primary" @click="showAddModal">+ Thêm vật tư</a-button>
@@ -23,41 +23,63 @@
           <a-space>
             <a-button v-if="['Sinh viên', 'Giảng viên'].includes(role)" type="link" size="small" @click="showRequestModal(record)">Yêu cầu cấp phát</a-button>
             <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showHistoryModal(record)">Lịch sử</a-button>
-            <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)">Sửa</a-button>
-            <a-button v-if="role === 'Admin'" type="link" danger size="small" @click="handleDelete(record.id)">Xóa</a-button>
+            <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+            <a-button v-if="role === 'Admin'" type="link" danger size="small" @click="handleDelete(record.id)" title="Xóa">
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
           </a-space>
         </template>
       </template>
     </a-table>
 
-    <a-modal v-model:open="isFormVisible" :title="isEditMode ? 'Sửa vật tư' : 'Thêm vật tư'" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting">
+    <a-modal v-model:open="isFormVisible" :title="isEditMode ? 'Sửa vật tư' : 'Thêm vật tư'" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting" width="800px" wrapClassName="responsive-modal">
       <a-form layout="vertical">
-        <a-form-item label="Tên vật tư" required>
-          <a-input v-model:value="formData.name" />
-        </a-form-item>
-        <a-form-item label="Danh mục phân loại">
-          <a-select v-model:value="formData.assetCategoryId" placeholder="Chọn danh mục" allowClear>
-            <a-select-option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="Đơn vị tính" required>
-          <a-input v-model:value="formData.unit" />
-        </a-form-item>
-        <a-form-item label="Số lượng hiện có" required>
-          <a-input-number v-model:value="formData.quantity" style="width: 100%" :min="0" />
-        </a-form-item>
-        <a-form-item label="Tồn tối thiểu" required>
-          <a-input-number v-model:value="formData.minQuantity" style="width: 100%" :min="1" />
-        </a-form-item>
-        <a-form-item label="Người chịu trách nhiệm">
-          <a-input v-model:value="formData.responsiblePerson" />
-        </a-form-item>
-        <a-form-item label="Ngày nhập">
-          <a-date-picker v-model:value="formData.entryDate" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="Số hóa đơn">
-          <a-input v-model:value="formData.invoiceNumber" />
-        </a-form-item>
+        <a-row :gutter="16">
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Tên vật tư" required>
+              <a-input v-model:value="formData.name" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Danh mục phân loại">
+              <a-select v-model:value="formData.assetCategoryId" placeholder="Chọn danh mục" allowClear>
+                <a-select-option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Đơn vị tính" required>
+              <a-input v-model:value="formData.unit" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Số lượng hiện có" required>
+              <a-input-number v-model:value="formData.quantity" style="width: 100%" :min="0" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Tồn tối thiểu" required>
+              <a-input-number v-model:value="formData.minQuantity" style="width: 100%" :min="1" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Người chịu trách nhiệm">
+              <a-input v-model:value="formData.responsiblePerson" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Ngày nhập">
+              <a-date-picker v-model:value="formData.entryDate" style="width: 100%" />
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Số hóa đơn">
+              <a-input v-model:value="formData.invoiceNumber" />
+            </a-form-item>
+          </a-col>
+        </a-row>
       </a-form>
     </a-modal>
 
@@ -121,6 +143,7 @@ import { consumableApi } from '../api/consumableApi'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
+import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-layout style="height: 100vh; overflow: hidden; background: #f6f8fb;">
     <!-- Thanh Menu Bên Trái (Sider) -->
     <a-layout-sider 
@@ -120,11 +120,7 @@
 
         <div class="header-right">
           <div class="action-icons">
-            <a-button type="text" class="header-icon-btn" @click="toggleDarkMode">
-              <template #icon>
-                <bulb-outlined />
-              </template>
-            </a-button>
+            <!-- Dark mode removed -->
 
             <a-button type="text" class="header-icon-btn" title="Thông báo realtime">
               <template #icon>
@@ -142,7 +138,11 @@
 
       <!-- Nội dung chính (Router View) -->
       <a-layout-content class="dashboard-content">
-        <router-view /> 
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view> 
       </a-layout-content>
     </a-layout>
 
@@ -255,17 +255,7 @@ import * as signalR from '@microsoft/signalr'
 import { equipmentApi } from '../api/equipmentApi'
 import { userApi } from '../api/userApi'
 
-const isDarkMode = ref(localStorage.getItem('theme') === 'dark')
-const toggleDarkMode = () => {
-  isDarkMode.value = !isDarkMode.value
-  if (isDarkMode.value) {
-    document.body.classList.add('dark-mode')
-    localStorage.setItem('theme', 'dark')
-  } else {
-    document.body.classList.remove('dark-mode')
-    localStorage.setItem('theme', 'light')
-  }
-}
+// Dark mode logic removed
 
 const handleGlobalKeydown = (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -275,7 +265,6 @@ const handleGlobalKeydown = (e) => {
 }
 
 onMounted(() => {
-  if (isDarkMode.value) document.body.classList.add('dark-mode')
   window.addEventListener('keydown', handleGlobalKeydown)
 })
 
