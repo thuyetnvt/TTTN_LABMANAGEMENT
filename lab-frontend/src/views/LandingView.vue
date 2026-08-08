@@ -8,22 +8,22 @@
           <span class="logo-text">LabManagement</span>
         </div>
         <div class="nav-actions">
-          <a-button type="primary" size="large" class="login-btn" @click="$router.push('/login')">
+          <a-button type="primary" size="large" class="login-btn btn-primary" @click="$router.push('/login')">
             Đăng nhập <arrow-right-outlined />
           </a-button>
         </div>
       </div>
     </header>
 
-    <!-- Hero Section -->
+    <!-- Hero Section (Cream) -->
     <section class="hero-section">
       <div class="hero-container">
         <div class="hero-content">
           <div class="badge">Nền tảng LabManagement 2.0</div>
-          <h1 class="hero-title">Chuyển đổi số toàn diện <span class="highlight">không gian phòng lab</span></h1>
+          <h1 class="hero-title">Chuyển đổi số toàn diện <br><span class="highlight">không gian phòng lab</span></h1>
           <p class="hero-subtitle">Nền tảng tiên phong giúp tối ưu hóa quản lý thiết bị, kiểm soát quy trình mượn trả và tự động hóa bảo trì. Đưa phòng thí nghiệm của bạn vận hành chuyên nghiệp, thông minh và hiệu quả hơn bao giờ hết.</p>
           <div class="hero-cta">
-            <a-button type="primary" size="large" class="cta-btn primary-cta" @click="$router.push('/login')">
+            <a-button type="primary" size="large" class="cta-btn btn-primary primary-cta" @click="$router.push('/login')">
               Vào hệ thống
             </a-button>
             <a-button size="large" class="cta-btn secondary-cta" @click="scrollToFeatures">
@@ -35,13 +35,9 @@
           <img src="/hero.png" alt="Lab Management Dashboard" class="floating-img" />
         </div>
       </div>
-      
-      <!-- Background Shapes -->
-      <div class="bg-shape shape-1"></div>
-      <div class="bg-shape shape-2"></div>
     </section>
 
-    <!-- Statistics Section -->
+    <!-- Statistics Section (Dark Navy) -->
     <section class="stats-section">
       <div class="stats-grid">
         <div class="stat-item">
@@ -63,16 +59,16 @@
       </div>
     </section>
 
-    <!-- Features Section -->
+    <!-- Features Section (Cream) -->
     <section class="features-section" id="features">
       <div class="section-header">
-        <h2>Hệ sinh thái quản lý toàn diện</h2>
+        <h2 class="serif-title">Hệ sinh thái quản lý toàn diện</h2>
         <p>Được thiết kế chuyên biệt cho môi trường học thuật và nghiên cứu, giúp tự động hóa và số hóa toàn bộ các quy trình nghiệp vụ thủ công.</p>
       </div>
       
       <div class="features-grid">
         <div class="feature-card">
-          <div class="feature-icon-wrapper blue">
+          <div class="feature-icon-wrapper">
             <desktop-outlined class="feature-icon" />
           </div>
           <h3>Kiểm soát tài sản thông minh</h3>
@@ -80,7 +76,7 @@
         </div>
         
         <div class="feature-card">
-          <div class="feature-icon-wrapper green">
+          <div class="feature-icon-wrapper">
             <history-outlined class="feature-icon" />
           </div>
           <h3>Quy trình mượn trả khép kín</h3>
@@ -88,7 +84,7 @@
         </div>
         
         <div class="feature-card">
-          <div class="feature-icon-wrapper red">
+          <div class="feature-icon-wrapper">
             <tool-outlined class="feature-icon" />
           </div>
           <h3>Đánh giá & Bảo trì tự động</h3>
@@ -97,14 +93,14 @@
       </div>
     </section>
 
-    <!-- Split Section (How it works) -->
+    <!-- Split Section (Cream) -->
     <section class="split-section">
       <div class="split-container">
         <div class="split-image">
           <img src="/feature.png" alt="Lab Equipment Interface" class="shadow-img" />
         </div>
         <div class="split-content">
-          <h2>Quản trị dữ liệu tập trung, quyết định chính xác</h2>
+          <h2 class="serif-title">Quản trị dữ liệu tập trung, quyết định chính xác</h2>
           <p class="split-desc">Triển khai hệ thống phân loại linh hoạt từ thiết bị IoT, AI đến vật tư tiêu hao. Mọi lịch sử tác động đều được số hóa, lưu vết hoàn chỉnh và minh bạch tuyệt đối.</p>
           
           <ul class="benefit-list">
@@ -117,7 +113,7 @@
             <li>
               <check-circle-filled class="check-icon" />
               <div>
-          <strong>Phân quyền đa lớp.</strong> Phân bổ quyền hạn chi tiết từ Ban quản lý đến Sinh viên, đảm bảo tính toàn vẹn của dữ liệu.
+                <strong>Phân quyền đa lớp.</strong> Phân bổ quyền hạn chi tiết từ Ban quản lý đến Sinh viên, đảm bảo tính toàn vẹn của dữ liệu.
               </div>
             </li>
             <li>
@@ -131,7 +127,18 @@
       </div>
     </section>
 
-    <!-- Footer -->
+    <!-- CTA Band Coral -->
+    <section class="cta-band-coral">
+      <div class="cta-band-content">
+        <h2 class="serif-title">Sẵn sàng để tối ưu hóa phòng lab của bạn?</h2>
+        <p>Bắt đầu trải nghiệm nền tảng quản lý chuyên nghiệp và hiệu quả ngay hôm nay.</p>
+        <a-button size="large" class="cta-btn btn-cream" @click="$router.push('/login')">
+          Trải nghiệm ngay
+        </a-button>
+      </div>
+    </section>
+
+    <!-- Footer (Dark Navy) -->
     <footer class="footer">
       <div class="footer-content">
         <div class="footer-brand">
@@ -166,10 +173,28 @@ const scrollToFeatures = () => {
 
 <style scoped>
 .landing-container {
-  font-family: 'Inter', sans-serif;
-  background-color: #fafbfc;
-  color: #1f2937;
+  font-family: var(--font-sans);
+  background-color: var(--color-canvas-cream);
+  color: var(--color-ink);
   overflow-x: hidden;
+}
+
+/* Base Typography */
+.serif-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* Button Overrides for Claude Style */
+.btn-primary, .login-btn {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #fff !important;
+}
+.btn-primary:hover, .login-btn:hover {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
 }
 
 /* Navbar */
@@ -178,7 +203,7 @@ const scrollToFeatures = () => {
   top: 0;
   left: 0;
   width: 100%;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(242, 240, 237, 0.9); /* canvas-cream semi-transparent */
   backdrop-filter: blur(12px);
   z-index: 1000;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -198,32 +223,30 @@ const scrollToFeatures = () => {
 }
 .logo-icon {
   font-size: 24px;
-  color: #1890ff;
+  color: var(--color-primary);
 }
 .logo-text {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #001529 0%, #1890ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--color-ink);
 }
 .login-btn {
   border-radius: 24px;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(217, 119, 87, 0.2);
   transition: all 0.3s ease;
 }
 .login-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
+  box-shadow: 0 6px 16px rgba(217, 119, 87, 0.3);
 }
 
 /* Hero Section */
 .hero-section {
   position: relative;
-  padding: 140px 24px 80px;
-  background: linear-gradient(180deg, #f0f7ff 0%, #ffffff 100%);
+  padding: 160px 24px 80px;
+  background: var(--color-canvas-cream);
   overflow: hidden;
 }
 .hero-container {
@@ -242,30 +265,31 @@ const scrollToFeatures = () => {
 .badge {
   display: inline-block;
   padding: 6px 16px;
-  background: #e6f7ff;
-  color: #1890ff;
+  background: var(--color-surface-dark);
+  color: var(--color-on-dark);
   border-radius: 20px;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 500;
+  font-size: 13px;
   margin-bottom: 24px;
-  border: 1px solid #bae0ff;
 }
 .hero-title {
-  font-size: clamp(36px, 4vw, 48px);
-  font-weight: 800;
-  line-height: 1.3;
-  margin-bottom: 20px;
-  color: #001529;
-  letter-spacing: -1px;
+  font-family: var(--font-serif);
+  font-size: clamp(40px, 4.5vw, 64px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 24px;
+  color: var(--color-ink);
 }
 .highlight {
-  color: #1890ff;
+  color: var(--color-primary);
 }
 .hero-subtitle {
   font-size: 18px;
   color: #4b5563;
   line-height: 1.6;
   margin-bottom: 40px;
+  max-width: 540px;
 }
 .hero-cta {
   display: flex;
@@ -276,27 +300,24 @@ const scrollToFeatures = () => {
   padding: 0 32px;
   font-size: 16px;
   border-radius: 26px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .primary-cta {
-  background: #1890ff;
-  border: none;
-  box-shadow: 0 8px 24px rgba(24, 144, 255, 0.3);
+  box-shadow: 0 8px 24px rgba(217, 119, 87, 0.2);
 }
 .primary-cta:hover {
-  background: #096dd9;
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(24, 144, 255, 0.4);
+  box-shadow: 0 12px 32px rgba(217, 119, 87, 0.3);
 }
 .secondary-cta {
-  background: white;
-  color: #1890ff;
-  border: 1px solid #1890ff;
+  background: transparent;
+  color: var(--color-ink);
+  border: 1px solid rgba(17, 24, 39, 0.2);
 }
 .secondary-cta:hover {
-  color: #096dd9;
-  border-color: #096dd9;
-  background: #f0f7ff;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: transparent;
 }
 .hero-illustration {
   flex: 1;
@@ -308,40 +329,19 @@ const scrollToFeatures = () => {
   max-width: 500px;
   border-radius: 20px;
   animation: float 6s ease-in-out infinite;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.08);
 }
 @keyframes float {
   0% { transform: translateY(0px); }
   50% { transform: translateY(-20px); }
   100% { transform: translateY(0px); }
 }
-.bg-shape {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: 1;
-}
-.shape-1 {
-  width: 500px;
-  height: 500px;
-  background: rgba(24, 144, 255, 0.1);
-  top: -100px;
-  left: -150px;
-}
-.shape-2 {
-  width: 400px;
-  height: 400px;
-  background: rgba(82, 196, 26, 0.08);
-  bottom: 100px;
-  right: -100px;
-}
 
 /* Statistics Section */
 .stats-section {
-  background: white;
-  padding: 40px 24px;
-  border-top: 1px solid #f0f0f0;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--color-surface-dark);
+  color: var(--color-on-dark);
+  padding: 80px 24px;
 }
 .stats-grid {
   max-width: 1200px;
@@ -349,38 +349,42 @@ const scrollToFeatures = () => {
   display: flex;
   justify-content: space-around;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: 32px;
 }
 .stat-item {
   text-align: center;
 }
 .stat-item h2 {
-  font-size: 40px;
-  font-weight: 800;
-  color: #1890ff;
-  margin: 0 0 8px 0;
+  font-family: var(--font-serif);
+  font-size: 56px;
+  font-weight: 400;
+  color: var(--color-primary);
+  margin: 0 0 4px 0;
+  line-height: 1;
 }
 .stat-item p {
   font-size: 16px;
-  color: #6b7280;
+  color: rgba(255,255,255,0.7);
   font-weight: 500;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 /* Features Section */
 .features-section {
-  padding: 100px 24px;
+  padding: 120px 24px;
+  background: var(--color-canvas-cream);
   max-width: 1200px;
   margin: 0 auto;
 }
 .section-header {
   text-align: center;
-  margin-bottom: 64px;
+  margin-bottom: 80px;
 }
 .section-header h2 {
-  font-size: 36px;
-  font-weight: 800;
-  color: #001529;
+  font-size: 40px;
+  color: var(--color-ink);
   margin-bottom: 16px;
 }
 .section-header p {
@@ -395,37 +399,36 @@ const scrollToFeatures = () => {
   gap: 32px;
 }
 .feature-card {
-  background: white;
-  border-radius: 20px;
+  background: #FFFFFF;
+  border-radius: 16px;
   padding: 40px;
   text-align: left;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.02);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
 }
 .feature-card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  transform: translateY(-8px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
 }
 .feature-icon-wrapper {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  background: var(--color-canvas-cream);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 24px;
+  color: var(--color-primary);
 }
-.feature-icon-wrapper.blue { background: #e6f7ff; color: #1890ff; }
-.feature-icon-wrapper.green { background: #f6ffed; color: #52c41a; }
-.feature-icon-wrapper.red { background: #fff1f0; color: #f5222d; }
 .feature-icon {
-  font-size: 32px;
+  font-size: 28px;
 }
 .feature-card h3 {
   font-size: 20px;
-  font-weight: 700;
-  color: #1f2937;
+  font-weight: 600;
+  color: var(--color-ink);
   margin-bottom: 12px;
 }
 .feature-card p {
@@ -437,38 +440,37 @@ const scrollToFeatures = () => {
 
 /* Split Section */
 .split-section {
-  background: white;
-  padding: 100px 24px;
+  background: var(--color-canvas-cream);
+  padding: 40px 24px 120px;
 }
 .split-container {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 64px;
+  gap: 80px;
 }
 .split-image {
   flex: 1;
 }
 .shadow-img {
   width: 100%;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-  border: 1px solid #f0f0f0;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.05);
 }
 .split-content {
   flex: 1;
 }
 .split-content h2 {
-  font-size: 36px;
-  font-weight: 800;
-  color: #001529;
+  font-size: 40px;
+  color: var(--color-ink);
   margin-bottom: 24px;
 }
 .split-desc {
   font-size: 18px;
   color: #4b5563;
-  margin-bottom: 32px;
+  margin-bottom: 40px;
   line-height: 1.6;
 }
 .benefit-list {
@@ -484,24 +486,56 @@ const scrollToFeatures = () => {
 }
 .check-icon {
   font-size: 24px;
-  color: #52c41a;
-  margin-top: 4px;
+  color: var(--color-primary);
+  margin-top: 2px;
 }
 .benefit-list div {
   font-size: 16px;
   color: #4b5563;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 .benefit-list strong {
-  color: #1f2937;
-  font-weight: 700;
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+/* CTA Band Coral */
+.cta-band-coral {
+  background-color: var(--color-primary);
+  color: #fff;
+  padding: 80px 24px;
+  text-align: center;
+}
+.cta-band-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.cta-band-content h2 {
+  font-size: 48px;
+  color: #fff;
+  margin-bottom: 16px;
+}
+.cta-band-content p {
+  font-size: 20px;
+  opacity: 0.9;
+  margin-bottom: 40px;
+}
+.btn-cream {
+  background-color: var(--color-canvas-cream) !important;
+  color: var(--color-ink) !important;
+  border-color: var(--color-canvas-cream) !important;
+}
+.btn-cream:hover {
+  background-color: #fff !important;
+  border-color: #fff !important;
+  transform: translateY(-2px);
 }
 
 /* Footer */
 .footer {
-  background: #001529;
-  color: white;
-  padding: 40px 24px;
+  background: var(--color-surface-dark);
+  color: var(--color-on-dark);
+  padding: 64px 24px;
 }
 .footer-content {
   max-width: 1200px;
@@ -517,22 +551,23 @@ const scrollToFeatures = () => {
   align-items: center;
   gap: 12px;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .footer-logo {
   font-size: 24px;
-  color: #1890ff;
+  color: var(--color-on-dark);
 }
 .footer-copy {
-  color: #8c8c8c;
+  color: rgba(255,255,255,0.6);
   font-size: 14px;
 }
 
 /* Responsive */
 @media (max-width: 992px) {
   .hero-container, .split-container { flex-direction: column; text-align: center; }
-  .hero-content { text-align: center; }
+  .hero-content { text-align: center; margin-bottom: 40px; }
   .hero-title { font-size: 40px; }
+  .hero-subtitle { margin: 0 auto 40px; }
   .hero-cta { justify-content: center; }
   .benefit-list li { text-align: left; }
 }
@@ -540,8 +575,7 @@ const scrollToFeatures = () => {
   .hero-cta { flex-direction: column; }
   .cta-btn { width: 100%; }
   .footer-content { flex-direction: column; text-align: center; }
+  .stat-item h2 { font-size: 40px; }
+  .cta-band-content h2 { font-size: 32px; }
 }
 </style>
-
-
-
