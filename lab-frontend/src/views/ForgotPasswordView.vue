@@ -13,7 +13,7 @@
 
         <h1 class="hero-title">
           {{ $t('hero.title1') }} {{ $t('hero.title2') }}<br />
-          <span class="text-yellow">{{ $t('hero.title3') }}</span>
+          <span class="text-coral">{{ $t('hero.title3') }}</span>
         </h1>
         <p class="hero-desc">{{ $t('hero.desc') }}</p>
 
@@ -167,9 +167,8 @@ const handleResetPassword = async () => {
   flex: none;
   min-width: 0;
   overflow-y: hidden;
-  background: linear-gradient(135deg, rgba(28,32,156,0.85) 0%, rgba(39,44,212,0.92) 100%), url('/lab-bg.png') no-repeat center center;
-  background-size: cover;
-  color: white;
+  background: var(--color-surface-dark);
+  color: var(--color-on-dark);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -213,15 +212,17 @@ const handleResetPassword = async () => {
 }
 
 .hero-title {
+  font-family: var(--font-serif);
   font-size: clamp(36px, 4vw, 48px);
-  font-weight: 700;
+  font-weight: 400;
+  letter-spacing: -0.02em;
   line-height: 1.3;
-  color: white;
+  color: var(--color-on-dark);
   margin-bottom: 24px;
 }
 
-.text-yellow {
-  color: #ffde59;
+.text-coral {
+  color: var(--color-primary);
 }
 
 .hero-desc {
@@ -307,7 +308,7 @@ const handleResetPassword = async () => {
   flex: none;
   min-width: 0;
   overflow-y: hidden;
-  background: white;
+  background: var(--color-canvas-cream);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -344,8 +345,8 @@ const handleResetPassword = async () => {
 }
 
 .submit-btn {
-  background-color: #272cd4;
-  border-color: #272cd4;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
   border-radius: 8px;
   font-weight: 600;
   height: 46px;
@@ -353,8 +354,8 @@ const handleResetPassword = async () => {
 }
 
 .submit-btn:hover {
-  background-color: #1c209c;
-  border-color: #1c209c;
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .extra-links {
@@ -364,7 +365,7 @@ const handleResetPassword = async () => {
 }
 
 .back-link {
-  color: #272cd4;
+  color: var(--color-primary);
   font-weight: 500;
 }
 

@@ -15,7 +15,7 @@
         <!-- Hero Text -->
         <h1 class="hero-title">
           {{ $t('hero.title1') }} {{ $t('hero.title2') }}<br />
-          <span class="text-yellow">{{ $t('hero.title3') }}</span>
+          <span class="text-coral">{{ $t('hero.title3') }}</span>
         </h1>
         <p class="hero-desc">
           {{ $t('hero.desc') }}
@@ -190,15 +190,14 @@ const handleLogin = () => {
   overflow: hidden;
 }
 
-/* Nửa trái (Blue) */
+/* Nửa trái (Dark) */
 .left-side {
   width: 55%;
   flex: none;
   min-width: 0;
   overflow-y: auto;
-  background: linear-gradient(135deg, rgba(28,32,156,0.85) 0%, rgba(39,44,212,0.92) 100%), url('/lab-bg.png') no-repeat center center;
-  background-size: cover;
-  color: white;
+  background: var(--color-surface-dark);
+  color: var(--color-on-dark);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -236,14 +235,16 @@ const handleLogin = () => {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 .hero-title {
+  font-family: var(--font-serif);
   font-size: clamp(36px, 4vw, 48px);
-  font-weight: 700;
+  font-weight: 400;
+  letter-spacing: -0.02em;
   line-height: 1.3;
-  color: white;
+  color: var(--color-on-dark);
   margin-bottom: 24px;
 }
-.text-yellow {
-  color: #ffde59;
+.text-coral {
+  color: var(--color-primary);
 }
 .hero-desc {
   font-size: 16px;
@@ -313,13 +314,13 @@ const handleLogin = () => {
   margin: 0;
 }
 
-/* Nửa phải (White) */
+/* Nửa phải (Cream) */
 .right-side {
   width: 45%;
   flex: none;
   min-width: 0;
   overflow-y: auto;
-  background: white;
+  background: var(--color-canvas-cream);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -355,7 +356,7 @@ const handleLogin = () => {
   width: 100%;
 }
 .forgot-link {
-  color: #272cd4;
+  color: var(--color-primary);
   font-size: 13px;
   font-weight: 500;
 }
@@ -366,15 +367,15 @@ const handleLogin = () => {
   margin-bottom: 24px;
 }
 .submit-btn {
-  background-color: #272cd4;
-  border-color: #272cd4;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
   border-radius: 6px;
   font-weight: 600;
   height: 44px;
 }
 .submit-btn:hover {
-  background-color: #1c209c;
-  border-color: #1c209c;
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 .extra-links {
   text-align: center;
@@ -387,7 +388,7 @@ const handleLogin = () => {
   font-weight: 600;
 }
 .back-link {
-  color: #272cd4;
+  color: var(--color-primary);
   font-weight: 500;
 }
 .back-link:hover {
