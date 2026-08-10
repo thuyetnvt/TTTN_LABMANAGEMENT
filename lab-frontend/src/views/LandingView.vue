@@ -20,7 +20,7 @@
       <div class="hero-container">
         <div class="hero-content">
           <div class="badge">Nền tảng LabManagement 2.0</div>
-          <h1 class="hero-title">Chuyển đổi số toàn diện <br><span class="highlight">không gian phòng lab</span></h1>
+          <h1 class="hero-title">Chuyển đổi số toàn diện <span class="highlight">không gian phòng lab</span></h1>
           <p class="hero-subtitle">Nền tảng tiên phong giúp tối ưu hóa quản lý thiết bị, kiểm soát quy trình mượn trả và tự động hóa bảo trì. Đưa phòng thí nghiệm của bạn vận hành chuyên nghiệp, thông minh và hiệu quả hơn bao giờ hết.</p>
           <div class="hero-cta">
             <a-button type="primary" size="large" class="cta-btn btn-primary primary-cta" @click="$router.push('/login')">
@@ -507,7 +507,7 @@ const scrollToFeatures = () => {
   text-align: center;
 }
 .cta-band-content {
-  max-width: 800px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 .cta-band-content h2 {

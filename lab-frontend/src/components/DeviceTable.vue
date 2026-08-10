@@ -4,7 +4,7 @@
       <a-button v-if="role === 'Sinh viên' || role === 'Giảng viên'" type="primary" @click="showScannerModal">
         Quét QR để mượn
       </a-button>
-      <a-input-search
+      <a-input
         v-model:value="searchQuery"
         placeholder="Tìm kiếm theo tên thiết bị..."
         style="width: 250px"

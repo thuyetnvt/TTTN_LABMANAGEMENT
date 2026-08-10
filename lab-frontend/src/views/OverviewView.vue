@@ -1,7 +1,7 @@
 <template>
   <div class="overview-container">
     <div class="header">
-      <h2>Tổng quan hệ thống</h2>
+      <h2 class="serif-title">Tổng quan hệ thống</h2>
       <p class="subtitle">Theo dõi nhanh thiết bị, yêu cầu và cảnh báo cần xử lý.</p>
     </div>
 
@@ -144,7 +144,7 @@ const stats = ref({
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString('vi-VN')} ₫`
 
 const managerStats = computed(() => [
-  { label: 'Tổng thiết bị', value: stats.value.counts.total, icon: DesktopOutlined, tone: 'blue', filter: 'all' },
+  { label: 'Tổng thiết bị', value: stats.value.counts.total, icon: DesktopOutlined, tone: 'coral', filter: 'all' },
   { label: 'Thiết bị rảnh', value: stats.value.counts.available, icon: CheckCircleOutlined, tone: 'green', filter: 'Rảnh' },
   { label: 'Đang mượn', value: stats.value.counts.borrowed, icon: ClockCircleOutlined, tone: 'amber', filter: 'Đang mượn' },
   {
@@ -164,11 +164,11 @@ const studentStats = computed(() => [
 
 const barOptions = ref({
   chart: { id: 'borrow-trends', toolbar: { show: false }, parentHeightOffset: 0 },
-  grid: { borderColor: '#edf1f7', padding: { top: 0, right: 8, bottom: -4, left: 4 } },
+  grid: { borderColor: 'rgba(0,0,0,0.05)', padding: { top: 0, right: 8, bottom: -4, left: 4 } },
   xaxis: { categories: [] },
-  colors: ['#315efb'],
+  colors: ['#D97757'],
   plotOptions: { bar: { borderRadius: 6, columnWidth: '34%', dataLabels: { position: 'top' } } },
-  dataLabels: { enabled: true, offsetY: -18, style: { colors: ['#1f2937'], fontSize: '11px', fontWeight: 700 } },
+  dataLabels: { enabled: true, offsetY: -18, style: { colors: ['var(--color-ink)'], fontSize: '11px', fontWeight: 700 } },
   yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' } } }
 })
 const barSeries = ref([{ name: 'Lượt mượn', data: [] }])
@@ -235,11 +235,12 @@ onMounted(async () => {
 }
 
 .header h2 {
-  font-size: 30px;
-  font-weight: 700;
-  color: #0f172a;
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--color-ink);
   margin: 0;
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
   line-height: 1.15;
 }
 
@@ -254,9 +255,9 @@ onMounted(async () => {
 }
 
 .stat-card {
-  border: 1px solid #e8edf5;
+  border: 1px solid rgba(0,0,0,0.05);
   border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
   height: 108px;
   background: #ffffff;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -267,8 +268,8 @@ onMounted(async () => {
 }
 
 .stat-card.is-clickable:hover {
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
-  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
 }
 
 .stat-card :deep(.ant-card-body) {
@@ -319,7 +320,7 @@ onMounted(async () => {
   margin-top: 6px;
 }
 
-.stat-card.blue .stat-icon { color: #2563eb; background: #eff6ff; }
+.stat-card.coral .stat-icon { color: var(--color-primary); background: rgba(217, 119, 87, 0.1); }
 .stat-card.green .stat-icon { color: #059669; background: #ecfdf5; }
 .stat-card.amber .stat-icon { color: #d97706; background: #fffbeb; }
 .stat-card.red .stat-icon { color: #dc2626; background: #fef2f2; }
@@ -342,9 +343,10 @@ onMounted(async () => {
 .alert-card,
 .admin-info-card {
   width: 100%;
-  border: 1px solid #edf1f7;
+  border: 1px solid rgba(0,0,0,0.05);
   border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
+  background: #ffffff;
   overflow: hidden;
 }
 
@@ -354,7 +356,7 @@ onMounted(async () => {
 .admin-info-card :deep(.ant-card-head) {
   min-height: 54px;
   padding: 0 20px;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 
 .chart-card :deep(.ant-card-head-title),
@@ -390,7 +392,7 @@ onMounted(async () => {
   gap: 12px;
   padding: 12px 12px 12px 14px;
   margin-bottom: 10px;
-  border: 1px solid #eef2f7;
+  border: 1px solid rgba(0,0,0,0.05);
   border-left-width: 4px;
   border-radius: 12px;
   background: #ffffff;
