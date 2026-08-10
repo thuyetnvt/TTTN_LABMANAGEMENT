@@ -11,8 +11,8 @@ html,
   --color-primary: #D97757;
   --color-primary-hover: #C26A4D;
   --color-ink: #111827;
-  --font-serif: 'Cormorant Garamond', serif;
-  --font-sans: 'Inter', sans-serif;
+  --font-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 body.dark-mode .ant-table-cell-fix-left-last::after {
@@ -39,4 +39,86 @@ body.dark-mode .ant-table-cell-fix-right-first::after {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Áp dụng thiết kế Claude (Warm Editorial) cho các ô Input, Select, DatePicker */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select:not(.ant-select-customize-input) .ant-select-selector,
+.ant-picker {
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  border-radius: 8px !important;
+  background-color: #ffffff !important;
+  transition: all 0.2s ease !important;
+  box-shadow: none !important;
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused:not(.ant-select-customize-input) .ant-select-selector,
+.ant-picker-focused {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.15) !important;
+}
+
+/* Fix lỗi viền kép (double border) ở ô Mật khẩu (Password) hoặc ô có icon */
+.ant-input-affix-wrapper .ant-input {
+  border: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select:not(.ant-select-customize-input):hover .ant-select-selector,
+.ant-picker:hover {
+  border-color: var(--color-primary) !important;
+}
+
+/* Áp dụng thiết kế Claude cho Nút bấm (Buttons) */
+.ant-btn-primary {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+}
+
+/* Nút bấm trong suốt (Ghost/Outline) */
+.ant-btn-primary[ghost], 
+.ant-btn-background-ghost.ant-btn-primary,
+.ant-btn-default:hover {
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  background-color: transparent !important;
+}
+
+/* Nút bấm dạng Link */
+.ant-btn-link {
+  color: var(--color-primary) !important;
+}
+
+.ant-btn-link:hover {
+  color: var(--color-primary-hover) !important;
+}
+
+/* Áp dụng thiết kế Claude cho Tabs (Chuyển tab) */
+.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--color-primary) !important;
+  font-weight: 600 !important;
+}
+
+.ant-tabs-tab:hover {
+  color: var(--color-primary-hover) !important;
+}
+
+.ant-tabs-ink-bar {
+  background: var(--color-primary) !important;
 }

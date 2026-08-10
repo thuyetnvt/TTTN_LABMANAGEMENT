@@ -22,7 +22,9 @@
         <template v-else-if="column.key === 'action'">
           <a-space>
             <a-button v-if="['Sinh viên', 'Giảng viên'].includes(role)" type="link" size="small" @click="showRequestModal(record)">Yêu cầu cấp phát</a-button>
-            <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showHistoryModal(record)">Lịch sử</a-button>
+            <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showHistoryModal(record)" title="Lịch sử">
+              <template #icon><HistoryOutlined /></template>
+            </a-button>
             <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
               <template #icon><EditOutlined /></template>
             </a-button>
@@ -143,7 +145,7 @@ import { consumableApi } from '../api/consumableApi'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, DeleteOutlined, EyeOutlined, HistoryOutlined } from '@ant-design/icons-vue'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

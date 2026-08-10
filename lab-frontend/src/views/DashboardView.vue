@@ -1,5 +1,5 @@
 <template>
-  <a-layout style="height: 100vh; overflow: hidden; background: #f6f8fb;">
+  <a-layout style="height: 100vh; overflow: hidden; background: var(--color-canvas-cream);">
     <!-- Thanh Menu Bên Trái (Sider) -->
     <a-layout-sider 
       v-model:collapsed="collapsed" 
@@ -187,7 +187,7 @@
                     <a>{{ item.name }}</a>
                   </template>
                   <template #avatar>
-                    <a-avatar style="background-color: #272cd4;"><desktop-outlined style="color: white;"/></a-avatar>
+                    <a-avatar style="background-color: var(--color-primary);"><desktop-outlined style="color: white;"/></a-avatar>
                   </template>
                 </a-list-item-meta>
                 <div>{{ item.status }}</div>
@@ -421,8 +421,8 @@ const submitChangePassword = async () => {
 <style scoped>
 /* Sidebar Styles */
 .ladi-sider {
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--color-canvas-cream);
+  border-right: 1px solid rgba(0,0,0,0.05);
 }
 
 .ladi-sider :deep(.ant-layout-sider-trigger) {
@@ -438,7 +438,7 @@ const submitChangePassword = async () => {
 .logo-icon {
   width: 32px;
   height: 32px;
-  background: #272cd4;
+  background: var(--color-primary);
   color: white;
   border-radius: 8px;
   display: flex;
@@ -458,23 +458,23 @@ const submitChangePassword = async () => {
 .ladi-menu {
   border-right: none;
   padding: 14px 10px;
-  background: #ffffff;
+  background: var(--color-canvas-cream);
 }
 .ladi-menu :deep(.ant-menu-item) {
   border-radius: 10px;
   margin: 0 0 6px;
   height: 48px;
   line-height: 48px;
-  color: #4b5563;
+  color: var(--color-ink);
   font-weight: 500;
 }
 .ladi-menu :deep(.ant-menu-item:hover:not(.ant-menu-item-selected)) {
-  background-color: #f3f4f6;
-  color: #111827;
+  background-color: rgba(0,0,0,0.03);
+  color: var(--color-ink);
 }
 /* Selected Item Styling (The Blue LadiPage pill) */
 .ladi-menu :deep(.ant-menu-item-selected) {
-  background-color: #272cd4 !important;
+  background-color: var(--color-primary) !important;
   color: #ffffff !important;
   height: 52px;
   line-height: 52px;
@@ -498,7 +498,7 @@ const submitChangePassword = async () => {
 
 /* Header Styles */
 .ladi-header {
-  background: #ffffff;
+  background: var(--color-canvas-cream);
   padding: 0 22px;
   height: 64px;
   line-height: normal;
@@ -506,8 +506,7 @@ const submitChangePassword = async () => {
   align-items: center;
   justify-content: flex-start;
   gap: 24px;
-  border-bottom: 1px solid #e9eef5;
-  box-shadow: 0 1px 10px rgba(15, 23, 42, 0.035);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   position: relative;
   z-index: 2;
 }
@@ -562,8 +561,8 @@ const submitChangePassword = async () => {
   align-items: center;
   justify-content: center;
   flex: 0 0 36px;
-  color: #272cd4;
-  background: #eef2ff;
+  color: var(--color-primary);
+  background: rgba(217, 119, 87, 0.1);
   font-size: 18px;
 }
 
@@ -585,27 +584,26 @@ const submitChangePassword = async () => {
 .search-bar {
   display: flex;
   align-items: center;
-  background: #f5f7fb;
+  background: #ffffff;
   border-radius: 10px;
   padding: 0 10px 0 14px;
   height: 38px;
   width: 100%;
   max-width: 480px;
-  border: 1px solid #e6edf6;
+  border: 1px solid rgba(0,0,0,0.1);
   cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
   transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .search-bar:hover {
-  background: #f2f5fa;
-  border-color: #dbe3ee;
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.2);
 }
 
 .search-bar:focus-within {
   background: #ffffff;
-  border-color: #272cd4;
-  box-shadow: 0 0 0 3px rgba(39,44,212,0.08);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.1);
 }
 
 .search-icon {
@@ -684,7 +682,7 @@ const submitChangePassword = async () => {
 }
 
 .user-avatar {
-  background-color: #272cd4;
+  background-color: var(--color-primary);
   cursor: pointer;
   font-weight: 700;
 }
@@ -692,7 +690,7 @@ const submitChangePassword = async () => {
 .dashboard-content {
   margin: 0;
   padding: 24px 32px;
-  background: #f6f8fb;
+  background: var(--color-canvas-cream);
   height: calc(100vh - 64px);
   overflow-y: auto;
 }
