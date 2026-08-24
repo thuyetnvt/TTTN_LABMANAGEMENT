@@ -40,14 +40,15 @@ Ngày 25/08/2026 trên branch `codex/iot-lab-asset-upgrade`:
 
 ## Kiểm chứng cuối phiên nâng cấp ngày 25/08/2026
 
-- Backend test project: đạt **18/18**; bao phủ đăng nhập, reset password/token version, IDOR/RBAC mượn trả, transaction đa tài sản, tồn kho vật tư và upload MIME/path.
+- Backend test project: đạt **19/19**; bao phủ đăng nhập, reset password/token version, IDOR/RBAC mượn trả, transaction đa tài sản, tồn kho vật tư và upload MIME/path/open-read/delete.
 - `dotnet build --configuration Release --no-restore`: đạt, 0 warning/0 error.
 - Frontend `npm test`: đạt 2/2; `npm run build`: đạt, chỉ còn cảnh báo chunk lớn do bundle ApexCharts.
 - `npm audit` trong `lab-frontend`: 0 vulnerability.
 - E2E smoke chạy cả Chromium desktop và mobile: **4 pass, 4 skip**; các skip là test business/admin cần credential khi chạy không truyền biến môi trường.
-- E2E business có dữ liệu cô lập prefix `E2E-`: **1/1 pass trong 1,4 phút**, đi qua đăng nhập các vai trò bằng API, UI sinh viên, mượn nhiều tài sản, giảng viên duyệt, quản lý duyệt/bàn giao/trả, bảo trì và kiểm kê QR.
+- E2E business có dữ liệu cô lập prefix `E2E-`: local provider **1/1 pass**, và S3-compatible API-only trên MinIO tạm **1/1 pass trong 1,2 phút**, bao gồm upload/download/delete evidence; flow chính đi qua mượn nhiều tài sản, giảng viên duyệt, quản lý duyệt/bàn giao/trả, bảo trì và kiểm kê QR.
 - Docker sau rebuild: db/backend/frontend healthy; backend `/health` trả `Healthy`; kiểm tra trực tiếp trong container xác nhận `X-Correlation-ID` được phản hồi đúng giá trị gửi vào; frontend `http://localhost:8081` trả HTTP 200.
 - `docker compose config --quiet` đạt; hai script PowerShell backup/restore parse được; restore được kiểm tra cờ an toàn và chặn ngay khi thiếu `-ConfirmRestore` trước mọi thao tác ghi dữ liệu. Chưa chạy restore thật trên production/local volume vì đây là thao tác phá hủy cần cửa sổ bảo trì và backup đích riêng.
+- Provider S3-compatible đã build được với AWS SDK; integration E2E MinIO tạm đã xác nhận upload/download/delete object và sau xóa object không còn trong bucket. Chưa diễn tập restore bucket production thật.
 - Các dữ liệu E2E được tạo có chủ đích để giữ trace/audit; có thể lọc bằng tiền tố `E2E-` khi dọn môi trường kiểm thử, không dùng làm số liệu giao diện.
 
 Các kiểm chứng trên là local/Docker, không thay thế diễn tập restore trên production, triển khai MinIO/S3 hoặc cấu hình certificate mã hóa Data Protection trong môi trường thật.

@@ -167,4 +167,10 @@
 - Kết quả cuối: backend **18/18**, frontend **2/2**, E2E business **1/1**, E2E responsive smoke **4 pass/4 skip**, Docker healthy.
 - `docker compose config --quiet` và parse script backup/restore đạt; restore có guard bắt buộc `-ConfirmRestore`. Chưa giả lập restore thật trên volume đang chạy để tránh ghi đè dữ liệu local ngoài phạm vi kiểm chứng an toàn.
 
-Các giới hạn production còn lại giữ nguyên: chưa có adapter MinIO/S3, chưa diễn tập restore production, chưa cấu hình certificate Data Protection trong deployment thật và frontend vẫn còn một số file view lớn cần tách tiếp nếu tiếp tục tối ưu maintainability.
+Các giới hạn production còn lại: chưa diễn tập restore production, chưa cấu hình certificate Data Protection trong deployment thật, chưa có integration test với bucket thật và frontend vẫn còn một số file view lớn cần tách tiếp nếu tiếp tục tối ưu maintainability.
+
+## 2026-08-25 — Giai đoạn 14: S3-compatible object storage
+
+- Thêm `S3FileStorage` dùng AWS SDK, tương thích AWS S3/MinIO qua `ServiceUrl` và path-style; có kiểm tra MIME, magic bytes, extension, kích thước, prefix key an toàn và tên object ngẫu nhiên.
+- Các endpoint upload/download/delete evidence, file quyết định thiết bị và file bàn giao dùng chung abstraction `IFileStorage`; local volume vẫn là provider mặc định.
+- Bổ sung biến cấu hình S3 vào `.env.example`, Docker Compose và tài liệu backup/deployment. Đã chạy integration E2E với MinIO tạm: upload file quyết định, upload/download/delete evidence và toàn bộ flow nghiệp vụ đều pass.

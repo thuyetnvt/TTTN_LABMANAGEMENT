@@ -33,6 +33,12 @@ pwsh ./scripts/restore.ps1 `
 
 Không chạy trên production nếu chưa xác nhận file backup, tên volume và cửa sổ bảo trì.
 
+## S3/MinIO
+
+Khi `STORAGE_PROVIDER=S3`, file quyết định, evidence bảo trì, kiểm kê, bàn giao và nhận trả được lưu dưới prefix `STORAGE_S3_KEY_PREFIX` trong bucket S3-compatible. Có thể dùng AWS S3 hoặc MinIO bằng `STORAGE_S3_SERVICE_URL` và `STORAGE_S3_FORCE_PATH_STYLE=true`. Credentials chỉ truyền qua secret manager/environment, không commit vào `.env` hoặc log.
+
+Backup database không bao gồm object trong bucket. Cấu hình versioning, retention và replication theo chính sách lưu trữ; trước restore phải khôi phục bucket/object tương ứng rồi mới import SQL để các đường dẫn evidence trong database còn hợp lệ.
+
 Backup thêm volume `equipment_uploads`. Khi khôi phục, tạo database trống, import SQL, khôi phục volume upload rồi chạy backend với `Database__ApplyMigrations=true`. Phải thử đăng nhập, mở file quyết định, xem tài sản và kiểm tra health sau restore. Không dùng `docker compose down -v` trên môi trường thật.
 
 Để mã hóa key Data Protection khi triển khai thật, mount một certificate PFX ngoài image và đặt `DATA_PROTECTION_CERTIFICATE_PATH` cùng `DATA_PROTECTION_CERTIFICATE_PASSWORD`; code sẽ fail-fast nếu path đã cấu hình nhưng file không tồn tại. Local compose chỉ persist key vào volume để giữ phiên/token sau restart.
