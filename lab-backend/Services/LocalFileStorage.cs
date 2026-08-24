@@ -37,6 +37,10 @@ public sealed class LocalFileStorage : IFileStorage
             throw new InvalidDataException($"File rỗng hoặc vượt quá {maxBytes / (1024 * 1024)} MB.");
         if (!allowedExtensions.Contains(extension) || !ContentTypes.ContainsKey(extension))
             throw new InvalidDataException("Định dạng file không được hỗ trợ.");
+        if (!string.IsNullOrWhiteSpace(file.ContentType)
+            && !string.Equals(file.ContentType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(file.ContentType, ContentTypes[extension], StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("MIME type không khớp với phần mở rộng file.");
 
         await using var input = file.OpenReadStream();
         var header = new byte[12];

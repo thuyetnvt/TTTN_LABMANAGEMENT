@@ -5,6 +5,7 @@ using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using QuestPDF.Fluent;
@@ -20,17 +21,20 @@ public class InventoryController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly INotificationService _notificationService;
     private readonly IFileStorage _fileStorage;
     private readonly IConfiguration _configuration;
 
     public InventoryController(
         AppDbContext context,
         IAuditService auditService,
+        INotificationService notificationService,
         IFileStorage fileStorage,
         IConfiguration configuration)
     {
         _context = context;
         _auditService = auditService;
+        _notificationService = notificationService;
         _fileStorage = fileStorage;
         _configuration = configuration;
     }
@@ -195,6 +199,12 @@ public class InventoryController : ControllerBase
         };
         _context.InventorySessions.Add(session);
         await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.NotifyManagersAsync(
+            "INVENTORY_CREATED",
+            "Đã tạo đợt kiểm kê",
+            $"Đợt kiểm kê {session.Code} gồm {equipment.Count} tài sản.",
+            $"/dashboard/inventory?session={session.Id}",
+            cancellationToken);
         await _auditService.WriteAsync(
             HttpContext,
             "Create",
@@ -287,6 +297,12 @@ public class InventoryController : ControllerBase
         session.Status = InventoryStatuses.Completed;
         session.CompletedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.NotifyManagersAsync(
+            "INVENTORY_COMPLETED",
+            "Đợt kiểm kê đã kết thúc",
+            $"Đợt kiểm kê #{id} đã kết thúc; có {session.Items.Count(item => item.Status == InventoryItemStatuses.Missing)} tài sản chưa tìm thấy.",
+            $"/dashboard/inventory?session={id}",
+            cancellationToken);
         await _auditService.WriteAsync(
             HttpContext,
             "Complete",
@@ -304,6 +320,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpPost("{sessionId:int}/items/{itemId:int}/evidence")]
+    [EnableRateLimiting("sensitive")]
     [RequestSizeLimit(11_000_000)]
     public async Task<IActionResult> UploadEvidence(
         int sessionId,

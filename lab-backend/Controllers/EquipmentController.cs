@@ -5,6 +5,7 @@ using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 
@@ -186,6 +187,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpPost("import/preview")]
+    [EnableRateLimiting("sensitive")]
     [Authorize(Roles = Roles.Managers)]
     [RequestSizeLimit(11_000_000)]
     public async Task<IActionResult> PreviewImport(
@@ -267,6 +269,7 @@ public class EquipmentController : ControllerBase
     }
 
     [HttpPost("import")]
+    [EnableRateLimiting("sensitive")]
     [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> Import(
         [FromBody] ImportEquipmentDto dto,

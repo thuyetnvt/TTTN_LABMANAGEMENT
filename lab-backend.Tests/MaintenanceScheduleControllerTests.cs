@@ -139,7 +139,7 @@ public sealed class MaintenanceScheduleControllerTests
 
     private static MaintenanceScheduleController CreateController(AppDbContext context)
     {
-        var controller = new MaintenanceScheduleController(context, new NoopAuditService());
+        var controller = new MaintenanceScheduleController(context, new NoopAuditService(), new NoopNotificationService());
         var httpContext = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity([

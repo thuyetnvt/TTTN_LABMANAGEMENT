@@ -5,6 +5,7 @@ using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace LabManagementAPI.Controllers;
@@ -20,17 +21,20 @@ public class MaintenanceController : ControllerBase
 
     private readonly AppDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly INotificationService _notificationService;
     private readonly IFileStorage _fileStorage;
     private readonly IConfiguration _configuration;
 
     public MaintenanceController(
         AppDbContext context,
         IAuditService auditService,
+        INotificationService notificationService,
         IFileStorage fileStorage,
         IConfiguration configuration)
     {
         _context = context;
         _auditService = auditService;
+        _notificationService = notificationService;
         _fileStorage = fileStorage;
         _configuration = configuration;
     }
@@ -196,6 +200,12 @@ public class MaintenanceController : ControllerBase
 
         _context.MaintenanceRecords.Add(record);
         await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.NotifyManagersAsync(
+            "MAINTENANCE_CREATED",
+            "Có phiếu bảo trì mới",
+            $"Phiếu bảo trì #{record.Id} đã được tạo cho thiết bị.",
+            "/dashboard/maintenance",
+            cancellationToken);
         await _auditService.WriteAsync(
             HttpContext,
             "Create",
@@ -302,6 +312,12 @@ public class MaintenanceController : ControllerBase
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.NotifyManagersAsync(
+            "MAINTENANCE_COMPLETED",
+            "Phiếu bảo trì đã hoàn tất",
+            $"Phiếu bảo trì #{id} đã hoàn tất với trạng thái thiết bị mới.",
+            "/dashboard/maintenance",
+            cancellationToken);
         await _auditService.WriteAsync(
             HttpContext,
             "Complete",
@@ -314,6 +330,7 @@ public class MaintenanceController : ControllerBase
     }
 
     [HttpPost("{id:int}/evidence")]
+    [EnableRateLimiting("sensitive")]
     [RequestSizeLimit(11_000_000)]
     public async Task<IActionResult> UploadEvidence(
         int id,

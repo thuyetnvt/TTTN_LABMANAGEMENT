@@ -6,6 +6,7 @@ using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace LabManagementAPI.Controllers;
@@ -870,6 +871,7 @@ public class BorrowController : ControllerBase
     }
 
     [HttpPost("{id:int}/return-evidence")]
+    [EnableRateLimiting("sensitive")]
     [Authorize(Roles = Roles.Managers)]
     [RequestSizeLimit(11_000_000)]
     public async Task<IActionResult> UploadReturnEvidence(

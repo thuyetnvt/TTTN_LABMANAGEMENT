@@ -5,6 +5,7 @@ using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace LabManagementAPI.Controllers;
@@ -164,6 +165,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("me/profile")]
+    [EnableRateLimiting("sensitive")]
     public async Task<IActionResult> UpdateOwnProfile(
         [FromBody] UpdateProfileDto dto,
         CancellationToken cancellationToken)
@@ -388,6 +390,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("me/password")]
+    [EnableRateLimiting("sensitive")]
     public async Task<IActionResult> ChangeOwnPassword(
         [FromBody] ChangePasswordDto dto,
         CancellationToken cancellationToken)

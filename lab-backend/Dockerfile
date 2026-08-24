@@ -20,8 +20,9 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 
 WORKDIR /app
 COPY --from=build --chown=1654:1654 /app/publish .
-RUN mkdir -p /app/uploads/equipment-decisions \
+RUN mkdir -p /app/uploads/equipment-decisions /app/data-protection-keys \
     && chown -R 1654:1654 /app/uploads
+RUN chown -R 1654:1654 /app/data-protection-keys
 
 USER 1654
 EXPOSE 8080

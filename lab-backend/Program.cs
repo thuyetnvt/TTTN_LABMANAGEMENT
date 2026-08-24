@@ -1,11 +1,13 @@
 using System.Text;
 using System.Net;
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.RateLimiting;
 using LabManagementAPI.Data;
 using LabManagementAPI.Hubs;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +34,25 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
+
+var dataProtectionKeysPath = builder.Configuration["Security:DataProtectionKeysPath"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "data-protection-keys");
+var dataProtectionBuilder = builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("LabManagement");
+var dataProtectionCertificatePath = builder.Configuration["Security:DataProtectionCertificatePath"];
+if (!string.IsNullOrWhiteSpace(dataProtectionCertificatePath))
+{
+    if (!File.Exists(dataProtectionCertificatePath))
+    {
+        throw new InvalidOperationException("Không tìm thấy certificate mã hóa Data Protection.");
+    }
+
+    dataProtectionBuilder.ProtectKeysWithCertificate(
+        X509CertificateLoader.LoadPkcs12FromFile(
+            dataProtectionCertificatePath,
+            builder.Configuration["Security:DataProtectionCertificatePassword"]));
+}
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"];
@@ -124,6 +145,16 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+    options.AddPolicy("sensitive", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            $"{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}:{httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous"}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 AutoReplenishment = true

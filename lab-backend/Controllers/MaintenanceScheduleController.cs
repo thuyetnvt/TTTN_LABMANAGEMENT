@@ -16,11 +16,16 @@ public class MaintenanceScheduleController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly INotificationService _notificationService;
 
-    public MaintenanceScheduleController(AppDbContext context, IAuditService auditService)
+    public MaintenanceScheduleController(
+        AppDbContext context,
+        IAuditService auditService,
+        INotificationService notificationService)
     {
         _context = context;
         _auditService = auditService;
+        _notificationService = notificationService;
     }
 
     public sealed class ScheduleDto
@@ -166,6 +171,12 @@ public class MaintenanceScheduleController : ControllerBase
         schedule.UpdatedAt = DateTime.UtcNow;
         _context.MaintenanceRecords.Add(record);
         await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.NotifyManagersAsync(
+            "MAINTENANCE_SCHEDULE_GENERATED",
+            "Đã tạo nhiệm vụ bảo trì định kỳ",
+            $"Kế hoạch {schedule.Name} đã sinh phiếu #{record.Id}.",
+            "/dashboard/maintenance",
+            cancellationToken);
         await _auditService.WriteAsync(HttpContext, "GenerateMaintenance", nameof(MaintenanceSchedule), id,
             new { record.Id, schedule.NextDueAt }, cancellationToken);
         await transaction.CommitAsync(cancellationToken);

@@ -49,8 +49,11 @@ services:
       Seed__DefaultPassword: ${SEED_DEFAULT_PASSWORD:?Set SEED_DEFAULT_PASSWORD in .env}
       ForwardedHeaders__TrustAll: "false"
       Security__UseHttpsRedirection: "false"
+      Security__DataProtectionCertificatePath: ${DATA_PROTECTION_CERTIFICATE_PATH:-}
+      Security__DataProtectionCertificatePassword: ${DATA_PROTECTION_CERTIFICATE_PASSWORD:-}
     volumes:
       - equipment_uploads:/app/uploads
+      - backend_data_protection:/app/data-protection-keys
     depends_on:
       db:
         condition: service_healthy
@@ -75,6 +78,7 @@ services:
 volumes:
   mysql_data:
   equipment_uploads:
+  backend_data_protection:
 
 networks:
   lab_internal:
