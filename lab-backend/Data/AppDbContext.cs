@@ -21,6 +21,8 @@ namespace LabManagementAPI.Data
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<LocationNode> LocationNodes { get; set; }
         public DbSet<BorrowStatusHistory> BorrowStatusHistories { get; set; }
+        public DbSet<InventorySession> InventorySessions { get; set; }
+        public DbSet<InventoryItem> InventoryItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -162,6 +164,48 @@ namespace LabManagementAPI.Data
                 entity.HasOne(history => history.ChangedByUser)
                     .WithMany()
                     .HasForeignKey(history => history.ChangedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<InventorySession>(entity =>
+            {
+                entity.Property(session => session.Code).HasMaxLength(50);
+                entity.Property(session => session.Name).HasMaxLength(255);
+                entity.Property(session => session.Status).HasMaxLength(50);
+                entity.HasIndex(session => session.Code).IsUnique();
+                entity.HasIndex(session => session.Status);
+                entity.HasOne(session => session.LocationNode)
+                    .WithMany()
+                    .HasForeignKey(session => session.LocationNodeId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(session => session.AssetCategory)
+                    .WithMany()
+                    .HasForeignKey(session => session.AssetCategoryId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(session => session.CreatedByUser)
+                    .WithMany()
+                    .HasForeignKey(session => session.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<InventoryItem>(entity =>
+            {
+                entity.Property(item => item.ExpectedLocationName).HasMaxLength(255);
+                entity.Property(item => item.Status).HasMaxLength(50);
+                entity.Property(item => item.Note).HasMaxLength(2000);
+                entity.HasIndex(item => new { item.InventorySessionId, item.EquipmentId }).IsUnique();
+                entity.HasIndex(item => new { item.InventorySessionId, item.Status });
+                entity.HasOne(item => item.InventorySession)
+                    .WithMany(session => session.Items)
+                    .HasForeignKey(item => item.InventorySessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.Equipment)
+                    .WithMany()
+                    .HasForeignKey(item => item.EquipmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.ScannedByUser)
+                    .WithMany()
+                    .HasForeignKey(item => item.ScannedByUserId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 

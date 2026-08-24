@@ -56,6 +56,10 @@
           <environment-outlined />
           <span>Vị trí tài sản</span>
         </a-menu-item>
+        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m_inventory" @click="$router.push({ name: 'Inventory' })">
+          <scan-outlined />
+          <span>Kiểm kê tài sản</span>
+        </a-menu-item>
         
         <!-- Menu cho Đền bù -->
         <a-menu-item key="m4" @click="$router.push({ name: 'Penalty' })">
@@ -253,6 +257,7 @@ import {
   BulbOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  ScanOutlined,
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { notification } from 'ant-design-vue'
@@ -295,6 +300,7 @@ const routeMenuKeys = {
   TeacherApproval: 'm_teacher',
   Maintenance: 'm3',
   Locations: 'm_location',
+  Inventory: 'm_inventory',
   Penalty: 'm4',
   BorrowRequests: 'g1_1',
   AdminUsers: 'g1_3',

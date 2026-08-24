@@ -425,6 +425,31 @@ public class EquipmentController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:int}/inventory")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> InventoryEquipment(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var equipment = await _context.Equipments
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (equipment is null)
+        {
+            return NotFound(new { message = "Không tìm thấy tài sản." });
+        }
+
+        equipment.LastInventoryAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(
+            HttpContext,
+            "Inventory",
+            "Equipment",
+            id,
+            new { equipment.AssetCode, equipment.QrToken, equipment.Status },
+            cancellationToken);
+        return Ok(new { message = "Đã ghi nhận kiểm kê tài sản.", equipment.LastInventoryAt });
+    }
+
     [HttpGet("{id:int}/decision-file")]
     [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> DownloadDecisionFile(

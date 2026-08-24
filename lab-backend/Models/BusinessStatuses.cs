@@ -34,6 +34,21 @@ public static class PenaltyStatuses
     public const string Paid = "PAID";
 }
 
+public static class InventoryStatuses
+{
+    public const string Open = "INVENTORY_OPEN";
+    public const string Completed = "INVENTORY_COMPLETED";
+}
+
+public static class InventoryItemStatuses
+{
+    public const string Pending = "INVENTORY_PENDING";
+    public const string Found = "INVENTORY_FOUND";
+    public const string WrongLocation = "INVENTORY_WRONG_LOCATION";
+    public const string Damaged = "INVENTORY_DAMAGED";
+    public const string Missing = "INVENTORY_MISSING";
+}
+
 public static class StatusCodeMap
 {
     public static readonly IReadOnlyDictionary<string, string> LegacyMap =

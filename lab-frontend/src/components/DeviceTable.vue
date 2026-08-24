@@ -1,8 +1,11 @@
 <template>
   <div class="table-actions">
     <div class="left-actions">
-      <a-button v-if="role === 'Sinh viên' || role === 'Giảng viên'" type="primary" @click="showScannerModal">
+      <a-button v-if="role === 'Sinh viên' || role === 'Giảng viên'" type="primary" @click="showScannerModal('borrow')">
         Quét QR để mượn
+      </a-button>
+      <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="primary" ghost @click="showScannerModal('inventory')">
+        Quét QR kiểm kê
       </a-button>
       <a-input
         v-model:value="searchQuery"
@@ -59,6 +62,7 @@
               <template #icon><DeleteOutlined /></template>
             </a-button>
           </a-tooltip>
+          <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="handleInventory(record)">Kiểm kê</a-button>
           <a-button v-if="['Sinh viên', 'Giảng viên'].includes(role) && statusMatches(record.status, STATUS.AVAILABLE)" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
         </a-space>
       </template>
@@ -73,7 +77,7 @@
     </div>
   </a-modal>
 
-  <a-modal v-model:open="isScannerVisible" title="Quét QR để mượn" :footer="null" @cancel="stopScanner" centered>
+  <a-modal v-model:open="isScannerVisible" :title="inventoryScannerMode ? 'Quét QR kiểm kê' : 'Quét QR để mượn'" :footer="null" @cancel="stopScanner" centered>
     <div id="qr-reader" style="width: 100%;"></div>
   </a-modal>
 
@@ -332,6 +336,7 @@ const selectedDeviceName = ref('')
 const selectedDeviceSerial = ref('')
 
 const isScannerVisible = ref(false)
+const inventoryScannerMode = ref(false)
 let html5QrcodeScanner = null
 
 const isBorrowVisible = ref(false)
@@ -538,7 +543,7 @@ const handleExport = async () => {
 }
 
 const showQR = (record) => {
-  qrValue.value = `DEVICE:${record.serial}`
+  qrValue.value = `DEVICE_TOKEN:${record.qrToken || record.serial}`
   selectedDeviceName.value = record.name
   selectedDeviceSerial.value = record.serial
   isQRVisible.value = true
@@ -549,6 +554,16 @@ const handleBorrowClick = (record) => {
   borrowItems.value = [{ id: record.id, name: record.name, serial: record.serial }]
   borrowSelectionToAdd.value = null
   isBorrowVisible.value = true
+}
+
+const handleInventory = async (record) => {
+  try {
+    await equipmentApi.inventory(record.id)
+    record.lastInventoryAt = new Date().toISOString()
+    message.success(`Đã ghi nhận kiểm kê ${record.name}.`)
+  } catch (err) {
+    message.error(err.response?.data?.message || 'Không thể ghi nhận kiểm kê!')
+  }
 }
 
 const addBorrowItem = (id) => {
@@ -597,7 +612,8 @@ const submitBorrowRequest = async () => {
   }
 }
 
-const showScannerModal = () => {
+const showScannerModal = (mode = 'borrow') => {
+  inventoryScannerMode.value = mode === 'inventory'
   isScannerVisible.value = true
   nextTick(() => {
     html5QrcodeScanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: { width: 250, height: 250 } }, false)
@@ -615,13 +631,15 @@ const stopScanner = () => {
 onUnmounted(stopScanner)
 
 const onScanSuccess = (decodedText) => {
-  if (!decodedText.startsWith('DEVICE:')) {
+  const isTokenQr = decodedText.startsWith('DEVICE_TOKEN:')
+  const isLegacyQr = decodedText.startsWith('DEVICE:')
+  if (!isTokenQr && !isLegacyQr) {
     message.error('Mã QR không hợp lệ!')
     return
   }
 
-  const serial = decodedText.split(':')[1]
-  const device = dataSource.value.find(d => d.serial === serial)
+  const value = decodedText.slice(decodedText.indexOf(':') + 1)
+  const device = dataSource.value.find(d => isTokenQr ? d.qrToken === value : d.serial === value)
   if (!device) {
     message.error('Không tìm thấy thiết bị!')
     return
@@ -629,6 +647,10 @@ const onScanSuccess = (decodedText) => {
 
   stopScanner()
   isScannerVisible.value = false
+  if (inventoryScannerMode.value) {
+    handleInventory(device)
+    return
+  }
   if (!statusMatches(device.status, STATUS.AVAILABLE)) {
     message.warning(`Thiết bị ${device.name} hiện đang ${statusLabel(device.status)}. Không thể mượn!`)
     return

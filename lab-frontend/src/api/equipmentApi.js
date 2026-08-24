@@ -13,6 +13,8 @@ export const equipmentApi = {
   
   delete: (id) => axiosClient.delete(`/equipment/${id}`),
 
+  inventory: (id) => axiosClient.post(`/equipment/${id}/inventory`),
+
   downloadDecisionFile: (id) => axiosClient.get(`/equipment/${id}/decision-file`, { responseType: 'blob' }),
 
   export: () => axiosClient.get('/equipment/export', { responseType: 'blob' })
