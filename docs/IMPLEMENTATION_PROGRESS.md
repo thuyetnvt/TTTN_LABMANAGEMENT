@@ -67,9 +67,24 @@
 - Đã thêm workflow `.github/workflows/ci.yml` cho restore/build backend, migration script, npm build và Docker build.
 - Đã bổ sung bộ tài liệu đồ án tại `docs/`: yêu cầu, use case, kiến trúc, database, API, RBAC, deployment, backup/restore, test plan, test results và user guide.
 
+## 2026-08-25 — Giai đoạn 7: bàn giao tài sản
+
+- Commit `66f0b39`: `feat: add handover records for borrowed assets`.
+- Đã thêm `HandoverRecord` và `HandoverItem`, lưu mã bàn giao, người giao/nhận, thời điểm xác nhận, tình trạng từng tài sản, phụ kiện và ghi chú.
+- Quản lý có thể tạo bàn giao cho toàn bộ tài sản trong phiếu đã mượn; hệ thống chống thiếu/trùng tài sản, chống bàn giao lặp và ghi audit/notification.
+- Frontend đã có form `Bàn giao` theo từng tài sản.
+- File/ảnh minh chứng, chữ ký điện tử và tích hợp lưu trữ minh chứng vẫn chưa triển khai.
+
+## 2026-08-25 — Kiểm chứng sau giai đoạn 7
+
+- Backend build `dotnet build --no-restore`: đạt, 0 warning/0 error.
+- Frontend `npm run build`: đạt; còn warning dependency SignalR về `PURE` annotation và chunk lớn.
+- `docker compose up -d --build backend frontend`: đạt; backend, frontend và database healthy.
+- Migration `20260824173650_AddHandoverRecords` đã áp dụng được trên database local có chuỗi migration legacy; `/health` trả `Healthy`.
+
 ## Phần chưa hoàn thành/chưa thể tuyên bố đạt
 
-- Bàn giao điện tử và file/ảnh minh chứng chưa được tách thành module nghiệp vụ riêng.
+- Bàn giao điện tử đã có module core và lưu tình trạng từng tài sản; file/ảnh minh chứng, chữ ký điện tử và tích hợp lưu trữ minh chứng chưa triển khai.
 - Kế hoạch bảo trì định kỳ, import Excel có preview, xuất PDF báo cáo và QR hàng loạt chưa triển khai đầy đủ.
 - Chưa có test project backend/frontend hoặc E2E browser; chưa tuyên bố các ca kiểm thử đó đạt.
 - Chưa chạy migration mới trên database production; chỉ kiểm tra build, sinh idempotent script và kiểm tra Docker/health môi trường local.
