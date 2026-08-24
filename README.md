@@ -28,7 +28,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Truy cập `http://localhost:8080` (hoặc cổng đặt trong `APP_PORT`).
+Truy cập `http://localhost:<APP_PORT>` (ví dụ `http://localhost:8081` theo `.env` hiện tại; không dùng trực tiếp cổng nội bộ `8080`).
 
 Lần chạy đầu, EF Core tự tạo/nâng cấp database. Nếu `SEED_ENABLED=true`, có 5 tài khoản:
 
@@ -65,6 +65,21 @@ docker compose exec -T db \
 Khi chạy lệnh, MySQL sẽ yêu cầu mật khẩu root. Ngoài database, phải backup volume `equipment_uploads` vì volume chứa file quyết định mua/thêm thiết bị.
 
 Nên dùng lịch backup tự động hằng ngày, lưu một bản ngoài server và thử khôi phục định kỳ.
+
+Có thể backup cả database và volume upload bằng `pwsh ./scripts/backup.ps1 -OutputDirectory ./backups`; restore dùng `scripts/restore.ps1` với cờ bắt buộc `-ConfirmRestore`. Đọc [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md) trước khi thao tác trên production.
+
+## Kiểm thử
+
+```bash
+dotnet test lab-backend.Tests/LabManagementAPI.Tests.csproj --configuration Release
+cd lab-frontend
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+Flow E2E đăng nhập dữ liệu seed cần đặt `E2E_ADMIN_USERNAME`, `E2E_ADMIN_PASSWORD` và `E2E_BASE_URL`; không ghi secret vào log hoặc commit.
 
 ## Đưa lên server/domain
 

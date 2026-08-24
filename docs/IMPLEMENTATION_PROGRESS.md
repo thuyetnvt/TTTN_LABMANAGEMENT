@@ -140,3 +140,19 @@
 - Commit `aa4f905`: `refactor: centralize frontend role guards`; các route và màn hình chính dùng `ROLE`, `MANAGER_ROLES`, `BORROWER_ROLES` cùng helper `isManagerRole/isAdminRole/...`, không còn rải mảng role literal trong điều kiện UI.
 - Frontend production build và unit test tiếp tục đạt sau hai commit này.
 - Vòng Docker cuối sau hai commit trên đạt; startup không còn lỗi seed/migration hoặc pending model changes. Working tree chỉ còn các file untracked local đã tồn tại từ trước, không thuộc thay đổi của đợt này.
+
+## 2026-08-25 — Giai đoạn 12: hardening, backup/restore và E2E smoke
+
+- Bổ sung Data Protection key persistence qua volume `backend_data_protection`; production có thể chỉ định `Security:DataProtectionKeysPath` và cần cấu hình encryptor/certificate phù hợp.
+- Bổ sung rate limit cho các endpoint nhạy cảm: profile, đổi mật khẩu, upload evidence và import Excel; login tiếp tục có giới hạn riêng theo IP.
+- Upload local kiểm tra đồng thời phần mở rộng, MIME khai báo, magic bytes, kích thước và đường dẫn lưu ngẫu nhiên; đã thêm test cho MIME giả mạo và đường dẫn an toàn.
+- Thêm `scripts/backup.ps1` và `scripts/restore.ps1` để backup database + volume upload và khôi phục có cờ xác nhận rõ ràng; hướng dẫn đã cập nhật tại `docs/BACKUP_RESTORE.md`.
+- Notification đã phát sinh cho tạo/hoàn tất bảo trì, tạo/đóng kiểm kê và sinh phiếu từ kế hoạch định kỳ; backend test đạt 7/7.
+- Thêm Playwright smoke E2E responsive desktop/mobile và route RBAC; local đạt 4 pass/2 skip khi không truyền credential, flow admin với database Docker đạt 1 pass. CI đã có job cài Chromium và chạy E2E.
+- Đã nâng `nanoid` và `postcss` gián tiếp qua lockfile; `npm audit` hiện báo 0 vulnerability.
+- Landing page đã bỏ các số liệu thống kê giả, thay bằng mô tả năng lực hệ thống.
+
+## Trạng thái nghiệm thu
+
+- Đã hoàn thiện và kiểm chứng local các module nghiệp vụ chính, backend/frontend build, unit test, Docker health, E2E smoke và audit dependency.
+- Chưa tuyên bố production-ready tuyệt đối: chưa diễn tập restore trên production, chưa có adapter MinIO/S3, chưa có chứng thư mã hóa Data Protection trong deployment thật và các E2E business flow đầy đủ vẫn cần credential/test data riêng.

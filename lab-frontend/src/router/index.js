@@ -39,20 +39,20 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token')
   const userRole = localStorage.getItem('role') || sessionStorage.getItem('role')
 
   if (to.meta.requiresAuth !== false && !token) {
-    return next({ name: 'Login' })
+    return { name: 'Login' }
   }
 
   if (to.meta.allowedRoles && !to.meta.allowedRoles.includes(userRole)) {
     window.alert('Bạn không có quyền truy cập tính năng này!')
-    return next({ name: 'Devices' })
+    return { name: 'Devices' }
   }
 
-  next()
+  return true
 })
 
 export default router

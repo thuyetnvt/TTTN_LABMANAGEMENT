@@ -37,24 +37,24 @@
       </div>
     </section>
 
-    <!-- Statistics Section (Dark Navy) -->
+    <!-- Capability Section (Dark Navy) -->
     <section class="stats-section">
       <div class="stats-grid">
         <div class="stat-item">
-          <h2>500+</h2>
-          <p>Tài sản quản lý</p>
+          <h2>IoT</h2>
+          <p>Định danh tài sản</p>
         </div>
         <div class="stat-item">
-          <h2>1.200+</h2>
-          <p>Lượt mượn trả</p>
+          <h2>QR</h2>
+          <p>Kiểm kê và bàn giao</p>
         </div>
         <div class="stat-item">
-          <h2>100%</h2>
-          <p>Minh bạch trạng thái</p>
+          <h2>360°</h2>
+          <p>Theo dõi vòng đời</p>
         </div>
         <div class="stat-item">
-          <h2>24/7</h2>
-          <p>Nhắc hạn tự động</p>
+          <h2>API</h2>
+          <p>Dữ liệu kết nối thật</p>
         </div>
       </div>
     </section>

@@ -26,3 +26,14 @@ Ngày 25/08/2026 trên branch `codex/iot-lab-asset-upgrade`:
 - Trong lần chạy đầu, seed gặp dữ liệu hồ sơ cũ có `ClassName = NULL`; đã sửa model/seed tương thích nullable, rebuild và chạy lại thành công. Cảnh báo Data Protection key chưa persist trong volume vẫn còn và cần xử lý khi deploy production.
 - Sau commit hồ sơ cá nhân và gom role guard: `dotnet build --no-restore` đạt 0 warning/0 error; `npm test` đạt 2/2; `npm run build` đạt, chỉ còn cảnh báo từ dependency SignalR/chunk lớn.
 - Vòng Docker cuối sau các commit `40eab95` và `aa4f905`: backend image/frontend image build đạt, backend healthy, database healthy, `/health` trong backend trả `Healthy`, không có log `fail` hoặc `pending changes` khi khởi động; frontend public port `8081` trả HTTP 200.
+
+## Kiểm chứng hardening và E2E ngày 25/08/2026
+
+- `dotnet test lab-backend.Tests/LabManagementAPI.Tests.csproj --configuration Release`: đạt 7/7.
+- `npm test`: đạt 2/2; `npm run build`: đạt. Vẫn còn cảnh báo chunk lớn từ bundle hiện tại.
+- `npm audit`: đạt 0 vulnerability sau khi cập nhật lockfile.
+- `npm run test:e2e -- --project=chromium --project=mobile-chromium`: đạt 4 pass, 2 skip do flow admin được gate bởi credential môi trường.
+- Với `E2E_BASE_URL=http://localhost:8081` và credential seed admin không in ra log: flow đăng nhập admin + truy cập `/dashboard/admin/users` đạt 1/1.
+- `docker compose up -d --build backend frontend`: đạt; backend healthy, `/health` trả `Healthy`, frontend port `8081` trả HTTP 200, migration không pending.
+- Docker còn cảnh báo mặc định “No XML encryptor configured” của ASP.NET Data Protection; key đã được persist vào volume, nhưng deployment production phải cấu hình certificate/encryptor để mã hóa key at rest.
+- CI đã thêm job E2E độc lập; job chạy smoke suite không cần seed credential, còn business flow cần môi trường test có dữ liệu/secret riêng.
