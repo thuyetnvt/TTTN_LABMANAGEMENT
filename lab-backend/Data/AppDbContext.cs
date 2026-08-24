@@ -15,6 +15,8 @@ namespace LabManagementAPI.Data
         public DbSet<BorrowRequestDetail> BorrowRequestDetails { get; set; }
         public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; }
         public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
+        public DbSet<MaintenancePartUsage> MaintenancePartUsages { get; set; }
+        public DbSet<MaintenanceEvidence> MaintenanceEvidence { get; set; }
         public DbSet<ConsumableRequest> ConsumableRequests { get; set; }
         public DbSet<ConsumableTransaction> ConsumableTransactions { get; set; }
         public DbSet<Penalty> Penalties { get; set; }
@@ -22,8 +24,10 @@ namespace LabManagementAPI.Data
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<LocationNode> LocationNodes { get; set; }
         public DbSet<BorrowStatusHistory> BorrowStatusHistories { get; set; }
+        public DbSet<ReturnEvidence> ReturnEvidence { get; set; }
         public DbSet<InventorySession> InventorySessions { get; set; }
         public DbSet<InventoryItem> InventoryItems { get; set; }
+        public DbSet<InventoryEvidence> InventoryEvidence { get; set; }
         public DbSet<AppNotification> Notifications { get; set; }
         public DbSet<HandoverRecord> HandoverRecords { get; set; }
         public DbSet<HandoverItem> HandoverItems { get; set; }
@@ -45,9 +49,15 @@ namespace LabManagementAPI.Data
             {
                 entity.Property(u => u.Username).HasMaxLength(100);
                 entity.Property(u => u.Email).HasMaxLength(256);
+                entity.Property(u => u.FullName).HasMaxLength(255);
+                entity.Property(u => u.UniversityCode).HasMaxLength(100);
+                entity.Property(u => u.Phone).HasMaxLength(30);
+                entity.Property(u => u.Department).HasMaxLength(255);
+                entity.Property(u => u.ClassName).HasMaxLength(100);
                 entity.Property(u => u.Role).HasMaxLength(50);
                 entity.HasIndex(u => u.Username).IsUnique();
-                entity.HasIndex(u => u.Email);
+                entity.HasIndex(u => u.Email).IsUnique();
+                entity.HasIndex(u => u.UniversityCode).IsUnique();
                 entity.HasIndex(u => new { u.Role, u.IsActive });
             });
 
@@ -102,9 +112,15 @@ namespace LabManagementAPI.Data
             modelBuilder.Entity<Consumable>(entity =>
             {
                 entity.Property(item => item.Name).HasMaxLength(255);
+                entity.Property(item => item.Code).HasMaxLength(100);
                 entity.Property(item => item.Unit).HasMaxLength(50);
                 entity.Property(item => item.ResponsiblePerson).HasMaxLength(255);
                 entity.Property(item => item.InvoiceNumber).HasMaxLength(100);
+                entity.Property(item => item.Supplier).HasMaxLength(255);
+                entity.Property(item => item.UnitCost).HasPrecision(18, 2);
+                entity.Property(item => item.StorageLocation).HasMaxLength(255);
+                entity.Property(item => item.LotNumber).HasMaxLength(100);
+                entity.HasIndex(item => item.Code).IsUnique();
                 entity.HasIndex(item => item.AssetCategoryId);
                 entity.ToTable(table =>
                 {
@@ -140,7 +156,7 @@ namespace LabManagementAPI.Data
                 entity.HasOne(record => record.Equipment)
                     .WithMany()
                     .HasForeignKey(record => record.EquipmentId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<BorrowRequestDetail>(entity =>
@@ -155,6 +171,21 @@ namespace LabManagementAPI.Data
                     .WithMany()
                     .HasForeignKey(detail => detail.EquipmentId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ReturnEvidence>(entity =>
+            {
+                entity.Property(item => item.EvidenceType).HasMaxLength(50);
+                entity.Property(item => item.OriginalFileName).HasMaxLength(255);
+                entity.Property(item => item.StoredPath).HasMaxLength(1000);
+                entity.Property(item => item.ContentType).HasMaxLength(150);
+                entity.HasIndex(item => new { item.BorrowRecordId, item.EquipmentId });
+                entity.HasOne(item => item.BorrowRecord).WithMany()
+                    .HasForeignKey(item => item.BorrowRecordId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.Equipment).WithMany()
+                    .HasForeignKey(item => item.EquipmentId).OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(item => item.UploadedByUser).WithMany()
+                    .HasForeignKey(item => item.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<BorrowStatusHistory>(entity =>
@@ -213,6 +244,23 @@ namespace LabManagementAPI.Data
                     .WithMany()
                     .HasForeignKey(item => item.ScannedByUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<InventoryEvidence>(entity =>
+            {
+                entity.Property(item => item.EvidenceType).HasMaxLength(50);
+                entity.Property(item => item.OriginalFileName).HasMaxLength(255);
+                entity.Property(item => item.StoredPath).HasMaxLength(1000);
+                entity.Property(item => item.ContentType).HasMaxLength(150);
+                entity.HasIndex(item => item.InventoryItemId);
+                entity.HasOne(item => item.InventoryItem)
+                    .WithMany(item => item.InventoryItemEvidence)
+                    .HasForeignKey(item => item.InventoryItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.UploadedByUser)
+                    .WithMany()
+                    .HasForeignKey(item => item.UploadedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<AppNotification>(entity =>
@@ -309,6 +357,14 @@ namespace LabManagementAPI.Data
                     .WithMany()
                     .HasForeignKey(transaction => transaction.UserId)
                     .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(transaction => transaction.ConsumableRequest)
+                    .WithMany()
+                    .HasForeignKey(transaction => transaction.ConsumableRequestId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(transaction => transaction.MaintenanceRecord)
+                    .WithMany()
+                    .HasForeignKey(transaction => transaction.MaintenanceRecordId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<MaintenanceRecord>(entity =>
@@ -319,6 +375,9 @@ namespace LabManagementAPI.Data
                 entity.Property(record => record.Result).HasMaxLength(2000);
                 entity.Property(record => record.ResultStatus).HasMaxLength(50);
                 entity.Property(record => record.ActiveEquipmentKey).HasMaxLength(64);
+                entity.Property(record => record.Supplier).HasMaxLength(255);
+                entity.Property(record => record.Checklist).HasMaxLength(4000);
+                entity.Property(record => record.ChecklistResult).HasMaxLength(4000);
                 entity.Property(record => record.Cost).HasPrecision(18, 2);
                 entity.HasIndex(record => record.Status);
                 entity.HasIndex(record => record.ActiveEquipmentKey).IsUnique();
@@ -326,12 +385,42 @@ namespace LabManagementAPI.Data
                     .WithMany()
                     .HasForeignKey(record => record.EquipmentId)
                     .OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(record => record.Parts)
+                    .WithOne(part => part.MaintenanceRecord)
+                    .HasForeignKey(part => part.MaintenanceRecordId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(record => record.Evidence)
+                    .WithOne(evidence => evidence.MaintenanceRecord)
+                    .HasForeignKey(evidence => evidence.MaintenanceRecordId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<MaintenancePartUsage>(entity =>
+            {
+                entity.Property(part => part.Note).HasMaxLength(1000);
+                entity.Property(part => part.UnitCost).HasPrecision(18, 2);
+                entity.HasIndex(part => part.ConsumableId);
+                entity.HasOne(part => part.Consumable).WithMany()
+                    .HasForeignKey(part => part.ConsumableId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<MaintenanceEvidence>(entity =>
+            {
+                entity.Property(item => item.EvidenceType).HasMaxLength(50);
+                entity.Property(item => item.OriginalFileName).HasMaxLength(255);
+                entity.Property(item => item.StoredPath).HasMaxLength(1000);
+                entity.Property(item => item.ContentType).HasMaxLength(150);
+                entity.HasIndex(item => item.MaintenanceRecordId);
+                entity.HasOne(item => item.UploadedByUser).WithMany()
+                    .HasForeignKey(item => item.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<MaintenanceSchedule>(entity =>
             {
                 entity.Property(schedule => schedule.Name).HasMaxLength(255);
+                entity.Property(schedule => schedule.IntervalUnit).HasMaxLength(20);
                 entity.Property(schedule => schedule.Notes).HasMaxLength(2000);
+                entity.Property(schedule => schedule.Checklist).HasMaxLength(4000);
                 entity.HasIndex(schedule => new { schedule.IsActive, schedule.NextDueAt });
                 entity.HasIndex(schedule => schedule.EquipmentId);
                 entity.HasOne(schedule => schedule.Equipment)

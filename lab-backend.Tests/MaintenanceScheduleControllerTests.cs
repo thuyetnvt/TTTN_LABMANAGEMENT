@@ -10,6 +10,7 @@ using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace LabManagementAPI.Tests;
@@ -152,7 +153,13 @@ public sealed class MaintenanceScheduleControllerTests
 
     private static BorrowController CreateBorrowController(AppDbContext context, int userId, string role)
     {
-        var controller = new BorrowController(context, new NoopEmailService(), new NoopNotificationService(), new NoopAuditService());
+        var controller = new BorrowController(
+            context,
+            new NoopEmailService(),
+            new NoopNotificationService(),
+            new NoopAuditService(),
+            new NoopFileStorage(),
+            new ConfigurationBuilder().Build());
         var httpContext = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity([
@@ -187,5 +194,14 @@ public sealed class MaintenanceScheduleControllerTests
 
         public Task NotifyManagersAsync(string type, string title, string message, string url, CancellationToken cancellationToken)
             => Task.CompletedTask;
+    }
+
+    private sealed class NoopFileStorage : IFileStorage
+    {
+        public Task<StoredFile> SaveAsync(IFormFile file, string folder, IReadOnlySet<string> allowedExtensions, long maxBytes, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public bool IsSafePath(string path) => false;
+        public void Delete(string path) { }
     }
 }

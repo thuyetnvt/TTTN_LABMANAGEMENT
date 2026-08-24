@@ -111,3 +111,25 @@
 - Không sửa hoặc push trực tiếp `main`.
 - Không xoá migration/file local chưa phân loại.
 - Mỗi giai đoạn phải chạy kiểm chứng thật và cập nhật tài liệu này.
+
+## 2026-08-25 — Giai đoạn 10: kiểm kê, bảo trì, kho và hồ sơ người dùng
+
+- Đã thêm evidence cho từng dòng kiểm kê, camera QR, xuất báo cáo chênh lệch Excel/PDF; file được lưu qua `IFileStorage` và kiểm tra magic bytes.
+- Bảo trì đã có chu kỳ ngày/tuần/tháng/quý/năm, checklist, nhà cung cấp, vật tư sử dụng trừ kho trong cùng transaction, giao dịch liên kết và file evidence.
+- Vật tư đã có mã duy nhất, nhà cung cấp, giá nhập, vị trí lưu, số lô, hạn dùng và transaction có liên kết phiếu cấp phát/bảo trì.
+- Nhận trả đã có evidence trước/sau theo từng tài sản; header phiếu mượn được chuẩn hóa nullable để không còn trùng định danh với danh sách detail.
+- Hồ sơ người dùng đã có họ tên, mã sinh viên/mã cán bộ, điện thoại, khoa/bộ môn, lớp; email và mã định danh nullable nhưng unique khi có giá trị. Khóa tài khoản tăng `TokenVersion` để vô hiệu hóa token hiện tại.
+- Các migration mới đã áp dụng thành công trên database Docker local:
+  `20260824182827_AddInventoryEvidence`, `20260824183215_CompleteMaintenanceAndInventoryEvidence`,
+  `20260824183420_AddConsumableTraceabilityFields`, `20260824183758_AddUniversityUserProfileFields`,
+  `20260824184021_AddReturnEvidence`, `20260824184339_NormalizeBorrowHeader`,
+  `20260824185702_AlignOptionalUserProfileFields`.
+- Kiểm tra `dotnet ef migrations has-pending-model-changes`: không còn thay đổi model chưa có migration.
+- Docker build lại thành công; MySQL/backend/frontend chạy, backend `/health` trả `Healthy`, frontend trả HTTP 200 tại `http://localhost:8081` theo `.env` hiện tại.
+
+## Phạm vi còn phải hoàn thiện trước khi tuyên bố nghiệm thu toàn bộ
+
+- Chưa có E2E browser chạy thật trong môi trường này; chưa tuyên bố các kịch bản E2E đạt.
+- Storage mới có adapter local; MinIO/S3 và diễn tập backup/restore production chưa được kiểm chứng.
+- Một số component frontend cũ còn cần tiếp tục gom các điều kiện role vào helper dùng chung và tách nhỏ bảng lớn; chức năng nghiệp vụ đã nối API thật.
+- Chưa chạy migration trên database production; chỉ database Docker local đã được kiểm chứng.

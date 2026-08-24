@@ -8,6 +8,13 @@ export const borrowApi = {
   reject: (id) => axiosClient.put(`/borrow/${id}/reject`),
   returnEquipment: (id, data = null) => axiosClient.put(`/borrow/${id}/return`, data),
   reportDamage: (id, data) => axiosClient.put(`/borrow/${id}/report-damage`, data),
+  uploadReturnEvidence: (id, file, evidenceType = 'PHOTO_AFTER', equipmentId = null) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('evidenceType', evidenceType)
+    if (equipmentId) form.append('equipmentId', equipmentId)
+    return axiosClient.post(`/borrow/${id}/return-evidence`, form)
+  },
   getTeacherPending: () => axiosClient.get('/borrow/teacher-pending'),
   teacherApprove: (id, note) => axiosClient.put(`/borrow/${id}/teacher-approve`, { note }),
   teacherReject: (id, note) => axiosClient.put(`/borrow/${id}/teacher-reject`, { note }),

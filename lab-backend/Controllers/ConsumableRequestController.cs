@@ -201,9 +201,10 @@ public class ConsumableRequestController : ControllerBase
             .Select(item => item.Quantity)
             .SingleAsync(cancellationToken);
 
-        _context.ConsumableTransactions.Add(new ConsumableTransaction
-        {
-            ConsumableId = request.ConsumableId,
+            _context.ConsumableTransactions.Add(new ConsumableTransaction
+            {
+                ConsumableId = request.ConsumableId,
+                ConsumableRequestId = request.Id,
             Type = "Cấp phát",
             Quantity = request.Quantity,
             BeforeQuantity = afterQuantity + request.Quantity,

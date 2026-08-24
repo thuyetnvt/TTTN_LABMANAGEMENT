@@ -68,7 +68,9 @@
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="Nội dung bảo trì" required>
+          <a-form-item label="Nhà cung cấp sửa chữa"><a-input v-model:value="formData.supplier" /></a-form-item>
+          <a-form-item label="Checklist bảo trì"><a-textarea v-model:value="formData.checklist" :rows="3" placeholder="Mỗi dòng một hạng mục kiểm tra" /></a-form-item>
+          <a-form-item label="Nội dung bảo trì" required>
               <a-textarea v-model:value="formData.description" :rows="3" placeholder="VD: Thay dầu, lau ống kính..." />
             </a-form-item>
           </a-col>
@@ -100,6 +102,19 @@
             <a-select-option :value="STATUS.MAINTENANCE_IN_PROGRESS">Cần xử lý tiếp — Đang bảo trì</a-select-option>
           </a-select>
         </a-form-item>
+        <a-form-item label="Kết quả checklist"><a-textarea v-model:value="completeChecklistResult" :rows="3" placeholder="Đạt/không đạt theo từng hạng mục" /></a-form-item>
+        <a-form-item label="Linh kiện/vật tư đã sử dụng">
+          <a-space v-for="(part, index) in completeParts" :key="index" style="display: flex; margin-bottom: 6px">
+            <a-select v-model:value="part.consumableId" show-search option-filter-prop="label" style="width: 230px"><a-select-option v-for="item in consumables" :key="item.id" :value="item.id" :label="item.name">{{ item.name }} (còn {{ item.quantity }})</a-select-option></a-select>
+            <a-input-number v-model:value="part.quantity" :min="1" style="width: 90px" />
+            <a-button danger @click="completeParts.splice(index, 1)">Xóa</a-button>
+          </a-space>
+          <a-button size="small" @click="completeParts.push({ consumableId: null, quantity: 1, unitCost: null, note: '' })">+ Thêm vật tư</a-button>
+        </a-form-item>
+        <a-form-item label="Ảnh/file kết quả">
+          <a-upload :before-upload="selectMaintenanceEvidence" :show-upload-list="false" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"><a-button>Chọn file</a-button></a-upload>
+          <span v-if="completeEvidenceFile" class="muted">{{ completeEvidenceFile.name }}</span>
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>
@@ -107,10 +122,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { message, Modal } from 'ant-design-vue'
+import { message, Modal, Upload } from 'ant-design-vue'
 import { useAuthStore } from '../stores/authStore'
 import { maintenanceApi } from '../api/maintenanceApi'
 import { equipmentApi } from '../api/equipmentApi'
+import { consumableApi } from '../api/consumableApi'
 import StatusBadge from '../components/StatusBadge.vue'
 import { STATUS, statusMatches } from '../constants/business'
 
@@ -119,6 +135,7 @@ const role = computed(() => authStore.role)
 
 const dataSource = ref([])
 const equipments = ref([])
+const consumables = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 const isFormVisible = ref(false)
@@ -127,13 +144,18 @@ const completing = ref(false)
 const completingRecordId = ref(null)
 const completeResult = ref('')
 const completeStatus = ref(STATUS.AVAILABLE)
+const completeChecklistResult = ref('')
+const completeParts = ref([])
+const completeEvidenceFile = ref(null)
 
 const formData = ref({
   equipmentId: null,
   maintenanceDate: null,
   description: '',
   performedBy: '',
-  cost: 0
+  cost: 0,
+  supplier: '',
+  checklist: ''
 })
 
 const columns = [
@@ -169,7 +191,7 @@ const showAddModal = async () => {
   try {
     const res = await equipmentApi.getAll()
     equipments.value = res || []
-    formData.value = { equipmentId: null, maintenanceDate: null, description: '', performedBy: '', cost: 0 }
+    formData.value = { equipmentId: null, maintenanceDate: null, description: '', performedBy: '', cost: 0, supplier: '', checklist: '' }
     isFormVisible.value = true
   } catch (err) {
     message.error('Không tải được danh sách thiết bị')
@@ -224,6 +246,10 @@ const showCompleteModal = (record) => {
   completingRecordId.value = record.id
   completeResult.value = ''
   completeStatus.value = STATUS.AVAILABLE
+  completeChecklistResult.value = ''
+  completeParts.value = []
+  completeEvidenceFile.value = null
+  consumableApi.getAll().then((res) => { consumables.value = res || [] }).catch(() => { consumables.value = [] })
   isCompleteVisible.value = true
 }
 
@@ -237,8 +263,11 @@ const submitComplete = async () => {
   try {
     await maintenanceApi.complete(completingRecordId.value, {
       result: completeResult.value.trim(),
-      nextEquipmentStatus: completeStatus.value
+      nextEquipmentStatus: completeStatus.value,
+      checklistResult: completeChecklistResult.value.trim(),
+      parts: completeParts.value.filter(part => part.consumableId && part.quantity > 0)
     })
+    if (completeEvidenceFile.value) await maintenanceApi.uploadEvidence(completingRecordId.value, completeEvidenceFile.value)
     message.success('Đã hoàn tất phiếu bảo trì và cập nhật trạng thái thiết bị!')
     isCompleteVisible.value = false
     fetchData()
@@ -247,6 +276,16 @@ const submitComplete = async () => {
   } finally {
     completing.value = false
   }
+}
+
+const selectMaintenanceEvidence = (file) => {
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  if (!['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx'].includes(extension) || file.size > 10 * 1024 * 1024) {
+    message.error('File phải là PDF, Word hoặc ảnh và không quá 10 MB.')
+    return Upload.LIST_IGNORE
+  }
+  completeEvidenceFile.value = file
+  return false
 }
 </script>
 

@@ -7,7 +7,7 @@ namespace LabManagementAPI.Models
         public int UserId { get; set; }
         public User? User { get; set; }
 
-        public int EquipmentId { get; set; }
+        public int? EquipmentId { get; set; }
         public Equipment? Equipment { get; set; }
 
         public int? TeacherId { get; set; }

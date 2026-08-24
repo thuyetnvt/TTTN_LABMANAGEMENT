@@ -36,9 +36,12 @@
           </a-select>
         </a-form-item>
         <a-form-item label="Tên kế hoạch" required><a-input v-model:value="form.name" placeholder="VD: Hiệu chuẩn hàng quý" /></a-form-item>
-        <a-form-item label="Chu kỳ (ngày)" required><a-input-number v-model:value="form.intervalDays" :min="1" :max="3650" style="width: 100%" /></a-form-item>
+        <a-form-item label="Chu kỳ" required>
+          <a-space style="width: 100%"><a-input-number v-model:value="form.intervalDays" :min="1" :max="3650" /><a-select v-model:value="form.intervalUnit" style="width: 140px"><a-select-option value="DAY">Ngày</a-select-option><a-select-option value="WEEK">Tuần</a-select-option><a-select-option value="MONTH">Tháng</a-select-option><a-select-option value="QUARTER">Quý</a-select-option><a-select-option value="YEAR">Năm</a-select-option></a-select></a-space>
+        </a-form-item>
         <a-form-item label="Hạn kế tiếp"><a-input v-model:value="form.nextDueAt" type="date" /></a-form-item>
         <a-form-item label="Ghi chú"><a-textarea v-model:value="form.notes" :rows="3" /></a-form-item>
+        <a-form-item label="Checklist bảo trì"><a-textarea v-model:value="form.checklist" :rows="4" placeholder="Mỗi dòng một hạng mục kiểm tra" /></a-form-item>
         <a-form-item v-if="editing" label="Trạng thái"><a-switch v-model:checked="form.isActive" checked-children="Bật" un-checked-children="Tắt" /></a-form-item>
       </a-form>
     </a-modal>
@@ -60,11 +63,11 @@ const loading = ref(false)
 const saving = ref(false)
 const modalOpen = ref(false)
 const editing = ref(null)
-const form = ref({ equipmentId: null, name: '', intervalDays: 90, nextDueAt: '', notes: '', isActive: true })
+const form = ref({ equipmentId: null, name: '', intervalDays: 90, intervalUnit: 'DAY', nextDueAt: '', notes: '', checklist: '', isActive: true })
 const columns = [
   { title: 'Thiết bị', dataIndex: 'device', key: 'device' },
   { title: 'Kế hoạch', dataIndex: 'name', key: 'name' },
-  { title: 'Chu kỳ', dataIndex: 'intervalDays', key: 'intervalDays', customRender: ({ text }) => `${text} ngày` },
+  { title: 'Chu kỳ', dataIndex: 'intervalDays', key: 'intervalDays', customRender: ({ record }) => `${record.intervalDays} ${({ DAY: 'ngày', WEEK: 'tuần', MONTH: 'tháng', QUARTER: 'quý', YEAR: 'năm' })[record.intervalUnit] || 'ngày'}` },
   { title: 'Hạn kế tiếp', dataIndex: 'nextDueAt', key: 'nextDueAt' },
   { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive' },
   { title: 'Hành động', key: 'action' }
@@ -81,13 +84,13 @@ const load = async () => {
 const openCreate = async () => {
   equipments.value = await equipmentApi.getAll() || []
   editing.value = null
-  form.value = { equipmentId: null, name: '', intervalDays: 90, nextDueAt: '', notes: '', isActive: true }
+  form.value = { equipmentId: null, name: '', intervalDays: 90, intervalUnit: 'DAY', nextDueAt: '', notes: '', checklist: '', isActive: true }
   modalOpen.value = true
 }
 
 const openEdit = (record) => {
   editing.value = record
-  form.value = { equipmentId: record.equipmentId, name: record.name, intervalDays: record.intervalDays, nextDueAt: toDateInput(record.nextDueAt), notes: record.notes || '', isActive: record.isActive }
+  form.value = { equipmentId: record.equipmentId, name: record.name, intervalDays: record.intervalDays, intervalUnit: record.intervalUnit || 'DAY', nextDueAt: toDateInput(record.nextDueAt), notes: record.notes || '', checklist: record.checklist || '', isActive: record.isActive }
   modalOpen.value = true
 }
 

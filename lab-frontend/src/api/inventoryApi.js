@@ -5,5 +5,13 @@ export const inventoryApi = {
   getById: (id) => axiosClient.get(`/inventory/${id}`),
   create: (data) => axiosClient.post('/inventory', data),
   scan: (id, data) => axiosClient.post(`/inventory/${id}/scan`, data),
-  complete: (id) => axiosClient.post(`/inventory/${id}/complete`)
+  complete: (id) => axiosClient.post(`/inventory/${id}/complete`),
+  uploadEvidence: (sessionId, itemId, file, evidenceType = 'PHOTO') => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('evidenceType', evidenceType)
+    return axiosClient.post(`/inventory/${sessionId}/items/${itemId}/evidence`, form)
+  },
+  exportExcel: (id) => axiosClient.get(`/inventory/${id}/export.xlsx`, { responseType: 'blob' }),
+  exportPdf: (id) => axiosClient.get(`/inventory/${id}/export.pdf`, { responseType: 'blob' })
 }

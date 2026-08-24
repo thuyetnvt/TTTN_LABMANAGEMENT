@@ -27,5 +27,10 @@ namespace LabManagementAPI.Models
 
         // Nullable unique key: only one active maintenance record can claim an equipment item.
         public string? ActiveEquipmentKey { get; set; }
+        public string Supplier { get; set; } = string.Empty;
+        public string Checklist { get; set; } = string.Empty;
+        public string ChecklistResult { get; set; } = string.Empty;
+        public ICollection<MaintenancePartUsage> Parts { get; set; } = new List<MaintenancePartUsage>();
+        public ICollection<MaintenanceEvidence> Evidence { get; set; } = new List<MaintenanceEvidence>();
     }
 }

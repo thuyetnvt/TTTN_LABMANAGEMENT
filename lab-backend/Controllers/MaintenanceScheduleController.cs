@@ -28,8 +28,10 @@ public class MaintenanceScheduleController : ControllerBase
         [Range(1, int.MaxValue)] public int EquipmentId { get; set; }
         [Required, MaxLength(255)] public string Name { get; set; } = string.Empty;
         [Range(1, 3650)] public int IntervalDays { get; set; }
+        [Required, MaxLength(20)] public string IntervalUnit { get; set; } = "DAY";
         public DateTime NextDueAt { get; set; }
         [MaxLength(2000)] public string Notes { get; set; } = string.Empty;
+        [MaxLength(4000)] public string Checklist { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
     }
 
@@ -48,11 +50,13 @@ public class MaintenanceScheduleController : ControllerBase
                 serial = schedule.Equipment.Serial,
                 name = schedule.Name,
                 intervalDays = schedule.IntervalDays,
+                intervalUnit = schedule.IntervalUnit,
                 nextDueAt = schedule.NextDueAt,
                 lastGeneratedAt = schedule.LastGeneratedAt,
                 isActive = schedule.IsActive,
                 isDue = schedule.IsActive && schedule.NextDueAt <= now,
-                notes = schedule.Notes
+                notes = schedule.Notes,
+                checklist = schedule.Checklist
             })
             .ToListAsync(cancellationToken);
         return Ok(schedules);
@@ -63,10 +67,14 @@ public class MaintenanceScheduleController : ControllerBase
     {
         dto.Name = dto.Name.Trim();
         dto.Notes = dto.Notes.Trim();
+        dto.Checklist = dto.Checklist.Trim();
+        dto.IntervalUnit = dto.IntervalUnit.Trim().ToUpperInvariant();
         if (string.IsNullOrWhiteSpace(dto.Name))
         {
             return BadRequest(new { message = "Tên kế hoạch bảo trì là bắt buộc." });
         }
+        if (!IsValidIntervalUnit(dto.IntervalUnit))
+            return BadRequest(new { message = "Đơn vị chu kỳ phải là ngày, tuần, tháng, quý hoặc năm." });
 
         var equipmentExists = await _context.Equipments.AnyAsync(
             equipment => equipment.Id == dto.EquipmentId, cancellationToken);
@@ -81,9 +89,11 @@ public class MaintenanceScheduleController : ControllerBase
             EquipmentId = dto.EquipmentId,
             Name = dto.Name,
             IntervalDays = dto.IntervalDays,
-            NextDueAt = dto.NextDueAt == default ? DateTime.UtcNow.AddDays(dto.IntervalDays) : dto.NextDueAt,
+            IntervalUnit = dto.IntervalUnit,
+            NextDueAt = dto.NextDueAt == default ? AddInterval(DateTime.UtcNow, dto.IntervalDays, dto.IntervalUnit) : dto.NextDueAt,
             IsActive = dto.IsActive,
             Notes = dto.Notes,
+            Checklist = dto.Checklist,
             CreatedByUserId = userId
         };
         _context.MaintenanceSchedules.Add(schedule);
@@ -98,18 +108,23 @@ public class MaintenanceScheduleController : ControllerBase
     {
         dto.Name = dto.Name.Trim();
         dto.Notes = dto.Notes.Trim();
+        dto.Checklist = dto.Checklist.Trim();
+        dto.IntervalUnit = dto.IntervalUnit.Trim().ToUpperInvariant();
         var schedule = await _context.MaintenanceSchedules.FindAsync([id], cancellationToken);
         if (schedule is null) return NotFound();
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest(new { message = "Tên kế hoạch bảo trì là bắt buộc." });
+        if (!IsValidIntervalUnit(dto.IntervalUnit)) return BadRequest(new { message = "Đơn vị chu kỳ không hợp lệ." });
         if (!await _context.Equipments.AnyAsync(equipment => equipment.Id == dto.EquipmentId, cancellationToken))
             return BadRequest(new { message = "Thiết bị không tồn tại." });
 
         schedule.EquipmentId = dto.EquipmentId;
         schedule.Name = dto.Name;
         schedule.IntervalDays = dto.IntervalDays;
+        schedule.IntervalUnit = dto.IntervalUnit;
         schedule.NextDueAt = dto.NextDueAt == default ? schedule.NextDueAt : dto.NextDueAt;
         schedule.IsActive = dto.IsActive;
         schedule.Notes = dto.Notes;
+        schedule.Checklist = dto.Checklist;
         schedule.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         return Ok(schedule);
@@ -139,11 +154,15 @@ public class MaintenanceScheduleController : ControllerBase
             Cost = 0,
             PerformedBy = "Theo kế hoạch",
             Status = MaintenanceStatuses.InProgress,
+            Checklist = schedule.Checklist,
             ActiveEquipmentKey = $"EQ:{schedule.EquipmentId}"
         };
         schedule.Equipment.Status = EquipmentStatuses.MaintenanceInProgress;
         schedule.LastGeneratedAt = DateTime.UtcNow;
-        schedule.NextDueAt = DateTime.UtcNow.AddDays(schedule.IntervalDays);
+        schedule.NextDueAt = AddInterval(
+            schedule.NextDueAt > DateTime.UtcNow ? schedule.NextDueAt : DateTime.UtcNow,
+            schedule.IntervalDays,
+            schedule.IntervalUnit);
         schedule.UpdatedAt = DateTime.UtcNow;
         _context.MaintenanceRecords.Add(record);
         await _context.SaveChangesAsync(cancellationToken);
@@ -165,4 +184,17 @@ public class MaintenanceScheduleController : ControllerBase
     }
 
     private int GetUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private static bool IsValidIntervalUnit(string value)
+        => value is "DAY" or "WEEK" or "MONTH" or "QUARTER" or "YEAR";
+
+    private static DateTime AddInterval(DateTime value, int amount, string unit)
+        => unit switch
+        {
+            "WEEK" => value.AddDays(amount * 7),
+            "MONTH" => value.AddMonths(amount),
+            "QUARTER" => value.AddMonths(amount * 3),
+            "YEAR" => value.AddYears(amount),
+            _ => value.AddDays(amount)
+        };
 }

@@ -4,6 +4,7 @@ using LabManagementAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabManagementAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824182827_AddInventoryEvidence")]
+    partial class AddInventoryEvidence
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -168,7 +171,7 @@ namespace LabManagementAPI.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int?>("EquipmentId")
+                    b.Property<int>("EquipmentId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("ExpectedReturnDate")
@@ -343,26 +346,13 @@ namespace LabManagementAPI.Migrations
                     b.Property<int?>("AssetCategoryId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("EntryDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<string>("InvoiceNumber")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("LotNumber")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
@@ -383,31 +373,14 @@ namespace LabManagementAPI.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<string>("StorageLocation")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("Supplier")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<decimal?>("UnitCost")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("AssetCategoryId");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
 
                     b.ToTable("Consumables", t =>
                         {
@@ -478,14 +451,8 @@ namespace LabManagementAPI.Migrations
                     b.Property<int>("ConsumableId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ConsumableRequestId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<int?>("MaintenanceRecordId")
-                        .HasColumnType("int");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
@@ -507,11 +474,7 @@ namespace LabManagementAPI.Migrations
 
                     b.HasIndex("ConsumableId");
 
-                    b.HasIndex("ConsumableRequestId");
-
                     b.HasIndex("CreatedAt");
-
-                    b.HasIndex("MaintenanceRecordId");
 
                     b.HasIndex("UserId");
 
@@ -871,55 +834,6 @@ namespace LabManagementAPI.Migrations
                     b.ToTable("HandoverRecords");
                 });
 
-            modelBuilder.Entity("LabManagementAPI.Models.InventoryEvidence", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("varchar(150)");
-
-                    b.Property<string>("EvidenceType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("InventoryItemId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("StoredPath")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("UploadedByUserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InventoryItemId");
-
-                    b.HasIndex("UploadedByUserId");
-
-                    b.ToTable("InventoryEvidence");
-                });
-
             modelBuilder.Entity("LabManagementAPI.Models.InventoryItem", b =>
                 {
                     b.Property<int>("Id")
@@ -1073,93 +987,6 @@ namespace LabManagementAPI.Migrations
                     b.ToTable("LocationNodes");
                 });
 
-            modelBuilder.Entity("LabManagementAPI.Models.MaintenanceEvidence", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("varchar(150)");
-
-                    b.Property<string>("EvidenceType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("MaintenanceRecordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("StoredPath")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("UploadedByUserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MaintenanceRecordId");
-
-                    b.HasIndex("UploadedByUserId");
-
-                    b.ToTable("MaintenanceEvidence");
-                });
-
-            modelBuilder.Entity("LabManagementAPI.Models.MaintenancePartUsage", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<int>("ConsumableId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("MaintenanceRecordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Note")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("UnitCost")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConsumableId");
-
-                    b.HasIndex("MaintenanceRecordId");
-
-                    b.ToTable("MaintenancePartUsages");
-                });
-
             modelBuilder.Entity("LabManagementAPI.Models.MaintenanceRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -1171,16 +998,6 @@ namespace LabManagementAPI.Migrations
                     b.Property<string>("ActiveEquipmentKey")
                         .HasMaxLength(64)
                         .HasColumnType("varchar(64)");
-
-                    b.Property<string>("Checklist")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
-
-                    b.Property<string>("ChecklistResult")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime(6)");
@@ -1220,11 +1037,6 @@ namespace LabManagementAPI.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<string>("Supplier")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ActiveEquipmentKey")
@@ -1245,11 +1057,6 @@ namespace LabManagementAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Checklist")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -1261,11 +1068,6 @@ namespace LabManagementAPI.Migrations
 
                     b.Property<int>("IntervalDays")
                         .HasColumnType("int");
-
-                    b.Property<string>("IntervalUnit")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
@@ -1387,60 +1189,6 @@ namespace LabManagementAPI.Migrations
                     b.ToTable("Penalties");
                 });
 
-            modelBuilder.Entity("LabManagementAPI.Models.ReturnEvidence", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<int>("BorrowRecordId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("varchar(150)");
-
-                    b.Property<int?>("EquipmentId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("EvidenceType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("StoredPath")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("UploadedByUserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EquipmentId");
-
-                    b.HasIndex("UploadedByUserId");
-
-                    b.HasIndex("BorrowRecordId", "EquipmentId");
-
-                    b.ToTable("ReturnEvidence");
-                });
-
             modelBuilder.Entity("LabManagementAPI.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -1449,26 +1197,13 @@ namespace LabManagementAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ClassName")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("Department")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
                     b.Property<string>("Email")
+                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
@@ -1476,11 +1211,6 @@ namespace LabManagementAPI.Migrations
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("longtext");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -1490,10 +1220,6 @@ namespace LabManagementAPI.Migrations
                     b.Property<int>("TokenVersion")
                         .HasColumnType("int");
 
-                    b.Property<string>("UniversityCode")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1501,11 +1227,7 @@ namespace LabManagementAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
-
-                    b.HasIndex("UniversityCode")
-                        .IsUnique();
+                    b.HasIndex("Email");
 
                     b.HasIndex("Username")
                         .IsUnique();
@@ -1531,7 +1253,8 @@ namespace LabManagementAPI.Migrations
                     b.HasOne("LabManagementAPI.Models.Equipment", "Equipment")
                         .WithMany()
                         .HasForeignKey("EquipmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("LabManagementAPI.Models.User", "InspectedByUser")
                         .WithMany()
@@ -1631,26 +1354,12 @@ namespace LabManagementAPI.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("LabManagementAPI.Models.ConsumableRequest", "ConsumableRequest")
-                        .WithMany()
-                        .HasForeignKey("ConsumableRequestId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("LabManagementAPI.Models.MaintenanceRecord", "MaintenanceRecord")
-                        .WithMany()
-                        .HasForeignKey("MaintenanceRecordId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("LabManagementAPI.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Consumable");
-
-                    b.Navigation("ConsumableRequest");
-
-                    b.Navigation("MaintenanceRecord");
 
                     b.Navigation("User");
                 });
@@ -1776,25 +1485,6 @@ namespace LabManagementAPI.Migrations
                     b.Navigation("ReceivedByUser");
                 });
 
-            modelBuilder.Entity("LabManagementAPI.Models.InventoryEvidence", b =>
-                {
-                    b.HasOne("LabManagementAPI.Models.InventoryItem", "InventoryItem")
-                        .WithMany("InventoryItemEvidence")
-                        .HasForeignKey("InventoryItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabManagementAPI.Models.User", "UploadedByUser")
-                        .WithMany()
-                        .HasForeignKey("UploadedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("InventoryItem");
-
-                    b.Navigation("UploadedByUser");
-                });
-
             modelBuilder.Entity("LabManagementAPI.Models.InventoryItem", b =>
                 {
                     b.HasOne("LabManagementAPI.Models.Equipment", "Equipment")
@@ -1854,44 +1544,6 @@ namespace LabManagementAPI.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Parent");
-                });
-
-            modelBuilder.Entity("LabManagementAPI.Models.MaintenanceEvidence", b =>
-                {
-                    b.HasOne("LabManagementAPI.Models.MaintenanceRecord", "MaintenanceRecord")
-                        .WithMany("Evidence")
-                        .HasForeignKey("MaintenanceRecordId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabManagementAPI.Models.User", "UploadedByUser")
-                        .WithMany()
-                        .HasForeignKey("UploadedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("MaintenanceRecord");
-
-                    b.Navigation("UploadedByUser");
-                });
-
-            modelBuilder.Entity("LabManagementAPI.Models.MaintenancePartUsage", b =>
-                {
-                    b.HasOne("LabManagementAPI.Models.Consumable", "Consumable")
-                        .WithMany()
-                        .HasForeignKey("ConsumableId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("LabManagementAPI.Models.MaintenanceRecord", "MaintenanceRecord")
-                        .WithMany("Parts")
-                        .HasForeignKey("MaintenanceRecordId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Consumable");
-
-                    b.Navigation("MaintenanceRecord");
                 });
 
             modelBuilder.Entity("LabManagementAPI.Models.MaintenanceRecord", b =>
@@ -1962,32 +1614,6 @@ namespace LabManagementAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("LabManagementAPI.Models.ReturnEvidence", b =>
-                {
-                    b.HasOne("LabManagementAPI.Models.BorrowRecord", "BorrowRecord")
-                        .WithMany()
-                        .HasForeignKey("BorrowRecordId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabManagementAPI.Models.Equipment", "Equipment")
-                        .WithMany()
-                        .HasForeignKey("EquipmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("LabManagementAPI.Models.User", "UploadedByUser")
-                        .WithMany()
-                        .HasForeignKey("UploadedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("BorrowRecord");
-
-                    b.Navigation("Equipment");
-
-                    b.Navigation("UploadedByUser");
-                });
-
             modelBuilder.Entity("LabManagementAPI.Models.BorrowRecord", b =>
                 {
                     b.Navigation("Details");
@@ -2002,11 +1628,6 @@ namespace LabManagementAPI.Migrations
                     b.Navigation("Items");
                 });
 
-            modelBuilder.Entity("LabManagementAPI.Models.InventoryItem", b =>
-                {
-                    b.Navigation("InventoryItemEvidence");
-                });
-
             modelBuilder.Entity("LabManagementAPI.Models.InventorySession", b =>
                 {
                     b.Navigation("Items");
@@ -2015,13 +1636,6 @@ namespace LabManagementAPI.Migrations
             modelBuilder.Entity("LabManagementAPI.Models.LocationNode", b =>
                 {
                     b.Navigation("Children");
-                });
-
-            modelBuilder.Entity("LabManagementAPI.Models.MaintenanceRecord", b =>
-                {
-                    b.Navigation("Evidence");
-
-                    b.Navigation("Parts");
                 });
 #pragma warning restore 612, 618
         }

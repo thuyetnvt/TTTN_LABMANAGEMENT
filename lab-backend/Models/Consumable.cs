@@ -6,6 +6,8 @@ namespace LabManagementAPI.Models
     {
         public int Id { get; set; }
 
+        public string Code { get; set; } = string.Empty;
+
         [Required]
         public string Name { get; set; } = string.Empty;
 
@@ -24,6 +26,12 @@ namespace LabManagementAPI.Models
         public DateTime? EntryDate { get; set; }
 
         public string InvoiceNumber { get; set; } = string.Empty;
+
+        public string Supplier { get; set; } = string.Empty;
+        public decimal? UnitCost { get; set; }
+        public string StorageLocation { get; set; } = string.Empty;
+        public string LotNumber { get; set; } = string.Empty;
+        public DateTime? ExpiryDate { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

@@ -25,6 +25,7 @@ public class ConsumableController : ControllerBase
 
     public sealed class ConsumableDto
     {
+        [MaxLength(100)] public string Code { get; set; } = string.Empty;
         [Required, MaxLength(255)]
         public string Name { get; set; } = string.Empty;
 
@@ -45,6 +46,12 @@ public class ConsumableController : ControllerBase
 
         [MaxLength(100)]
         public string InvoiceNumber { get; set; } = string.Empty;
+
+        [MaxLength(255)] public string Supplier { get; set; } = string.Empty;
+        [Range(0, double.MaxValue)] public decimal? UnitCost { get; set; }
+        [MaxLength(255)] public string StorageLocation { get; set; } = string.Empty;
+        [MaxLength(100)] public string LotNumber { get; set; } = string.Empty;
+        public DateTime? ExpiryDate { get; set; }
     }
 
     [HttpGet]
@@ -60,6 +67,7 @@ public class ConsumableController : ControllerBase
         return Ok(assets.Select(item => new
         {
             item.Id,
+            item.Code,
             item.Name,
             item.Unit,
             item.Quantity,
@@ -69,6 +77,11 @@ public class ConsumableController : ControllerBase
             CategoryName = item.AssetCategory?.Name,
             item.EntryDate,
             item.InvoiceNumber,
+            item.Supplier,
+            item.UnitCost,
+            item.StorageLocation,
+            item.LotNumber,
+            item.ExpiryDate,
             item.CreatedAt
         }));
     }
@@ -128,6 +141,7 @@ public class ConsumableController : ControllerBase
         var consumable = new Consumable
         {
             Name = dto.Name.Trim(),
+            Code = await ResolveCodeAsync(dto.Code, null, cancellationToken),
             Unit = dto.Unit.Trim(),
             Quantity = dto.Quantity,
             MinQuantity = dto.MinQuantity,
@@ -135,6 +149,11 @@ public class ConsumableController : ControllerBase
             AssetCategoryId = dto.AssetCategoryId,
             EntryDate = dto.EntryDate,
             InvoiceNumber = dto.InvoiceNumber.Trim(),
+            Supplier = dto.Supplier.Trim(),
+            UnitCost = dto.UnitCost,
+            StorageLocation = dto.StorageLocation.Trim(),
+            LotNumber = dto.LotNumber.Trim(),
+            ExpiryDate = dto.ExpiryDate,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -196,6 +215,7 @@ public class ConsumableController : ControllerBase
         var beforeQuantity = existing.Quantity;
 
         existing.Name = dto.Name.Trim();
+        existing.Code = await ResolveCodeAsync(dto.Code, id, cancellationToken);
         existing.Unit = dto.Unit.Trim();
         existing.Quantity = dto.Quantity;
         existing.MinQuantity = dto.MinQuantity;
@@ -203,6 +223,11 @@ public class ConsumableController : ControllerBase
         existing.AssetCategoryId = dto.AssetCategoryId;
         existing.EntryDate = dto.EntryDate;
         existing.InvoiceNumber = dto.InvoiceNumber.Trim();
+        existing.Supplier = dto.Supplier.Trim();
+        existing.UnitCost = dto.UnitCost;
+        existing.StorageLocation = dto.StorageLocation.Trim();
+        existing.LotNumber = dto.LotNumber.Trim();
+        existing.ExpiryDate = dto.ExpiryDate;
 
         if (beforeQuantity != existing.Quantity)
         {
@@ -275,6 +300,10 @@ public class ConsumableController : ControllerBase
     {
         dto.Name = dto.Name.Trim();
         dto.Unit = dto.Unit.Trim();
+        dto.Code = dto.Code.Trim();
+        dto.Supplier = dto.Supplier.Trim();
+        dto.StorageLocation = dto.StorageLocation.Trim();
+        dto.LotNumber = dto.LotNumber.Trim();
         if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Unit))
         {
             return BadRequest(new { message = "Tên vật tư và đơn vị tính là bắt buộc." });
@@ -286,6 +315,13 @@ public class ConsumableController : ControllerBase
                 cancellationToken))
         {
             return BadRequest(new { message = "Danh mục không tồn tại." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.Code)
+            && await _context.Consumables.AnyAsync(item => item.Code == dto.Code
+                && (!currentId.HasValue || item.Id != currentId.Value), cancellationToken))
+        {
+            return Conflict(new { message = "Mã vật tư đã tồn tại." });
         }
 
         var duplicate = await _context.Consumables.AnyAsync(
@@ -303,6 +339,7 @@ public class ConsumableController : ControllerBase
         return new
         {
             consumable.Name,
+            consumable.Code,
             consumable.Unit,
             consumable.Quantity,
             consumable.MinQuantity,
@@ -310,7 +347,33 @@ public class ConsumableController : ControllerBase
             consumable.AssetCategoryId,
             consumable.EntryDate,
             consumable.InvoiceNumber
+            ,consumable.Supplier,
+            consumable.UnitCost,
+            consumable.StorageLocation,
+            consumable.LotNumber,
+            consumable.ExpiryDate
         };
+    }
+
+    private async Task<string> ResolveCodeAsync(string value, int? currentId, CancellationToken cancellationToken)
+    {
+        var code = value.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            do
+            {
+                code = $"VT-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..24].ToUpperInvariant();
+            }
+            while (await _context.Consumables.AnyAsync(item => item.Code == code, cancellationToken));
+        }
+
+        if (await _context.Consumables.AnyAsync(item => item.Code == code
+            && (!currentId.HasValue || item.Id != currentId.Value), cancellationToken))
+        {
+            throw new InvalidOperationException("Mã vật tư đã tồn tại.");
+        }
+
+        return code;
     }
 
     private int? GetCurrentUserIdOrNull()

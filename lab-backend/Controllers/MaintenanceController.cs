@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using LabManagementAPI.Data;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
@@ -19,11 +20,19 @@ public class MaintenanceController : ControllerBase
 
     private readonly AppDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly IFileStorage _fileStorage;
+    private readonly IConfiguration _configuration;
 
-    public MaintenanceController(AppDbContext context, IAuditService auditService)
+    public MaintenanceController(
+        AppDbContext context,
+        IAuditService auditService,
+        IFileStorage fileStorage,
+        IConfiguration configuration)
     {
         _context = context;
         _auditService = auditService;
+        _fileStorage = fileStorage;
+        _configuration = configuration;
     }
 
     public sealed class CreateMaintenanceDto
@@ -41,6 +50,9 @@ public class MaintenanceController : ControllerBase
 
         [Required, MaxLength(255)]
         public string PerformedBy { get; set; } = string.Empty;
+
+        [MaxLength(255)] public string Supplier { get; set; } = string.Empty;
+        [MaxLength(4000)] public string Checklist { get; set; } = string.Empty;
     }
 
     public sealed class CompleteMaintenanceDto
@@ -50,6 +62,23 @@ public class MaintenanceController : ControllerBase
 
         [Required, MaxLength(50)]
         public string NextEquipmentStatus { get; set; } = EquipmentStatuses.Available;
+
+        [MaxLength(4000)] public string ChecklistResult { get; set; } = string.Empty;
+        public List<MaintenancePartDto> Parts { get; set; } = [];
+    }
+
+    public sealed class MaintenancePartDto
+    {
+        [Range(1, int.MaxValue)] public int ConsumableId { get; set; }
+        [Range(1, int.MaxValue)] public int Quantity { get; set; }
+        [Range(0, double.MaxValue)] public decimal? UnitCost { get; set; }
+        [MaxLength(1000)] public string Note { get; set; } = string.Empty;
+    }
+
+    public sealed class UploadEvidenceDto
+    {
+        [Required] public IFormFile? File { get; set; }
+        [Required, MaxLength(50)] public string EvidenceType { get; set; } = "PHOTO";
     }
 
     [HttpGet]
@@ -59,6 +88,9 @@ public class MaintenanceController : ControllerBase
         var records = await _context.MaintenanceRecords
             .AsNoTracking()
             .Include(record => record.Equipment)
+            .Include(record => record.Parts)
+                .ThenInclude(part => part.Consumable)
+            .Include(record => record.Evidence)
             .OrderByDescending(record => record.MaintenanceDate)
             .Select(record => new
             {
@@ -72,7 +104,27 @@ public class MaintenanceController : ControllerBase
                 status = record.Status,
                 completedAt = record.CompletedAt,
                 result = record.Result,
-                resultStatus = record.ResultStatus
+                resultStatus = record.ResultStatus,
+                record.Supplier,
+                record.Checklist,
+                record.ChecklistResult,
+                parts = record.Parts.Select(part => new
+                {
+                    part.ConsumableId,
+                    consumableName = part.Consumable!.Name,
+                    part.Quantity,
+                    part.UnitCost,
+                    part.Note
+                }),
+                evidence = record.Evidence.Select(evidence => new
+                {
+                    evidence.Id,
+                    evidence.EvidenceType,
+                    evidence.OriginalFileName,
+                    evidence.ContentType,
+                    evidence.FileSize,
+                    evidence.UploadedAt
+                })
             })
             .ToListAsync(cancellationToken);
 
@@ -86,6 +138,8 @@ public class MaintenanceController : ControllerBase
     {
         dto.Description = dto.Description.Trim();
         dto.PerformedBy = dto.PerformedBy.Trim();
+        dto.Supplier = dto.Supplier.Trim();
+        dto.Checklist = dto.Checklist.Trim();
         if (string.IsNullOrWhiteSpace(dto.Description)
             || string.IsNullOrWhiteSpace(dto.PerformedBy))
         {
@@ -134,6 +188,8 @@ public class MaintenanceController : ControllerBase
             Description = dto.Description,
             Cost = dto.Cost,
             PerformedBy = dto.PerformedBy,
+            Supplier = dto.Supplier,
+            Checklist = dto.Checklist,
             Status = InProgress,
             ActiveEquipmentKey = $"EQ:{dto.EquipmentId}"
         };
@@ -159,6 +215,7 @@ public class MaintenanceController : ControllerBase
     {
         dto.Result = dto.Result.Trim();
         dto.NextEquipmentStatus = dto.NextEquipmentStatus.Trim();
+        dto.ChecklistResult = dto.ChecklistResult.Trim();
         if (string.IsNullOrWhiteSpace(dto.Result))
         {
             return BadRequest(new { message = "Kết quả bảo trì là bắt buộc." });
@@ -185,10 +242,58 @@ public class MaintenanceController : ControllerBase
 
         var record = await _context.MaintenanceRecords
             .Include(item => item.Equipment)
+            .Include(item => item.Parts)
             .FirstAsync(item => item.Id == id, cancellationToken);
+
+        var requestedParts = dto.Parts ?? [];
+        if (requestedParts.GroupBy(part => part.ConsumableId).Any(group => group.Count() > 1))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return BadRequest(new { message = "Mỗi vật tư chỉ được khai báo một lần trong phiếu bảo trì." });
+        }
+        var partIds = requestedParts.Select(part => part.ConsumableId).ToHashSet();
+        var consumables = await _context.Consumables
+            .Where(consumable => partIds.Contains(consumable.Id))
+            .ToDictionaryAsync(consumable => consumable.Id, cancellationToken);
+        if (consumables.Count != partIds.Count)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return BadRequest(new { message = "Có vật tư không tồn tại." });
+        }
+        foreach (var part in requestedParts)
+        {
+            var stock = consumables[part.ConsumableId];
+            var beforeQuantity = stock.Quantity;
+            if (beforeQuantity < part.Quantity)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return Conflict(new { message = $"Vật tư {stock.Name} không đủ tồn kho để sử dụng." });
+            }
+            stock.Quantity -= part.Quantity;
+            _context.ConsumableTransactions.Add(new ConsumableTransaction
+            {
+                ConsumableId = stock.Id,
+                Type = "MAINTENANCE_USAGE",
+                Quantity = part.Quantity,
+                BeforeQuantity = beforeQuantity,
+                AfterQuantity = stock.Quantity,
+                Reason = $"Sử dụng cho phiếu bảo trì #{id}",
+                UserId = GetCurrentUserId(),
+                MaintenanceRecordId = id,
+                CreatedAt = DateTime.UtcNow
+            });
+            record.Parts.Add(new MaintenancePartUsage
+            {
+                ConsumableId = stock.Id,
+                Quantity = part.Quantity,
+                UnitCost = part.UnitCost,
+                Note = part.Note.Trim()
+            });
+        }
         record.Status = Completed;
         record.Result = dto.Result;
         record.ResultStatus = dto.NextEquipmentStatus;
+        record.ChecklistResult = dto.ChecklistResult;
         record.ActiveEquipmentKey = null;
         record.CompletedAt = DateTime.UtcNow;
         if (record.Equipment is not null)
@@ -206,6 +311,63 @@ public class MaintenanceController : ControllerBase
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return Ok(new { message = "Đã hoàn tất phiếu bảo trì và cập nhật trạng thái theo kết quả." });
+    }
+
+    [HttpPost("{id:int}/evidence")]
+    [RequestSizeLimit(11_000_000)]
+    public async Task<IActionResult> UploadEvidence(
+        int id,
+        [FromForm] UploadEvidenceDto dto,
+        CancellationToken cancellationToken)
+    {
+        if (dto.File is null) return BadRequest(new { message = "Vui lòng chọn file minh chứng." });
+        dto.EvidenceType = dto.EvidenceType.Trim().ToUpperInvariant();
+        if (dto.EvidenceType is not ("PHOTO" or "DOCUMENT"))
+            return BadRequest(new { message = "Loại minh chứng bảo trì không hợp lệ." });
+        if (!await _context.MaintenanceRecords.AnyAsync(record => record.Id == id, cancellationToken))
+            return NotFound(new { message = "Không tìm thấy phiếu bảo trì." });
+
+        StoredFile stored;
+        try
+        {
+            stored = await _fileStorage.SaveAsync(
+                dto.File,
+                "maintenance",
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { ".pdf", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx" },
+                _configuration.GetValue("Uploads:MaxEvidenceFileBytes", 10 * 1024 * 1024L),
+                cancellationToken);
+        }
+        catch (InvalidDataException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+
+        var evidence = new MaintenanceEvidence
+        {
+            MaintenanceRecordId = id,
+            EvidenceType = dto.EvidenceType,
+            OriginalFileName = stored.OriginalFileName,
+            StoredPath = stored.StoredPath,
+            ContentType = stored.ContentType,
+            FileSize = stored.Length,
+            UploadedByUserId = GetCurrentUserId()
+        };
+        _context.MaintenanceEvidence.Add(evidence);
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(HttpContext, "UploadEvidence", nameof(MaintenanceRecord), id,
+            new { evidence.Id, evidence.EvidenceType }, cancellationToken);
+        return Ok(new { evidence.Id, evidence.OriginalFileName, message = "Đã lưu file bảo trì." });
+    }
+
+    [HttpGet("{id:int}/evidence/{evidenceId:long}")]
+    public async Task<IActionResult> DownloadEvidence(int id, long evidenceId, CancellationToken cancellationToken)
+    {
+        var evidence = await _context.MaintenanceEvidence.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == evidenceId && item.MaintenanceRecordId == id, cancellationToken);
+        if (evidence is null || !_fileStorage.IsSafePath(evidence.StoredPath)) return NotFound();
+        var stream = new FileStream(evidence.StoredPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return File(stream, evidence.ContentType, evidence.OriginalFileName, enableRangeProcessing: true);
     }
 
     [HttpDelete("{id:int}")]
@@ -238,4 +400,6 @@ public class MaintenanceController : ControllerBase
             cancellationToken);
         return NoContent();
     }
+
+    private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

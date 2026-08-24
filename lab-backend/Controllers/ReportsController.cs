@@ -38,20 +38,21 @@ public class ReportsController : ControllerBase
         if (to.HasValue) maintenanceQuery = maintenanceQuery.Where(record => record.MaintenanceDate <= to.Value);
         var maintenanceCost = await maintenanceQuery.SumAsync(record => (decimal?)record.Cost, cancellationToken) ?? 0;
 
-        var borrowed = await _context.BorrowRecords.AsNoTracking()
-            .Include(record => record.User)
-            .Include(record => record.Equipment)
-            .Where(record => record.Status == BorrowStatuses.Borrowed)
-            .OrderBy(record => record.ExpectedReturnDate)
+        var borrowed = await _context.BorrowRequestDetails.AsNoTracking()
+            .Include(detail => detail.BorrowRecord)
+                .ThenInclude(record => record!.User)
+            .Include(detail => detail.Equipment)
+            .Where(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed)
+            .OrderBy(detail => detail.BorrowRecord!.ExpectedReturnDate)
             .Take(100)
-            .Select(record => new
+            .Select(detail => new
             {
-                record.Id,
-                user = record.User!.Username,
-                equipment = record.Equipment!.Name,
-                serial = record.Equipment.Serial,
-                expectedReturnDate = record.ExpectedReturnDate,
-                overdue = record.ExpectedReturnDate < now
+                id = detail.BorrowRecordId,
+                user = detail.BorrowRecord!.User!.Username,
+                equipment = detail.Equipment!.Name,
+                serial = detail.Equipment.Serial,
+                expectedReturnDate = detail.BorrowRecord.ExpectedReturnDate,
+                overdue = detail.BorrowRecord.ExpectedReturnDate < now
             })
             .ToListAsync(cancellationToken);
 
@@ -123,11 +124,11 @@ public class ReportsController : ControllerBase
             .OrderByDescending(record => record.MaintenanceDate)
             .Take(2000)
             .ToListAsync(cancellationToken);
-        var borrowed = await _context.BorrowRecords.AsNoTracking()
-            .Include(record => record.User)
-            .Include(record => record.Equipment)
-            .Where(record => record.Status == BorrowStatuses.Borrowed)
-            .OrderBy(record => record.ExpectedReturnDate)
+        var borrowed = await _context.BorrowRequestDetails.AsNoTracking()
+            .Include(detail => detail.BorrowRecord).ThenInclude(record => record!.User)
+            .Include(detail => detail.Equipment)
+            .Where(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed)
+            .OrderBy(detail => detail.BorrowRecord!.ExpectedReturnDate)
             .ToListAsync(cancellationToken);
         var consumables = await _context.Consumables.AsNoTracking()
             .OrderBy(item => item.Name).ToListAsync(cancellationToken);
@@ -170,11 +171,11 @@ public class ReportsController : ControllerBase
         {
             var item = borrowed[index];
             var row = index + 2;
-            WriteCell(borrowedSheet, row, 1, item.User?.Username);
+            WriteCell(borrowedSheet, row, 1, item.BorrowRecord?.User?.Username);
             WriteCell(borrowedSheet, row, 2, item.Equipment?.Name);
             WriteCell(borrowedSheet, row, 3, item.Equipment?.Serial);
-            WriteCell(borrowedSheet, row, 4, item.ExpectedReturnDate.ToString("dd/MM/yyyy"));
-            WriteCell(borrowedSheet, row, 5, item.ExpectedReturnDate < DateTime.UtcNow ? "Có" : "Không");
+            WriteCell(borrowedSheet, row, 4, item.BorrowRecord?.ExpectedReturnDate.ToString("dd/MM/yyyy"));
+            WriteCell(borrowedSheet, row, 5, item.BorrowRecord?.ExpectedReturnDate < DateTime.UtcNow ? "Có" : "Không");
         }
 
         var consumableSheet = package.Workbook.Worksheets.Add("VatTu");
@@ -220,11 +221,11 @@ public class ReportsController : ControllerBase
             .Where(record => (!from.HasValue || record.MaintenanceDate >= from.Value)
                 && (!to.HasValue || record.MaintenanceDate <= to.Value))
             .SumAsync(record => (decimal?)record.Cost, cancellationToken) ?? 0;
-        var borrowedCount = await _context.BorrowRecords.AsNoTracking()
-            .CountAsync(record => record.Status == BorrowStatuses.Borrowed, cancellationToken);
-        var overdueCount = await _context.BorrowRecords.AsNoTracking()
-            .CountAsync(record => record.Status == BorrowStatuses.Borrowed
-                && record.ExpectedReturnDate < DateTime.UtcNow, cancellationToken);
+        var borrowedCount = await _context.BorrowRequestDetails.AsNoTracking()
+            .CountAsync(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed, cancellationToken);
+        var overdueCount = await _context.BorrowRequestDetails.AsNoTracking()
+            .CountAsync(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed
+                && detail.BorrowRecord.ExpectedReturnDate < DateTime.UtcNow, cancellationToken);
         var lowStockCount = await _context.Consumables.AsNoTracking()
             .CountAsync(item => item.Quantity <= item.MinQuantity, cancellationToken);
 

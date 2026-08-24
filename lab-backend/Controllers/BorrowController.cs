@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Security.Claims;
 using LabManagementAPI.Data;
@@ -25,17 +26,23 @@ public class BorrowController : ControllerBase
     private readonly IEmailService _emailService;
     private readonly INotificationService _notificationService;
     private readonly IAuditService _auditService;
+    private readonly IFileStorage _fileStorage;
+    private readonly IConfiguration _configuration;
 
     public BorrowController(
         AppDbContext context,
         IEmailService emailService,
         INotificationService notificationService,
-        IAuditService auditService)
+        IAuditService auditService,
+        IFileStorage fileStorage,
+        IConfiguration configuration)
     {
         _context = context;
         _emailService = emailService;
         _notificationService = notificationService;
         _auditService = auditService;
+        _fileStorage = fileStorage;
+        _configuration = configuration;
     }
 
     public sealed class BorrowRequestDto
@@ -167,7 +174,7 @@ public class BorrowController : ControllerBase
         var record = new BorrowRecord
         {
             UserId = userId,
-            EquipmentId = equipmentIds[0],
+            EquipmentId = null,
             TeacherId = request.TeacherId,
             BorrowDate = DateTime.UtcNow,
             ExpectedReturnDate = request.ExpectedReturnDate,
@@ -247,10 +254,10 @@ public class BorrowController : ControllerBase
         {
             id = item.Id,
             student = item.User!.Username,
-            device = item.Equipment!.Name,
+            device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
             equipmentId = item.EquipmentId,
-            category = item.Equipment.AssetCategory?.Name ?? string.Empty,
-            serial = item.Equipment.Serial,
+            category = item.Equipment?.AssetCategory?.Name ?? string.Empty,
+            serial = item.Equipment?.Serial ?? string.Empty,
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
             purpose = item.Purpose,
@@ -299,8 +306,8 @@ public class BorrowController : ControllerBase
             {
                 id = item.Id,
                 student = item.User!.Username,
-                device = item.Equipment!.Name,
-                serial = item.Equipment.Serial,
+                device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
+                serial = item.Equipment != null ? item.Equipment.Serial : string.Empty,
                 requestDate = item.BorrowDate,
                 returnDate = item.ActualReturnDate ?? item.ExpectedReturnDate,
                 status = item.Status,
@@ -353,7 +360,7 @@ public class BorrowController : ControllerBase
             {
                 id = item.Id,
                 student = item.User!.Username,
-                device = item.Equipment!.Name,
+                device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
                 requestDate = item.BorrowDate,
                 returnDate = item.ExpectedReturnDate,
                 purpose = item.Purpose,
@@ -790,6 +797,13 @@ public class BorrowController : ControllerBase
         return Ok(new { message = allReturned ? "Đã ghi nhận trả toàn bộ tài sản." : "Đã ghi nhận trả một phần tài sản." });
     }
 
+    public sealed class UploadReturnEvidenceDto
+    {
+        [Required] public IFormFile? File { get; set; }
+        public int? EquipmentId { get; set; }
+        [Required, MaxLength(50)] public string EvidenceType { get; set; } = "PHOTO_AFTER";
+    }
+
     [HttpPut("{id:int}/report-damage")]
     [Authorize(Roles = Roles.Managers)]
     public Task<IActionResult> ReportDamage(
@@ -853,6 +867,74 @@ public class BorrowController : ControllerBase
             id,
             cancellationToken: cancellationToken);
         return Ok(new { message = "Đã gửi email nhắc trả thành công." });
+    }
+
+    [HttpPost("{id:int}/return-evidence")]
+    [Authorize(Roles = Roles.Managers)]
+    [RequestSizeLimit(11_000_000)]
+    public async Task<IActionResult> UploadReturnEvidence(
+        int id,
+        [FromForm] UploadReturnEvidenceDto dto,
+        CancellationToken cancellationToken)
+    {
+        if (dto.File is null) return BadRequest(new { message = "Vui lòng chọn file minh chứng nhận trả." });
+        dto.EvidenceType = dto.EvidenceType.Trim().ToUpperInvariant();
+        if (dto.EvidenceType is not ("PHOTO_BEFORE" or "PHOTO_AFTER" or "DOCUMENT" or "SIGNATURE"))
+            return BadRequest(new { message = "Loại minh chứng nhận trả không hợp lệ." });
+
+        var record = await _context.BorrowRecords.AsNoTracking()
+            .Include(item => item.Details)
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (record is null) return NotFound(new { message = "Không tìm thấy phiếu mượn." });
+        if (dto.EquipmentId.HasValue && !record.Details.Any(item => item.EquipmentId == dto.EquipmentId.Value))
+            return BadRequest(new { message = "Tài sản không thuộc phiếu mượn." });
+
+        StoredFile stored;
+        try
+        {
+            stored = await _fileStorage.SaveAsync(
+                dto.File,
+                "returns",
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { ".pdf", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx" },
+                _configuration.GetValue("Uploads:MaxEvidenceFileBytes", 10 * 1024 * 1024L),
+                cancellationToken);
+        }
+        catch (InvalidDataException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+
+        var evidence = new ReturnEvidence
+        {
+            BorrowRecordId = id,
+            EquipmentId = dto.EquipmentId,
+            EvidenceType = dto.EvidenceType,
+            OriginalFileName = stored.OriginalFileName,
+            StoredPath = stored.StoredPath,
+            ContentType = stored.ContentType,
+            FileSize = stored.Length,
+            UploadedByUserId = GetCurrentUserId()
+        };
+        _context.ReturnEvidence.Add(evidence);
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(HttpContext, "UploadEvidence", nameof(BorrowRecord), id,
+            new { evidence.Id, evidence.EquipmentId, evidence.EvidenceType }, cancellationToken);
+        return Ok(new { evidence.Id, evidence.OriginalFileName, message = "Đã lưu minh chứng nhận trả." });
+    }
+
+    [HttpGet("{id:int}/return-evidence/{evidenceId:long}")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> DownloadReturnEvidence(
+        int id,
+        long evidenceId,
+        CancellationToken cancellationToken)
+    {
+        var evidence = await _context.ReturnEvidence.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == evidenceId && item.BorrowRecordId == id, cancellationToken);
+        if (evidence is null || !_fileStorage.IsSafePath(evidence.StoredPath)) return NotFound();
+        var stream = new FileStream(evidence.StoredPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return File(stream, evidence.ContentType, evidence.OriginalFileName, enableRangeProcessing: true);
     }
 
     private int GetCurrentUserId()

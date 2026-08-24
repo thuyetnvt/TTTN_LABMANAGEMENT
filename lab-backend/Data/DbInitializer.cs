@@ -179,6 +179,7 @@ public static class DbInitializer
         {
             new Consumable
             {
+                Code = "VT-DEMO-001",
                 Name = "Điện trở 220 Ohm",
                 Unit = "cái",
                 Quantity = 450,
@@ -191,6 +192,7 @@ public static class DbInitializer
             },
             new Consumable
             {
+                Code = "VT-DEMO-002",
                 Name = "Dây jumper đực-cái",
                 Unit = "sợi",
                 Quantity = 320,
@@ -203,6 +205,7 @@ public static class DbInitializer
             },
             new Consumable
             {
+                Code = "VT-DEMO-003",
                 Name = "Board test breadboard",
                 Unit = "cái",
                 Quantity = 24,
@@ -215,6 +218,7 @@ public static class DbInitializer
             },
             new Consumable
             {
+                Code = "VT-DEMO-004",
                 Name = "Cảm biến siêu âm HC-SR04",
                 Unit = "cái",
                 Quantity = 8,

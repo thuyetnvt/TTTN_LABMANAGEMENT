@@ -105,7 +105,7 @@ public class AuthController : ControllerBase
         [FromBody] ForgotPasswordRequest request,
         CancellationToken cancellationToken)
     {
-        var normalizedEmail = request.Email.Trim();
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
         await _context.PasswordResetTokens
             .Where(item => item.ExpiresAt < DateTime.UtcNow.AddDays(-7))
             .ExecuteDeleteAsync(cancellationToken);
@@ -155,7 +155,7 @@ public class AuthController : ControllerBase
         try
         {
             await _emailService.SendEmailAsync(
-                user.Email,
+                user.Email!,
                 "[LabManagement] Đặt lại mật khẩu",
                 $"""
                  <p>Chào {safeUsername},</p>

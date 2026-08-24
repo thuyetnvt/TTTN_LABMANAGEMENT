@@ -14,4 +14,5 @@ public class InventoryItem
     public int? ScannedByUserId { get; set; }
     public User? ScannedByUser { get; set; }
     public string Note { get; set; } = string.Empty;
+    public ICollection<InventoryEvidence> InventoryItemEvidence { get; set; } = new List<InventoryEvidence>();
 }

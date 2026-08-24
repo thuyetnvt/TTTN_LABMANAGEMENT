@@ -27,8 +27,14 @@ public class UsersController : ControllerBase
     {
         public int Id { get; set; }
         public string Username { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string? UniversityCode { get; set; }
+        public string Phone { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public string? ClassName { get; set; }
         public string Role { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
     }
 
     public sealed class CreateUserDto
@@ -37,7 +43,13 @@ public class UsersController : ControllerBase
         public string Username { get; set; } = string.Empty;
 
         [EmailAddress, MaxLength(256)]
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
+
+        [MaxLength(255)] public string FullName { get; set; } = string.Empty;
+        [MaxLength(100)] public string? UniversityCode { get; set; }
+        [MaxLength(30)] public string Phone { get; set; } = string.Empty;
+        [MaxLength(255)] public string Department { get; set; } = string.Empty;
+        [MaxLength(100)] public string? ClassName { get; set; }
 
         [Required, MinLength(8), MaxLength(200)]
         public string Password { get; set; } = string.Empty;
@@ -52,7 +64,13 @@ public class UsersController : ControllerBase
         public string Username { get; set; } = string.Empty;
 
         [EmailAddress, MaxLength(256)]
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
+
+        [MaxLength(255)] public string FullName { get; set; } = string.Empty;
+        [MaxLength(100)] public string? UniversityCode { get; set; }
+        [MaxLength(30)] public string Phone { get; set; } = string.Empty;
+        [MaxLength(255)] public string Department { get; set; } = string.Empty;
+        [MaxLength(100)] public string? ClassName { get; set; }
 
         [MinLength(8), MaxLength(200)]
         public string? Password { get; set; }
@@ -77,14 +95,19 @@ public class UsersController : ControllerBase
     {
         return await _context.Users
             .AsNoTracking()
-            .Where(user => user.IsActive)
             .OrderBy(user => user.Username)
             .Select(user => new UserDto
             {
                 Id = user.Id,
                 Username = user.Username,
                 Email = user.Email,
-                Role = user.Role
+                FullName = user.FullName,
+                UniversityCode = user.UniversityCode,
+                Phone = user.Phone,
+                Department = user.Department,
+                ClassName = user.ClassName,
+                Role = user.Role,
+                IsActive = user.IsActive
             })
             .ToListAsync(cancellationToken);
     }
@@ -100,7 +123,9 @@ public class UsersController : ControllerBase
             .Select(user => new
             {
                 user.Id,
-                user.Username
+                user.Username,
+                user.FullName,
+                user.UniversityCode
             })
             .ToListAsync(cancellationToken);
     }
@@ -112,7 +137,9 @@ public class UsersController : ControllerBase
         CancellationToken cancellationToken)
     {
         var username = dto.Username.Trim();
-        var email = dto.Email.Trim();
+        var email = NormalizeEmail(dto.Email);
+        dto.FullName = dto.FullName.Trim(); dto.UniversityCode = dto.UniversityCode?.Trim();
+        dto.Phone = dto.Phone.Trim(); dto.Department = dto.Department.Trim(); dto.ClassName = dto.ClassName?.Trim();
         if (!Roles.All.Contains(dto.Role))
         {
             return BadRequest("Vai trò không hợp lệ.");
@@ -130,11 +157,19 @@ public class UsersController : ControllerBase
         {
             return BadRequest("Email đã được sử dụng.");
         }
+        if (!string.IsNullOrWhiteSpace(dto.UniversityCode)
+            && await _context.Users.AnyAsync(user => user.UniversityCode == dto.UniversityCode, cancellationToken))
+            return Conflict(new { message = "Mã sinh viên/mã cán bộ đã tồn tại." });
 
         var user = new User
         {
             Username = username,
             Email = email,
+            FullName = dto.FullName,
+            UniversityCode = dto.UniversityCode,
+            Phone = dto.Phone,
+            Department = dto.Department,
+            ClassName = dto.ClassName,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Role = dto.Role,
             IsActive = true,
@@ -156,7 +191,13 @@ public class UsersController : ControllerBase
             Id = user.Id,
             Username = user.Username,
             Email = user.Email,
-            Role = user.Role
+            FullName = user.FullName,
+            UniversityCode = user.UniversityCode,
+            Phone = user.Phone,
+            Department = user.Department,
+            ClassName = user.ClassName,
+            Role = user.Role,
+            IsActive = user.IsActive
         });
     }
 
@@ -174,7 +215,9 @@ public class UsersController : ControllerBase
         }
 
         var username = dto.Username.Trim();
-        var email = dto.Email.Trim();
+        var email = NormalizeEmail(dto.Email);
+        dto.FullName = dto.FullName.Trim(); dto.UniversityCode = dto.UniversityCode?.Trim();
+        dto.Phone = dto.Phone.Trim(); dto.Department = dto.Department.Trim(); dto.ClassName = dto.ClassName?.Trim();
         if (user.Username == "admin")
         {
             username = "admin";
@@ -200,9 +243,17 @@ public class UsersController : ControllerBase
         {
             return BadRequest("Email đã được sử dụng.");
         }
+        if (!string.IsNullOrWhiteSpace(dto.UniversityCode)
+            && await _context.Users.AnyAsync(item => item.Id != id && item.UniversityCode == dto.UniversityCode, cancellationToken))
+            return Conflict(new { message = "Mã sinh viên/mã cán bộ đã tồn tại." });
 
         user.Username = username;
         user.Email = email;
+        user.FullName = dto.FullName;
+        user.UniversityCode = dto.UniversityCode;
+        user.Phone = dto.Phone;
+        user.Department = dto.Department;
+        user.ClassName = dto.ClassName;
         user.Role = dto.Role;
         user.TokenVersion += 1;
         if (!string.IsNullOrWhiteSpace(dto.Password))
@@ -259,6 +310,21 @@ public class UsersController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{id:int}/activate")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> ActivateUser(int id, CancellationToken cancellationToken)
+    {
+        var user = await _context.Users.FindAsync([id], cancellationToken);
+        if (user is null) return NotFound();
+        if (user.IsActive) return NoContent();
+        user.IsActive = true;
+        user.TokenVersion += 1;
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(HttpContext, "Activate", "User", id,
+            new { user.Username }, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPut("me/password")]
     public async Task<IActionResult> ChangeOwnPassword(
         [FromBody] ChangePasswordDto dto,
@@ -306,5 +372,11 @@ public class UsersController : ControllerBase
         {
             return false;
         }
+    }
+
+    private static string? NormalizeEmail(string? value)
+    {
+        var email = value?.Trim().ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(email) ? null : email;
     }
 }

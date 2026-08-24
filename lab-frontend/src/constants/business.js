@@ -40,6 +40,25 @@ export const ROLE_LABELS = Object.freeze({
   Guest: 'Khách'
 })
 
+export const ROLE = Object.freeze({
+  ADMIN: 'Admin',
+  LAB_HEAD: 'Trưởng lab',
+  DEPUTY_LAB_HEAD: 'Phó lab',
+  TEACHER: 'Giảng viên',
+  STUDENT: 'Sinh viên'
+})
+
+export const MANAGER_ROLES = Object.freeze([
+  ROLE.ADMIN,
+  ROLE.LAB_HEAD,
+  ROLE.DEPUTY_LAB_HEAD
+])
+
+export const BORROWER_ROLES = Object.freeze([ROLE.STUDENT, ROLE.TEACHER])
+export const isManagerRole = (value) => MANAGER_ROLES.includes(value)
+export const isBorrowerRole = (value) => BORROWER_ROLES.includes(value)
+export const isAdminRole = (value) => value === ROLE.ADMIN
+
 const LEGACY_STATUS = Object.freeze({
   Rảnh: STATUS.AVAILABLE,
   'Sẵn sàng': STATUS.AVAILABLE,

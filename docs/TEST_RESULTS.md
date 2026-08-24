@@ -13,3 +13,14 @@ Ngày 25/08/2026 trên branch `codex/iot-lab-asset-upgrade`:
 - Docker xác nhận migration `20260824182131_AddEquipmentLocationHistory` (kèm unique key bảo trì đang xử lý), backend/frontend/db đều healthy và `/health` trả HTTP 200.
 - Docker build có QuestPDF và font Unicode cho endpoint xuất PDF, backend publish đạt.
 - Chưa chạy E2E browser trong môi trường này; các luồng E2E không được tuyên bố đạt.
+
+## Kiểm chứng bổ sung ngày 25/08/2026
+
+- `dotnet build --no-restore --configuration Release`: đạt, 0 warning/0 error.
+- `dotnet test lab-backend.Tests/LabManagementAPI.Tests.csproj --configuration Release --no-restore`: đạt 5/5.
+- `npm test`: đạt 2/2.
+- `npm run build`: đạt; còn cảnh báo chunk lớn và `PURE` annotation từ dependency SignalR.
+- `dotnet ef migrations has-pending-model-changes`: không có thay đổi model chưa migration.
+- `docker compose up -d --build backend frontend`: build và khởi động đạt; migration mới cho inventory evidence, maintenance, traceability, user profile, return evidence và borrow header đã áp dụng.
+- Docker backend `/health`: `Healthy`; frontend public endpoint trên port `8081` trả HTTP 200 theo cấu hình `.env` hiện tại.
+- Trong lần chạy đầu, seed gặp dữ liệu hồ sơ cũ có `ClassName = NULL`; đã sửa model/seed tương thích nullable, rebuild và chạy lại thành công. Cảnh báo Data Protection key chưa persist trong volume vẫn còn và cần xử lý khi deploy production.

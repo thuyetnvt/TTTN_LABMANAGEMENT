@@ -65,6 +65,11 @@
           <a-form-item v-if="statusMatches(item.condition, STATUS.BROKEN)" label="Số tiền bồi thường nếu hết bảo hành">
             <a-input-number v-model:value="item.compensationAmount" style="width: 100%" :min="0" :step="10000" :formatter="value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')" :parser="value => value.replace(/\$\s?|(,*)/g, '')" />
           </a-form-item>
+          <a-form-item label="Ảnh/file trước hoặc sau khi nhận trả">
+            <a-upload :before-upload="file => selectReturnEvidence(item, file)" :show-upload-list="false" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"><a-button size="small">Chọn minh chứng</a-button></a-upload>
+            <span v-if="item.returnEvidenceFile" class="muted">{{ item.returnEvidenceFile.name }}</span>
+            <a-select v-if="item.returnEvidenceFile" v-model:value="item.returnEvidenceType" style="width: 100%; margin-top: 6px"><a-select-option value="PHOTO_BEFORE">Ảnh trước khi trả</a-select-option><a-select-option value="PHOTO_AFTER">Ảnh sau khi trả</a-select-option><a-select-option value="DOCUMENT">Biên bản</a-select-option><a-select-option value="SIGNATURE">Xác nhận điện tử</a-select-option></a-select>
+          </a-form-item>
         </a-card>
       </a-form>
     </a-modal>
@@ -185,6 +190,7 @@ const showReturnModal = (record) => {
       condition: STATUS.AVAILABLE,
       note: '',
       compensationAmount: 0
+      ,returnEvidenceFile: null, returnEvidenceType: 'PHOTO_AFTER'
     }))
   }
   isReturnModalVisible.value = true
@@ -196,6 +202,11 @@ const submitReturnInspection = async () => {
     if (!returnForm.value.items.length) {
       message.warning('Không còn tài sản chưa nhận trả trong phiếu này!')
       return
+    }
+    for (const item of returnForm.value.items) {
+      if (item.returnEvidenceFile) {
+        await borrowApi.uploadReturnEvidence(currentReturnRecord.value.id, item.returnEvidenceFile, item.returnEvidenceType, item.equipmentId)
+      }
     }
     await borrowApi.returnEquipment(currentReturnRecord.value.id, {
       items: returnForm.value.items.map(item => ({
@@ -213,6 +224,17 @@ const submitReturnInspection = async () => {
   } finally {
     returnSubmitting.value = false
   }
+}
+
+const selectReturnEvidence = (item, file) => {
+  const allowed = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx']
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  if (!allowed.includes(extension) || file.size > 10 * 1024 * 1024) {
+    message.error('Minh chứng phải là PDF, Word hoặc ảnh và không quá 10 MB.')
+    return Upload.LIST_IGNORE
+  }
+  item.returnEvidenceFile = file
+  return false
 }
 
 const showHandoverModal = record => {

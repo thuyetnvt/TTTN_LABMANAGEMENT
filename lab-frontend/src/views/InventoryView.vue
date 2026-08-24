@@ -5,7 +5,7 @@
         <h2>Kiểm kê tài sản</h2>
         <p>Tạo đợt kiểm kê theo phạm vi, quét QR và theo dõi chênh lệch thực tế.</p>
       </div>
-      <a-button type="primary" @click="showCreate = true">Tạo đợt kiểm kê</a-button>
+        <a-button type="primary" @click="showCreate = true">Tạo đợt kiểm kê</a-button>
     </div>
 
     <a-card :bordered="false">
@@ -41,6 +41,12 @@
         </a-descriptions>
         <a-divider />
         <a-space direction="vertical" style="width: 100%">
+          <a-space wrap>
+            <a-button @click="toggleCamera">{{ cameraOpen ? 'Đóng camera' : 'Mở camera quét QR' }}</a-button>
+            <a-button @click="downloadReport('excel')">Xuất Excel chênh lệch</a-button>
+            <a-button @click="downloadReport('pdf')">Xuất PDF chênh lệch</a-button>
+          </a-space>
+          <div v-if="cameraOpen" id="inventory-qr-reader" class="qr-reader" />
           <a-input-search v-model:value="scanToken" placeholder="Nhập QR token để ghi nhận nhanh" enter-button="Ghi nhận" :loading="scanning" @search="scanByToken" />
           <a-alert v-if="scanMessage" :type="scanMessageType" :message="scanMessage" show-icon />
         </a-space>
@@ -48,6 +54,11 @@
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template>
             <template v-else-if="column.key === 'scannedAt'">{{ record.scannedAt ? formatDate(record.scannedAt) : 'Chưa quét' }}</template>
+            <template v-else-if="column.key === 'evidence'">
+              <a-upload :before-upload="file => uploadEvidence(record, file)" :show-upload-list="false" accept=".jpg,.jpeg,.png,.webp,.pdf">
+                <a-button size="small">Ảnh/file</a-button>
+              </a-upload>
+            </template>
           </template>
         </a-table>
         <a-button v-if="selectedSession.status === 'INVENTORY_OPEN'" danger block @click="completeSession">Kết thúc đợt kiểm kê</a-button>
@@ -58,7 +69,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
+import { Upload } from 'ant-design-vue'
+import { Html5QrcodeScanner } from 'html5-qrcode'
 import StatusBadge from '../components/StatusBadge.vue'
 import { inventoryApi } from '../api/inventoryApi'
 import { locationApi } from '../api/locationApi'
@@ -77,6 +91,8 @@ const scanToken = ref('')
 const scanning = ref(false)
 const scanMessage = ref('')
 const scanMessageType = ref('success')
+const cameraOpen = ref(false)
+let qrScanner = null
 
 const columns = [
   { title: 'Mã đợt', dataIndex: 'code', key: 'code' },
@@ -92,7 +108,8 @@ const itemColumns = [
   { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode' },
   { title: 'Vị trí dự kiến', dataIndex: 'expectedLocation', key: 'expectedLocation' },
   { title: 'Kết quả', key: 'status' },
-  { title: 'Thời gian quét', key: 'scannedAt' }
+  { title: 'Thời gian quét', key: 'scannedAt' },
+  { title: 'Minh chứng', key: 'evidence' }
 ]
 
 const formatDate = value => value ? new Date(value).toLocaleString('vi-VN') : '—'
@@ -148,6 +165,50 @@ const scanByToken = async value => {
   } finally { scanning.value = false }
 }
 
+const toggleCamera = () => {
+  if (cameraOpen.value) {
+    qrScanner?.clear().catch(() => {})
+    qrScanner = null
+    cameraOpen.value = false
+    return
+  }
+  cameraOpen.value = true
+  setTimeout(() => {
+    qrScanner = new Html5QrcodeScanner('inventory-qr-reader', { fps: 10, qrbox: 220 }, false)
+    qrScanner.render(decoded => {
+      scanByToken(decoded)
+      qrScanner?.clear().catch(() => {})
+      qrScanner = null
+      cameraOpen.value = false
+    }, () => {})
+  }, 0)
+}
+
+const uploadEvidence = async (record, file) => {
+  try {
+    await inventoryApi.uploadEvidence(selectedSession.value.id, record.id, file)
+    message.success('Đã lưu minh chứng kiểm kê.')
+    selectedSession.value = await inventoryApi.getById(selectedSession.value.id)
+  } catch (error) {
+    message.error(error.response?.data?.message || error.message || 'Không tải được minh chứng.')
+  }
+  return Upload.LIST_IGNORE
+}
+
+const downloadReport = async type => {
+  try {
+    const blob = type === 'pdf'
+      ? await inventoryApi.exportPdf(selectedSession.value.id)
+      : await inventoryApi.exportExcel(selectedSession.value.id)
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = type === 'pdf' ? `KiemKe_${selectedSession.value.code}.pdf` : `KiemKe_${selectedSession.value.code}.xlsx`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  } catch (error) { message.error(error.response?.data?.message || error.message || 'Không xuất được báo cáo.') }
+}
+
 const completeSession = async () => {
   try {
     await inventoryApi.complete(selectedSession.value.id)
@@ -158,6 +219,7 @@ const completeSession = async () => {
 }
 
 onMounted(fetchAll)
+onUnmounted(() => qrScanner?.clear().catch(() => {}))
 </script>
 
 <style scoped>
@@ -165,4 +227,5 @@ onMounted(fetchAll)
 .toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
 .toolbar h2 { margin: 0; font-weight: 600; }
 .toolbar p { color: #64748b; margin: 6px 0 0; }
+.qr-reader { max-width: 360px; margin: 12px 0; }
 </style>

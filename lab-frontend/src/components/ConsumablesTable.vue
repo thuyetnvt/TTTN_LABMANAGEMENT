@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="table-actions" v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)">
+    <div class="table-actions" v-if="isManagerRole(role)">
       <a-button type="primary" @click="showAddModal">+ Thêm vật tư</a-button>
     </div>
 
@@ -14,6 +14,9 @@
         <template v-else-if="column.key === 'entryDate'">
           {{ record.entryDate ? new Date(record.entryDate).toLocaleDateString('vi-VN') : '' }}
         </template>
+        <template v-else-if="column.key === 'expiryDate'">
+          {{ record.expiryDate ? new Date(record.expiryDate).toLocaleDateString('vi-VN') : 'Không áp dụng' }}
+        </template>
         <template v-else-if="column.key === 'status'">
           <a-tag :color="record.quantity <= record.minQuantity ? 'red' : 'green'">
             {{ record.quantity <= record.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
@@ -21,14 +24,14 @@
         </template>
         <template v-else-if="column.key === 'action'">
           <a-space>
-            <a-button v-if="['Sinh viên', 'Giảng viên'].includes(role)" type="link" size="small" @click="showRequestModal(record)">Yêu cầu cấp phát</a-button>
-            <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showHistoryModal(record)" title="Lịch sử">
+            <a-button v-if="isBorrowerRole(role)" type="link" size="small" @click="showRequestModal(record)">Yêu cầu cấp phát</a-button>
+            <a-button v-if="isManagerRole(role)" type="link" size="small" @click="showHistoryModal(record)" title="Lịch sử">
               <template #icon><HistoryOutlined /></template>
             </a-button>
-            <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
+            <a-button v-if="isManagerRole(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
               <template #icon><EditOutlined /></template>
             </a-button>
-            <a-button v-if="role === 'Admin'" type="link" danger size="small" @click="handleDelete(record.id)" title="Xóa">
+            <a-button v-if="isAdminRole(role)" type="link" danger size="small" @click="handleDelete(record.id)" title="Xóa">
               <template #icon><DeleteOutlined /></template>
             </a-button>
           </a-space>
@@ -39,6 +42,11 @@
     <a-modal v-model:open="isFormVisible" :title="isEditMode ? 'Sửa vật tư' : 'Thêm vật tư'" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting" width="800px" wrapClassName="responsive-modal">
       <a-form layout="vertical">
         <a-row :gutter="16">
+          <a-col :xs="24" :sm="12">
+            <a-form-item label="Mã vật tư">
+              <a-input v-model:value="formData.code" placeholder="Tự sinh nếu bỏ trống" />
+            </a-form-item>
+          </a-col>
           <a-col :xs="24" :sm="12">
             <a-form-item label="Tên vật tư" required>
               <a-input v-model:value="formData.name" />
@@ -81,6 +89,11 @@
               <a-input v-model:value="formData.invoiceNumber" />
             </a-form-item>
           </a-col>
+          <a-col :xs="24" :sm="12"><a-form-item label="Nhà cung cấp"><a-input v-model:value="formData.supplier" /></a-form-item></a-col>
+          <a-col :xs="24" :sm="12"><a-form-item label="Giá nhập mỗi đơn vị"><a-input-number v-model:value="formData.unitCost" :min="0" style="width: 100%" /></a-form-item></a-col>
+          <a-col :xs="24" :sm="12"><a-form-item label="Vị trí lưu"><a-input v-model:value="formData.storageLocation" /></a-form-item></a-col>
+          <a-col :xs="24" :sm="12"><a-form-item label="Số lô"><a-input v-model:value="formData.lotNumber" /></a-form-item></a-col>
+          <a-col :xs="24" :sm="12"><a-form-item label="Hạn sử dụng"><a-date-picker v-model:value="formData.expiryDate" style="width: 100%" /></a-form-item></a-col>
         </a-row>
       </a-form>
     </a-modal>
@@ -145,6 +158,7 @@ import { consumableApi } from '../api/consumableApi'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
+import { isAdminRole, isBorrowerRole, isManagerRole } from '../constants/business'
 import { EditOutlined, DeleteOutlined, EyeOutlined, HistoryOutlined } from '@ant-design/icons-vue'
 
 const authStore = useAuthStore()
@@ -156,6 +170,7 @@ const loading = ref(false)
 const submitting = ref(false)
 
 const columns = [
+  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 180 },
   { title: 'Tên vật tư', dataIndex: 'name', key: 'name', fixed: 'left', width: 180 },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100 },
@@ -164,6 +179,8 @@ const columns = [
   { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 },
   { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', width: 120 },
   { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 },
+  { title: 'Nhà cung cấp', dataIndex: 'supplier', key: 'supplier', width: 160 },
+  { title: 'Hạn sử dụng', dataIndex: 'expiryDate', key: 'expiryDate', width: 120 },
   { title: 'Trạng thái', key: 'status', align: 'center', width: 120 },
   { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 230 }
 ]
@@ -178,6 +195,7 @@ const historyColumns = [
 ]
 
 const emptyForm = () => ({
+  code: '',
   name: '',
   unit: '',
   quantity: 0,
@@ -185,7 +203,12 @@ const emptyForm = () => ({
   responsiblePerson: '',
   assetCategoryId: null,
   entryDate: null,
-  invoiceNumber: ''
+  invoiceNumber: '',
+  supplier: '',
+  unitCost: null,
+  storageLocation: '',
+  lotNumber: '',
+  expiryDate: null
 })
 
 const isFormVisible = ref(false)
@@ -238,7 +261,8 @@ const showEditModal = (record) => {
   formData.value = {
     ...emptyForm(),
     ...record,
-    entryDate: record.entryDate ? dayjs(record.entryDate) : null
+    entryDate: record.entryDate ? dayjs(record.entryDate) : null,
+    expiryDate: record.expiryDate ? dayjs(record.expiryDate) : null
   }
   isFormVisible.value = true
 }
@@ -281,7 +305,8 @@ const submitForm = async () => {
 
   const payload = {
     ...formData.value,
-    entryDate: formData.value.entryDate ? new Date(formData.value.entryDate).toISOString() : null
+    entryDate: formData.value.entryDate ? new Date(formData.value.entryDate).toISOString() : null,
+    expiryDate: formData.value.expiryDate ? new Date(formData.value.expiryDate).toISOString() : null
   }
 
   submitting.value = true
