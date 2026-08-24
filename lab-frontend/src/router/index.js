@@ -21,6 +21,7 @@ const routes = [
       { path: 'borrow-requests', name: 'BorrowRequests', component: () => import('../views/BorrowRequestsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
       { path: 'borrow-history', name: 'BorrowHistory', component: () => import('../views/BorrowHistoryView.vue') },
       { path: 'maintenance', name: 'Maintenance', component: () => import('../views/MaintenanceView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
+      { path: 'maintenance-schedules', name: 'MaintenanceSchedules', component: () => import('../views/MaintenanceSchedulesView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
       { path: 'consumable-requests', name: 'ConsumableRequests', component: () => import('../views/ConsumableRequestsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab', 'Sinh viên', 'Giảng viên'] } },
       { path: 'penalty', name: 'Penalty', component: () => import('../views/PenaltyView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab', 'Sinh viên', 'Giảng viên'] } },
       { path: 'teacher-approval', name: 'TeacherApproval', component: () => import('../views/TeacherApprovalView.vue'), meta: { allowedRoles: ['Giảng viên'] } }

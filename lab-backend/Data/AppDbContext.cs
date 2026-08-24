@@ -14,6 +14,7 @@ namespace LabManagementAPI.Data
         public DbSet<BorrowRecord> BorrowRecords { get; set; }
         public DbSet<BorrowRequestDetail> BorrowRequestDetails { get; set; }
         public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; }
+        public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
         public DbSet<ConsumableRequest> ConsumableRequests { get; set; }
         public DbSet<ConsumableTransaction> ConsumableTransactions { get; set; }
         public DbSet<Penalty> Penalties { get; set; }
@@ -289,6 +290,22 @@ namespace LabManagementAPI.Data
                 entity.HasOne(record => record.Equipment)
                     .WithMany()
                     .HasForeignKey(record => record.EquipmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<MaintenanceSchedule>(entity =>
+            {
+                entity.Property(schedule => schedule.Name).HasMaxLength(255);
+                entity.Property(schedule => schedule.Notes).HasMaxLength(2000);
+                entity.HasIndex(schedule => new { schedule.IsActive, schedule.NextDueAt });
+                entity.HasIndex(schedule => schedule.EquipmentId);
+                entity.HasOne(schedule => schedule.Equipment)
+                    .WithMany()
+                    .HasForeignKey(schedule => schedule.EquipmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(schedule => schedule.CreatedByUser)
+                    .WithMany()
+                    .HasForeignKey(schedule => schedule.CreatedByUserId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 

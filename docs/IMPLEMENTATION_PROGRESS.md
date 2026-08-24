@@ -82,10 +82,16 @@
 - `docker compose up -d --build backend frontend`: đạt; backend, frontend và database healthy.
 - Migration `20260824173650_AddHandoverRecords` đã áp dụng được trên database local có chuỗi migration legacy; `/health` trả `Healthy`.
 
+## 2026-08-25 — Giai đoạn 8: bảo trì định kỳ
+
+- Đã thêm `MaintenanceSchedule`, migration `20260824174338_AddMaintenanceSchedules` và API quản lý kế hoạch theo thiết bị.
+- Quản lý có thể đặt chu kỳ/ngày đến hạn, bật tắt kế hoạch và tạo phiếu bảo trì từ kế hoạch; ngày kế tiếp được tự động tính lại sau khi phát sinh phiếu.
+- Frontend đã có màn hình `Bảo trì định kỳ`, cảnh báo kế hoạch đến hạn và thao tác tạo phiếu.
+
 ## Phần chưa hoàn thành/chưa thể tuyên bố đạt
 
 - Bàn giao điện tử đã có module core và lưu tình trạng từng tài sản; file/ảnh minh chứng, chữ ký điện tử và tích hợp lưu trữ minh chứng chưa triển khai.
-- Kế hoạch bảo trì định kỳ, import Excel có preview, xuất PDF báo cáo và QR hàng loạt chưa triển khai đầy đủ.
+- Import Excel có preview, xuất PDF báo cáo và QR hàng loạt chưa triển khai đầy đủ.
 - Chưa có test project backend/frontend hoặc E2E browser; chưa tuyên bố các ca kiểm thử đó đạt.
 - Chưa chạy migration mới trên database production; chỉ kiểm tra build, sinh idempotent script và kiểm tra Docker/health môi trường local.
 - Đã gặp và xử lý hai rủi ro migration trên database local: thêm baseline tương thích cho chuỗi migration legacy và giữ index FK cũ khi thêm unique index detail. Sau khi sửa, `docker compose up -d --build` đạt và migration mới nhất đã được áp dụng.

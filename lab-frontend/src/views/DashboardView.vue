@@ -52,6 +52,10 @@
           <tool-outlined />
           <span>{{ $t('menu.maintenanceHistory') }}</span>
         </a-menu-item>
+        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m_schedule" @click="$router.push({ name: 'MaintenanceSchedules' })">
+          <calendar-outlined />
+          <span>Bảo trì định kỳ</span>
+        </a-menu-item>
         <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m_location" @click="$router.push({ name: 'Locations' })">
           <environment-outlined />
           <span>Vị trí tài sản</span>
@@ -273,6 +277,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ScanOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { notification } from 'ant-design-vue'
@@ -316,6 +321,7 @@ const routeMenuKeys = {
   BorrowHistory: '3',
   TeacherApproval: 'm_teacher',
   Maintenance: 'm3',
+  MaintenanceSchedules: 'm_schedule',
   Locations: 'm_location',
   Inventory: 'm_inventory',
   Notifications: 'notifications',
