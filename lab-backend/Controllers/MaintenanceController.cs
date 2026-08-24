@@ -13,9 +13,9 @@ namespace LabManagementAPI.Controllers;
 [Authorize(Roles = Roles.Managers)]
 public class MaintenanceController : ControllerBase
 {
-    private const string InProgress = "Đang xử lý";
-    private const string Completing = "Đang hoàn tất";
-    private const string Completed = "Hoàn thành";
+    private const string InProgress = MaintenanceStatuses.InProgress;
+    private const string Completing = MaintenanceStatuses.Completing;
+    private const string Completed = MaintenanceStatuses.Completed;
 
     private readonly AppDbContext _context;
     private readonly IAuditService _auditService;

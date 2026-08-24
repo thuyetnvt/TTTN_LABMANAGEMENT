@@ -62,9 +62,9 @@ public class DashboardController : ControllerBase
                 ? $"{record.User!.Username} đã yêu cầu mượn {record.Equipment!.Name} ({record.Status})"
                 : $"Bạn đã yêu cầu mượn {record.Equipment!.Name} ({record.Status})",
             record.BorrowDate,
-            record.Status == "Đã trả"
+            record.Status == BorrowStatuses.Returned
                 ? "blue"
-                : record.Status is "Chờ duyệt" or "Chờ GV duyệt"
+                : record.Status is BorrowStatuses.Pending or BorrowStatuses.TeacherPending
                     ? "orange"
                     : "green"));
 
@@ -94,7 +94,7 @@ public class DashboardController : ControllerBase
             .AsNoTracking()
             .Include(record => record.User)
             .Include(record => record.Equipment)
-            .Where(record => record.Status == "Đang mượn"
+            .Where(record => record.Status == BorrowStatuses.Borrowed
                 && record.ExpectedReturnDate < DateTime.UtcNow);
         if (!isManager)
         {
@@ -127,15 +127,15 @@ public class DashboardController : ControllerBase
                 user => user.IsActive,
                 cancellationToken);
             totalPenalties = await _context.Penalties
-                .Where(penalty => penalty.Status == "Đã thanh toán")
+                .Where(penalty => penalty.Status == PenaltyStatuses.Paid)
                 .SumAsync(penalty => penalty.Amount, cancellationToken);
             var pendingBorrows = await _context.BorrowRecords
                 .CountAsync(record =>
-                    record.Status == "Chờ duyệt"
-                    || record.Status == "Chờ GV duyệt",
+                    record.Status == BorrowStatuses.Pending
+                    || record.Status == BorrowStatuses.TeacherPending,
                     cancellationToken);
             var pendingConsumables = await _context.ConsumableRequests
-                .CountAsync(request => request.Status == "Chờ duyệt", cancellationToken);
+                .CountAsync(request => request.Status == ConsumableRequestStatuses.Pending, cancellationToken);
             pendingRequests = pendingBorrows + pendingConsumables;
 
             var lowStockItems = await _context.Consumables

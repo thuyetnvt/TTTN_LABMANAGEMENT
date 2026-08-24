@@ -15,12 +15,10 @@
             {{ new Date(record.createdAt).toLocaleDateString('vi-VN') }}
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="record.status === 'Đã thanh toán' ? 'green' : 'red'">
-              {{ record.status }}
-            </a-tag>
+            <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-button v-if="record.status === 'Chưa thanh toán' && ['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" 
+            <a-button v-if="statusMatches(record.status, STATUS.UNPAID) && ['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" 
                       type="primary" size="small" @click="handlePay(record)">
               Xác nhận Thu tiền
             </a-button>
@@ -37,6 +35,8 @@ import { ref, onMounted, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { penaltyApi } from '../api/penaltyApi'
 import { useAuthStore } from '../stores/authStore'
+import StatusBadge from '../components/StatusBadge.vue'
+import { STATUS, statusMatches } from '../constants/business'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

@@ -15,12 +15,12 @@
              {{ Number(record.cost || 0).toLocaleString('vi-VN') }} VNĐ
           </template>
           <template v-if="column.key === 'status'">
-             <a-tag :color="record.status === 'Hoàn thành' ? 'green' : 'orange'">{{ record.status }}</a-tag>
+             <StatusBadge :status="record.status" />
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
               <a-button
-                v-if="record.status === 'Đang xử lý'"
+                v-if="statusMatches(record.status, STATUS.MAINTENANCE_IN_PROGRESS)"
                 type="primary"
                 size="small"
                 @click="showCompleteModal(record)"
@@ -28,7 +28,7 @@
                 Hoàn tất
               </a-button>
               <a-button
-                v-if="role === 'Admin' && record.status === 'Hoàn thành'"
+                v-if="role === 'Admin' && statusMatches(record.status, STATUS.MAINTENANCE_COMPLETED)"
                 type="link"
                 danger
                 size="small"
@@ -103,6 +103,8 @@ import { message, Modal } from 'ant-design-vue'
 import { useAuthStore } from '../stores/authStore'
 import { maintenanceApi } from '../api/maintenanceApi'
 import { equipmentApi } from '../api/equipmentApi'
+import StatusBadge from '../components/StatusBadge.vue'
+import { STATUS, statusMatches } from '../constants/business'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

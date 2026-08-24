@@ -11,7 +11,7 @@
             {{ formatDate(record[column.key]) }}
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+            <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'compensationAmount'">
             {{ record.compensationAmount ? record.compensationAmount.toLocaleString('vi-VN') + ' VNĐ' : '' }}
@@ -26,6 +26,7 @@
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { borrowApi } from '../api/borrowApi'
+import StatusBadge from '../components/StatusBadge.vue'
 
 const dataSource = ref([])
 const loading = ref(false)
@@ -44,13 +45,6 @@ const columns = [
 ]
 
 onMounted(() => fetchHistory())
-
-const statusColor = (status) => {
-  if (status === 'Đã trả') return 'green'
-  if (status === 'Từ chối' || status?.includes('Hỏng')) return 'red'
-  if (status?.includes('Bảo hành')) return 'orange'
-  return 'blue'
-}
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'
 

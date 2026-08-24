@@ -15,7 +15,7 @@
         public DateTime? EntryDate { get; set; }
         public DateTime? WarrantyExpiry { get; set; }
         public string InvoiceNumber { get; set; } = string.Empty;
-        public string Status { get; set; } = "Rảnh";
+        public string Status { get; set; } = EquipmentStatuses.Available;
         public int BorrowCount { get; set; } = 0;
         public int? AssetCategoryId { get; set; }
         public AssetCategory? AssetCategory { get; set; }

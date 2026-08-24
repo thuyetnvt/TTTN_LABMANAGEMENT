@@ -2,8 +2,6 @@ services:
   db:
     image: mysql:8.4
     restart: unless-stopped
-    ports:
-      - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-lab_management}
@@ -47,9 +45,9 @@ services:
       Email__FromEmail: ${SMTP_FROM_EMAIL:-}
       Email__FromName: ${SMTP_FROM_NAME:-Lab Management}
       Database__ApplyMigrations: "true"
-      Seed__Enabled: ${SEED_ENABLED:-true}
+      Seed__Enabled: ${SEED_ENABLED:-false}
       Seed__DefaultPassword: ${SEED_DEFAULT_PASSWORD:?Set SEED_DEFAULT_PASSWORD in .env}
-      ForwardedHeaders__TrustAll: "true"
+      ForwardedHeaders__TrustAll: "false"
       Security__UseHttpsRedirection: "false"
     volumes:
       - equipment_uploads:/app/uploads

@@ -9,15 +9,13 @@
       <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 'Đã cấp phát' ? 'green' : (record.status === 'Từ chối' ? 'red' : 'orange')">
-              {{ record.status }}
-            </a-tag>
+            <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'requestDate'">
             {{ new Date(record.requestDate).toLocaleString('vi-VN') }}
           </template>
           <template v-else-if="column.key === 'action'">
-            <div v-if="record.status === 'Chờ duyệt' && ['Admin', 'Trưởng lab', 'Phó lab'].includes(role)">
+            <div v-if="statusMatches(record.status, STATUS.CONSUMABLE_PENDING) && ['Admin', 'Trưởng lab', 'Phó lab'].includes(role)">
               <a-button type="primary" size="small" style="margin-right: 8px;" @click="handleApprove(record.id)">Duyệt & cấp</a-button>
               <a-button danger size="small" @click="handleReject(record.id)">Từ chối</a-button>
             </div>
@@ -34,6 +32,8 @@ import { ref, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { useAuthStore } from '../stores/authStore'
+import StatusBadge from '../components/StatusBadge.vue'
+import { STATUS, statusMatches } from '../constants/business'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

@@ -16,12 +16,12 @@ namespace LabManagementAPI.Controllers;
 [Authorize]
 public class BorrowController : ControllerBase
 {
-    private const string Pending = "Chờ duyệt";
-    private const string TeacherPending = "Chờ GV duyệt";
-    private const string Borrowed = "Đang mượn";
-    private const string Rejected = "Từ chối";
-    private const string ProcessingApproval = "Đang xử lý duyệt";
-    private const string ProcessingReturn = "Đang xử lý trả";
+    private const string Pending = BorrowStatuses.Pending;
+    private const string TeacherPending = BorrowStatuses.TeacherPending;
+    private const string Borrowed = BorrowStatuses.Borrowed;
+    private const string Rejected = BorrowStatuses.Rejected;
+    private const string ProcessingApproval = BorrowStatuses.ProcessingApproval;
+    private const string ProcessingReturn = BorrowStatuses.ReturnProcessing;
 
     private readonly AppDbContext _context;
     private readonly IEmailService _emailService;
@@ -89,6 +89,10 @@ public class BorrowController : ControllerBase
         if (role == Roles.Teacher)
         {
             request.TeacherId = null;
+        }
+        else if (role == Roles.Student && !request.TeacherId.HasValue)
+        {
+            return BadRequest(new { message = "Sinh viên bắt buộc phải chọn giảng viên bảo lãnh." });
         }
         else if (request.TeacherId.HasValue)
         {
@@ -497,14 +501,14 @@ public class BorrowController : ControllerBase
 
         if (dto.Condition == EquipmentStatuses.Available)
         {
-            record.Status = "Đã trả";
+            record.Status = BorrowStatuses.Returned;
             record.WarrantyAction = "Không cần xử lý";
             record.CompensationAmount = 0;
             equipment.Status = EquipmentStatuses.Available;
         }
         else if (isWarrantyActive)
         {
-            record.Status = "Đã trả (Bảo hành)";
+            record.Status = BorrowStatuses.ReturnedDamaged;
             record.WarrantyAction = "Còn bảo hành - chuyển sửa/bảo hành";
             record.CompensationAmount = 0;
             equipment.Status = EquipmentStatuses.Warranty;
@@ -512,7 +516,7 @@ public class BorrowController : ControllerBase
         }
         else
         {
-            record.Status = "Đã trả (Hỏng)";
+            record.Status = BorrowStatuses.ReturnedDamaged;
             record.WarrantyAction = "Hết bảo hành - kiểm tra bồi thường";
             record.CompensationAmount = dto.CompensationAmount;
             equipment.Status = EquipmentStatuses.Broken;
@@ -529,7 +533,7 @@ public class BorrowController : ControllerBase
                         ? "Tài sản hỏng khi trả"
                         : dto.Note,
                     Amount = dto.CompensationAmount,
-                    Status = "Chưa thanh toán",
+                    Status = PenaltyStatuses.Unpaid,
                     CreatedAt = DateTime.UtcNow
                 });
             }

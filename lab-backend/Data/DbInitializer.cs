@@ -256,7 +256,7 @@ public static class DbInitializer
                 now.AddDays(-1),
                 now.AddDays(6),
                 "Làm đồ án nhận dạng thiết bị bằng camera.",
-                "Chờ GV duyệt");
+                BorrowStatuses.TeacherPending);
 
             await AddBorrowRecordAsync(
                 context,
@@ -266,7 +266,7 @@ public static class DbInitializer
                 now.AddDays(-2),
                 now.AddDays(5),
                 "Demo thực hành IoT tuần 3.",
-                "Chờ duyệt");
+                BorrowStatuses.Pending);
 
             await AddBorrowRecordAsync(
                 context,
@@ -276,7 +276,7 @@ public static class DbInitializer
                 now.AddDays(-5),
                 now.AddDays(2),
                 "Đo tín hiệu PWM cho bài thực hành vi điều khiển.",
-                "Đang mượn");
+                BorrowStatuses.Borrowed);
 
             await AddBorrowRecordAsync(
                 context,
@@ -286,7 +286,7 @@ public static class DbInitializer
                 now.AddDays(-18),
                 now.AddDays(-10),
                 "Thu thập dữ liệu môi trường cho mini project.",
-                "Đã trả",
+                BorrowStatuses.Returned,
                 now.AddDays(-9),
                 EquipmentStatuses.Available,
                 "Đủ phụ kiện, hoạt động bình thường.",
@@ -302,7 +302,7 @@ public static class DbInitializer
                 now.AddDays(-25),
                 now.AddDays(-17),
                 "Kiểm tra nguồn cấp cho mạch công suất.",
-                "Đã trả (Hỏng)",
+                BorrowStatuses.ReturnedDamaged,
                 now.AddDays(-16),
                 EquipmentStatuses.Broken,
                 "Cổng output lỏng, thiết bị hết bảo hành.",
@@ -320,7 +320,7 @@ public static class DbInitializer
                     BorrowRecordId = brokenRecord.Id,
                     Reason = "Cổng output lỏng sau khi trả thiết bị.",
                     Amount = 350000,
-                    Status = "Chưa thanh toán",
+                    Status = PenaltyStatuses.Unpaid,
                     CreatedAt = now.AddDays(-16)
                 });
             }
@@ -336,7 +336,7 @@ public static class DbInitializer
                 Description = "Camera mất tín hiệu depth, gửi kiểm tra bảo hành.",
                 Cost = 0,
                 PerformedBy = "Bảo hành hãng",
-                Status = "Đang xử lý"
+                Status = MaintenanceStatuses.InProgress
             });
         }
 
@@ -350,7 +350,7 @@ public static class DbInitializer
                 Description = "Hiệu chuẩn cảm biến ánh sáng sau khi trả.",
                 Cost = 120000,
                 PerformedBy = "Kỹ thuật lab",
-                Status = "Hoàn tất",
+                Status = MaintenanceStatuses.Completed,
                 CompletedAt = now.AddDays(-7),
                 Result = "Cảm biến hoạt động ổn định."
             });
@@ -364,7 +364,7 @@ public static class DbInitializer
                 consumables["Điện trở 220 Ohm"],
                 30,
                 "Làm bài thực hành mạch LED.",
-                "Chờ duyệt",
+                ConsumableRequestStatuses.Pending,
                 now.AddDays(-1));
 
             await AddConsumableRequestAsync(
@@ -373,7 +373,7 @@ public static class DbInitializer
                 consumables["Dây jumper đực-cái"],
                 20,
                 "Chuẩn bị demo cảm biến IoT.",
-                "Đã cấp phát",
+                ConsumableRequestStatuses.Issued,
                 now.AddDays(-7),
                 now.AddDays(-6));
 
@@ -383,7 +383,7 @@ public static class DbInitializer
                 consumables["Cảm biến siêu âm HC-SR04"],
                 4,
                 "Mượn vượt định mức cho nhóm ngoài lịch.",
-                "Từ chối",
+                ConsumableRequestStatuses.Rejected,
                 now.AddDays(-5),
                 now.AddDays(-4));
         }

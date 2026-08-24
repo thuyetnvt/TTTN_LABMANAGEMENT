@@ -12,11 +12,11 @@
           </template>
           <template v-else-if="column.key === 'dueStatus'">
             <a-tag v-if="record.isOverdue" color="red">Quá hạn {{ Math.abs(record.daysUntilDue) }} ngày</a-tag>
-            <a-tag v-else-if="record.status === 'Đang mượn' && record.daysUntilDue <= 2" color="orange">Sắp tới hạn</a-tag>
+            <a-tag v-else-if="statusMatches(record.status, STATUS.BORROWED) && record.daysUntilDue <= 2" color="orange">Sắp tới hạn</a-tag>
             <a-tag v-else color="green">Trong hạn</a-tag>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+            <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'details'">
             <div v-for="detail in record.details" :key="detail.id">
@@ -26,11 +26,11 @@
           <template v-else-if="column.key === 'action'">
             <template v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)">
               <a-space>
-                <template v-if="record.status === 'Chờ duyệt'">
+                <template v-if="statusMatches(record.status, STATUS.BORROW_PENDING)">
                   <a-button type="primary" size="small" @click="handleApprove(record)">Duyệt</a-button>
                   <a-button type="primary" danger size="small" @click="handleReject(record)">Từ chối</a-button>
                 </template>
-                <template v-else-if="record.status === 'Đang mượn'">
+                <template v-else-if="statusMatches(record.status, STATUS.BORROWED)">
                   <a-button type="default" size="small" @click="showReturnModal(record)">Kiểm tra trả</a-button>
                   <a-button type="primary" size="small" @click="handleRemind(record)">Nhắc trả</a-button>
                 </template>
@@ -46,14 +46,14 @@
       <a-form layout="vertical">
         <a-form-item label="Tình trạng sau kiểm tra" required>
           <a-select v-model:value="returnForm.condition">
-            <a-select-option value="Rảnh">Rảnh</a-select-option>
-            <a-select-option value="Hỏng">Hỏng</a-select-option>
+            <a-select-option :value="STATUS.AVAILABLE">Rảnh</a-select-option>
+            <a-select-option :value="STATUS.BROKEN">Hỏng</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="Ghi chú kiểm tra">
           <a-textarea v-model:value="returnForm.note" :rows="3" placeholder="Mô tả tình trạng thực tế, lỗi phát hiện, phụ kiện thiếu..." />
         </a-form-item>
-        <a-form-item v-if="returnForm.condition === 'Hỏng'">
+        <a-form-item v-if="statusMatches(returnForm.condition, STATUS.BROKEN)">
           <a-alert
             type="info"
             show-icon
@@ -61,7 +61,7 @@
             description="Còn bảo hành: chuyển bảo hành. Hết bảo hành: ghi nhận hỏng và bồi thường (nếu có)."
           />
         </a-form-item>
-        <a-form-item v-if="returnForm.condition === 'Hỏng'" label="Số tiền bồi thường nếu hết bảo hành">
+        <a-form-item v-if="statusMatches(returnForm.condition, STATUS.BROKEN)" label="Số tiền bồi thường nếu hết bảo hành">
           <a-input-number v-model:value="returnForm.compensationAmount" style="width: 100%" :min="0" :step="10000" :formatter="value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')" :parser="value => value.replace(/\$\s?|(,*)/g, '')" />
         </a-form-item>
       </a-form>
@@ -74,6 +74,8 @@ import { ref, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
+import StatusBadge from '../components/StatusBadge.vue'
+import { STATUS, statusMatches } from '../constants/business'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -84,7 +86,7 @@ const returnSubmitting = ref(false)
 const isReturnModalVisible = ref(false)
 const currentReturnRecord = ref(null)
 const returnForm = ref({
-  condition: 'Rảnh',
+  condition: STATUS.AVAILABLE,
   note: '',
   compensationAmount: 0
 })
@@ -104,13 +106,6 @@ const columns = [
 ]
 
 onMounted(() => fetchRequests())
-
-const statusColor = (status) => {
-  if (status === 'Chờ duyệt') return 'orange'
-  if (status === 'Đang mượn') return 'blue'
-  if (status.includes('Hỏng')) return 'red'
-  return 'green'
-}
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'
 
@@ -148,7 +143,7 @@ const handleReject = async (record) => {
 const showReturnModal = (record) => {
   currentReturnRecord.value = record
   returnForm.value = {
-    condition: 'Rảnh',
+    condition: STATUS.AVAILABLE,
     note: '',
     compensationAmount: 0
   }

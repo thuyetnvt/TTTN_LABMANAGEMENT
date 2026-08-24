@@ -18,7 +18,7 @@ namespace LabManagementAPI.Models
 
         public string PerformedBy { get; set; } = string.Empty;
 
-        public string Status { get; set; } = "Đang xử lý";
+        public string Status { get; set; } = MaintenanceStatuses.InProgress;
 
         public DateTime? CompletedAt { get; set; }
 

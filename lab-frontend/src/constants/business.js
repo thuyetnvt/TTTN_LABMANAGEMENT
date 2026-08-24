@@ -1,0 +1,104 @@
+export const STATUS = Object.freeze({
+  AVAILABLE: 'AVAILABLE',
+  BORROW_PENDING: 'BORROW_PENDING',
+  TEACHER_PENDING: 'TEACHER_PENDING',
+  APPROVED: 'APPROVED',
+  BORROWED: 'BORROWED',
+  RETURN_PROCESSING: 'RETURN_PROCESSING',
+  RETURNED: 'RETURNED',
+  RETURNED_DAMAGED: 'RETURNED_DAMAGED',
+  REJECTED: 'REJECTED',
+  UNDER_WARRANTY: 'UNDER_WARRANTY',
+  BROKEN: 'BROKEN',
+  MAINTENANCE_IN_PROGRESS: 'MAINTENANCE_IN_PROGRESS',
+  MAINTENANCE_COMPLETED: 'MAINTENANCE_COMPLETED',
+  CONSUMABLE_PENDING: 'CONSUMABLE_PENDING',
+  CONSUMABLE_PROCESSING: 'CONSUMABLE_PROCESSING',
+  CONSUMABLE_ISSUED: 'CONSUMABLE_ISSUED',
+  UNPAID: 'UNPAID',
+  PAID: 'PAID'
+})
+
+export const ROLE_LABELS = Object.freeze({
+  Admin: 'Quản trị viên',
+  ADMIN: 'Quản trị viên',
+  'Trưởng lab': 'Trưởng phòng Lab',
+  LAB_HEAD: 'Trưởng phòng Lab',
+  'Phó lab': 'Phó phòng Lab',
+  DEPUTY_LAB_HEAD: 'Phó phòng Lab',
+  'Giảng viên': 'Giảng viên',
+  TEACHER: 'Giảng viên',
+  'Sinh viên': 'Sinh viên',
+  STUDENT: 'Sinh viên',
+  Guest: 'Khách'
+})
+
+const LEGACY_STATUS = Object.freeze({
+  Rảnh: STATUS.AVAILABLE,
+  'Sẵn sàng': STATUS.AVAILABLE,
+  'Chờ duyệt': STATUS.BORROW_PENDING,
+  'Chờ GV duyệt': STATUS.TEACHER_PENDING,
+  'Đang xử lý duyệt': 'APPROVAL_PROCESSING',
+  'Đang xử lý trả': STATUS.RETURN_PROCESSING,
+  'Đang mượn': STATUS.BORROWED,
+  'Đã trả': STATUS.RETURNED,
+  'Đã trả (Hỏng)': STATUS.RETURNED_DAMAGED,
+  'Đã trả (Bảo hành)': STATUS.RETURNED_DAMAGED,
+  'Từ chối': STATUS.REJECTED,
+  'Bảo hành': STATUS.UNDER_WARRANTY,
+  'Hỏng': STATUS.BROKEN,
+  'Đang xử lý': STATUS.MAINTENANCE_IN_PROGRESS,
+  'Hoàn tất': STATUS.MAINTENANCE_COMPLETED,
+  'Hoàn thành': STATUS.MAINTENANCE_COMPLETED,
+  'Đã cấp phát': STATUS.CONSUMABLE_ISSUED,
+  'Chưa thanh toán': STATUS.UNPAID,
+  'Đã thanh toán': STATUS.PAID
+})
+
+export const normalizeStatus = (value) => LEGACY_STATUS[value] || value || ''
+
+export const statusLabel = (value) => ({
+  [STATUS.AVAILABLE]: 'Rảnh',
+  [STATUS.BORROW_PENDING]: 'Chờ duyệt',
+  [STATUS.TEACHER_PENDING]: 'Chờ giảng viên duyệt',
+  APPROVAL_PROCESSING: 'Đang xử lý duyệt',
+  [STATUS.APPROVED]: 'Đã duyệt',
+  [STATUS.BORROWED]: 'Đang mượn',
+  [STATUS.RETURN_PROCESSING]: 'Đang xử lý trả',
+  [STATUS.RETURNED]: 'Đã trả',
+  [STATUS.RETURNED_DAMAGED]: 'Đã trả, có hư hỏng',
+  [STATUS.REJECTED]: 'Từ chối',
+  [STATUS.UNDER_WARRANTY]: 'Bảo hành',
+  [STATUS.BROKEN]: 'Hỏng',
+  [STATUS.MAINTENANCE_IN_PROGRESS]: 'Đang bảo trì',
+  [STATUS.MAINTENANCE_COMPLETED]: 'Đã hoàn thành bảo trì',
+  [STATUS.CONSUMABLE_PENDING]: 'Chờ duyệt cấp phát',
+  [STATUS.CONSUMABLE_PROCESSING]: 'Đang xử lý cấp phát',
+  [STATUS.CONSUMABLE_ISSUED]: 'Đã cấp phát',
+  [STATUS.UNPAID]: 'Chưa thanh toán',
+  [STATUS.PAID]: 'Đã thanh toán'
+}[normalizeStatus(value)] || value || 'Chưa xác định')
+
+export const statusColor = (value) => ({
+  [STATUS.AVAILABLE]: 'green',
+  [STATUS.RETURNED]: 'green',
+  [STATUS.MAINTENANCE_COMPLETED]: 'green',
+  [STATUS.BORROW_PENDING]: 'orange',
+  [STATUS.TEACHER_PENDING]: 'orange',
+  APPROVAL_PROCESSING: 'blue',
+  [STATUS.RETURN_PROCESSING]: 'blue',
+  [STATUS.BORROWED]: 'blue',
+  [STATUS.UNDER_WARRANTY]: 'purple',
+  [STATUS.BROKEN]: 'red',
+  [STATUS.RETURNED_DAMAGED]: 'red',
+  [STATUS.REJECTED]: 'red',
+  [STATUS.UNPAID]: 'red',
+  [STATUS.PAID]: 'green',
+  [STATUS.MAINTENANCE_IN_PROGRESS]: 'blue',
+  [STATUS.CONSUMABLE_PENDING]: 'orange',
+  [STATUS.CONSUMABLE_PROCESSING]: 'blue',
+  [STATUS.CONSUMABLE_ISSUED]: 'green'
+}[normalizeStatus(value)] || 'default')
+
+export const statusMatches = (value, expected) => normalizeStatus(value) === expected
+export const roleLabel = (value) => ROLE_LABELS[value] || value || 'Chưa xác định'

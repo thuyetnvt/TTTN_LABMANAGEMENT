@@ -24,7 +24,7 @@
   <a-table :dataSource="filteredDataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1500 }">
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'status'">
-        <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
+        <StatusBadge :status="record.status" />
       </template>
       <template v-else-if="column.key === 'entryDate' || column.key === 'warrantyExpiry'">
         {{ formatDate(record[column.key]) }}
@@ -59,7 +59,7 @@
               <template #icon><DeleteOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-button v-if="['Sinh viên', 'Giảng viên'].includes(role) && record.status === 'Rảnh'" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
+          <a-button v-if="['Sinh viên', 'Giảng viên'].includes(role) && statusMatches(record.status, STATUS.AVAILABLE)" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
         </a-space>
       </template>
     </template>
@@ -82,7 +82,7 @@
       <a-form-item label="Dự kiến trả" required>
         <a-date-picker v-model:value="borrowForm.returnDate" style="width: 100%" :disabled-date="disablePastDate" />
       </a-form-item>
-      <a-form-item v-if="role === 'Sinh viên'" label="Giảng viên bảo lãnh (không bắt buộc)">
+      <a-form-item v-if="role === 'Sinh viên'" label="Giảng viên bảo lãnh" required>
         <a-select v-model:value="borrowForm.teacherId" placeholder="Chọn giảng viên" allowClear>
           <a-select-option v-for="t in teachers" :key="t.id" :value="t.id">{{ t.username }}</a-select-option>
         </a-select>
@@ -145,10 +145,10 @@
         <a-col :span="12">
           <a-form-item label="Trạng thái" required>
             <a-select v-model:value="formData.status">
-              <a-select-option value="Rảnh">Rảnh</a-select-option>
-              <a-select-option v-if="formData.status === 'Đang mượn'" value="Đang mượn" disabled>Đang mượn</a-select-option>
-              <a-select-option value="Bảo hành">Bảo hành</a-select-option>
-              <a-select-option value="Hỏng">Hỏng</a-select-option>
+              <a-select-option :value="STATUS.AVAILABLE">Rảnh</a-select-option>
+              <a-select-option v-if="statusMatches(formData.status, STATUS.BORROWED)" :value="STATUS.BORROWED" disabled>Đang mượn</a-select-option>
+              <a-select-option :value="STATUS.UNDER_WARRANTY">Bảo hành</a-select-option>
+              <a-select-option :value="STATUS.BROKEN">Hỏng</a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
@@ -205,7 +205,7 @@
       <a-descriptions-item label="Hạn bảo hành">{{ viewData.warrantyExpiry ? new Date(viewData.warrantyExpiry).toLocaleDateString('vi-VN') : 'Không có' }}</a-descriptions-item>
       <a-descriptions-item label="Số hóa đơn">{{ viewData.invoiceNumber || 'Không có' }}</a-descriptions-item>
       <a-descriptions-item label="Trạng thái">
-        <a-tag :color="statusColor(viewData.status)">{{ viewData.status }}</a-tag>
+          <StatusBadge :status="viewData.status" />
       </a-descriptions-item>
     </a-descriptions>
   </a-modal>
@@ -218,6 +218,8 @@ import dayjs from 'dayjs'
 import QrcodeVue from 'qrcode.vue'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import { message, Modal, Upload } from 'ant-design-vue'
+import StatusBadge from './StatusBadge.vue'
+import { STATUS, statusLabel, statusMatches } from '../constants/business'
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { equipmentApi } from '../api/equipmentApi'
@@ -253,13 +255,6 @@ const columns = [
   { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 180 }
 ]
 
-const statusColor = (status) => {
-  if (status === 'Rảnh' || status === 'Sẵn sàng') return 'green'
-  if (status === 'Đang mượn') return 'orange'
-  if (status === 'Bảo trì' || status === 'Hỏng') return 'red'
-  return 'default'
-}
-
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
 let searchTimeout = null
@@ -277,9 +272,9 @@ const filteredDataSource = computed(() => {
   const status = route.query.status
   if (status && status !== 'all') {
     if (status === 'problem') {
-      result = result.filter(item => ['Hỏng', 'Bảo hành'].includes(item.status))
+      result = result.filter(item => [STATUS.BROKEN, STATUS.UNDER_WARRANTY].includes(item.status))
     } else {
-      result = result.filter(item => item.status === status)
+      result = result.filter(item => statusMatches(item.status, status))
     }
   }
 
@@ -306,7 +301,7 @@ const emptyForm = () => ({
   entryDate: null,
   warrantyExpiry: null,
   invoiceNumber: '',
-  status: 'Rảnh',
+  status: STATUS.AVAILABLE,
   assetCategoryId: null
 })
 
@@ -426,7 +421,7 @@ const buildEquipmentFormData = () => {
   payload.append('location', formData.value.location || '')
   payload.append('responsiblePerson', formData.value.responsiblePerson || '')
   payload.append('invoiceNumber', formData.value.invoiceNumber || '')
-  payload.append('status', formData.value.status || 'Rảnh')
+  payload.append('status', formData.value.status || STATUS.AVAILABLE)
   if (formData.value.assetCategoryId !== null && formData.value.assetCategoryId !== undefined) {
     payload.append('assetCategoryId', formData.value.assetCategoryId)
   }
@@ -536,8 +531,10 @@ const handleBorrowClick = (record) => {
 }
 
 const submitBorrowRequest = async () => {
-  if (!borrowForm.value.returnDate || !borrowForm.value.purpose) {
-    message.warning('Vui lòng nhập ngày trả và mục đích mượn!')
+  if (!borrowForm.value.returnDate || !borrowForm.value.purpose || (role.value === 'Sinh viên' && !borrowForm.value.teacherId)) {
+    message.warning(role.value === 'Sinh viên'
+      ? 'Vui lòng nhập ngày trả, mục đích và giảng viên bảo lãnh!'
+      : 'Vui lòng nhập ngày trả và mục đích mượn!')
     return
   }
 
@@ -591,8 +588,8 @@ const onScanSuccess = (decodedText) => {
 
   stopScanner()
   isScannerVisible.value = false
-  if (device.status !== 'Rảnh') {
-    message.warning(`Thiết bị ${device.name} hiện đang ${device.status}. Không thể mượn!`)
+  if (!statusMatches(device.status, STATUS.AVAILABLE)) {
+    message.warning(`Thiết bị ${device.name} hiện đang ${statusLabel(device.status)}. Không thể mượn!`)
     return
   }
   handleBorrowClick(device)

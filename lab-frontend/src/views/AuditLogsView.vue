@@ -51,6 +51,9 @@
           <template v-else-if="column.key === 'createdAt'">
             {{ formatDateTime(record.createdAt) }}
           </template>
+          <template v-else-if="column.key === 'entityType'">
+            {{ entityLabel(record.entityType) }}
+          </template>
           <template v-else-if="column.key === 'details'">
             <a-button type="link" size="small" @click="showDetails(record)" title="Xem chi tiết">
               <template #icon><EyeOutlined /></template>
@@ -153,7 +156,10 @@ const actionLabel = (action) => ({
   Return: 'Trả',
   TeacherApprove: 'GV duyệt',
   TeacherReject: 'GV từ chối',
-  SendReturnReminder: 'Nhắc trả'
+  SendReturnReminder: 'Nhắc trả',
+  LoginSucceeded: 'Đăng nhập thành công',
+  MarkPaid: 'Xác nhận thanh toán',
+  SeedSampleData: 'Tạo dữ liệu mẫu'
 }[action] || action)
 
 const actionColor = (action) => ({
@@ -167,6 +173,18 @@ const actionColor = (action) => ({
   TeacherReject: 'red',
   SendReturnReminder: 'orange'
 }[action] || 'default')
+
+const entityLabel = (entityType) => ({
+  Equipment: 'Tài sản',
+  User: 'Người dùng',
+  BorrowRecord: 'Phiếu mượn',
+  MaintenanceRecord: 'Phiếu bảo trì',
+  Consumable: 'Vật tư',
+  ConsumableRequest: 'Yêu cầu vật tư',
+  AssetCategory: 'Danh mục',
+  Penalty: 'Bồi thường',
+  Database: 'Cơ sở dữ liệu'
+}[entityType] || entityType)
 
 const formatDateTime = (value) => value ? new Date(value).toLocaleString('vi-VN') : ''
 

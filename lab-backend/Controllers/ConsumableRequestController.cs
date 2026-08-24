@@ -16,10 +16,10 @@ namespace LabManagementAPI.Controllers;
 [Authorize]
 public class ConsumableRequestController : ControllerBase
 {
-    private const string Pending = "Chờ duyệt";
-    private const string Processing = "Đang xử lý";
-    private const string Issued = "Đã cấp phát";
-    private const string Rejected = "Từ chối";
+    private const string Pending = ConsumableRequestStatuses.Pending;
+    private const string Processing = ConsumableRequestStatuses.Processing;
+    private const string Issued = ConsumableRequestStatuses.Issued;
+    private const string Rejected = ConsumableRequestStatuses.Rejected;
 
     private readonly AppDbContext _context;
     private readonly IHubContext<NotificationHub> _hubContext;

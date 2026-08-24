@@ -243,7 +243,7 @@ public class EquipmentController : ControllerBase
         }
 
         var hasActiveMaintenance = await _context.MaintenanceRecords.AnyAsync(
-            record => record.EquipmentId == id && record.Status == "Đang xử lý",
+            record => record.EquipmentId == id && record.Status == MaintenanceStatuses.InProgress,
             cancellationToken);
         if (hasActiveMaintenance && dto.Status != existing.Status)
         {

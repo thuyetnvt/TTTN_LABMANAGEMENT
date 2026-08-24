@@ -20,8 +20,7 @@ namespace LabManagementAPI.Models
 
         public decimal Amount { get; set; }
 
-        // "Chưa thanh toán", "Đã thanh toán"
-        public string Status { get; set; } = "Chưa thanh toán";
+        public string Status { get; set; } = PenaltyStatuses.Unpaid;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? PaidAt { get; set; }

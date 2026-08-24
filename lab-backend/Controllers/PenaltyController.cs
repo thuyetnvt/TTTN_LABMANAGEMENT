@@ -68,10 +68,10 @@ public class PenaltyController : ControllerBase
     {
         var paidAt = DateTime.UtcNow;
         var updated = await _context.Penalties
-            .Where(penalty => penalty.Id == id && penalty.Status == "Chưa thanh toán")
+            .Where(penalty => penalty.Id == id && penalty.Status == PenaltyStatuses.Unpaid)
             .ExecuteUpdateAsync(
                 updates => updates
-                    .SetProperty(penalty => penalty.Status, "Đã thanh toán")
+                    .SetProperty(penalty => penalty.Status, PenaltyStatuses.Paid)
                     .SetProperty(penalty => penalty.PaidAt, (DateTime?)paidAt),
                 cancellationToken);
         if (updated == 0)

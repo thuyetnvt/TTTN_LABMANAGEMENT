@@ -19,7 +19,7 @@ namespace LabManagementAPI.Models
 
         public string Purpose { get; set; } = string.Empty;
 
-        public string Status { get; set; } = "Chờ duyệt";
+        public string Status { get; set; } = BorrowStatuses.Pending;
 
         public string ReturnCondition { get; set; } = string.Empty;
         public string ReturnInspectionNote { get; set; } = string.Empty;

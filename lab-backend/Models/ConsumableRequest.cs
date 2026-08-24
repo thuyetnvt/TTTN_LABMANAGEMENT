@@ -18,8 +18,7 @@ namespace LabManagementAPI.Models
         [Required]
         public string Reason { get; set; } = string.Empty;
 
-        // "Chờ duyệt", "Đã cấp phát", "Từ chối"
-        public string Status { get; set; } = "Chờ duyệt";
+        public string Status { get; set; } = ConsumableRequestStatuses.Pending;
 
         public DateTime RequestDate { get; set; } = DateTime.UtcNow;
 
