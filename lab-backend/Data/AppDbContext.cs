@@ -19,6 +19,7 @@ namespace LabManagementAPI.Data
         public DbSet<Penalty> Penalties { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<LocationNode> LocationNodes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -43,10 +44,22 @@ namespace LabManagementAPI.Data
 
             modelBuilder.Entity<Equipment>(entity =>
             {
+                entity.Property(e => e.AssetCode).HasMaxLength(100);
+                entity.Property(e => e.QrToken).HasMaxLength(64);
                 entity.Property(e => e.Name).HasMaxLength(255);
                 entity.Property(e => e.Model).HasMaxLength(255);
                 entity.Property(e => e.Serial).HasMaxLength(100);
                 entity.Property(e => e.SerialName).HasMaxLength(255);
+                entity.Property(e => e.DeviceType).HasMaxLength(150);
+                entity.Property(e => e.MacAddress).HasMaxLength(50);
+                entity.Property(e => e.Imei).HasMaxLength(50);
+                entity.Property(e => e.FirmwareVersion).HasMaxLength(100);
+                entity.Property(e => e.Manufacturer).HasMaxLength(150);
+                entity.Property(e => e.Supplier).HasMaxLength(255);
+                entity.Property(e => e.FundingSource).HasMaxLength(255);
+                entity.Property(e => e.PurchaseValue).HasPrecision(18, 2);
+                entity.Property(e => e.ImagePath).HasMaxLength(1000);
+                entity.Property(e => e.Notes).HasMaxLength(2000);
                 entity.Property(e => e.Location).HasMaxLength(255);
                 entity.Property(e => e.ResponsiblePerson).HasMaxLength(255);
                 entity.Property(e => e.InvoiceNumber).HasMaxLength(100);
@@ -54,7 +67,27 @@ namespace LabManagementAPI.Data
                 entity.Property(e => e.DecisionFilePath).HasMaxLength(1000);
                 entity.Property(e => e.Status).HasMaxLength(50);
                 entity.HasIndex(e => e.Serial).IsUnique();
+                entity.HasIndex(e => e.AssetCode).IsUnique();
+                entity.HasIndex(e => e.QrToken).IsUnique();
+                entity.HasIndex(e => e.LocationNodeId);
                 entity.HasIndex(e => e.Status);
+                entity.HasOne(e => e.LocationNode)
+                    .WithMany()
+                    .HasForeignKey(e => e.LocationNodeId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<LocationNode>(entity =>
+            {
+                entity.Property(location => location.Code).HasMaxLength(100);
+                entity.Property(location => location.Name).HasMaxLength(255);
+                entity.Property(location => location.Type).HasMaxLength(50);
+                entity.Property(location => location.Description).HasMaxLength(1000);
+                entity.HasIndex(location => location.Code).IsUnique();
+                entity.HasOne(location => location.Parent)
+                    .WithMany(location => location!.Children)
+                    .HasForeignKey(location => location.ParentId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<Consumable>(entity =>

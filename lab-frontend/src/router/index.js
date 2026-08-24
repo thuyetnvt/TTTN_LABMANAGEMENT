@@ -13,6 +13,7 @@ const routes = [
     children: [
       { path: '', name: 'Overview', component: () => import('../views/OverviewView.vue') },
       { path: 'devices', name: 'Devices', component: () => import('../views/DevicesView.vue') },
+      { path: 'locations', name: 'Locations', component: () => import('../views/LocationsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
       { path: 'admin/users', name: 'AdminUsers', component: () => import('../views/AdminUsersView.vue'), meta: { allowedRoles: ['Admin'] } },
       { path: 'admin/audit-logs', name: 'AuditLogs', component: () => import('../views/AuditLogsView.vue'), meta: { allowedRoles: ['Admin'] } },
       { path: 'borrow-requests', name: 'BorrowRequests', component: () => import('../views/BorrowRequestsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },

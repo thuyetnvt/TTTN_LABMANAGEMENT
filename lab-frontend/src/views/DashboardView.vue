@@ -52,6 +52,10 @@
           <tool-outlined />
           <span>{{ $t('menu.maintenanceHistory') }}</span>
         </a-menu-item>
+        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m_location" @click="$router.push({ name: 'Locations' })">
+          <environment-outlined />
+          <span>Vị trí tài sản</span>
+        </a-menu-item>
         
         <!-- Menu cho Đền bù -->
         <a-menu-item key="m4" @click="$router.push({ name: 'Penalty' })">
@@ -238,6 +242,7 @@ import {
   AppstoreFilled, 
   SolutionOutlined, 
   ToolOutlined, 
+  EnvironmentOutlined,
   HistoryOutlined,
   ExperimentOutlined,
   PayCircleOutlined,
@@ -289,6 +294,7 @@ const routeMenuKeys = {
   BorrowHistory: '3',
   TeacherApproval: 'm_teacher',
   Maintenance: 'm3',
+  Locations: 'm_location',
   Penalty: 'm4',
   BorrowRequests: 'g1_1',
   AdminUsers: 'g1_3',

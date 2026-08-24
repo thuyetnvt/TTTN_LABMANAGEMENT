@@ -50,6 +50,9 @@ public class EquipmentController : ControllerBase
 
     public sealed class EquipmentFormDto
     {
+        [MaxLength(100)]
+        public string AssetCode { get; set; } = string.Empty;
+
         [Required, MaxLength(255)]
         public string Name { get; set; } = string.Empty;
 
@@ -62,8 +65,37 @@ public class EquipmentController : ControllerBase
         [MaxLength(255)]
         public string SerialName { get; set; } = string.Empty;
 
+        [MaxLength(150)]
+        public string DeviceType { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string MacAddress { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string Imei { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string FirmwareVersion { get; set; } = string.Empty;
+
+        [MaxLength(150)]
+        public string Manufacturer { get; set; } = string.Empty;
+
+        [MaxLength(255)]
+        public string Supplier { get; set; } = string.Empty;
+
+        [MaxLength(255)]
+        public string FundingSource { get; set; } = string.Empty;
+
+        [Range(0, double.MaxValue)]
+        public decimal? PurchaseValue { get; set; }
+
+        [MaxLength(2000)]
+        public string Notes { get; set; } = string.Empty;
+
         [Required, MaxLength(255)]
         public string Location { get; set; } = string.Empty;
+
+        public int? LocationNodeId { get; set; }
 
         [MaxLength(255)]
         public string ResponsiblePerson { get; set; } = string.Empty;
@@ -86,17 +118,33 @@ public class EquipmentController : ControllerBase
         var equipments = await _context.Equipments
             .AsNoTracking()
             .Include(equipment => equipment.AssetCategory)
+            .Include(equipment => equipment.LocationNode)
             .OrderByDescending(equipment => equipment.CreatedAt)
             .ToListAsync(cancellationToken);
 
         return Ok(equipments.Select(equipment => new
         {
             equipment.Id,
+            equipment.AssetCode,
+            equipment.QrToken,
             equipment.Name,
             equipment.Model,
             equipment.Serial,
             equipment.SerialName,
+            equipment.DeviceType,
+            equipment.MacAddress,
+            equipment.Imei,
+            equipment.FirmwareVersion,
+            equipment.Manufacturer,
+            equipment.Supplier,
+            equipment.FundingSource,
+            equipment.PurchaseValue,
+            equipment.ImagePath,
+            equipment.LastInventoryAt,
+            equipment.Notes,
             equipment.Location,
+            equipment.LocationNodeId,
+            locationName = equipment.LocationNode?.Name ?? equipment.Location,
             equipment.ResponsiblePerson,
             equipment.DecisionFileName,
             HasDecisionFile = !string.IsNullOrEmpty(equipment.DecisionFilePath),
@@ -135,6 +183,15 @@ public class EquipmentController : ControllerBase
         }
 
         var serial = dto.Serial.Trim();
+        var assetCode = string.IsNullOrWhiteSpace(dto.AssetCode)
+            ? CreateAssetCode()
+            : dto.AssetCode.Trim();
+        if (await _context.Equipments.AnyAsync(
+                equipment => equipment.AssetCode == assetCode,
+                cancellationToken))
+        {
+            return BadRequest(new { message = "Mã tài sản đã tồn tại." });
+        }
         if (await _context.Equipments.AnyAsync(
                 equipment => equipment.Serial == serial,
                 cancellationToken))
@@ -150,13 +207,32 @@ public class EquipmentController : ControllerBase
             return BadRequest(new { message = "Danh mục không tồn tại." });
         }
 
+        if (dto.LocationNodeId.HasValue
+            && !await _context.LocationNodes.AnyAsync(
+                location => location.Id == dto.LocationNodeId && location.IsActive,
+                cancellationToken))
+        {
+            return BadRequest(new { message = "Vị trí không tồn tại hoặc đã ngừng sử dụng." });
+        }
+
         var equipment = new Equipment
         {
+            AssetCode = assetCode,
             Name = dto.Name.Trim(),
             Model = dto.Model.Trim(),
             Serial = serial,
             SerialName = dto.SerialName.Trim(),
+            DeviceType = dto.DeviceType.Trim(),
+            MacAddress = dto.MacAddress.Trim(),
+            Imei = dto.Imei.Trim(),
+            FirmwareVersion = dto.FirmwareVersion.Trim(),
+            Manufacturer = dto.Manufacturer.Trim(),
+            Supplier = dto.Supplier.Trim(),
+            FundingSource = dto.FundingSource.Trim(),
+            PurchaseValue = dto.PurchaseValue,
+            Notes = dto.Notes.Trim(),
             Location = dto.Location.Trim(),
+            LocationNodeId = dto.LocationNodeId,
             ResponsiblePerson = dto.ResponsiblePerson.Trim(),
             EntryDate = dto.EntryDate,
             WarrantyExpiry = dto.WarrantyExpiry,
@@ -221,6 +297,15 @@ public class EquipmentController : ControllerBase
         }
 
         var serial = dto.Serial.Trim();
+        var assetCode = string.IsNullOrWhiteSpace(dto.AssetCode)
+            ? (string.IsNullOrWhiteSpace(existing.AssetCode) ? CreateAssetCode() : existing.AssetCode)
+            : dto.AssetCode.Trim();
+        if (await _context.Equipments.AnyAsync(
+                equipment => equipment.Id != id && equipment.AssetCode == assetCode,
+                cancellationToken))
+        {
+            return BadRequest(new { message = "Mã tài sản đã tồn tại." });
+        }
         if (await _context.Equipments.AnyAsync(
                 equipment => equipment.Id != id && equipment.Serial == serial,
                 cancellationToken))
@@ -261,13 +346,32 @@ public class EquipmentController : ControllerBase
             return BadRequest(new { message = "Danh mục không tồn tại." });
         }
 
+        if (dto.LocationNodeId.HasValue
+            && !await _context.LocationNodes.AnyAsync(
+                location => location.Id == dto.LocationNodeId && location.IsActive,
+                cancellationToken))
+        {
+            return BadRequest(new { message = "Vị trí không tồn tại hoặc đã ngừng sử dụng." });
+        }
+
         var before = SnapshotEquipment(existing);
 
+        existing.AssetCode = assetCode;
         existing.Name = dto.Name.Trim();
         existing.Model = dto.Model.Trim();
         existing.Serial = serial;
         existing.SerialName = dto.SerialName.Trim();
+        existing.DeviceType = dto.DeviceType.Trim();
+        existing.MacAddress = dto.MacAddress.Trim();
+        existing.Imei = dto.Imei.Trim();
+        existing.FirmwareVersion = dto.FirmwareVersion.Trim();
+        existing.Manufacturer = dto.Manufacturer.Trim();
+        existing.Supplier = dto.Supplier.Trim();
+        existing.FundingSource = dto.FundingSource.Trim();
+        existing.PurchaseValue = dto.PurchaseValue;
+        existing.Notes = dto.Notes.Trim();
         existing.Location = dto.Location.Trim();
+        existing.LocationNodeId = dto.LocationNodeId;
         existing.ResponsiblePerson = dto.ResponsiblePerson.Trim();
         existing.EntryDate = dto.EntryDate;
         existing.WarrantyExpiry = dto.WarrantyExpiry;
@@ -532,11 +636,23 @@ public class EquipmentController : ControllerBase
     {
         return new
         {
+            equipment.AssetCode,
+            equipment.QrToken,
             equipment.Name,
             equipment.Model,
             equipment.Serial,
             equipment.SerialName,
+            equipment.DeviceType,
+            equipment.MacAddress,
+            equipment.Imei,
+            equipment.FirmwareVersion,
+            equipment.Manufacturer,
+            equipment.Supplier,
+            equipment.FundingSource,
+            equipment.PurchaseValue,
+            equipment.Notes,
             equipment.Location,
+            equipment.LocationNodeId,
             equipment.ResponsiblePerson,
             equipment.EntryDate,
             equipment.WarrantyExpiry,
@@ -545,5 +661,11 @@ public class EquipmentController : ControllerBase
             equipment.AssetCategoryId,
             equipment.DecisionFileName
         };
+    }
+
+    private static string CreateAssetCode()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        return $"IOT-{DateTime.UtcNow:yyyyMMddHHmmss}-{suffix}";
     }
 }
