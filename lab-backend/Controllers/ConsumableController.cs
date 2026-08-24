@@ -122,6 +122,9 @@ public class ConsumableController : ControllerBase
             return validationResult;
         }
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable,
+            cancellationToken);
         var consumable = new Consumable
         {
             Name = dto.Name.Trim(),
@@ -161,6 +164,7 @@ public class ConsumableController : ControllerBase
             consumable.Id,
             new { consumable.Name, consumable.Quantity },
             cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return Ok(consumable);
     }
 
@@ -171,6 +175,9 @@ public class ConsumableController : ControllerBase
         [FromBody] ConsumableDto dto,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable,
+            cancellationToken);
         var existing = await _context.Consumables.FindAsync(
             new object[] { id },
             cancellationToken);
@@ -224,6 +231,7 @@ public class ConsumableController : ControllerBase
                 After = SnapshotConsumable(existing)
             },
             cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return NoContent();
     }
 

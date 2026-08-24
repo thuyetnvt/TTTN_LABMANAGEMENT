@@ -176,7 +176,7 @@ public class EquipmentController : ControllerBase
             return BadRequest(new { message = "Vui lòng tải lên file quyết định mua/thêm thiết bị." });
         }
 
-        var fileValidationMessage = ValidateDecisionFile(dto.DecisionFile);
+        var fileValidationMessage = await ValidateDecisionFileAsync(dto.DecisionFile, cancellationToken);
         if (fileValidationMessage is not null)
         {
             return BadRequest(new { message = fileValidationMessage });
@@ -289,7 +289,7 @@ public class EquipmentController : ControllerBase
 
         if (dto.DecisionFile is not null)
         {
-            var fileValidationMessage = ValidateDecisionFile(dto.DecisionFile);
+            var fileValidationMessage = await ValidateDecisionFileAsync(dto.DecisionFile, cancellationToken);
             if (fileValidationMessage is not null)
             {
                 return BadRequest(new { message = fileValidationMessage });
@@ -619,7 +619,7 @@ public class EquipmentController : ControllerBase
         return storedPath;
     }
 
-    private string? ValidateDecisionFile(IFormFile file)
+    private async Task<string?> ValidateDecisionFileAsync(IFormFile file, CancellationToken cancellationToken)
     {
         var maxBytes = _configuration.GetValue(
             "Uploads:MaxDecisionFileBytes",
@@ -629,10 +629,25 @@ public class EquipmentController : ControllerBase
             return $"File quyết định rỗng hoặc vượt quá {maxBytes / (1024 * 1024)} MB.";
         }
 
-        var extension = Path.GetExtension(Path.GetFileName(file.FileName));
-        return AllowedExtensions.Contains(extension)
-            ? null
-            : "Định dạng file quyết định không được hỗ trợ.";
+        var extension = Path.GetExtension(Path.GetFileName(file.FileName)).ToLowerInvariant();
+        if (!AllowedExtensions.Contains(extension))
+        {
+            return "Định dạng file quyết định không được hỗ trợ.";
+        }
+
+        await using var stream = file.OpenReadStream();
+        var header = new byte[8];
+        var read = await stream.ReadAsync(header, cancellationToken);
+        var validSignature = extension switch
+        {
+            ".pdf" => read >= 4 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46,
+            ".png" => read >= 8 && header.SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
+            ".jpg" or ".jpeg" => read >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            ".doc" => read >= 4 && header[0] == 0xD0 && header[1] == 0xCF && header[2] == 0x11 && header[3] == 0xE0,
+            ".docx" => read >= 2 && header[0] == 0x50 && header[1] == 0x4B,
+            _ => false
+        };
+        return validSignature ? null : "Nội dung file không khớp với phần mở rộng.";
     }
 
     private string GetUploadDirectory()

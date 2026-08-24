@@ -96,7 +96,7 @@
 
         <a-menu-item key="logout" @click="handleLogout" class="logout-item">
           <logout-outlined />
-          <span>{{ $t('menu.logout') }} ({{ role }})</span>
+          <span>{{ $t('menu.logout') }} ({{ roleLabel(role) }})</span>
         </a-menu-item>
       </a-menu>
     </a-layout-sider>
@@ -280,6 +280,7 @@ import * as signalR from '@microsoft/signalr'
 import { equipmentApi } from '../api/equipmentApi'
 import { userApi } from '../api/userApi'
 import { notificationApi } from '../api/notificationApi'
+import { roleLabel } from '../constants/business'
 
 // Dark mode logic removed
 
