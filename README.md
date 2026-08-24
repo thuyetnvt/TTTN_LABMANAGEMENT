@@ -88,6 +88,8 @@ Nên dùng lịch backup tự động hằng ngày, lưu một bản ngoài serv
 9. Thử quên/đổi mật khẩu và kiểm tra token cũ bị từ chối.
 10. Restart toàn bộ container, xác nhận dữ liệu và file upload vẫn còn.
 
+Các luồng mới trên branch nâng cấp gồm: phiếu mượn nhiều tài sản, QR token/kiểm kê theo đợt, thông báo lưu database và màn hình chọn trạng thái sau bảo trì. Migration được tự áp dụng khi `Database__ApplyMigrations=true`.
+
 ## Mức điểm 9–10
 
 Code và Docker chỉ là điều kiện cần. Để chứng minh “áp dụng được thật”, nên có thêm:

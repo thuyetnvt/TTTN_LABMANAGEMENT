@@ -40,9 +40,39 @@
 - Frontend đã có giỏ chọn nhiều tài sản, duyệt bảo lãnh bắt buộc ghi chú và form kiểm tra trả theo từng món.
 - Kiểm chứng: backend build đạt 0 warning/0 error; frontend production build đạt, còn warning chunk lớn và annotation từ dependency SignalR.
 
+## 2026-08-25 — Giai đoạn 4: QR và kiểm kê
+
+- Commit `42b1834`: `feat: add QR inventory management`.
+- Đã thêm đợt kiểm kê, phạm vi theo vị trí/danh mục, danh sách tài sản dự kiến, quét QR token, kết quả tìm thấy/sai vị trí/hỏng/thiếu và tiến độ.
+- QR tài sản dùng `QrToken` ngẫu nhiên; API kiểm kê kiểm tra token thuộc đúng đợt trước khi ghi nhận.
+- Có màn hình kiểm kê thật và nút ghi nhận kiểm kê từng tài sản.
+
+## 2026-08-25 — Giai đoạn 5: thông báo và bảo trì
+
+- Commit `1b0d204`: `feat: persist realtime notifications`.
+- Thông báo mượn/vật tư được lưu database, có API danh sách, unread count, đọc từng thông báo và đọc tất cả; SignalR chỉ còn là kênh realtime.
+- Có chuông thông báo và màn hình lịch sử thông báo.
+- Commit `c5972fa`: `feat: make maintenance outcomes explicit`.
+- Khi hoàn tất bảo trì, người xử lý phải chọn trạng thái tiếp theo: rảnh, hỏng, bảo hành hoặc tiếp tục bảo trì; hệ thống không tự ép về `AVAILABLE`.
+
 ## Đang làm tiếp
 
-- QR/kiểm kê/bảo trì, vật tư có transaction, notification realtime và hardening các màn hình còn lại.
+- Hardening kho vật tư, kiểm tra migration/Docker, bổ sung tài liệu và test/kiểm chứng cuối.
+
+## 2026-08-25 — Giai đoạn 6: hardening và tài liệu
+
+- Commit `94aa048`: `fix: harden stock updates and file validation`.
+- Cập nhật tồn kho trực tiếp trong transaction Serializable; upload quyết định kiểm tra kích thước, phần mở rộng và magic bytes, tên lưu vẫn ngẫu nhiên.
+- Frontend giữ lại message lỗi cụ thể từ API thay vì thay bằng thông báo chung.
+- Đã thêm workflow `.github/workflows/ci.yml` cho restore/build backend, migration script, npm build và Docker build.
+- Đã bổ sung bộ tài liệu đồ án tại `docs/`: yêu cầu, use case, kiến trúc, database, API, RBAC, deployment, backup/restore, test plan, test results và user guide.
+
+## Phần chưa hoàn thành/chưa thể tuyên bố đạt
+
+- Bàn giao điện tử và file/ảnh minh chứng chưa được tách thành module nghiệp vụ riêng.
+- Kế hoạch bảo trì định kỳ, import Excel có preview, xuất PDF báo cáo và QR hàng loạt chưa triển khai đầy đủ.
+- Chưa có test project backend/frontend hoặc E2E browser; chưa tuyên bố các ca kiểm thử đó đạt.
+- Chưa chạy migration mới trên database production; chỉ kiểm tra build, sinh idempotent script và kiểm tra Docker/health môi trường local.
 
 ## Quy tắc tiếp tục
 

@@ -19,7 +19,9 @@ Backend ASP.NET Core Web API cho hệ thống quản lý phòng lab.
 - Xóa tài khoản là khóa mềm, không xóa lịch sử nghiệp vụ.
 - Duyệt mượn và cấp vật tư dùng transaction + atomic update, tránh duyệt trùng và tồn kho âm.
 - Upload quyết định có giới hạn kích thước, whitelist phần mở rộng, tên lưu ngẫu nhiên và đường dẫn tải an toàn.
-- Bảo trì có vòng đời `Đang xử lý` → `Hoàn thành`; hoàn thành sẽ đưa thiết bị về `Rảnh`.
+- Bảo trì có vòng đời `MAINTENANCE_IN_PROGRESS` → `MAINTENANCE_COMPLETED`; khi hoàn tất người xử lý phải chọn trạng thái thiết bị tiếp theo (`AVAILABLE`, `BROKEN`, `UNDER_WARRANTY` hoặc tiếp tục bảo trì).
+- Phiếu mượn hỗ trợ nhiều tài sản, lịch sử trạng thái, trả từng món và kiểm kê QR theo đợt.
+- Thông báo được lưu database; SignalR chỉ dùng để đẩy cập nhật realtime.
 - Có audit log, rate limit đăng nhập, health check MySQL và SignalR theo đúng người/nhóm quyền.
 - Database được nâng cấp bằng EF migration, không tự `ALTER TABLE` thủ công khi khởi động.
 
