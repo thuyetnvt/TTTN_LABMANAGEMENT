@@ -47,6 +47,9 @@ public class MaintenanceController : ControllerBase
     {
         [Required, MaxLength(2000)]
         public string Result { get; set; } = string.Empty;
+
+        [Required, MaxLength(50)]
+        public string NextEquipmentStatus { get; set; } = EquipmentStatuses.Available;
     }
 
     [HttpGet]
@@ -68,7 +71,8 @@ public class MaintenanceController : ControllerBase
                 performedBy = record.PerformedBy,
                 status = record.Status,
                 completedAt = record.CompletedAt,
-                result = record.Result
+                result = record.Result,
+                resultStatus = record.ResultStatus
             })
             .ToListAsync(cancellationToken);
 
@@ -153,9 +157,17 @@ public class MaintenanceController : ControllerBase
         CancellationToken cancellationToken)
     {
         dto.Result = dto.Result.Trim();
+        dto.NextEquipmentStatus = dto.NextEquipmentStatus.Trim();
         if (string.IsNullOrWhiteSpace(dto.Result))
         {
             return BadRequest(new { message = "Kết quả bảo trì là bắt buộc." });
+        }
+        if (dto.NextEquipmentStatus is not (EquipmentStatuses.Available
+            or EquipmentStatuses.Broken
+            or EquipmentStatuses.UnderWarranty
+            or EquipmentStatuses.MaintenanceInProgress))
+        {
+            return BadRequest(new { message = "Trạng thái sau bảo trì không hợp lệ." });
         }
 
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -175,10 +187,11 @@ public class MaintenanceController : ControllerBase
             .FirstAsync(item => item.Id == id, cancellationToken);
         record.Status = Completed;
         record.Result = dto.Result;
+        record.ResultStatus = dto.NextEquipmentStatus;
         record.CompletedAt = DateTime.UtcNow;
         if (record.Equipment is not null)
         {
-            record.Equipment.Status = EquipmentStatuses.Available;
+            record.Equipment.Status = dto.NextEquipmentStatus;
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -190,7 +203,7 @@ public class MaintenanceController : ControllerBase
             new { record.EquipmentId },
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return Ok(new { message = "Đã hoàn tất bảo trì; thiết bị được chuyển về trạng thái Rảnh." });
+        return Ok(new { message = "Đã hoàn tất phiếu bảo trì và cập nhật trạng thái theo kết quả." });
     }
 
     [HttpDelete("{id:int}")]

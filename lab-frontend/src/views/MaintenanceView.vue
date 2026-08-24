@@ -92,6 +92,14 @@
             placeholder="Mô tả kết quả sửa chữa, hiệu chuẩn hoặc linh kiện đã thay..."
           />
         </a-form-item>
+        <a-form-item label="Trạng thái thiết bị sau bảo trì" required>
+          <a-select v-model:value="completeStatus">
+            <a-select-option :value="STATUS.AVAILABLE">Hoạt động bình thường — Rảnh</a-select-option>
+            <a-select-option :value="STATUS.BROKEN">Chưa sửa được — Hỏng</a-select-option>
+            <a-select-option :value="STATUS.UNDER_WARRANTY">Gửi hãng — Bảo hành</a-select-option>
+            <a-select-option :value="STATUS.MAINTENANCE_IN_PROGRESS">Cần xử lý tiếp — Đang bảo trì</a-select-option>
+          </a-select>
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>
@@ -118,6 +126,7 @@ const isCompleteVisible = ref(false)
 const completing = ref(false)
 const completingRecordId = ref(null)
 const completeResult = ref('')
+const completeStatus = ref(STATUS.AVAILABLE)
 
 const formData = ref({
   equipmentId: null,
@@ -214,6 +223,7 @@ const handleDelete = (id) => {
 const showCompleteModal = (record) => {
   completingRecordId.value = record.id
   completeResult.value = ''
+  completeStatus.value = STATUS.AVAILABLE
   isCompleteVisible.value = true
 }
 
@@ -226,9 +236,10 @@ const submitComplete = async () => {
   completing.value = true
   try {
     await maintenanceApi.complete(completingRecordId.value, {
-      result: completeResult.value.trim()
+      result: completeResult.value.trim(),
+      nextEquipmentStatus: completeStatus.value
     })
-    message.success('Đã hoàn tất bảo trì và đưa thiết bị về trạng thái Rảnh!')
+    message.success('Đã hoàn tất phiếu bảo trì và cập nhật trạng thái thiết bị!')
     isCompleteVisible.value = false
     fetchData()
   } catch (error) {

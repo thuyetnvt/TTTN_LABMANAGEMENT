@@ -23,5 +23,6 @@ namespace LabManagementAPI.Models
         public DateTime? CompletedAt { get; set; }
 
         public string Result { get; set; } = string.Empty;
+        public string ResultStatus { get; set; } = EquipmentStatuses.Available;
     }
 }

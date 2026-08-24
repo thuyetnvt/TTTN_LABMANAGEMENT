@@ -260,6 +260,7 @@ namespace LabManagementAPI.Data
                 entity.Property(record => record.PerformedBy).HasMaxLength(255);
                 entity.Property(record => record.Status).HasMaxLength(50);
                 entity.Property(record => record.Result).HasMaxLength(2000);
+                entity.Property(record => record.ResultStatus).HasMaxLength(50);
                 entity.Property(record => record.Cost).HasPrecision(18, 2);
                 entity.HasIndex(record => record.Status);
                 entity.HasOne(record => record.Equipment)
