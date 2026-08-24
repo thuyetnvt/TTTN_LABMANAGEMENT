@@ -21,7 +21,19 @@
 
 ## Đang làm tiếp
 
-- Thêm metadata tài sản IoT, QR token và cây vị trí có migration an toàn.
+- ~~Thêm metadata tài sản IoT, QR token và cây vị trí có migration an toàn.~~ Đã hoàn thành.
+
+## 2026-08-25 — Giai đoạn 2: tài sản IoT và vị trí
+
+- Commit `693a3b4`: `feat: add IoT asset metadata and structured locations`.
+- `Equipment` đã có mã tài sản, QR token ngẫu nhiên, loại thiết bị, MAC/IMEI/firmware tùy chọn, nhà sản xuất/nhà cung cấp, nguồn kinh phí, giá trị mua, ghi chú và ngày kiểm kê.
+- Đã thêm `LocationNode` dạng cây, API CRUD có kiểm tra mã trùng, parent tồn tại và vòng lặp, cùng màn hình quản lý vị trí thật ở frontend.
+- Migration `20260824165820_AddIoTAssetMetadataAndLocations` tạo schema mới, gán mã/QR cho tài sản cũ và đưa vị trí tự do cũ vào node `LEGACY` để không mất dữ liệu.
+- Backend build và frontend production build đạt; frontend vẫn có warning từ dependency SignalR/chunk lớn.
+
+## Đang làm tiếp
+
+- Refactor phiếu mượn thành nhiều thiết bị, bắt buộc bảo lãnh, và lịch sử xử lý.
 
 ## Quy tắc tiếp tục
 
