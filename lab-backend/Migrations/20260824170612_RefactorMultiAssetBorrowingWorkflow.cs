@@ -12,10 +12,6 @@ namespace LabManagementAPI.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_BorrowRequestDetails_BorrowRecordId",
-                table: "BorrowRequestDetails");
-
             migrationBuilder.AddColumn<decimal>(
                 name: "CompensationAmount",
                 table: "BorrowRequestDetails",

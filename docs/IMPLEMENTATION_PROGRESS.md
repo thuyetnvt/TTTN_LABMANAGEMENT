@@ -73,6 +73,7 @@
 - Kế hoạch bảo trì định kỳ, import Excel có preview, xuất PDF báo cáo và QR hàng loạt chưa triển khai đầy đủ.
 - Chưa có test project backend/frontend hoặc E2E browser; chưa tuyên bố các ca kiểm thử đó đạt.
 - Chưa chạy migration mới trên database production; chỉ kiểm tra build, sinh idempotent script và kiểm tra Docker/health môi trường local.
+- Đã gặp và xử lý hai rủi ro migration trên database local: thêm baseline tương thích cho chuỗi migration legacy và giữ index FK cũ khi thêm unique index detail. Sau khi sửa, `docker compose up -d --build` đạt và migration mới nhất đã được áp dụng.
 
 ## Quy tắc tiếp tục
 

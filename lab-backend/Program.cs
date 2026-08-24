@@ -216,12 +216,45 @@ await using (var scope = app.Services.CreateAsyncScope())
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     if (builder.Configuration.GetValue("Database:ApplyMigrations", true))
     {
+        await EnsureLegacyMigrationBaselineAsync(context, CancellationToken.None);
         await context.Database.MigrateAsync();
     }
 
     if (builder.Configuration.GetValue("Seed:Enabled", false))
     {
         await DbInitializer.SeedDevelopmentDataAsync(context, builder.Configuration);
+    }
+}
+
+static async Task EnsureLegacyMigrationBaselineAsync(AppDbContext context, CancellationToken cancellationToken)
+{
+    var connection = context.Database.GetDbConnection();
+    await connection.OpenAsync(cancellationToken);
+    await using var command = connection.CreateCommand();
+    command.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '__EFMigrationsHistory';";
+    var hasHistoryTable = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+    if (!hasHistoryTable)
+    {
+        return;
+    }
+
+    command.CommandText = "SELECT COUNT(*) FROM `__EFMigrationsHistory` WHERE `MigrationId` = '20260808063057_InitialCreate';";
+    var hasCurrentBaseline = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+    if (hasCurrentBaseline)
+    {
+        return;
+    }
+
+    // The repository originally had a legacy migration chain ending at this ID.
+    // A previous branch replaced that chain with InitialCreate; mark only the
+    // known legacy endpoint as its equivalent so existing databases can continue
+    // with the new feature migrations without recreating tables.
+    command.CommandText = "SELECT COUNT(*) FROM `__EFMigrationsHistory` WHERE `MigrationId` = '20260801090000_AddConsumableTransactions';";
+    var isLegacyDatabase = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) > 0;
+    if (isLegacyDatabase)
+    {
+        command.CommandText = "INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`) VALUES ('20260808063057_InitialCreate', '9.0.0');";
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }
 
