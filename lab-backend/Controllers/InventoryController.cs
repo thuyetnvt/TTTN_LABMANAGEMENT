@@ -384,8 +384,9 @@ public class InventoryController : ControllerBase
                 && value.InventoryItemId == itemId
                 && value.InventoryItem!.InventorySessionId == sessionId,
                 cancellationToken);
-        if (evidence is null || !_fileStorage.IsSafePath(evidence.StoredPath)) return NotFound();
-        var stream = new FileStream(evidence.StoredPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (evidence is null) return NotFound();
+        var stream = await _fileStorage.OpenReadAsync(evidence.StoredPath, cancellationToken);
+        if (stream is null) return NotFound();
         return File(stream, evidence.ContentType, evidence.OriginalFileName, enableRangeProcessing: true);
     }
 

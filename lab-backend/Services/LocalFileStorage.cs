@@ -70,9 +70,23 @@ public sealed class LocalFileStorage : IFileStorage
             && File.Exists(fullPath);
     }
 
-    public void Delete(string path)
+    public Task<Stream?> OpenReadAsync(string path, CancellationToken cancellationToken = default)
+    {
+        if (!IsSafePath(path)) return Task.FromResult<Stream?>(null);
+        Stream stream = new FileStream(
+            Path.GetFullPath(path),
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            81920,
+            useAsync: true);
+        return Task.FromResult<Stream?>(stream);
+    }
+
+    public Task DeleteAsync(string path, CancellationToken cancellationToken = default)
     {
         if (IsSafePath(path)) File.Delete(Path.GetFullPath(path));
+        return Task.CompletedTask;
     }
 
     private static bool IsValidSignature(string extension, byte[] header, int read)

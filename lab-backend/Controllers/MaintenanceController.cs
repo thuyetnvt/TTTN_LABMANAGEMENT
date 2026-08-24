@@ -382,8 +382,9 @@ public class MaintenanceController : ControllerBase
     {
         var evidence = await _context.MaintenanceEvidence.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == evidenceId && item.MaintenanceRecordId == id, cancellationToken);
-        if (evidence is null || !_fileStorage.IsSafePath(evidence.StoredPath)) return NotFound();
-        var stream = new FileStream(evidence.StoredPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (evidence is null) return NotFound();
+        var stream = await _fileStorage.OpenReadAsync(evidence.StoredPath, cancellationToken);
+        if (stream is null) return NotFound();
         return File(stream, evidence.ContentType, evidence.OriginalFileName, enableRangeProcessing: true);
     }
 

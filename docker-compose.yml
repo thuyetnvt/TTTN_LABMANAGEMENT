@@ -51,6 +51,14 @@ services:
       Security__UseHttpsRedirection: "false"
       Security__DataProtectionCertificatePath: ${DATA_PROTECTION_CERTIFICATE_PATH:-}
       Security__DataProtectionCertificatePassword: ${DATA_PROTECTION_CERTIFICATE_PASSWORD:-}
+      Storage__Provider: ${STORAGE_PROVIDER:-Local}
+      Storage__S3__ServiceUrl: ${STORAGE_S3_SERVICE_URL:-}
+      Storage__S3__BucketName: ${STORAGE_S3_BUCKET_NAME:-}
+      Storage__S3__Region: ${STORAGE_S3_REGION:-us-east-1}
+      Storage__S3__AccessKey: ${STORAGE_S3_ACCESS_KEY:-}
+      Storage__S3__SecretKey: ${STORAGE_S3_SECRET_KEY:-}
+      Storage__S3__ForcePathStyle: ${STORAGE_S3_FORCE_PATH_STYLE:-true}
+      Storage__S3__KeyPrefix: ${STORAGE_S3_KEY_PREFIX:-labmanagement}
     volumes:
       - equipment_uploads:/app/uploads
       - backend_data_protection:/app/data-protection-keys

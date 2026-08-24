@@ -33,7 +33,14 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailO
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
+if (string.Equals(builder.Configuration["Storage:Provider"], "S3", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IFileStorage, S3FileStorage>();
+}
+else
+{
+    builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
+}
 
 var dataProtectionKeysPath = builder.Configuration["Security:DataProtectionKeysPath"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "data-protection-keys");

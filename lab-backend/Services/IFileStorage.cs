@@ -18,5 +18,6 @@ public interface IFileStorage
         CancellationToken cancellationToken = default);
 
     bool IsSafePath(string path);
-    void Delete(string path);
+    Task<Stream?> OpenReadAsync(string path, CancellationToken cancellationToken = default);
+    Task DeleteAsync(string path, CancellationToken cancellationToken = default);
 }

@@ -7,6 +7,7 @@ const apiBaseUrl = `${frontendBaseUrl.replace(/\/$/, '')}/api`
 test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiểm kê QR', async ({ page, request }) => {
   test.setTimeout(180000)
   test.skip(!businessFlowEnabled, 'Đặt E2E_BUSINESS_FLOW=1 để chạy flow nghiệp vụ có ghi dữ liệu test.')
+  const apiOnly = process.env.E2E_BUSINESS_API_ONLY === '1'
 
   const password = process.env.E2E_BUSINESS_PASSWORD || process.env.E2E_ADMIN_PASSWORD
   const adminUsername = process.env.E2E_ADMIN_USERNAME || 'admin'
@@ -85,9 +86,11 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
 
   const equipment = [await createEquipment('A'), await createEquipment('B')]
 
-  await loginUi(page, '/dashboard/devices', studentUsername, password)
-  await expect(page.getByRole('heading', { name: 'Thiết bị & Tài sản' })).toBeVisible()
-  await expect(page.getByRole('cell', { name: equipment[0].name }).first()).toBeVisible()
+  if (!apiOnly) {
+    await loginUi(page, '/dashboard/devices', studentUsername, password)
+    await expect(page.getByRole('heading', { name: 'Thiết bị & Tài sản' })).toBeVisible()
+    await expect(page.getByRole('cell', { name: equipment[0].name }).first()).toBeVisible()
+  }
 
   const borrowResponse = await request.post(`${apiBaseUrl}/borrow`, {
     headers: headers(student.token),
@@ -101,8 +104,10 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
   expect(borrowResponse.ok(), await borrowResponse.text()).toBeTruthy()
   const borrow = await borrowResponse.json()
 
-  await page.goto('/dashboard/borrow-history')
-  await expect(page.getByRole('heading', { name: 'Lịch sử mượn/trả' })).toBeVisible()
+  if (!apiOnly) {
+    await page.goto('/dashboard/borrow-history')
+    await expect(page.getByRole('heading', { name: 'Lịch sử mượn/trả' })).toBeVisible()
+  }
   const teacherApproval = await request.put(`${apiBaseUrl}/borrow/${borrow.id}/teacher-approve`, {
     headers: headers(teacher.token),
     data: { note: 'Đã kiểm tra mục đích thực hành.' }
@@ -128,6 +133,38 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
     }
   })
   expect(handoverResponse.ok(), await handoverResponse.text()).toBeTruthy()
+  await handoverResponse.json()
+
+  const evidenceResponse = await request.post(`${apiBaseUrl}/handover/${borrow.id}/evidence`, {
+    headers: headers(manager.token),
+    multipart: {
+      evidenceType: 'DOCUMENT',
+      equipmentId: String(equipment[0].id),
+      file: {
+        name: 'bien-ban-e2e.pdf',
+        mimeType: 'application/pdf',
+        buffer: Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF')
+      }
+    }
+  })
+  expect(evidenceResponse.ok(), await evidenceResponse.text()).toBeTruthy()
+  const evidence = await evidenceResponse.json()
+  const evidenceDownload = await request.get(
+    `${apiBaseUrl}/handover/${borrow.id}/evidence/${evidence.id}`,
+    { headers: headers(manager.token) }
+  )
+  expect(evidenceDownload.ok(), await evidenceDownload.text()).toBeTruthy()
+  expect((await evidenceDownload.body()).length).toBeGreaterThan(4)
+  const evidenceDelete = await request.delete(
+    `${apiBaseUrl}/handover/${borrow.id}/evidence/${evidence.id}`,
+    { headers: headers(manager.token) }
+  )
+  expect(evidenceDelete.status(), await evidenceDelete.text()).toBe(204)
+  const deletedEvidenceDownload = await request.get(
+    `${apiBaseUrl}/handover/${borrow.id}/evidence/${evidence.id}`,
+    { headers: headers(manager.token) }
+  )
+  expect(deletedEvidenceDownload.status()).toBe(404)
 
   const returnResponse = await request.put(`${apiBaseUrl}/borrow/${borrow.id}/return`, {
     headers: headers(manager.token),

@@ -34,20 +34,20 @@ public class EquipmentController : ControllerBase
         };
 
     private readonly AppDbContext _context;
-    private readonly IWebHostEnvironment _environment;
     private readonly IConfiguration _configuration;
     private readonly IAuditService _auditService;
+    private readonly IFileStorage _fileStorage;
 
     public EquipmentController(
         AppDbContext context,
-        IWebHostEnvironment environment,
         IConfiguration configuration,
-        IAuditService auditService)
+        IAuditService auditService,
+        IFileStorage fileStorage)
     {
         _context = context;
-        _environment = environment;
         _configuration = configuration;
         _auditService = auditService;
+        _fileStorage = fileStorage;
     }
 
     public sealed class EquipmentFormDto
@@ -450,7 +450,7 @@ public class EquipmentController : ControllerBase
         }
         catch
         {
-            DeleteFileIfExists(storedPath);
+            await _fileStorage.DeleteAsync(storedPath, CancellationToken.None);
             throw;
         }
 
@@ -636,7 +636,7 @@ public class EquipmentController : ControllerBase
         {
             if (!string.IsNullOrWhiteSpace(newPath))
             {
-                DeleteFileIfExists(newPath);
+                await _fileStorage.DeleteAsync(newPath, CancellationToken.None);
             }
             throw;
         }
@@ -644,7 +644,7 @@ public class EquipmentController : ControllerBase
         if (!string.IsNullOrWhiteSpace(previousPath)
             && !string.Equals(previousPath, newPath, StringComparison.Ordinal))
         {
-            DeleteFileIfExists(previousPath);
+            await _fileStorage.DeleteAsync(previousPath, cancellationToken);
         }
 
         await _auditService.WriteAsync(
@@ -707,23 +707,12 @@ public class EquipmentController : ControllerBase
             return NotFound("Không tìm thấy file quyết định.");
         }
 
-        var uploadDirectory = GetUploadDirectory();
-        var storedPath = Path.GetFullPath(equipment.DecisionFilePath);
-        if (!storedPath.StartsWith(
-                uploadDirectory + Path.DirectorySeparatorChar,
-                StringComparison.Ordinal)
-            || !System.IO.File.Exists(storedPath))
-        {
-            return NotFound("Không tìm thấy file quyết định.");
-        }
-
-        var extension = Path.GetExtension(storedPath);
+        var extension = Path.GetExtension(equipment.DecisionFilePath);
         var contentType = ContentTypes.GetValueOrDefault(extension, "application/octet-stream");
-        return PhysicalFile(
-            storedPath,
-            contentType,
-            equipment.DecisionFileName,
-            enableRangeProcessing: true);
+        var stream = await _fileStorage.OpenReadAsync(equipment.DecisionFilePath, cancellationToken);
+        return stream is null
+            ? NotFound("Không tìm thấy file quyết định.")
+            : File(stream, contentType, equipment.DecisionFileName, enableRangeProcessing: true);
     }
 
     [HttpDelete("{id:int}")]
@@ -755,7 +744,7 @@ public class EquipmentController : ControllerBase
         var filePath = equipment.DecisionFilePath;
         _context.Equipments.Remove(equipment);
         await _context.SaveChangesAsync(cancellationToken);
-        DeleteFileIfExists(filePath);
+        await _fileStorage.DeleteAsync(filePath ?? string.Empty, cancellationToken);
 
         await _auditService.WriteAsync(
             HttpContext,
@@ -835,26 +824,19 @@ public class EquipmentController : ControllerBase
         IFormFile file,
         CancellationToken cancellationToken)
     {
-        var originalName = Path.GetFileName(file.FileName);
-        var extension = Path.GetExtension(originalName).ToLowerInvariant();
-        var uploadDir = GetUploadDirectory();
-        Directory.CreateDirectory(uploadDir);
-
-        var storedName = $"{Guid.NewGuid():N}{extension}";
-        var storedPath = Path.Combine(uploadDir, storedName);
-        await using var stream = new FileStream(
-            storedPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None,
-            81920,
-            useAsync: true);
-        await file.CopyToAsync(stream, cancellationToken);
-
-        equipment.DecisionFileName = originalName;
-        equipment.DecisionFilePath = storedPath;
+        var maxBytes = _configuration.GetValue(
+            "Uploads:MaxDecisionFileBytes",
+            10 * 1024 * 1024L);
+        var stored = await _fileStorage.SaveAsync(
+            file,
+            "equipment-decisions",
+            AllowedExtensions,
+            maxBytes,
+            cancellationToken);
+        equipment.DecisionFileName = stored.OriginalFileName;
+        equipment.DecisionFilePath = stored.StoredPath;
         equipment.DecisionUploadedAt = DateTime.UtcNow;
-        return storedPath;
+        return stored.StoredPath;
     }
 
     private async Task<string?> ValidateDecisionFileAsync(IFormFile file, CancellationToken cancellationToken)
@@ -872,6 +854,12 @@ public class EquipmentController : ControllerBase
         {
             return "Định dạng file quyết định không được hỗ trợ.";
         }
+        if (!string.IsNullOrWhiteSpace(file.ContentType)
+            && !string.Equals(file.ContentType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(file.ContentType, ContentTypes[extension], StringComparison.OrdinalIgnoreCase))
+        {
+            return "MIME type không khớp với phần mở rộng file.";
+        }
 
         await using var stream = file.OpenReadStream();
         var header = new byte[8];
@@ -888,26 +876,12 @@ public class EquipmentController : ControllerBase
         return validSignature ? null : "Nội dung file không khớp với phần mở rộng.";
     }
 
-    private string GetUploadDirectory()
-    {
-        return Path.GetFullPath(
-            Path.Combine(_environment.ContentRootPath, "uploads", "equipment-decisions"));
-    }
-
     private static bool HasRequiredEquipmentFields(EquipmentFormDto dto)
     {
         return !string.IsNullOrWhiteSpace(dto.Name)
             && !string.IsNullOrWhiteSpace(dto.Model)
             && !string.IsNullOrWhiteSpace(dto.Serial)
             && !string.IsNullOrWhiteSpace(dto.Location);
-    }
-
-    private static void DeleteFileIfExists(string? path)
-    {
-        if (!string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
-        {
-            System.IO.File.Delete(path);
-        }
     }
 
     private static object SnapshotEquipment(Equipment equipment)

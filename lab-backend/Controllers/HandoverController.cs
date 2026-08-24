@@ -185,8 +185,10 @@ public class HandoverController : ControllerBase
     {
         var evidence = await _context.HandoverEvidence.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == evidenceId && item.HandoverRecord!.BorrowRecordId == borrowRecordId, cancellationToken);
-        if (evidence is null || !_fileStorage.IsSafePath(evidence.StoredPath)) return NotFound();
-        return PhysicalFile(evidence.StoredPath, evidence.ContentType, evidence.OriginalFileName, enableRangeProcessing: true);
+        if (evidence is null) return NotFound();
+        var stream = await _fileStorage.OpenReadAsync(evidence.StoredPath, cancellationToken);
+        if (stream is null) return NotFound();
+        return File(stream, evidence.ContentType, evidence.OriginalFileName, enableRangeProcessing: true);
     }
 
     [HttpDelete("{borrowRecordId:int}/evidence/{evidenceId:long}")]
@@ -202,7 +204,7 @@ public class HandoverController : ControllerBase
         var path = evidence.StoredPath;
         _context.HandoverEvidence.Remove(evidence);
         await _context.SaveChangesAsync(cancellationToken);
-        _fileStorage.Delete(path);
+        await _fileStorage.DeleteAsync(path, cancellationToken);
         return NoContent();
     }
 

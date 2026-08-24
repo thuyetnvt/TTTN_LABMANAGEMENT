@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Claims;
@@ -202,6 +203,9 @@ public sealed class MaintenanceScheduleControllerTests
             => throw new NotSupportedException();
 
         public bool IsSafePath(string path) => false;
-        public void Delete(string path) { }
+        public Task<Stream?> OpenReadAsync(string path, CancellationToken cancellationToken = default)
+            => Task.FromResult<Stream?>(null);
+        public Task DeleteAsync(string path, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

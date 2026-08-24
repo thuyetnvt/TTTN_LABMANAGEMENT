@@ -62,7 +62,7 @@ docker compose exec -T db \
   mysqldump -u root -p lab_management > lab_management_backup.sql
 ```
 
-Khi chạy lệnh, MySQL sẽ yêu cầu mật khẩu root. Ngoài database, phải backup volume `equipment_uploads` vì volume chứa file quyết định mua/thêm thiết bị.
+Khi chạy lệnh, MySQL sẽ yêu cầu mật khẩu root. Với `STORAGE_PROVIDER=Local`, ngoài database phải backup volume `equipment_uploads`. Nếu dùng S3/MinIO, phải backup/versioning bucket riêng; SQL backup không chứa object evidence.
 
 Nên dùng lịch backup tự động hằng ngày, lưu một bản ngoài server và thử khôi phục định kỳ.
 

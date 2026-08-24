@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
@@ -305,6 +306,9 @@ public sealed class BorrowControllerTests
             => throw new NotSupportedException();
 
         public bool IsSafePath(string path) => false;
-        public void Delete(string path) { }
+        public Task<Stream?> OpenReadAsync(string path, CancellationToken cancellationToken = default)
+            => Task.FromResult<Stream?>(null);
+        public Task DeleteAsync(string path, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

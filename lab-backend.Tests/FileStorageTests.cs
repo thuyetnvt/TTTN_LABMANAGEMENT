@@ -69,6 +69,39 @@ public sealed class FileStorageTests
         }
     }
 
+    [Fact]
+    public async Task OpenRead_and_delete_only_operate_on_managed_file()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var storage = new LocalFileStorage(new TestEnvironment(root));
+            await using var input = new MemoryStream(PngSignature());
+            var saved = await storage.SaveAsync(
+                new FormFile(input, 0, input.Length, "file", "photo.png")
+                {
+                    Headers = new HeaderDictionary(),
+                    ContentType = "image/png"
+                },
+                "evidence",
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".png" },
+                1024);
+
+            await using (var read = await storage.OpenReadAsync(saved.StoredPath))
+            {
+                Assert.NotNull(read);
+                Assert.Equal(PngSignature().Length, read!.Length);
+            }
+            await storage.DeleteAsync(saved.StoredPath);
+            Assert.False(File.Exists(saved.StoredPath));
+            Assert.Null(await storage.OpenReadAsync(Path.Combine(root, "outside.png")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreateTempRoot()
     {
         var root = Path.Combine(Path.GetTempPath(), "lab-management-tests", Guid.NewGuid().ToString("N"));
