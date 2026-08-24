@@ -24,6 +24,8 @@ namespace LabManagementAPI.Data
         public DbSet<InventorySession> InventorySessions { get; set; }
         public DbSet<InventoryItem> InventoryItems { get; set; }
         public DbSet<AppNotification> Notifications { get; set; }
+        public DbSet<HandoverRecord> HandoverRecords { get; set; }
+        public DbSet<HandoverItem> HandoverItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -221,6 +223,27 @@ namespace LabManagementAPI.Data
                     .WithMany()
                     .HasForeignKey(item => item.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<HandoverRecord>(entity =>
+            {
+                entity.Property(item => item.Code).HasMaxLength(50);
+                entity.Property(item => item.Notes).HasMaxLength(2000);
+                entity.HasIndex(item => item.Code).IsUnique();
+                entity.HasIndex(item => item.BorrowRecordId).IsUnique();
+                entity.HasOne(item => item.BorrowRecord).WithMany().HasForeignKey(item => item.BorrowRecordId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.HandedOverByUser).WithMany().HasForeignKey(item => item.HandedOverByUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.ReceivedByUser).WithMany().HasForeignKey(item => item.ReceivedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<HandoverItem>(entity =>
+            {
+                entity.Property(item => item.Condition).HasMaxLength(50);
+                entity.Property(item => item.Accessories).HasMaxLength(1000);
+                entity.Property(item => item.Note).HasMaxLength(2000);
+                entity.HasIndex(item => new { item.HandoverRecordId, item.EquipmentId }).IsUnique();
+                entity.HasOne(item => item.HandoverRecord).WithMany(record => record.Items).HasForeignKey(item => item.HandoverRecordId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.Equipment).WithMany().HasForeignKey(item => item.EquipmentId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<ConsumableRequest>(entity =>

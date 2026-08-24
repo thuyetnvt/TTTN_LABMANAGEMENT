@@ -31,6 +31,7 @@
                   <a-button type="primary" danger size="small" @click="handleReject(record)">Từ chối</a-button>
                 </template>
                 <template v-else-if="statusMatches(record.status, STATUS.BORROWED)">
+                  <a-button type="primary" ghost size="small" @click="showHandoverModal(record)">Bàn giao</a-button>
                   <a-button type="default" size="small" @click="showReturnModal(record)">Kiểm tra trả</a-button>
                   <a-button type="primary" size="small" @click="handleRemind(record)">Nhắc trả</a-button>
                 </template>
@@ -67,6 +68,16 @@
         </a-card>
       </a-form>
     </a-modal>
+
+    <a-modal v-model:open="isHandoverModalVisible" title="Lập biên bản bàn giao" @ok="submitHandover" @cancel="isHandoverModalVisible = false" okText="Lưu biên bản" cancelText="Hủy" :confirmLoading="handoverSubmitting">
+      <a-alert type="info" show-icon message="Ghi nhận đủ từng tài sản trước khi bàn giao" style="margin-bottom: 16px" />
+      <a-card v-for="item in handoverForm.items" :key="item.equipmentId" size="small" :title="`${item.equipmentName} — ${item.serial}`" style="margin-bottom: 12px">
+        <a-form-item label="Tình trạng" required><a-select v-model:value="item.condition"><a-select-option :value="STATUS.AVAILABLE">Tốt/Rảnh</a-select-option><a-select-option :value="STATUS.BROKEN">Hỏng</a-select-option></a-select></a-form-item>
+        <a-form-item label="Phụ kiện bàn giao"><a-input v-model:value="item.accessories" placeholder="Ví dụ: nguồn, cáp USB, hộp..." /></a-form-item>
+        <a-form-item label="Ghi chú"><a-textarea v-model:value="item.note" :rows="2" /></a-form-item>
+      </a-card>
+      <a-form-item label="Ghi chú biên bản"><a-textarea v-model:value="handoverForm.notes" :rows="3" /></a-form-item>
+    </a-modal>
   </div>
 </template>
 
@@ -77,6 +88,7 @@ import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import { STATUS, statusMatches } from '../constants/business'
+import { handoverApi } from '../api/handoverApi'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -85,7 +97,11 @@ const dataSource = ref([])
 const loading = ref(false)
 const returnSubmitting = ref(false)
 const isReturnModalVisible = ref(false)
+const isHandoverModalVisible = ref(false)
+const handoverSubmitting = ref(false)
 const currentReturnRecord = ref(null)
+const currentHandoverRecord = ref(null)
+const handoverForm = ref({ notes: '', items: [] })
 const returnForm = ref({
   condition: STATUS.AVAILABLE,
   note: '',
@@ -186,6 +202,42 @@ const submitReturnInspection = async () => {
   } finally {
     returnSubmitting.value = false
   }
+}
+
+const showHandoverModal = record => {
+  currentHandoverRecord.value = record
+  handoverForm.value = {
+    notes: '',
+    items: (record.details || []).map(item => ({
+      equipmentId: item.equipmentId,
+      equipmentName: item.equipmentName,
+      serial: item.serial || '',
+      condition: STATUS.AVAILABLE,
+      accessories: '',
+      note: ''
+    }))
+  }
+  isHandoverModalVisible.value = true
+}
+
+const submitHandover = async () => {
+  handoverSubmitting.value = true
+  try {
+    await handoverApi.create({
+      borrowRecordId: currentHandoverRecord.value.id,
+      notes: handoverForm.value.notes,
+      items: handoverForm.value.items.map(item => ({
+        equipmentId: item.equipmentId,
+        condition: item.condition,
+        accessories: item.accessories,
+        note: item.note
+      }))
+    })
+    message.success('Đã lập biên bản bàn giao.')
+    isHandoverModalVisible.value = false
+  } catch (error) {
+    message.error(error.response?.data?.message || 'Không thể lập biên bản bàn giao!')
+  } finally { handoverSubmitting.value = false }
 }
 
 const handleRemind = async (record) => {
