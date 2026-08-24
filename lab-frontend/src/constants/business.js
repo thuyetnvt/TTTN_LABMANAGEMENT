@@ -58,6 +58,8 @@ export const BORROWER_ROLES = Object.freeze([ROLE.STUDENT, ROLE.TEACHER])
 export const isManagerRole = (value) => MANAGER_ROLES.includes(value)
 export const isBorrowerRole = (value) => BORROWER_ROLES.includes(value)
 export const isAdminRole = (value) => value === ROLE.ADMIN
+export const isStudentRole = (value) => value === ROLE.STUDENT
+export const isTeacherRole = (value) => value === ROLE.TEACHER
 
 const LEGACY_STATUS = Object.freeze({
   Rảnh: STATUS.AVAILABLE,

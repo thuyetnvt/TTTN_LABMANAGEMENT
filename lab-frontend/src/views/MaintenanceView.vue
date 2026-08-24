@@ -2,7 +2,7 @@
   <div class="maintenance-container">
     <div class="toolbar">
       <h2>Lịch sử Bảo trì & Hiệu chuẩn</h2>
-      <a-button type="primary" v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" @click="showAddModal">+ Tạo phiếu bảo trì</a-button>
+      <a-button type="primary" v-if="isManagerRole(role)" @click="showAddModal">+ Tạo phiếu bảo trì</a-button>
     </div>
     
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
@@ -28,7 +28,7 @@
                 Hoàn tất
               </a-button>
               <a-button
-                v-if="role === 'Admin' && statusMatches(record.status, STATUS.MAINTENANCE_COMPLETED)"
+                v-if="isAdminRole(role) && statusMatches(record.status, STATUS.MAINTENANCE_COMPLETED)"
                 type="link"
                 danger
                 size="small"
@@ -128,7 +128,7 @@ import { maintenanceApi } from '../api/maintenanceApi'
 import { equipmentApi } from '../api/equipmentApi'
 import { consumableApi } from '../api/consumableApi'
 import StatusBadge from '../components/StatusBadge.vue'
-import { STATUS, statusMatches } from '../constants/business'
+import { STATUS, isAdminRole, isManagerRole, statusMatches } from '../constants/business'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

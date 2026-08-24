@@ -2,10 +2,10 @@
   <a-table :dataSource="dataSource" :columns="columns" bordered rowKey="id" :scroll="{ x: 'max-content' }">
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'role'">
-        <a-tag :color="record.role === 'Admin' ? 'gold' : 'blue'">{{ roleLabel(record.role) }}</a-tag>
+        <a-tag :color="isAdminRole(record.role) ? 'gold' : 'blue'">{{ roleLabel(record.role) }}</a-tag>
       </template>
       <template v-else-if="column.key === 'action'">
-        <template v-if="role === 'Admin'">
+        <template v-if="isAdminRole(role)">
           <a-button type="link" size="small" @click="$emit('edit', record)" title="Sửa">
             <template #icon><EditOutlined /></template>
           </a-button>
@@ -23,7 +23,7 @@
 import { computed } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
-import { roleLabel } from '../constants/business'
+import { isAdminRole, roleLabel } from '../constants/business'
 
 defineProps({
   dataSource: {

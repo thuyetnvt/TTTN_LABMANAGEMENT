@@ -18,7 +18,7 @@
             <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-button v-if="statusMatches(record.status, STATUS.UNPAID) && ['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" 
+            <a-button v-if="statusMatches(record.status, STATUS.UNPAID) && isManagerRole(role)"
                       type="primary" size="small" @click="handlePay(record)">
               Xác nhận Thu tiền
             </a-button>
@@ -36,7 +36,7 @@ import { message, Modal } from 'ant-design-vue'
 import { penaltyApi } from '../api/penaltyApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
-import { STATUS, statusMatches } from '../constants/business'
+import { STATUS, isManagerRole, statusMatches } from '../constants/business'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

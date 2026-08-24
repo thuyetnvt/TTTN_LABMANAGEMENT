@@ -1,10 +1,10 @@
 <template>
   <div class="table-actions">
     <div class="left-actions">
-      <a-button v-if="role === 'Sinh viên' || role === 'Giảng viên'" type="primary" @click="showScannerModal('borrow')">
+      <a-button v-if="isBorrowerRole(role)" type="primary" @click="showScannerModal('borrow')">
         Quét QR để mượn
       </a-button>
-      <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="primary" ghost @click="showScannerModal('inventory')">
+      <a-button v-if="isManagerRole(role)" type="primary" ghost @click="showScannerModal('inventory')">
         Quét QR kiểm kê
       </a-button>
       <a-input
@@ -16,19 +16,19 @@
     </div>
     <div class="right-actions">
       <a-button
-        v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)"
+        v-if="isManagerRole(role)"
         :disabled="!selectedBatchItems.length"
         @click="openBatchQR"
       >
         In QR đã chọn ({{ selectedBatchItems.length }})
       </a-button>
-      <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" @click="openImport">
+      <a-button v-if="isManagerRole(role)" @click="openImport">
         Import Excel
       </a-button>
-      <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="primary" ghost @click="handleExport">
+      <a-button v-if="isManagerRole(role)" type="primary" ghost @click="handleExport">
         Xuất Excel
       </a-button>
-      <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="primary" @click="showAddModal">
+      <a-button v-if="isManagerRole(role)" type="primary" @click="showAddModal">
         + Thêm thiết bị
       </a-button>
     </div>
@@ -55,7 +55,7 @@
       </template>
       <template v-else-if="column.key === 'decisionFile'">
         <a-button
-          v-if="record.hasDecisionFile && ['Admin', 'Trưởng lab', 'Phó lab'].includes(role)"
+          v-if="record.hasDecisionFile && isManagerRole(role)"
           type="link"
           size="small"
           @click="downloadDecisionFile(record)"
@@ -70,18 +70,18 @@
           <a-button type="link" size="small" @click="showViewModal(record)" title="Xem chi tiết">
             <template #icon><EyeOutlined /></template>
           </a-button>
-          <a-tooltip :title="!['Admin', 'Trưởng lab', 'Phó lab'].includes(role) ? 'Chỉ dành cho Admin/Quản lý' : 'Sửa'">
-            <a-button :disabled="!['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)">
+          <a-tooltip :title="!isManagerRole(role) ? 'Chỉ dành cho quản lý' : 'Sửa'">
+            <a-button :disabled="!isManagerRole(role)" type="link" size="small" @click="showEditModal(record)">
               <template #icon><EditOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-tooltip :title="role !== 'Admin' ? 'Chỉ dành cho Admin' : 'Xóa'">
-            <a-button :disabled="role !== 'Admin'" type="link" danger size="small" @click="handleDelete(record.id)">
+          <a-tooltip :title="!isAdminRole(role) ? 'Chỉ dành cho quản trị viên' : 'Xóa'">
+            <a-button :disabled="!isAdminRole(role)" type="link" danger size="small" @click="handleDelete(record.id)">
               <template #icon><DeleteOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="handleInventory(record)">Kiểm kê</a-button>
-          <a-button v-if="['Sinh viên', 'Giảng viên'].includes(role) && statusMatches(record.status, STATUS.AVAILABLE)" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
+          <a-button v-if="isManagerRole(role)" type="link" size="small" @click="handleInventory(record)">Kiểm kê</a-button>
+          <a-button v-if="isBorrowerRole(role) && statusMatches(record.status, STATUS.AVAILABLE)" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
         </a-space>
       </template>
     </template>
@@ -153,7 +153,7 @@
           </a-list-item>
         </a-list>
       </a-form-item>
-      <a-form-item v-if="role === 'Sinh viên'" label="Giảng viên bảo lãnh" required>
+      <a-form-item v-if="isStudentRole(role)" label="Giảng viên bảo lãnh" required>
         <a-select v-model:value="borrowForm.teacherId" placeholder="Chọn giảng viên" allowClear>
           <a-select-option v-for="t in teachers" :key="t.id" :value="t.id">{{ t.username }}</a-select-option>
         </a-select>
@@ -296,7 +296,7 @@ import QrcodeVue from 'qrcode.vue'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import { message, Modal, Upload } from 'ant-design-vue'
 import StatusBadge from './StatusBadge.vue'
-import { STATUS, statusLabel, statusMatches } from '../constants/business'
+import { STATUS, isAdminRole, isBorrowerRole, isManagerRole, isStudentRole, statusLabel, statusMatches } from '../constants/business'
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { equipmentApi } from '../api/equipmentApi'
@@ -308,7 +308,7 @@ import { locationApi } from '../api/locationApi'
 const authStore = useAuthStore()
 const route = useRoute()
 const role = computed(() => authStore.role)
-const isManager = computed(() => ['Admin', 'Trưởng lab', 'Phó lab'].includes(role.value))
+const isManager = computed(() => isManagerRole(role.value))
 
 const dataSource = ref([])
 const categories = ref([])
@@ -752,8 +752,8 @@ const removeBorrowItem = (id) => {
 }
 
 const submitBorrowRequest = async () => {
-  if (!borrowForm.value.returnDate || !borrowForm.value.purpose || (role.value === 'Sinh viên' && !borrowForm.value.teacherId)) {
-    message.warning(role.value === 'Sinh viên'
+  if (!borrowForm.value.returnDate || !borrowForm.value.purpose || (isStudentRole(role.value) && !borrowForm.value.teacherId)) {
+    message.warning(isStudentRole(role.value)
       ? 'Vui lòng nhập ngày trả, mục đích và giảng viên bảo lãnh!'
       : 'Vui lòng nhập ngày trả và mục đích mượn!')
     return

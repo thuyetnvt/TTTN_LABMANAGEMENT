@@ -47,7 +47,7 @@
         
 
         <!-- Menu riêng cho Giảng viên -->
-        <a-menu-item v-if="role === 'Giảng viên'" key="m_teacher" @click="$router.push({ name: 'TeacherApproval' })">
+        <a-menu-item v-if="isTeacherRole(role)" key="m_teacher" @click="$router.push({ name: 'TeacherApproval' })">
           <solution-outlined />
           <span>{{ $t('menu.teacherApproval') }}</span>
         </a-menu-item>
@@ -296,7 +296,7 @@ import * as signalR from '@microsoft/signalr'
 import { equipmentApi } from '../api/equipmentApi'
 import { userApi } from '../api/userApi'
 import { notificationApi } from '../api/notificationApi'
-import { isAdminRole, isBorrowerRole, isManagerRole, roleLabel } from '../constants/business'
+import { isAdminRole, isBorrowerRole, isManagerRole, isTeacherRole, roleLabel } from '../constants/business'
 
 // Dark mode logic removed
 

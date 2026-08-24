@@ -24,7 +24,7 @@
             </div>
           </template>
           <template v-else-if="column.key === 'action'">
-            <template v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)">
+            <template v-if="isManagerRole(role)">
               <a-space>
                 <template v-if="statusMatches(record.status, STATUS.BORROW_PENDING)">
                   <a-button type="primary" size="small" @click="handleApprove(record)">Duyệt</a-button>
@@ -101,7 +101,7 @@ import { message, Upload } from 'ant-design-vue'
 import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
-import { STATUS, statusMatches } from '../constants/business'
+import { STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { handoverApi } from '../api/handoverApi'
 
 const authStore = useAuthStore()

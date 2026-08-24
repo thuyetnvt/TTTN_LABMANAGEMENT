@@ -24,7 +24,7 @@
     b1Title: 'Danh mục linh hoạt.',
     b1Desc: 'Tạo nhóm tài sản phù hợp với từng phòng thí nghiệm.',
     b2Title: 'Phân quyền rõ.',
-    b2Desc: 'Admin, Trưởng lab, Phó lab, Giảng viên và Sinh viên dùng đúng chức năng.',
+    b2Desc: 'Quản trị viên, Trưởng phòng Lab, Phó phòng Lab, Giảng viên và Sinh viên dùng đúng chức năng.',
     b3Title: 'Hậu kiểm chặt.',
     b3Desc: 'Trả tốt thì đưa về Rảnh, hỏng thì xét bảo hành hoặc bồi thường.',
     footerSys: 'LabManagement',

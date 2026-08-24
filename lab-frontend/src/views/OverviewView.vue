@@ -127,11 +127,12 @@ import {
 import VueApexCharts from 'vue3-apexcharts'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../stores/authStore'
+import { isManagerRole } from '../constants/business'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const role = computed(() => authStore.role)
-const isManager = computed(() => ['Admin', 'Trưởng lab', 'Phó lab'].includes(role.value))
+const isManager = computed(() => isManagerRole(role.value))
 const apexchart = VueApexCharts
 
 const stats = ref({

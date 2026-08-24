@@ -2,7 +2,7 @@
   <div class="users-container">
     <div class="toolbar">
       <h2>Quản lý người dùng</h2>
-      <a-button v-if="role === 'Admin'" type="primary" @click="showAddModal">+ Thêm tài khoản</a-button>
+      <a-button v-if="isAdminRole(role)" type="primary" @click="showAddModal">+ Thêm tài khoản</a-button>
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
@@ -34,6 +34,7 @@ import UserTable from '../components/UserTable.vue'
 import UserForm from '../components/UserForm.vue'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../stores/authStore'
+import { isAdminRole } from '../constants/business'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -63,14 +64,14 @@ const fetchUsers = async () => {
 }
 
 const showAddModal = () => {
-  if (role.value !== 'Admin') return
+  if (!isAdminRole(role.value)) return
   isEditing.value = false
   isModalVisible.value = true
   setTimeout(() => userFormRef.value?.setFormData({}), 0)
 }
 
 const showEditModal = (record) => {
-  if (role.value !== 'Admin') return
+  if (!isAdminRole(role.value)) return
   isEditing.value = true
   editingUserId.value = record.id
   isModalVisible.value = true
@@ -78,7 +79,7 @@ const showEditModal = (record) => {
 }
 
 const handleDelete = (record) => {
-  if (role.value !== 'Admin') return
+  if (!isAdminRole(role.value)) return
   if (record.username === 'admin') {
     message.warning('Không thể xóa tài khoản quản trị hệ thống!')
     return
@@ -102,7 +103,7 @@ const handleDelete = (record) => {
 }
 
 const handleModalOk = async () => {
-  if (role.value !== 'Admin') return
+  if (!isAdminRole(role.value)) return
   try {
     const formData = await userFormRef.value.getFormData()
     submitting.value = true

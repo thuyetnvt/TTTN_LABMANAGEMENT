@@ -15,7 +15,7 @@
             {{ new Date(record.requestDate).toLocaleString('vi-VN') }}
           </template>
           <template v-else-if="column.key === 'action'">
-            <div v-if="statusMatches(record.status, STATUS.CONSUMABLE_PENDING) && ['Admin', 'Trưởng lab', 'Phó lab'].includes(role)">
+            <div v-if="statusMatches(record.status, STATUS.CONSUMABLE_PENDING) && isManagerRole(role)">
               <a-button type="primary" size="small" style="margin-right: 8px;" @click="handleApprove(record.id)">Duyệt & cấp</a-button>
               <a-button danger size="small" @click="handleReject(record.id)">Từ chối</a-button>
             </div>
@@ -33,11 +33,11 @@ import { message } from 'ant-design-vue'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
-import { STATUS, statusMatches } from '../constants/business'
+import { STATUS, isManagerRole, statusMatches } from '../constants/business'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
-const isManager = computed(() => ['Admin', 'Trưởng lab', 'Phó lab'].includes(role.value))
+const isManager = computed(() => isManagerRole(role.value))
 
 const dataSource = ref([])
 const loading = ref(false)

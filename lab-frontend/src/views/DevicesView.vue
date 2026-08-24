@@ -8,7 +8,7 @@
       <a-tabs v-model:activeKey="activeTab" :tabBarGutter="32" class="asset-tabs">
         <template #rightExtra>
           <a-button
-            v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)"
+            v-if="isManagerRole(role)"
             @click="categoryModalVisible = true"
           >
             <template #icon><setting-outlined /></template>
@@ -41,6 +41,7 @@
 import { computed, ref } from 'vue'
 import { SettingOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
+import { isManagerRole } from '../constants/business'
 import DeviceTable from '../components/DeviceTable.vue'
 import ConsumablesTable from '../components/ConsumablesTable.vue'
 import AssetCategoriesTable from '../components/AssetCategoriesTable.vue'

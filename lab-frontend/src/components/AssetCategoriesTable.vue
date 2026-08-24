@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="table-actions" v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)">
+    <div class="table-actions" v-if="isManagerRole(role)">
       <a-button type="primary" @click="showAddModal">+ Thêm danh mục</a-button>
     </div>
 
@@ -11,10 +11,10 @@
         </template>
         <template v-else-if="column.key === 'action'">
           <a-space>
-            <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
+            <a-button v-if="isManagerRole(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
               <template #icon><EditOutlined /></template>
             </a-button>
-            <a-button v-if="role === 'Admin'" type="link" danger size="small" @click="handleDelete(record)" title="Xóa">
+            <a-button v-if="isAdminRole(role)" type="link" danger size="small" @click="handleDelete(record)" title="Xóa">
               <template #icon><DeleteOutlined /></template>
             </a-button>
           </a-space>
@@ -41,6 +41,7 @@ import { message, Modal } from 'ant-design-vue'
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
+import { isAdminRole, isManagerRole } from '../constants/business'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

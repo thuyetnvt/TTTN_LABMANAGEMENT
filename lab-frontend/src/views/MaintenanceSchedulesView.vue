@@ -21,7 +21,7 @@
             <a-space>
               <a-button v-if="record.isActive" size="small" type="primary" @click="generate(record)">Tạo phiếu</a-button>
               <a-button size="small" @click="openEdit(record)">Sửa</a-button>
-              <a-button v-if="role === 'Admin'" size="small" danger @click="remove(record)">Xóa</a-button>
+              <a-button v-if="isAdminRole(role)" size="small" danger @click="remove(record)">Xóa</a-button>
             </a-space>
           </template>
         </template>
@@ -52,6 +52,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { useAuthStore } from '../stores/authStore'
+import { isAdminRole } from '../constants/business'
 import { equipmentApi } from '../api/equipmentApi'
 import { maintenanceScheduleApi } from '../api/maintenanceScheduleApi'
 
