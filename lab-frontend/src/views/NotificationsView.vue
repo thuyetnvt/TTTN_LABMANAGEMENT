@@ -1,9 +1,9 @@
 <template>
   <div class="notifications-container">
-    <div class="toolbar">
-      <div><h2>Thông báo</h2><p>Lịch sử xử lý và các thông tin cần bạn theo dõi.</p></div>
-      <a-button @click="markAllRead" :disabled="!hasUnread">Đánh dấu tất cả đã đọc</a-button>
-    </div>
+    <PageHeader title="Thông báo" subtitle="Lịch sử xử lý và các thông tin cần bạn theo dõi.">
+      <template #actions><a-button @click="markAllRead" :disabled="!hasUnread">Đánh dấu tất cả đã đọc</a-button></template>
+    </PageHeader>
+    <ErrorState v-if="errorMessage" :message="errorMessage" @retry="fetchItems" />
     <a-card :bordered="false">
       <a-list :data-source="items" :loading="loading" item-layout="horizontal">
         <template #renderItem="{ item }">
@@ -15,7 +15,7 @@
           </a-list-item>
         </template>
       </a-list>
-      <a-empty v-if="!loading && !items.length" description="Chưa có thông báo" />
+      <EmptyState v-if="!errorMessage && !loading && !items.length" description="Chưa có thông báo" />
     </a-card>
   </div>
 </template>
@@ -26,17 +26,22 @@ import { message } from 'ant-design-vue'
 import { BellOutlined } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
 import { notificationApi } from '../api/notificationApi'
+import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
+import ErrorState from '../components/ErrorState.vue'
 
 const router = useRouter()
 const items = ref([])
 const loading = ref(false)
+const errorMessage = ref('')
 const hasUnread = computed(() => items.value.some(item => !item.isRead))
 const formatDate = value => value ? new Date(value).toLocaleString('vi-VN') : '—'
 
 const fetchItems = async () => {
   loading.value = true
+  errorMessage.value = ''
   try { items.value = await notificationApi.getAll() || [] }
-  catch (error) { message.error(error.response?.data?.message || 'Không tải được thông báo!') }
+  catch (error) { errorMessage.value = error.response?.data?.message || 'Không tải được thông báo.'; message.error(errorMessage.value) }
   finally { loading.value = false }
 }
 const openNotification = async item => {

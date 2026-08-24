@@ -167,7 +167,7 @@ const barOptions = ref({
   chart: { id: 'borrow-trends', toolbar: { show: false }, parentHeightOffset: 0 },
   grid: { borderColor: 'rgba(0,0,0,0.05)', padding: { top: 0, right: 8, bottom: -4, left: 4 } },
   xaxis: { categories: [] },
-  colors: ['#D97757'],
+  colors: ['#2563EB'],
   plotOptions: { bar: { borderRadius: 6, columnWidth: '34%', dataLabels: { position: 'top' } } },
   dataLabels: { enabled: true, offsetY: -18, style: { colors: ['var(--color-ink)'], fontSize: '11px', fontWeight: 700 } },
   yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' } } }
@@ -321,7 +321,7 @@ onMounted(async () => {
   margin-top: 6px;
 }
 
-.stat-card.coral .stat-icon { color: var(--color-primary); background: rgba(217, 119, 87, 0.1); }
+.stat-card.coral .stat-icon { color: var(--color-primary); background: rgba(37, 99, 235, 0.1); }
 .stat-card.green .stat-icon { color: #059669; background: #ecfdf5; }
 .stat-card.amber .stat-icon { color: #d97706; background: #fffbeb; }
 .stat-card.red .stat-icon { color: #dc2626; background: #fef2f2; }

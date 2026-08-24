@@ -7,7 +7,7 @@
         <div class="brand-header">
           <div class="logo">
             <experiment-outlined /> <span>LabManagement</span>
-            <span class="platform-tag">Platform</span>
+            <span class="platform-tag">Nền tảng</span>
           </div>
           <div class="tag-pill">{{ $t('hero.brandTag') }}</div>
         </div>
@@ -58,20 +58,20 @@
           <div class="stats-title">{{ $t('hero.statsTitle') }}</div>
           <div class="stats-row">
             <div class="stat-box">
-              <h3>500+</h3>
-              <p>{{ $t('hero.stat1Desc') }}</p>
+              <h3>IoT</h3>
+              <p>Định danh tài sản</p>
             </div>
             <div class="stat-box">
-              <h3>1.200+</h3>
-              <p>{{ $t('hero.stat2Desc') }}</p>
+              <h3>QR</h3>
+              <p>Kiểm kê và bàn giao</p>
             </div>
             <div class="stat-box">
-              <h3>99,9%</h3>
-              <p>{{ $t('hero.stat3Desc') }}</p>
+              <h3>360°</h3>
+              <p>Theo dõi vòng đời</p>
             </div>
             <div class="stat-box">
-              <h3>10x</h3>
-              <p>{{ $t('hero.stat4Desc') }}</p>
+              <h3>API</h3>
+              <p>Dữ liệu kết nối thật</p>
             </div>
           </div>
         </div>
@@ -120,7 +120,7 @@
           <div class="extra-links">
             {{ $t('login.noAccount') }} <a href="mailto:support@labmanagement.edu.vn" class="contact-admin">{{ $t('login.contactAdmin') }}</a>
             <br><br>
-            <router-link to="/" class="back-link">Home</router-link>
+            <router-link to="/" class="back-link">Trang chủ</router-link>
           </div>
         </a-form>
 
@@ -132,7 +132,7 @@
             <span class="divider">|</span>
             <a href="#">Điều khoản sử dụng</a>
           </div>
-          <div class="copyright">© 2026 LabManagement. All rights reserved.</div>
+          <div class="copyright">© 2026 LabManagement. Quản lý phòng thí nghiệm và tài sản.</div>
         </div>
       </div>
     </div>

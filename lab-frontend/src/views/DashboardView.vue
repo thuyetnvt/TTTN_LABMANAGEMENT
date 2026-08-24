@@ -157,11 +157,7 @@
                   <a-empty v-if="!notifications.length" description="Chưa có thông báo" :image-style="{ height: '40px' }" />
                 </div>
               </template>
-              <a-badge :count="unreadCount" :overflow-count="99">
-                <a-button type="text" class="header-icon-btn" title="Thông báo">
-                  <template #icon><bell-outlined /></template>
-                </a-button>
-              </a-badge>
+              <NotificationBell :unread-count="unreadCount" />
             </a-popover>
           </div>
           <div class="user-profile" title="Đổi mật khẩu" @click="changePasswordVisible = true">
@@ -281,7 +277,6 @@ import {
   TeamOutlined,
   UserOutlined,
   SearchOutlined,
-  BellOutlined,
   CloseOutlined,
   BulbOutlined,
   MenuFoldOutlined,
@@ -297,6 +292,7 @@ import { equipmentApi } from '../api/equipmentApi'
 import { userApi } from '../api/userApi'
 import { notificationApi } from '../api/notificationApi'
 import { isAdminRole, isBorrowerRole, isManagerRole, isTeacherRole, roleLabel } from '../constants/business'
+import NotificationBell from '../components/NotificationBell.vue'
 
 // Dark mode logic removed
 
@@ -634,7 +630,7 @@ const submitChangePassword = async () => {
   justify-content: center;
   flex: 0 0 36px;
   color: var(--color-primary);
-  background: rgba(217, 119, 87, 0.1);
+  background: rgba(37, 99, 235, 0.1);
   font-size: 18px;
 }
 
@@ -675,7 +671,7 @@ const submitChangePassword = async () => {
 .search-bar:focus-within {
   background: #ffffff;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .search-icon {

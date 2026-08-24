@@ -6,7 +6,7 @@
           <div class="logo">
             <experiment-outlined />
             <span>LabManagement</span>
-            <span class="platform-tag">Platform</span>
+            <span class="platform-tag">Nền tảng</span>
           </div>
           <div class="tag-pill">{{ $t('hero.brandTag') }}</div>
         </div>
@@ -52,20 +52,20 @@
           <div class="stats-title">{{ $t('hero.statsTitle') }}</div>
           <div class="stats-row">
             <div class="stat-box">
-              <h3>500+</h3>
-              <p>{{ $t('hero.stat1Desc') }}</p>
+              <h3>IoT</h3>
+              <p>Siêu dữ liệu thiết bị</p>
             </div>
             <div class="stat-box">
-              <h3>1.200+</h3>
-              <p>{{ $t('hero.stat2Desc') }}</p>
+              <h3>QR</h3>
+              <p>Quét và truy vết tài sản</p>
             </div>
             <div class="stat-box">
-              <h3>99,9%</h3>
-              <p>{{ $t('hero.stat3Desc') }}</p>
+              <h3>360°</h3>
+              <p>Bàn giao và kiểm kê</p>
             </div>
             <div class="stat-box">
-              <h3>10x</h3>
-              <p>{{ $t('hero.stat4Desc') }}</p>
+              <h3>API</h3>
+              <p>Luồng nghiệp vụ thật</p>
             </div>
           </div>
         </div>
@@ -109,7 +109,7 @@
             <span class="divider">|</span>
             <a href="#">Điều khoản sử dụng</a>
           </div>
-          <div class="copyright">© 2026 LabManagement. All rights reserved.</div>
+          <div class="copyright">© 2026 LabManagement. Quản lý phòng thí nghiệm và tài sản.</div>
         </div>
       </div>
     </div>

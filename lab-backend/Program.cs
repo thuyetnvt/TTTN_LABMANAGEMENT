@@ -218,6 +218,20 @@ else
 }
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
+app.Use(async (httpContext, next) =>
+{
+    var correlationId = httpContext.Request.Headers.TryGetValue("X-Correlation-ID", out var requestedId)
+        && Guid.TryParse(requestedId.FirstOrDefault(), out var parsedId)
+        ? parsedId.ToString("D")
+        : Guid.NewGuid().ToString("D");
+    httpContext.Response.Headers["X-Correlation-ID"] = correlationId;
+    var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("RequestCorrelation");
+    using (logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId }))
+    {
+        await next();
+    }
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();

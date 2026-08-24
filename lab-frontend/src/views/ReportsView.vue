@@ -1,12 +1,11 @@
 <template>
   <div class="reports-page">
-    <div class="page-header">
-      <div><h2>Báo cáo tài sản</h2><p>Tổng hợp tài sản, mượn trả, bảo trì và vật tư từ dữ liệu thật.</p></div>
-      <a-space>
+    <PageHeader title="Báo cáo tài sản" subtitle="Tổng hợp tài sản, mượn trả, bảo trì và vật tư từ dữ liệu thật.">
+      <template #actions>
         <a-button :loading="exportingPdf" @click="exportPdf">Xuất PDF</a-button>
         <a-button type="primary" :loading="exporting" @click="exportReport">Xuất Excel</a-button>
-      </a-space>
-    </div>
+      </template>
+    </PageHeader>
 
     <a-card :bordered="false" class="filter-card">
       <a-row :gutter="12" align="middle">
@@ -38,6 +37,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import PageHeader from '../components/PageHeader.vue'
 import { reportsApi } from '../api/reportsApi'
 
 const filters = ref({ from: '', to: '' })

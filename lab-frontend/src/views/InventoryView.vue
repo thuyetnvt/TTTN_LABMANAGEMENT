@@ -1,12 +1,8 @@
 <template>
   <div class="inventory-container">
-    <div class="toolbar">
-      <div>
-        <h2>Kiểm kê tài sản</h2>
-        <p>Tạo đợt kiểm kê theo phạm vi, quét QR và theo dõi chênh lệch thực tế.</p>
-      </div>
-        <a-button type="primary" @click="showCreate = true">Tạo đợt kiểm kê</a-button>
-    </div>
+    <PageHeader title="Kiểm kê tài sản" subtitle="Tạo đợt kiểm kê theo phạm vi, quét QR và theo dõi chênh lệch thực tế.">
+      <template #actions><a-button type="primary" @click="showCreate = true">Tạo đợt kiểm kê</a-button></template>
+    </PageHeader>
 
     <a-card :bordered="false">
       <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered>
@@ -23,6 +19,14 @@
         </template>
       </a-table>
     </a-card>
+    <ResponsiveDataList :items="sessions" :loading="loading" empty-description="Chưa có đợt kiểm kê">
+      <template #default="{ item }">
+        <div class="mobile-session-header"><strong>{{ item.name }}</strong><StatusBadge :status="item.status" /></div>
+        <div class="mobile-session-meta">{{ item.code }} · {{ item.found + item.wrongLocation + item.damaged }}/{{ item.total }} đã quét</div>
+        <a-progress :percent="progress(item)" size="small" />
+        <a-button type="link" size="small" @click="openDetail(item)">Xem chi tiết</a-button>
+      </template>
+    </ResponsiveDataList>
 
     <a-modal v-model:open="showCreate" title="Tạo đợt kiểm kê" ok-text="Tạo" cancel-text="Hủy" :confirm-loading="creating" @ok="createSession">
       <a-form layout="vertical">
@@ -74,6 +78,8 @@ import { message } from 'ant-design-vue'
 import { Upload } from 'ant-design-vue'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import StatusBadge from '../components/StatusBadge.vue'
+import PageHeader from '../components/PageHeader.vue'
+import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { inventoryApi } from '../api/inventoryApi'
 import { locationApi } from '../api/locationApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
@@ -221,6 +227,11 @@ const completeSession = async () => {
 onMounted(fetchAll)
 onUnmounted(() => qrScanner?.clear().catch(() => {}))
 </script>
+
+<style scoped>
+.mobile-session-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mobile-session-meta { margin: 8px 0 4px; color: var(--color-secondary); font-size: 13px; }
+</style>
 
 <style scoped>
 .inventory-container { padding: 0; }

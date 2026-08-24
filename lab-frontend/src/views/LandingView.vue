@@ -32,7 +32,7 @@
           </div>
         </div>
         <div class="hero-illustration">
-          <img src="/hero.png" alt="Lab Management Dashboard" class="floating-img" />
+          <img src="/hero.png" alt="Tổng quan quản lý phòng lab" class="floating-img" />
         </div>
       </div>
     </section>
@@ -97,7 +97,7 @@
     <section class="split-section">
       <div class="split-container">
         <div class="split-image">
-          <img src="/feature.png" alt="Lab Equipment Interface" class="shadow-img" />
+          <img src="/feature.png" alt="Giao diện quản lý thiết bị lab" class="shadow-img" />
         </div>
         <div class="split-content">
           <h2 class="serif-title">Quản trị dữ liệu tập trung, quyết định chính xác</h2>
@@ -234,12 +234,12 @@ const scrollToFeatures = () => {
 .login-btn {
   border-radius: 24px;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(217, 119, 87, 0.2);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
   transition: all 0.3s ease;
 }
 .login-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(217, 119, 87, 0.3);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
 }
 
 /* Hero Section */
@@ -303,11 +303,11 @@ const scrollToFeatures = () => {
   font-weight: 500;
 }
 .primary-cta {
-  box-shadow: 0 8px 24px rgba(217, 119, 87, 0.2);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2);
 }
 .primary-cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(217, 119, 87, 0.3);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.3);
 }
 .secondary-cta {
   background: transparent;

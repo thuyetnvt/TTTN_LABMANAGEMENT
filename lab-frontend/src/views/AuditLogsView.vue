@@ -11,7 +11,7 @@
       </a-button>
     </div>
 
-    <a-card :bordered="false" class="filter-card">
+    <FilterBar class="filter-card">
       <div class="filters">
         <a-select v-model:value="filters.action" allowClear placeholder="Hành động" class="filter-control">
           <a-select-option value="Create">Tạo mới</a-select-option>
@@ -31,10 +31,10 @@
         <a-button type="primary" @click="applyFilters">Lọc</a-button>
         <a-button @click="resetFilters">Xóa lọc</a-button>
       </div>
-    </a-card>
+    </FilterBar>
 
     <a-card :bordered="false" class="table-card">
-      <a-table
+      <DataTable
         :dataSource="logs"
         :columns="columns"
         :loading="loading"
@@ -46,7 +46,7 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
-            <a-tag :color="actionColor(record.action)">{{ actionLabel(record.action) }}</a-tag>
+            <AuditActionLabel :action="record.action" />
           </template>
           <template v-else-if="column.key === 'createdAt'">
             {{ formatDateTime(record.createdAt) }}
@@ -60,7 +60,7 @@
             </a-button>
           </template>
         </template>
-      </a-table>
+      </DataTable>
     </a-card>
 
     <a-modal v-model:open="detailsVisible" title="Chi tiết nhật ký" :footer="null" width="760px">
@@ -74,6 +74,9 @@ import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { auditApi } from '../api/auditApi'
+import AuditActionLabel from '../components/AuditActionLabel.vue'
+import FilterBar from '../components/FilterBar.vue'
+import DataTable from '../components/DataTable.vue'
 
 const logs = ref([])
 const loading = ref(false)
@@ -146,33 +149,6 @@ const showDetails = (record) => {
   }
   detailsVisible.value = true
 }
-
-const actionLabel = (action) => ({
-  Create: 'Tạo mới',
-  Update: 'Cập nhật',
-  Delete: 'Xóa',
-  Approve: 'Duyệt',
-  Reject: 'Từ chối',
-  Return: 'Trả',
-  TeacherApprove: 'GV duyệt',
-  TeacherReject: 'GV từ chối',
-  SendReturnReminder: 'Nhắc trả',
-  LoginSucceeded: 'Đăng nhập thành công',
-  MarkPaid: 'Xác nhận thanh toán',
-  SeedSampleData: 'Tạo dữ liệu mẫu'
-}[action] || action)
-
-const actionColor = (action) => ({
-  Create: 'green',
-  Update: 'blue',
-  Delete: 'red',
-  Approve: 'green',
-  Reject: 'red',
-  Return: 'purple',
-  TeacherApprove: 'green',
-  TeacherReject: 'red',
-  SendReturnReminder: 'orange'
-}[action] || 'default')
 
 const entityLabel = (entityType) => ({
   Equipment: 'Tài sản',

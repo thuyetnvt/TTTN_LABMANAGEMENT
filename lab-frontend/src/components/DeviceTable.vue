@@ -23,7 +23,7 @@
         In QR đã chọn ({{ selectedBatchItems.length }})
       </a-button>
       <a-button v-if="isManagerRole(role)" @click="openImport">
-        Import Excel
+        Nhập Excel
       </a-button>
       <a-button v-if="isManagerRole(role)" type="primary" ghost @click="handleExport">
         Xuất Excel
@@ -109,7 +109,7 @@
     </a-space>
   </a-modal>
 
-  <a-modal v-model:open="isImportVisible" title="Import Excel tài sản" :footer="null" width="1100px">
+  <a-modal v-model:open="isImportVisible" title="Nhập Excel tài sản" :footer="null" width="1100px">
     <a-upload :before-upload="previewImport" :show-upload-list="false" accept=".xlsx">
       <a-button :loading="importLoading">Chọn file Excel và xem trước</a-button>
     </a-upload>
@@ -127,7 +127,7 @@
     </a-table>
     <a-space v-if="importPreviewRows.length" class="batch-actions">
       <a-button @click="isImportVisible = false">Hủy</a-button>
-      <a-button type="primary" :disabled="!importValidCount" :loading="importSaving" @click="commitImport">Import {{ importValidCount }} dòng hợp lệ</a-button>
+      <a-button type="primary" :disabled="!importValidCount" :loading="importSaving" @click="commitImport">Nhập {{ importValidCount }} dòng hợp lệ</a-button>
     </a-space>
   </a-modal>
 
@@ -206,9 +206,12 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="Vị trí" required>
-            <a-select v-model:value="formData.locationNodeId" placeholder="Chọn vị trí trong cây" @change="syncLocationName">
-              <a-select-option v-for="location in locations" :key="location.id" :value="location.id">{{ location.code }} — {{ location.name }}</a-select-option>
-            </a-select>
+            <LocationTreeSelect
+              v-model:value="formData.locationNodeId"
+              :nodes="locations"
+              placeholder="Chọn vị trí trong cây"
+              @change="syncLocationName"
+            />
           </a-form-item>
         </a-col>
       </a-row>
@@ -296,6 +299,7 @@ import QrcodeVue from 'qrcode.vue'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import { message, Modal, Upload } from 'ant-design-vue'
 import StatusBadge from './StatusBadge.vue'
+import LocationTreeSelect from './LocationTreeSelect.vue'
 import { STATUS, isAdminRole, isBorrowerRole, isManagerRole, isStudentRole, statusLabel, statusMatches } from '../constants/business'
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
