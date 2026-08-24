@@ -165,5 +165,6 @@
 - Bổ sung test transaction/IDOR/RBAC cho borrow và consumable; phát hiện và sửa lỗi thiếu `SaveChangesAsync` khi ghi `ConsumableTransaction`.
 - Thêm business E2E opt-in có dữ liệu prefix `E2E-`, đã chạy đạt flow mượn nhiều tài sản → teacher/manager approval → handover → return → maintenance → QR inventory.
 - Kết quả cuối: backend **18/18**, frontend **2/2**, E2E business **1/1**, E2E responsive smoke **4 pass/4 skip**, Docker healthy.
+- `docker compose config --quiet` và parse script backup/restore đạt; restore có guard bắt buộc `-ConfirmRestore`. Chưa giả lập restore thật trên volume đang chạy để tránh ghi đè dữ liệu local ngoài phạm vi kiểm chứng an toàn.
 
 Các giới hạn production còn lại giữ nguyên: chưa có adapter MinIO/S3, chưa diễn tập restore production, chưa cấu hình certificate Data Protection trong deployment thật và frontend vẫn còn một số file view lớn cần tách tiếp nếu tiếp tục tối ưu maintainability.

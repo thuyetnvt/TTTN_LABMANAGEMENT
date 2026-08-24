@@ -47,6 +47,7 @@ Ngày 25/08/2026 trên branch `codex/iot-lab-asset-upgrade`:
 - E2E smoke chạy cả Chromium desktop và mobile: **4 pass, 4 skip**; các skip là test business/admin cần credential khi chạy không truyền biến môi trường.
 - E2E business có dữ liệu cô lập prefix `E2E-`: **1/1 pass trong 1,4 phút**, đi qua đăng nhập các vai trò bằng API, UI sinh viên, mượn nhiều tài sản, giảng viên duyệt, quản lý duyệt/bàn giao/trả, bảo trì và kiểm kê QR.
 - Docker sau rebuild: db/backend/frontend healthy; backend `/health` trả `Healthy`; kiểm tra trực tiếp trong container xác nhận `X-Correlation-ID` được phản hồi đúng giá trị gửi vào; frontend `http://localhost:8081` trả HTTP 200.
+- `docker compose config --quiet` đạt; hai script PowerShell backup/restore parse được; restore được kiểm tra cờ an toàn và chặn ngay khi thiếu `-ConfirmRestore` trước mọi thao tác ghi dữ liệu. Chưa chạy restore thật trên production/local volume vì đây là thao tác phá hủy cần cửa sổ bảo trì và backup đích riêng.
 - Các dữ liệu E2E được tạo có chủ đích để giữ trace/audit; có thể lọc bằng tiền tố `E2E-` khi dọn môi trường kiểm thử, không dùng làm số liệu giao diện.
 
 Các kiểm chứng trên là local/Docker, không thay thế diễn tập restore trên production, triển khai MinIO/S3 hoặc cấu hình certificate mã hóa Data Protection trong môi trường thật.
