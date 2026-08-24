@@ -49,6 +49,7 @@ Ngày 25/08/2026 trên branch `codex/iot-lab-asset-upgrade`:
 - Docker sau rebuild: db/backend/frontend healthy; backend `/health` trả `Healthy`; kiểm tra trực tiếp trong container xác nhận `X-Correlation-ID` được phản hồi đúng giá trị gửi vào; frontend `http://localhost:8081` trả HTTP 200.
 - `docker compose config --quiet` đạt; hai script PowerShell backup/restore parse được; restore được kiểm tra cờ an toàn và chặn ngay khi thiếu `-ConfirmRestore` trước mọi thao tác ghi dữ liệu. Chưa chạy restore thật trên production/local volume vì đây là thao tác phá hủy cần cửa sổ bảo trì và backup đích riêng.
 - Provider S3-compatible đã build được với AWS SDK; integration E2E MinIO tạm đã xác nhận upload/download/delete object và sau xóa object không còn trong bucket. Chưa diễn tập restore bucket production thật.
+- Đã khởi động container backend tạm với PFX Data Protection sinh riêng, `/health` trả `Healthy` và log không còn cảnh báo `No XML encryptor configured`; PFX/container tạm đã được dọn sau kiểm thử.
 - Các dữ liệu E2E được tạo có chủ đích để giữ trace/audit; có thể lọc bằng tiền tố `E2E-` khi dọn môi trường kiểm thử, không dùng làm số liệu giao diện.
 
 Các kiểm chứng trên là local/Docker, không thay thế diễn tập restore trên production, triển khai MinIO/S3 hoặc cấu hình certificate mã hóa Data Protection trong môi trường thật.

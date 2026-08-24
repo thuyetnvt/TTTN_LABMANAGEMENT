@@ -174,3 +174,4 @@ Các giới hạn production còn lại: chưa diễn tập restore production, 
 - Thêm `S3FileStorage` dùng AWS SDK, tương thích AWS S3/MinIO qua `ServiceUrl` và path-style; có kiểm tra MIME, magic bytes, extension, kích thước, prefix key an toàn và tên object ngẫu nhiên.
 - Các endpoint upload/download/delete evidence, file quyết định thiết bị và file bàn giao dùng chung abstraction `IFileStorage`; local volume vẫn là provider mặc định.
 - Bổ sung biến cấu hình S3 vào `.env.example`, Docker Compose và tài liệu backup/deployment. Đã chạy integration E2E với MinIO tạm: upload file quyết định, upload/download/delete evidence và toàn bộ flow nghiệp vụ đều pass.
+- Đã kiểm chứng nhánh cấu hình certificate Data Protection bằng PFX tạm trong container; backend healthy và không phát cảnh báo encryptor, sau đó đã dọn artifact kiểm thử.
