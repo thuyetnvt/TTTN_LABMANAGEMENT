@@ -139,3 +139,4 @@
 - Commit `40eab95`: `feat: add self-service user profile`; thêm `GET /api/users/me`, `PUT /api/users/me/profile`, màn hình hồ sơ cá nhân và giữ đổi mật khẩu với token invalidation.
 - Commit `aa4f905`: `refactor: centralize frontend role guards`; các route và màn hình chính dùng `ROLE`, `MANAGER_ROLES`, `BORROWER_ROLES` cùng helper `isManagerRole/isAdminRole/...`, không còn rải mảng role literal trong điều kiện UI.
 - Frontend production build và unit test tiếp tục đạt sau hai commit này.
+- Vòng Docker cuối sau hai commit trên đạt; startup không còn lỗi seed/migration hoặc pending model changes. Working tree chỉ còn các file untracked local đã tồn tại từ trước, không thuộc thay đổi của đợt này.
