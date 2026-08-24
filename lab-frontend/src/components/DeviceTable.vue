@@ -15,6 +15,16 @@
       />
     </div>
     <div class="right-actions">
+      <a-button
+        v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)"
+        :disabled="!selectedBatchItems.length"
+        @click="openBatchQR"
+      >
+        In QR đã chọn ({{ selectedBatchItems.length }})
+      </a-button>
+      <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" @click="openImport">
+        Import Excel
+      </a-button>
       <a-button v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" type="primary" ghost @click="handleExport">
         Xuất Excel
       </a-button>
@@ -24,7 +34,15 @@
     </div>
   </div>
 
-  <a-table :dataSource="filteredDataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1500 }">
+  <a-table
+    :dataSource="filteredDataSource"
+    :columns="columns"
+    :loading="loading"
+    rowKey="id"
+    bordered
+    :scroll="{ x: 1500 }"
+    :row-selection="isManager ? rowSelection : undefined"
+  >
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'status'">
         <StatusBadge :status="record.status" />
@@ -77,6 +95,42 @@
     </div>
   </a-modal>
 
+  <a-modal v-model:open="isBatchQRVisible" title="In QR hàng loạt" :footer="null" width="900px">
+    <div ref="qrPrintSheet" class="qr-print-sheet">
+      <div v-for="item in selectedBatchItems" :key="item.id" class="qr-print-card">
+        <qrcode-vue :value="`DEVICE_TOKEN:${item.qrToken || item.serial}`" :size="150" level="H" />
+        <strong>{{ item.name }}</strong>
+        <span>{{ item.assetCode || item.serial }}</span>
+      </div>
+    </div>
+    <a-space class="batch-actions">
+      <a-button @click="isBatchQRVisible = false">Đóng</a-button>
+      <a-button type="primary" @click="printBatchQR">In</a-button>
+    </a-space>
+  </a-modal>
+
+  <a-modal v-model:open="isImportVisible" title="Import Excel tài sản" :footer="null" width="1100px">
+    <a-upload :before-upload="previewImport" :show-upload-list="false" accept=".xlsx">
+      <a-button :loading="importLoading">Chọn file Excel và xem trước</a-button>
+    </a-upload>
+    <a-alert v-if="importPreviewRows.length" class="import-summary" type="info" :message="`Tổng ${importPreviewRows.length} dòng — hợp lệ ${importValidCount}, lỗi ${importPreviewRows.length - importValidCount}`" />
+    <a-table v-if="importPreviewRows.length" :data-source="importPreviewRows" :columns="importColumns" row-key="rowNumber" size="small" bordered :pagination="{ pageSize: 10 }" :scroll="{ x: 900 }">
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'name'">{{ record.row.name }}</template>
+        <template v-else-if="column.key === 'model'">{{ record.row.model }}</template>
+        <template v-else-if="column.key === 'serial'">{{ record.row.serial }}</template>
+        <template v-else-if="column.key === 'location'">{{ record.row.location }}</template>
+        <template v-else-if="column.key === 'result'">
+          <a-tag :color="record.valid ? 'green' : 'red'">{{ record.valid ? 'Hợp lệ' : record.errors.join('; ') }}</a-tag>
+        </template>
+      </template>
+    </a-table>
+    <a-space v-if="importPreviewRows.length" class="batch-actions">
+      <a-button @click="isImportVisible = false">Hủy</a-button>
+      <a-button type="primary" :disabled="!importValidCount" :loading="importSaving" @click="commitImport">Import {{ importValidCount }} dòng hợp lệ</a-button>
+    </a-space>
+  </a-modal>
+
   <a-modal v-model:open="isScannerVisible" :title="inventoryScannerMode ? 'Quét QR kiểm kê' : 'Quét QR để mượn'" :footer="null" @cancel="stopScanner" centered>
     <div id="qr-reader" style="width: 100%;"></div>
   </a-modal>
@@ -127,6 +181,10 @@
         </a-col>
       </a-row>
 
+      <a-form-item v-if="isEditMode" label="Lý do điều chuyển vị trí">
+        <a-input v-model:value="formData.locationChangeReason" placeholder="Bắt buộc nếu thay đổi vị trí" />
+      </a-form-item>
+
       <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="Model" required>
@@ -148,7 +206,9 @@
         </a-col>
         <a-col :span="12">
           <a-form-item label="Vị trí" required>
-            <a-input v-model:value="formData.location" />
+            <a-select v-model:value="formData.locationNodeId" placeholder="Chọn vị trí trong cây" @change="syncLocationName">
+              <a-select-option v-for="location in locations" :key="location.id" :value="location.id">{{ location.code }} — {{ location.name }}</a-select-option>
+            </a-select>
           </a-form-item>
         </a-col>
       </a-row>
@@ -243,13 +303,16 @@ import { equipmentApi } from '../api/equipmentApi'
 import { borrowApi } from '../api/borrowApi'
 import { userApi } from '../api/userApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
+import { locationApi } from '../api/locationApi'
 
 const authStore = useAuthStore()
 const route = useRoute()
 const role = computed(() => authStore.role)
+const isManager = computed(() => ['Admin', 'Trưởng lab', 'Phó lab'].includes(role.value))
 
 const dataSource = ref([])
 const categories = ref([])
+const locations = ref([])
 const teachers = ref([])
 const loading = ref(false)
 const submitting = ref(false)
@@ -313,6 +376,8 @@ const emptyForm = () => ({
   serial: '',
   serialName: '',
   location: '',
+  locationNodeId: null,
+  locationChangeReason: '',
   responsiblePerson: '',
   decisionFileName: '',
   entryDate: null,
@@ -334,6 +399,21 @@ const isQRVisible = ref(false)
 const qrValue = ref('')
 const selectedDeviceName = ref('')
 const selectedDeviceSerial = ref('')
+const selectedBatchKeys = ref([])
+const isBatchQRVisible = ref(false)
+const qrPrintSheet = ref(null)
+const isImportVisible = ref(false)
+const importLoading = ref(false)
+const importSaving = ref(false)
+const importPreviewRows = ref([])
+const importColumns = [
+  { title: 'Dòng', dataIndex: 'rowNumber', key: 'rowNumber', width: 60 },
+  { title: 'Tên thiết bị', key: 'name' },
+  { title: 'Model', key: 'model' },
+  { title: 'Số seri', key: 'serial' },
+  { title: 'Vị trí', key: 'location' },
+  { title: 'Kết quả', key: 'result', width: 280 }
+]
 
 const isScannerVisible = ref(false)
 const inventoryScannerMode = ref(false)
@@ -349,10 +429,18 @@ const availableBorrowOptions = computed(() => dataSource.value.filter(item =>
   statusMatches(item.status, STATUS.AVAILABLE) && !borrowItems.value.some(selected => selected.id === item.id)
 ))
 
+const selectedBatchItems = computed(() => dataSource.value.filter(item => selectedBatchKeys.value.includes(item.id)))
+const importValidCount = computed(() => importPreviewRows.value.filter(row => row.valid).length)
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedBatchKeys.value,
+  onChange: (keys) => { selectedBatchKeys.value = keys }
+}))
+
 onMounted(() => {
   fetchData()
   fetchTeachers()
   fetchCategories()
+  fetchLocations()
 })
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : ''
@@ -416,6 +504,11 @@ const showEditModal = (record) => {
   isFormVisible.value = true
 }
 
+const syncLocationName = (locationNodeId) => {
+  const location = locations.value.find(item => item.id === locationNodeId)
+  if (location) formData.value.location = location.name
+}
+
 const showViewModal = (record) => {
   viewData.value = { ...record }
   isViewVisible.value = true
@@ -443,6 +536,10 @@ const buildEquipmentFormData = () => {
   payload.append('serial', formData.value.serial || '')
   payload.append('serialName', formData.value.serialName || '')
   payload.append('location', formData.value.location || '')
+  if (formData.value.locationNodeId !== null && formData.value.locationNodeId !== undefined) {
+    payload.append('locationNodeId', formData.value.locationNodeId)
+  }
+  if (formData.value.locationChangeReason) payload.append('locationChangeReason', formData.value.locationChangeReason)
   payload.append('responsiblePerson', formData.value.responsiblePerson || '')
   payload.append('invoiceNumber', formData.value.invoiceNumber || '')
   payload.append('status', formData.value.status || STATUS.AVAILABLE)
@@ -460,8 +557,8 @@ const buildEquipmentFormData = () => {
 }
 
 const submitForm = async () => {
-  if (!formData.value.name || !formData.value.model || !formData.value.serial || !formData.value.location) {
-    message.warning('Vui lòng nhập đủ tên, model, số seri và vị trí!')
+  if (!formData.value.name || !formData.value.model || !formData.value.serial || !formData.value.locationNodeId) {
+    message.warning('Vui lòng nhập đủ tên, model, số seri và chọn vị trí!')
     return
   }
 
@@ -547,6 +644,77 @@ const showQR = (record) => {
   selectedDeviceName.value = record.name
   selectedDeviceSerial.value = record.serial
   isQRVisible.value = true
+}
+
+const fetchLocations = async () => {
+  try {
+    locations.value = await locationApi.getAll() || []
+  } catch {
+    message.error('Lỗi khi tải cây vị trí!')
+  }
+}
+
+const openBatchQR = () => {
+  if (!selectedBatchItems.value.length) {
+    message.warning('Hãy chọn ít nhất một tài sản để in QR.')
+    return
+  }
+  isBatchQRVisible.value = true
+}
+
+const printBatchQR = async () => {
+  await nextTick()
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1000,height=800')
+  if (!printWindow || !qrPrintSheet.value) {
+    message.error('Trình duyệt đã chặn cửa sổ in. Hãy cho phép popup rồi thử lại.')
+    return
+  }
+  const markup = qrPrintSheet.value.innerHTML
+    .replaceAll('qr-print-card', 'card')
+    .replace('qr-print-sheet', 'sheet')
+  printWindow.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>QR tài sản</title><style>body{font-family:Arial,sans-serif;margin:20px}.sheet{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.card{border:1px solid #ddd;padding:14px;text-align:center;page-break-inside:avoid}.card svg{display:block;margin:0 auto 10px}.card strong,.card span{display:block;margin-top:4px;font-size:13px}@media print{body{margin:0}.sheet{padding:10mm}}</style></head><body><div class="sheet">${markup}</div></body></html>`)
+  printWindow.document.close()
+  printWindow.focus()
+  printWindow.print()
+  printWindow.close()
+}
+
+const openImport = () => {
+  importPreviewRows.value = []
+  isImportVisible.value = true
+}
+
+const previewImport = async (file) => {
+  const payload = new FormData()
+  payload.append('file', file)
+  importLoading.value = true
+  try {
+    const result = await equipmentApi.previewImport(payload)
+    importPreviewRows.value = result.rows || []
+    if (!importPreviewRows.value.length) message.warning('File không có dòng dữ liệu để import.')
+    else message.success(`Đã đọc ${importPreviewRows.value.length} dòng và kiểm tra lỗi.`)
+  } catch (error) {
+    message.error(error?.response?.data?.message || error.message || 'Không thể đọc file Excel.')
+  } finally {
+    importLoading.value = false
+  }
+  return Upload.LIST_IGNORE
+}
+
+const commitImport = async () => {
+  const rows = importPreviewRows.value.filter(row => row.valid).map(row => row.row)
+  if (!rows.length) return
+  importSaving.value = true
+  try {
+    await equipmentApi.importRows(rows)
+    message.success(`Đã import ${rows.length} tài sản.`)
+    isImportVisible.value = false
+    await fetchData()
+  } catch (error) {
+    message.error(error?.response?.data?.message || error.message || 'Không thể import tài sản.')
+  } finally {
+    importSaving.value = false
+  }
 }
 
 const handleBorrowClick = (record) => {
@@ -693,6 +861,42 @@ const onScanSuccess = (decodedText) => {
   color: #6b7280;
   font-size: 13px;
   margin-top: 8px;
+}
+
+.qr-print-sheet {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.qr-print-card {
+  border: 1px solid #d9d9d9;
+  padding: 12px;
+  text-align: center;
+}
+
+.qr-print-card :deep(svg) {
+  display: block;
+  margin: 0 auto 8px;
+}
+
+.qr-print-card strong,
+.qr-print-card span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.batch-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.import-summary {
+  margin: 16px 0;
 }
 </style>
 

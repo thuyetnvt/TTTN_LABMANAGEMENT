@@ -36,9 +36,7 @@ public class DashboardController : ControllerBase
                 Borrowed = group.Count(item => item.Status == EquipmentStatuses.Borrowed),
                 Broken = group.Count(item => item.Status == EquipmentStatuses.Broken),
                 Warranty = group.Count(item => item.Status == EquipmentStatuses.Warranty),
-                Maintenance = group.Count(item =>
-                    item.Status == EquipmentStatuses.Warranty
-                    || item.Status == EquipmentStatuses.Broken)
+                Maintenance = group.Count(item => item.Status == EquipmentStatuses.MaintenanceInProgress)
             })
             .SingleOrDefaultAsync(cancellationToken);
 

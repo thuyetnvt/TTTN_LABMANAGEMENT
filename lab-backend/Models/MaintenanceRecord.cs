@@ -24,5 +24,8 @@ namespace LabManagementAPI.Models
 
         public string Result { get; set; } = string.Empty;
         public string ResultStatus { get; set; } = EquipmentStatuses.Available;
+
+        // Nullable unique key: only one active maintenance record can claim an equipment item.
+        public string? ActiveEquipmentKey { get; set; }
     }
 }

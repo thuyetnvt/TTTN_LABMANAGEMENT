@@ -12,7 +12,7 @@ RUN dotnet publish LabManagementAPI.csproj \
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS final
 
-RUN apk add --no-cache icu-libs tzdata
+RUN apk add --no-cache icu-libs tzdata ttf-dejavu
 
 ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \

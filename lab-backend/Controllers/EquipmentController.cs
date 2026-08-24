@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using LabManagementAPI.Data;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
@@ -97,6 +98,9 @@ public class EquipmentController : ControllerBase
 
         public int? LocationNodeId { get; set; }
 
+        [MaxLength(1000)]
+        public string LocationChangeReason { get; set; } = string.Empty;
+
         [MaxLength(255)]
         public string ResponsiblePerson { get; set; } = string.Empty;
 
@@ -109,6 +113,28 @@ public class EquipmentController : ControllerBase
         public string Status { get; set; } = EquipmentStatuses.Available;
         public int? AssetCategoryId { get; set; }
         public IFormFile? DecisionFile { get; set; }
+    }
+
+    public sealed class ImportEquipmentRowDto
+    {
+        [MaxLength(100)] public string AssetCode { get; set; } = string.Empty;
+        [Required, MaxLength(255)] public string Name { get; set; } = string.Empty;
+        [Required, MaxLength(255)] public string Model { get; set; } = string.Empty;
+        [Required, MaxLength(100)] public string Serial { get; set; } = string.Empty;
+        [MaxLength(255)] public string SerialName { get; set; } = string.Empty;
+        [Required, MaxLength(255)] public string Location { get; set; } = string.Empty;
+        public int? LocationNodeId { get; set; }
+        [MaxLength(255)] public string ResponsiblePerson { get; set; } = string.Empty;
+        public DateTime? EntryDate { get; set; }
+        public DateTime? WarrantyExpiry { get; set; }
+        [MaxLength(100)] public string InvoiceNumber { get; set; } = string.Empty;
+        [MaxLength(2000)] public string Notes { get; set; } = string.Empty;
+    }
+
+    public sealed class ImportEquipmentDto
+    {
+        [Required, MinLength(1), MaxLength(500)]
+        public List<ImportEquipmentRowDto> Rows { get; set; } = [];
     }
 
     [HttpGet]
@@ -157,6 +183,170 @@ public class EquipmentController : ControllerBase
             CategoryName = equipment.AssetCategory?.Name,
             equipment.CreatedAt
         }));
+    }
+
+    [HttpPost("import/preview")]
+    [Authorize(Roles = Roles.Managers)]
+    [RequestSizeLimit(11_000_000)]
+    public async Task<IActionResult> PreviewImport(
+        [FromForm] IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var extension = Path.GetExtension(Path.GetFileName(file?.FileName ?? string.Empty));
+        if (file is null || file.Length <= 0 || !string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = "Vui lòng chọn file Excel .xlsx hợp lệ." });
+        }
+        if (file.Length > 10 * 1024 * 1024)
+        {
+            return BadRequest(new { message = "File Excel không được vượt quá 10 MB." });
+        }
+
+        ExcelPackage.License.SetNonCommercialOrganization("LabManagement Educational Project");
+        await using var stream = file.OpenReadStream();
+        using var package = new ExcelPackage(stream);
+        var worksheet = package.Workbook.Worksheets.FirstOrDefault();
+        if (worksheet?.Dimension is null)
+        {
+            return BadRequest(new { message = "File Excel không có dữ liệu." });
+        }
+
+        var headerMap = BuildHeaderMap(worksheet);
+        var requiredHeaderGroups = new[]
+        {
+            new[] { "Tên thiết bị", "Tên tài sản", "Name" },
+            new[] { "Model" },
+            new[] { "Số seri", "Serial" },
+            new[] { "Vị trí", "Location" }
+        };
+        var missingHeaders = requiredHeaderGroups
+            .Where(group => !group.Any(header => headerMap.ContainsKey(NormalizeImportHeader(header))))
+            .Select(group => group[0])
+            .ToArray();
+        if (missingHeaders.Length > 0)
+        {
+            return BadRequest(new { message = $"Thiếu cột bắt buộc: {string.Join(", ", missingHeaders)}." });
+        }
+
+        var existingSerials = await _context.Equipments.AsNoTracking()
+            .Select(equipment => equipment.Serial).ToListAsync(cancellationToken);
+        var existingAssetCodes = await _context.Equipments.AsNoTracking()
+            .Select(equipment => equipment.AssetCode).ToListAsync(cancellationToken);
+        var serialSet = existingSerials.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var assetCodeSet = existingAssetCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var locationNodes = await _context.LocationNodes.AsNoTracking()
+            .Where(location => location.IsActive)
+            .ToListAsync(cancellationToken);
+        var seenSerials = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenAssetCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var rows = new List<object>();
+        var validCount = 0;
+        var lastRow = Math.Min(worksheet.Dimension.End.Row, 501);
+
+        for (var rowNumber = 2; rowNumber <= lastRow; rowNumber++)
+        {
+            var row = ReadImportRow(worksheet, headerMap, rowNumber);
+            if (string.IsNullOrWhiteSpace(row.Name) && string.IsNullOrWhiteSpace(row.Serial)) continue;
+            var errors = new List<string>();
+            row.LocationNodeId = ResolveImportLocation(row.Location, locationNodes);
+            if (string.IsNullOrWhiteSpace(row.Name)) errors.Add("Thiếu tên thiết bị");
+            if (string.IsNullOrWhiteSpace(row.Model)) errors.Add("Thiếu model");
+            if (string.IsNullOrWhiteSpace(row.Serial)) errors.Add("Thiếu số seri");
+            if (string.IsNullOrWhiteSpace(row.Location)) errors.Add("Thiếu vị trí");
+            else if (!row.LocationNodeId.HasValue) errors.Add("Vị trí không khớp mã/tên trong cây vị trí");
+            if (!string.IsNullOrWhiteSpace(row.Serial) && (serialSet.Contains(row.Serial) || !seenSerials.Add(row.Serial)))
+                errors.Add("Số seri đã tồn tại hoặc bị trùng trong file");
+            if (!string.IsNullOrWhiteSpace(row.AssetCode) && (assetCodeSet.Contains(row.AssetCode) || !seenAssetCodes.Add(row.AssetCode)))
+                errors.Add("Mã tài sản đã tồn tại hoặc bị trùng trong file");
+            var valid = errors.Count == 0;
+            if (valid) validCount++;
+            rows.Add(new { rowNumber, row, errors, valid });
+        }
+
+        return Ok(new { rows, total = rows.Count, validCount, invalidCount = rows.Count - validCount });
+    }
+
+    [HttpPost("import")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> Import(
+        [FromBody] ImportEquipmentDto dto,
+        CancellationToken cancellationToken)
+    {
+        var rows = dto.Rows.Select(row =>
+        {
+            row.AssetCode = row.AssetCode.Trim();
+            row.Name = row.Name.Trim();
+            row.Model = row.Model.Trim();
+            row.Serial = row.Serial.Trim();
+            row.SerialName = row.SerialName.Trim();
+            row.Location = row.Location.Trim();
+            row.ResponsiblePerson = row.ResponsiblePerson.Trim();
+            row.InvoiceNumber = row.InvoiceNumber.Trim();
+            row.Notes = row.Notes.Trim();
+            return row;
+        }).ToList();
+        var errors = rows.SelectMany((row, index) =>
+        {
+            var rowErrors = new List<string>();
+            if (string.IsNullOrWhiteSpace(row.Name)) rowErrors.Add("Thiếu tên thiết bị");
+            if (string.IsNullOrWhiteSpace(row.Model)) rowErrors.Add("Thiếu model");
+            if (string.IsNullOrWhiteSpace(row.Serial)) rowErrors.Add("Thiếu số seri");
+            if (string.IsNullOrWhiteSpace(row.Location)) rowErrors.Add("Thiếu vị trí");
+            if (!row.LocationNodeId.HasValue) rowErrors.Add("Thiếu vị trí hợp lệ trong cây vị trí");
+            return rowErrors.Select(error => new { row = index + 1, error });
+        }).ToList();
+        if (errors.Count > 0) return BadRequest(new { message = "Dữ liệu import chưa hợp lệ.", errors });
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+        var serialSet = (await _context.Equipments.Select(equipment => equipment.Serial).ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var assetCodeSet = (await _context.Equipments.Select(equipment => equipment.AssetCode).ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var locationNodes = await _context.LocationNodes.AsNoTracking()
+            .Where(location => location.IsActive)
+            .ToListAsync(cancellationToken);
+        var imported = new List<Equipment>();
+        foreach (var row in rows)
+        {
+            if (!row.LocationNodeId.HasValue || !locationNodes.Any(location => location.Id == row.LocationNodeId.Value))
+                row.LocationNodeId = ResolveImportLocation(row.Location, locationNodes);
+            if (!row.LocationNodeId.HasValue)
+                return BadRequest(new { message = $"Vị trí của tài sản {row.Name} không tồn tại trong cây vị trí." });
+            if (!serialSet.Add(row.Serial)) return Conflict(new { message = $"Số seri {row.Serial} đã tồn tại." });
+            var assetCode = row.AssetCode;
+            if (string.IsNullOrWhiteSpace(assetCode))
+            {
+                do { assetCode = CreateAssetCode(); } while (!assetCodeSet.Add(assetCode));
+            }
+            else if (!assetCodeSet.Add(assetCode))
+            {
+                return Conflict(new { message = $"Mã tài sản {assetCode} đã tồn tại." });
+            }
+            imported.Add(new Equipment
+            {
+                AssetCode = assetCode,
+                Name = row.Name,
+                Model = row.Model,
+                Serial = row.Serial,
+                SerialName = row.SerialName,
+                Location = row.Location,
+                LocationNodeId = row.LocationNodeId,
+                ResponsiblePerson = row.ResponsiblePerson,
+                EntryDate = row.EntryDate,
+                WarrantyExpiry = row.WarrantyExpiry,
+                InvoiceNumber = row.InvoiceNumber,
+                Notes = row.Notes,
+                Status = EquipmentStatuses.Available,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        _context.Equipments.AddRange(imported);
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(HttpContext, "Import", "Equipment", null,
+            new { Count = imported.Count }, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Ok(new { message = $"Đã import {imported.Count} tài sản.", count = imported.Count });
     }
 
     [HttpPost]
@@ -213,6 +403,10 @@ public class EquipmentController : ControllerBase
                 cancellationToken))
         {
             return BadRequest(new { message = "Vị trí không tồn tại hoặc đã ngừng sử dụng." });
+        }
+        if (!dto.LocationNodeId.HasValue)
+        {
+            return BadRequest(new { message = "Tài sản mới phải chọn vị trí từ cây vị trí." });
         }
 
         var equipment = new Equipment
@@ -353,8 +547,20 @@ public class EquipmentController : ControllerBase
         {
             return BadRequest(new { message = "Vị trí không tồn tại hoặc đã ngừng sử dụng." });
         }
+        if (!dto.LocationNodeId.HasValue)
+        {
+            return BadRequest(new { message = "Tài sản phải chọn vị trí từ cây vị trí." });
+        }
 
         var before = SnapshotEquipment(existing);
+        var previousLocationNodeId = existing.LocationNodeId;
+        var previousLocationName = existing.Location;
+        var locationChanged = existing.LocationNodeId != dto.LocationNodeId
+            || !string.Equals(existing.Location.Trim(), dto.Location.Trim(), StringComparison.OrdinalIgnoreCase);
+        if (locationChanged && string.IsNullOrWhiteSpace(dto.LocationChangeReason))
+        {
+            return BadRequest(new { message = "Khi điều chuyển tài sản phải nhập lý do." });
+        }
 
         existing.AssetCode = assetCode;
         existing.Name = dto.Name.Trim();
@@ -378,6 +584,35 @@ public class EquipmentController : ControllerBase
         existing.InvoiceNumber = dto.InvoiceNumber.Trim();
         existing.Status = dto.Status;
         existing.AssetCategoryId = dto.AssetCategoryId;
+
+        if (locationChanged)
+        {
+            var locationIds = new[] { previousLocationNodeId, dto.LocationNodeId }
+                .Where(value => value.HasValue)
+                .Select(value => value!.Value)
+                .Distinct()
+                .ToArray();
+            var locationNames = await _context.LocationNodes.AsNoTracking()
+                .Where(location => locationIds.Contains(location.Id))
+                .ToDictionaryAsync(location => location.Id, location => location.Name, cancellationToken);
+            var fromLocationName = previousLocationNodeId.HasValue && locationNames.TryGetValue(previousLocationNodeId.Value, out var oldName)
+                ? oldName
+                : previousLocationName.Trim();
+            var toLocationName = dto.LocationNodeId.HasValue && locationNames.TryGetValue(dto.LocationNodeId.Value, out var newName)
+                ? newName
+                : dto.Location.Trim();
+            _context.EquipmentLocationHistories.Add(new EquipmentLocationHistory
+            {
+                EquipmentId = existing.Id,
+                FromLocationNodeId = previousLocationNodeId,
+                ToLocationNodeId = dto.LocationNodeId,
+                FromLocationName = fromLocationName,
+                ToLocationName = toLocationName,
+                Reason = dto.LocationChangeReason.Trim(),
+                ChangedByUserId = GetCurrentUserId(),
+                ChangedAt = DateTime.UtcNow
+            });
+        }
 
         string? previousPath = null;
         string? newPath = null;
@@ -701,6 +936,100 @@ public class EquipmentController : ControllerBase
             equipment.AssetCategoryId,
             equipment.DecisionFileName
         };
+    }
+
+    private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    [HttpGet("{id:int}/location-history")]
+    public async Task<IActionResult> GetLocationHistory(int id, CancellationToken cancellationToken)
+    {
+        var exists = await _context.Equipments.AnyAsync(item => item.Id == id, cancellationToken);
+        if (!exists) return NotFound(new { message = "Không tìm thấy tài sản." });
+        var history = await _context.EquipmentLocationHistories.AsNoTracking()
+            .Include(item => item.ChangedByUser)
+            .Where(item => item.EquipmentId == id)
+            .OrderByDescending(item => item.ChangedAt)
+            .Select(item => new
+            {
+                item.Id,
+                fromLocation = string.IsNullOrWhiteSpace(item.FromLocationName) ? "Chưa xác định" : item.FromLocationName,
+                toLocation = string.IsNullOrWhiteSpace(item.ToLocationName) ? "Chưa xác định" : item.ToLocationName,
+                item.Reason,
+                item.ChangedAt,
+                changedBy = item.ChangedByUser!.Username
+            })
+            .ToListAsync(cancellationToken);
+        return Ok(history);
+    }
+
+    private static Dictionary<string, int> BuildHeaderMap(ExcelWorksheet worksheet)
+    {
+        var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var column = worksheet.Dimension!.Start.Column; column <= worksheet.Dimension.End.Column; column++)
+        {
+            var header = NormalizeImportHeader(worksheet.Cells[1, column].Text);
+            if (!string.IsNullOrWhiteSpace(header) && !map.ContainsKey(header)) map[header] = column;
+        }
+        return map;
+    }
+
+    private static ImportEquipmentRowDto ReadImportRow(
+        ExcelWorksheet worksheet,
+        IReadOnlyDictionary<string, int> headers,
+        int rowNumber)
+    {
+        var entryDate = ParseImportDate(GetImportCell(worksheet, headers, rowNumber, "Ngày nhập", "EntryDate"));
+        var warrantyExpiry = ParseImportDate(GetImportCell(worksheet, headers, rowNumber, "Hạn bảo hành", "WarrantyExpiry"));
+        return new ImportEquipmentRowDto
+        {
+            AssetCode = GetImportCell(worksheet, headers, rowNumber, "Mã tài sản", "AssetCode"),
+            Name = GetImportCell(worksheet, headers, rowNumber, "Tên thiết bị", "Tên tài sản", "Name"),
+            Model = GetImportCell(worksheet, headers, rowNumber, "Model"),
+            Serial = GetImportCell(worksheet, headers, rowNumber, "Số seri", "Serial"),
+            SerialName = GetImportCell(worksheet, headers, rowNumber, "Tên seri", "SerialName"),
+            Location = GetImportCell(worksheet, headers, rowNumber, "Vị trí", "Location"),
+            LocationNodeId = null,
+            ResponsiblePerson = GetImportCell(worksheet, headers, rowNumber, "Người chịu trách nhiệm", "ResponsiblePerson"),
+            EntryDate = entryDate,
+            WarrantyExpiry = warrantyExpiry,
+            InvoiceNumber = GetImportCell(worksheet, headers, rowNumber, "Số hóa đơn", "InvoiceNumber"),
+            Notes = GetImportCell(worksheet, headers, rowNumber, "Ghi chú", "Notes")
+        };
+    }
+
+    private static string GetImportCell(
+        ExcelWorksheet worksheet,
+        IReadOnlyDictionary<string, int> headers,
+        int rowNumber,
+        params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (headers.TryGetValue(NormalizeImportHeader(name), out var column))
+            {
+                return worksheet.Cells[rowNumber, column].Text.Trim();
+            }
+        }
+        return string.Empty;
+    }
+
+    private static DateTime? ParseImportDate(string value)
+    {
+        return DateTime.TryParse(value, out var parsed) ? parsed : null;
+    }
+
+    private static int? ResolveImportLocation(string value, IReadOnlyCollection<LocationNode> locations)
+    {
+        var normalized = NormalizeImportHeader(value);
+        if (string.IsNullOrWhiteSpace(normalized)) return null;
+        return locations.FirstOrDefault(location => NormalizeImportHeader(location.Code) == normalized)?.Id
+            ?? locations.FirstOrDefault(location => NormalizeImportHeader(location.Name) == normalized)?.Id;
+    }
+
+    private static string NormalizeImportHeader(string value)
+    {
+        return string.Join(' ', value.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            .ToLowerInvariant();
     }
 
     private static string CreateAssetCode()

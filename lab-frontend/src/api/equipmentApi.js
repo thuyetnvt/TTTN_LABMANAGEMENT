@@ -17,5 +17,11 @@ export const equipmentApi = {
 
   downloadDecisionFile: (id) => axiosClient.get(`/equipment/${id}/decision-file`, { responseType: 'blob' }),
 
-  export: () => axiosClient.get('/equipment/export', { responseType: 'blob' })
+  export: () => axiosClient.get('/equipment/export', { responseType: 'blob' }),
+
+  previewImport: (file) => axiosClient.post('/equipment/import/preview', file, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+
+  importRows: (rows) => axiosClient.post('/equipment/import', { rows })
 };

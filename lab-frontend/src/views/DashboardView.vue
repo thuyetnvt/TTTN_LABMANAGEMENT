@@ -64,6 +64,10 @@
           <scan-outlined />
           <span>Kiểm kê tài sản</span>
         </a-menu-item>
+        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m_reports" @click="$router.push({ name: 'Reports' })">
+          <bar-chart-outlined />
+          <span>Báo cáo</span>
+        </a-menu-item>
         
         <!-- Menu cho Đền bù -->
         <a-menu-item key="m4" @click="$router.push({ name: 'Penalty' })">
@@ -278,6 +282,7 @@ import {
   MenuUnfoldOutlined,
   ScanOutlined,
   CalendarOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { notification } from 'ant-design-vue'
@@ -322,6 +327,7 @@ const routeMenuKeys = {
   TeacherApproval: 'm_teacher',
   Maintenance: 'm3',
   MaintenanceSchedules: 'm_schedule',
+  Reports: 'm_reports',
   Locations: 'm_location',
   Inventory: 'm_inventory',
   Notifications: 'notifications',

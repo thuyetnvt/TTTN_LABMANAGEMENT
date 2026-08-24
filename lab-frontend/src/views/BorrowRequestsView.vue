@@ -77,13 +77,22 @@
         <a-form-item label="Ghi chú"><a-textarea v-model:value="item.note" :rows="2" /></a-form-item>
       </a-card>
       <a-form-item label="Ghi chú biên bản"><a-textarea v-model:value="handoverForm.notes" :rows="3" /></a-form-item>
+      <a-form-item label="File/ảnh minh chứng">
+        <a-upload :before-upload="selectHandoverEvidence" :show-upload-list="false" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx">
+          <a-button>Chọn file minh chứng</a-button>
+        </a-upload>
+        <span v-if="handoverEvidenceFile" class="muted">{{ handoverEvidenceFile.name }}</span>
+      </a-form-item>
+      <a-form-item v-if="handoverEvidenceFile" label="Loại minh chứng">
+        <a-select v-model:value="handoverEvidenceType"><a-select-option value="PHOTO">Ảnh</a-select-option><a-select-option value="DOCUMENT">Tài liệu</a-select-option><a-select-option value="SIGNATURE">Xác nhận điện tử</a-select-option></a-select>
+      </a-form-item>
     </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Upload } from 'ant-design-vue'
 import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -102,6 +111,8 @@ const handoverSubmitting = ref(false)
 const currentReturnRecord = ref(null)
 const currentHandoverRecord = ref(null)
 const handoverForm = ref({ notes: '', items: [] })
+const handoverEvidenceFile = ref(null)
+const handoverEvidenceType = ref('PHOTO')
 const returnForm = ref({
   condition: STATUS.AVAILABLE,
   note: '',
@@ -217,7 +228,24 @@ const showHandoverModal = record => {
       note: ''
     }))
   }
+  handoverEvidenceFile.value = null
+  handoverEvidenceType.value = 'PHOTO'
   isHandoverModalVisible.value = true
+}
+
+const selectHandoverEvidence = (file) => {
+  const allowed = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx']
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  if (!allowed.includes(extension)) {
+    message.error('Chỉ chấp nhận PDF, Word hoặc ảnh JPG/PNG/WEBP.')
+    return Upload.LIST_IGNORE
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    message.error('File minh chứng không được vượt quá 10 MB.')
+    return Upload.LIST_IGNORE
+  }
+  handoverEvidenceFile.value = file
+  return false
 }
 
 const submitHandover = async () => {
@@ -233,6 +261,13 @@ const submitHandover = async () => {
         note: item.note
       }))
     })
+    if (handoverEvidenceFile.value) {
+      await handoverApi.uploadEvidence(
+        currentHandoverRecord.value.id,
+        handoverEvidenceFile.value,
+        handoverEvidenceType.value
+      )
+    }
     message.success('Đã lập biên bản bàn giao.')
     isHandoverModalVisible.value = false
   } catch (error) {

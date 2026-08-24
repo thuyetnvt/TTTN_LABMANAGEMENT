@@ -99,7 +99,7 @@ public class MaintenanceController : ControllerBase
             .ExecuteUpdateAsync(
                 updates => updates.SetProperty(
                     equipment => equipment.Status,
-                    EquipmentStatuses.Warranty),
+                    EquipmentStatuses.MaintenanceInProgress),
                 cancellationToken);
         if (claimedEquipment == 0)
         {
@@ -134,7 +134,8 @@ public class MaintenanceController : ControllerBase
             Description = dto.Description,
             Cost = dto.Cost,
             PerformedBy = dto.PerformedBy,
-            Status = InProgress
+            Status = InProgress,
+            ActiveEquipmentKey = $"EQ:{dto.EquipmentId}"
         };
 
         _context.MaintenanceRecords.Add(record);
@@ -188,6 +189,7 @@ public class MaintenanceController : ControllerBase
         record.Status = Completed;
         record.Result = dto.Result;
         record.ResultStatus = dto.NextEquipmentStatus;
+        record.ActiveEquipmentKey = null;
         record.CompletedAt = DateTime.UtcNow;
         if (record.Equipment is not null)
         {

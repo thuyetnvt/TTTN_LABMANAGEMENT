@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test tests/business.test.js",
     "preview": "vite preview"
   },
   "devDependencies": {

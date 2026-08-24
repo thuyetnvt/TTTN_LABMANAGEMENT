@@ -27,6 +27,8 @@ namespace LabManagementAPI.Data
         public DbSet<AppNotification> Notifications { get; set; }
         public DbSet<HandoverRecord> HandoverRecords { get; set; }
         public DbSet<HandoverItem> HandoverItems { get; set; }
+        public DbSet<HandoverEvidence> HandoverEvidence { get; set; }
+        public DbSet<EquipmentLocationHistory> EquipmentLocationHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -247,6 +249,37 @@ namespace LabManagementAPI.Data
                 entity.HasOne(item => item.Equipment).WithMany().HasForeignKey(item => item.EquipmentId).OnDelete(DeleteBehavior.Restrict);
             });
 
+            modelBuilder.Entity<HandoverEvidence>(entity =>
+            {
+                entity.Property(item => item.EvidenceType).HasMaxLength(50);
+                entity.Property(item => item.OriginalFileName).HasMaxLength(255);
+                entity.Property(item => item.StoredPath).HasMaxLength(1000);
+                entity.Property(item => item.ContentType).HasMaxLength(150);
+                entity.HasIndex(item => new { item.HandoverRecordId, item.UploadedAt });
+                entity.HasOne(item => item.HandoverRecord).WithMany(record => record.Evidence)
+                    .HasForeignKey(item => item.HandoverRecordId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.Equipment).WithMany()
+                    .HasForeignKey(item => item.EquipmentId).OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(item => item.UploadedByUser).WithMany()
+                    .HasForeignKey(item => item.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<EquipmentLocationHistory>(entity =>
+            {
+                entity.Property(item => item.FromLocationName).HasMaxLength(255);
+                entity.Property(item => item.ToLocationName).HasMaxLength(255);
+                entity.Property(item => item.Reason).HasMaxLength(1000);
+                entity.HasIndex(item => new { item.EquipmentId, item.ChangedAt });
+                entity.HasOne(item => item.Equipment).WithMany()
+                    .HasForeignKey(item => item.EquipmentId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.FromLocationNode).WithMany()
+                    .HasForeignKey(item => item.FromLocationNodeId).OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(item => item.ToLocationNode).WithMany()
+                    .HasForeignKey(item => item.ToLocationNodeId).OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(item => item.ChangedByUser).WithMany()
+                    .HasForeignKey(item => item.ChangedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
             modelBuilder.Entity<ConsumableRequest>(entity =>
             {
                 entity.Property(request => request.Reason).HasMaxLength(1000);
@@ -285,8 +318,10 @@ namespace LabManagementAPI.Data
                 entity.Property(record => record.Status).HasMaxLength(50);
                 entity.Property(record => record.Result).HasMaxLength(2000);
                 entity.Property(record => record.ResultStatus).HasMaxLength(50);
+                entity.Property(record => record.ActiveEquipmentKey).HasMaxLength(64);
                 entity.Property(record => record.Cost).HasPrecision(18, 2);
                 entity.HasIndex(record => record.Status);
+                entity.HasIndex(record => record.ActiveEquipmentKey).IsUnique();
                 entity.HasOne(record => record.Equipment)
                     .WithMany()
                     .HasForeignKey(record => record.EquipmentId)

@@ -4,6 +4,7 @@ using LabManagementAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabManagementAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824180250_AddHandoverEvidence")]
+    partial class AddHandoverEvidence
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -639,57 +642,6 @@ namespace LabManagementAPI.Migrations
                     b.ToTable("Equipments");
                 });
 
-            modelBuilder.Entity("LabManagementAPI.Models.EquipmentLocationHistory", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("ChangedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("ChangedByUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("EquipmentId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("FromLocationName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<int?>("FromLocationNodeId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<string>("ToLocationName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<int?>("ToLocationNodeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChangedByUserId");
-
-                    b.HasIndex("FromLocationNodeId");
-
-                    b.HasIndex("ToLocationNodeId");
-
-                    b.HasIndex("EquipmentId", "ChangedAt");
-
-                    b.ToTable("EquipmentLocationHistories");
-                });
-
             modelBuilder.Entity("LabManagementAPI.Models.HandoverEvidence", b =>
                 {
                     b.Property<long>("Id")
@@ -992,10 +944,6 @@ namespace LabManagementAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ActiveEquipmentKey")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
-
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime(6)");
 
@@ -1035,9 +983,6 @@ namespace LabManagementAPI.Migrations
                         .HasColumnType("varchar(50)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ActiveEquipmentKey")
-                        .IsUnique();
 
                     b.HasIndex("EquipmentId");
 
@@ -1375,39 +1320,6 @@ namespace LabManagementAPI.Migrations
                     b.Navigation("AssetCategory");
 
                     b.Navigation("LocationNode");
-                });
-
-            modelBuilder.Entity("LabManagementAPI.Models.EquipmentLocationHistory", b =>
-                {
-                    b.HasOne("LabManagementAPI.Models.User", "ChangedByUser")
-                        .WithMany()
-                        .HasForeignKey("ChangedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("LabManagementAPI.Models.Equipment", "Equipment")
-                        .WithMany()
-                        .HasForeignKey("EquipmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabManagementAPI.Models.LocationNode", "FromLocationNode")
-                        .WithMany()
-                        .HasForeignKey("FromLocationNodeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("LabManagementAPI.Models.LocationNode", "ToLocationNode")
-                        .WithMany()
-                        .HasForeignKey("ToLocationNodeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ChangedByUser");
-
-                    b.Navigation("Equipment");
-
-                    b.Navigation("FromLocationNode");
-
-                    b.Navigation("ToLocationNode");
                 });
 
             modelBuilder.Entity("LabManagementAPI.Models.HandoverEvidence", b =>

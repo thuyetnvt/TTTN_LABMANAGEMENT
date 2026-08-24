@@ -14,4 +14,5 @@ public class HandoverRecord
     public string Notes { get; set; } = string.Empty;
     public DateTime? ConfirmedAt { get; set; }
     public ICollection<HandoverItem> Items { get; set; } = new List<HandoverItem>();
+    public ICollection<HandoverEvidence> Evidence { get; set; } = new List<HandoverEvidence>();
 }

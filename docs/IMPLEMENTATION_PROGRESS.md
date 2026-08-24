@@ -28,6 +28,7 @@
 - Commit `693a3b4`: `feat: add IoT asset metadata and structured locations`.
 - `Equipment` đã có mã tài sản, QR token ngẫu nhiên, loại thiết bị, MAC/IMEI/firmware tùy chọn, nhà sản xuất/nhà cung cấp, nguồn kinh phí, giá trị mua, ghi chú và ngày kiểm kê.
 - Đã thêm `LocationNode` dạng cây, API CRUD có kiểm tra mã trùng, parent tồn tại và vòng lặp, cùng màn hình quản lý vị trí thật ở frontend.
+- Form tài sản đã chọn `LocationNode` từ dữ liệu thật; backend bắt buộc node hoạt động và lưu lịch sử điều chuyển (`EquipmentLocationHistory`) kèm người thực hiện, thời gian, lý do.
 - Migration `20260824165820_AddIoTAssetMetadataAndLocations` tạo schema mới, gán mã/QR cho tài sản cũ và đưa vị trí tự do cũ vào node `LEGACY` để không mất dữ liệu.
 - Backend build và frontend production build đạt; frontend vẫn có warning từ dependency SignalR/chunk lớn.
 
@@ -73,7 +74,8 @@
 - Đã thêm `HandoverRecord` và `HandoverItem`, lưu mã bàn giao, người giao/nhận, thời điểm xác nhận, tình trạng từng tài sản, phụ kiện và ghi chú.
 - Quản lý có thể tạo bàn giao cho toàn bộ tài sản trong phiếu đã mượn; hệ thống chống thiếu/trùng tài sản, chống bàn giao lặp và ghi audit/notification.
 - Frontend đã có form `Bàn giao` theo từng tài sản.
-- File/ảnh minh chứng, chữ ký điện tử và tích hợp lưu trữ minh chứng vẫn chưa triển khai.
+- Đã thêm `HandoverEvidence`, storage abstraction `IFileStorage`/`LocalFileStorage`, upload/download/delete evidence có xác thực, tên ngẫu nhiên và kiểm tra magic bytes.
+- Frontend cho phép đính kèm ảnh/tài liệu/chữ ký điện tử khi lập biên bản.
 
 ## 2026-08-25 — Kiểm chứng sau giai đoạn 7
 
@@ -88,13 +90,21 @@
 - Quản lý có thể đặt chu kỳ/ngày đến hạn, bật tắt kế hoạch và tạo phiếu bảo trì từ kế hoạch; ngày kế tiếp được tự động tính lại sau khi phát sinh phiếu.
 - Frontend đã có màn hình `Bảo trì định kỳ`, cảnh báo kế hoạch đến hạn và thao tác tạo phiếu.
 
+## 2026-08-25 — Giai đoạn 9: import, QR, báo cáo và kiểm thử
+
+- Đã thêm `POST /equipment/import/preview` đọc file `.xlsx`, kiểm tra cột bắt buộc, trùng serial/mã tài sản và trả lỗi theo từng dòng; `POST /equipment/import` chỉ ghi các dòng đã xem trước hợp lệ.
+- Danh sách tài sản hỗ trợ chọn nhiều dòng và in QR hàng loạt bằng token QR ngẫu nhiên.
+- Đã thêm `ReportsController`, màn hình báo cáo và xuất Excel có chống formula injection cho dữ liệu dạng text.
+- Đã thêm xuất PDF báo cáo chính bằng QuestPDF, cài font Unicode trong image backend và nối nút xuất PDF ở frontend.
+- Đã thêm test project backend (5 test) và frontend unit test (2 test), CI đã chạy cả hai.
+
 ## Phần chưa hoàn thành/chưa thể tuyên bố đạt
 
-- Bàn giao điện tử đã có module core và lưu tình trạng từng tài sản; file/ảnh minh chứng, chữ ký điện tử và tích hợp lưu trữ minh chứng chưa triển khai.
-- Import Excel có preview, xuất PDF báo cáo và QR hàng loạt chưa triển khai đầy đủ.
-- Chưa có test project backend/frontend hoặc E2E browser; chưa tuyên bố các ca kiểm thử đó đạt.
+- Bàn giao đã có module core, file/ảnh/chữ ký điện tử dạng evidence và storage local; chưa có adapter MinIO/S3 và chưa có evidence ảnh riêng cho từng bước nhận trả.
+- E2E browser chưa triển khai đầy đủ; báo cáo PDF hiện tập trung vào báo cáo tài sản chính, chưa có mẫu PDF riêng cho từng biên bản bàn giao/nhận trả.
+- Test backend/frontend unit đã có; chưa tuyên bố các ca E2E hoặc kiểm thử production đạt.
 - Chưa chạy migration mới trên database production; chỉ kiểm tra build, sinh idempotent script và kiểm tra Docker/health môi trường local.
-- Đã gặp và xử lý hai rủi ro migration trên database local: thêm baseline tương thích cho chuỗi migration legacy và giữ index FK cũ khi thêm unique index detail. Sau khi sửa, `docker compose up -d --build` đạt và migration mới nhất đã được áp dụng.
+- Đã gặp và xử lý hai rủi ro migration trên database local: thêm baseline tương thích cho chuỗi migration legacy và giữ index FK cũ khi thêm unique index detail. Sau khi sửa, `docker compose up -d --build` đạt; migration mới nhất `20260824182131_AddEquipmentLocationHistory` cũng đã được áp dụng.
 
 ## Quy tắc tiếp tục
 

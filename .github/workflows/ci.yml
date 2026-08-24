@@ -18,7 +18,9 @@ jobs:
         with:
           dotnet-version: 9.x
       - run: dotnet restore
+      - run: dotnet restore ../lab-backend.Tests/LabManagementAPI.Tests.csproj
       - run: dotnet build --no-restore --configuration Release
+      - run: dotnet test ../lab-backend.Tests/LabManagementAPI.Tests.csproj --configuration Release --no-restore
       - run: dotnet ef migrations script --idempotent --no-build --output migration-script.sql
 
   frontend:
@@ -34,6 +36,7 @@ jobs:
           cache: npm
           cache-dependency-path: lab-frontend/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build
 
   docker:

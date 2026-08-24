@@ -138,9 +138,10 @@ public class MaintenanceScheduleController : ControllerBase
             Description = $"Theo kế hoạch: {schedule.Name}",
             Cost = 0,
             PerformedBy = "Theo kế hoạch",
-            Status = MaintenanceStatuses.InProgress
+            Status = MaintenanceStatuses.InProgress,
+            ActiveEquipmentKey = $"EQ:{schedule.EquipmentId}"
         };
-        schedule.Equipment.Status = EquipmentStatuses.Warranty;
+        schedule.Equipment.Status = EquipmentStatuses.MaintenanceInProgress;
         schedule.LastGeneratedAt = DateTime.UtcNow;
         schedule.NextDueAt = DateTime.UtcNow.AddDays(schedule.IntervalDays);
         schedule.UpdatedAt = DateTime.UtcNow;
