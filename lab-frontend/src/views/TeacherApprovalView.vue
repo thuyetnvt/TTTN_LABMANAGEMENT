@@ -11,28 +11,54 @@
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
           </template>
+          <template v-else-if="column.key === 'device'">
+            <div>{{ record.device }}</div>
+            <div v-for="detail in record.details || []" :key="detail.equipmentId" class="detail-line">
+              {{ detail.equipmentName }} — {{ detail.serial }}
+            </div>
+          </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag color="purple">{{ record.status }}</a-tag>
+            <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="primary" size="small" @click="handleApprove(record)">Bảo lãnh</a-button>
-              <a-button type="primary" danger size="small" @click="handleReject(record)">Từ chối</a-button>
+              <a-button type="primary" size="small" @click="openDecision(record, 'approve')">Bảo lãnh</a-button>
+              <a-button type="primary" danger size="small" @click="openDecision(record, 'reject')">Từ chối</a-button>
             </a-space>
           </template>
         </template>
       </a-table>
     </a-card>
   </div>
+
+  <a-modal
+    v-model:open="decisionOpen"
+    :title="decisionType === 'approve' ? 'Xác nhận bảo lãnh' : 'Từ chối bảo lãnh'"
+    :confirm-loading="decisionLoading"
+    ok-text="Xác nhận"
+    cancel-text="Hủy"
+    @ok="submitDecision"
+  >
+    <p v-if="selectedRecord">Yêu cầu của {{ selectedRecord.student }} — {{ selectedRecord.device }}</p>
+    <a-form-item label="Ghi chú quyết định" required>
+      <a-textarea v-model:value="decisionNote" :rows="4" placeholder="Nhập lý do hoặc ghi chú xử lý..." />
+    </a-form-item>
+  </a-modal>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { borrowApi } from '../api/borrowApi'
+import StatusBadge from '../components/StatusBadge.vue'
 
 const dataSource = ref([])
 const loading = ref(false)
+const decisionOpen = ref(false)
+const decisionLoading = ref(false)
+const decisionType = ref('approve')
+const decisionNote = ref('')
+const selectedRecord = ref(null)
 
 const columns = [
   { title: 'Sinh viên', dataIndex: 'student', key: 'student' },
@@ -59,23 +85,36 @@ const fetchRequests = async () => {
   }
 }
 
-const handleApprove = async (record) => {
-  try {
-    await borrowApi.teacherApprove(record.id)
-    message.success(`Đã bảo lãnh cho sinh viên ${record.student}. Đơn đã chuyển lên kho.`)
-    fetchRequests()
-  } catch {
-    message.error('Lỗi duyệt yêu cầu!')
-  }
+const openDecision = (record, type) => {
+  selectedRecord.value = record
+  decisionType.value = type
+  decisionNote.value = ''
+  decisionOpen.value = true
 }
 
-const handleReject = async (record) => {
+const submitDecision = async () => {
+  const note = decisionNote.value.trim()
+  if (!note) {
+    message.warning('Vui lòng nhập ghi chú quyết định!')
+    return
+  }
+
+  decisionLoading.value = true
   try {
-    await borrowApi.teacherReject(record.id)
-    message.warning(`Đã từ chối bảo lãnh yêu cầu của sinh viên ${record.student}.`)
+    const record = selectedRecord.value
+    if (decisionType.value === 'approve') {
+      await borrowApi.teacherApprove(record.id, note)
+      message.success(`Đã bảo lãnh cho sinh viên ${record.student}. Đơn đã chuyển lên kho.`)
+    } else {
+      await borrowApi.teacherReject(record.id, note)
+      message.warning(`Đã từ chối bảo lãnh yêu cầu của sinh viên ${record.student}.`)
+    }
+    decisionOpen.value = false
     fetchRequests()
   } catch {
-    message.error('Lỗi từ chối yêu cầu!')
+    message.error(decisionType.value === 'approve' ? 'Lỗi duyệt yêu cầu!' : 'Lỗi từ chối yêu cầu!')
+  } finally {
+    decisionLoading.value = false
   }
 }
 </script>
@@ -94,5 +133,10 @@ const handleReject = async (record) => {
 .toolbar p {
   color: #6b7280;
   margin-bottom: 24px;
+}
+
+.detail-line {
+  color: #6b7280;
+  font-size: 12px;
 }
 </style>

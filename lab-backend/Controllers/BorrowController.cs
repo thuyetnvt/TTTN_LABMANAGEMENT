@@ -42,14 +42,36 @@ public class BorrowController : ControllerBase
 
     public sealed class BorrowRequestDto
     {
-        public int EquipmentId { get; set; }
+        // EquipmentId remains for clients from the previous one-item API.
+        public int? EquipmentId { get; set; }
+        public List<BorrowItemDto> Items { get; set; } = new();
         public DateTime ExpectedReturnDate { get; set; }
         public string Purpose { get; set; } = string.Empty;
         public int? TeacherId { get; set; }
     }
 
+    public sealed class BorrowItemDto
+    {
+        public int EquipmentId { get; set; }
+        public string Note { get; set; } = string.Empty;
+    }
+
+    public sealed class DecisionNoteDto
+    {
+        public string Note { get; set; } = string.Empty;
+    }
+
     public sealed class ReturnInspectionDto
     {
+        public string Condition { get; set; } = EquipmentStatuses.Available;
+        public string Note { get; set; } = string.Empty;
+        public decimal CompensationAmount { get; set; }
+        public List<ReturnItemDto> Items { get; set; } = new();
+    }
+
+    public sealed class ReturnItemDto
+    {
+        public int EquipmentId { get; set; }
         public string Condition { get; set; } = EquipmentStatuses.Available;
         public string Note { get; set; } = string.Empty;
         public decimal CompensationAmount { get; set; }
@@ -70,10 +92,21 @@ public class BorrowController : ControllerBase
         var userId = GetCurrentUserId();
         var role = User.FindFirstValue(ClaimTypes.Role);
         request.Purpose = request.Purpose.Trim();
+        request.Items ??= new();
 
-        if (request.EquipmentId <= 0)
+        if (request.EquipmentId.HasValue && request.EquipmentId.Value > 0 && request.Items.Count == 0)
         {
-            return BadRequest(new { message = "Tài sản không hợp lệ." });
+            request.Items.Add(new BorrowItemDto { EquipmentId = request.EquipmentId.Value });
+        }
+
+        var requestedItems = request.Items
+            .Where(item => item.EquipmentId > 0)
+            .GroupBy(item => item.EquipmentId)
+            .Select(group => group.First())
+            .ToList();
+        if (requestedItems.Count == 0)
+        {
+            return BadRequest(new { message = "Phiếu mượn phải có ít nhất một tài sản hợp lệ." });
         }
 
         if (request.ExpectedReturnDate <= DateTime.UtcNow)
@@ -108,45 +141,54 @@ public class BorrowController : ControllerBase
             }
         }
 
-        var equipment = await _context.Equipments
+        var equipmentIds = requestedItems.Select(item => item.EquipmentId).ToArray();
+        var equipments = await _context.Equipments
             .AsNoTracking()
-            .FirstOrDefaultAsync(
-                item => item.Id == request.EquipmentId
-                    && item.Status == EquipmentStatuses.Available,
-                cancellationToken);
-        if (equipment is null)
+            .Where(item => equipmentIds.Contains(item.Id)
+                && item.Status == EquipmentStatuses.Available)
+            .ToListAsync(cancellationToken);
+        if (equipments.Count != equipmentIds.Length)
         {
-            return BadRequest(new { message = "Tài sản không tồn tại hoặc không sẵn sàng để mượn." });
+            return BadRequest(new { message = "Một hoặc nhiều tài sản không tồn tại hoặc không sẵn sàng để mượn." });
         }
 
         var hasDuplicate = await _context.BorrowRecords.AnyAsync(
             item => item.UserId == userId
-                && item.EquipmentId == request.EquipmentId
                 && (item.Status == Pending
                     || item.Status == TeacherPending
-                    || item.Status == Borrowed),
+                    || item.Status == Borrowed
+                    || item.Status == ProcessingReturn)
+                && item.Details.Any(detail => equipmentIds.Contains(detail.EquipmentId)),
             cancellationToken);
         if (hasDuplicate)
         {
             return Conflict(new { message = "Bạn đã có yêu cầu hoặc phiếu mượn đang hoạt động cho tài sản này." });
         }
 
+        var initialStatus = request.TeacherId.HasValue ? TeacherPending : Pending;
         var record = new BorrowRecord
         {
             UserId = userId,
-            EquipmentId = request.EquipmentId,
+            EquipmentId = equipmentIds[0],
             TeacherId = request.TeacherId,
             BorrowDate = DateTime.UtcNow,
             ExpectedReturnDate = request.ExpectedReturnDate,
             Purpose = request.Purpose,
-            Status = request.TeacherId.HasValue ? TeacherPending : Pending,
-            Details =
+            Status = initialStatus,
+            Details = requestedItems.Select(item => new BorrowRequestDetail
+            {
+                EquipmentId = item.EquipmentId,
+                Quantity = 1,
+                Note = string.IsNullOrWhiteSpace(item.Note) ? request.Purpose : item.Note.Trim(),
+                Status = initialStatus
+            }).ToList(),
+            StatusHistory =
             [
-                new BorrowRequestDetail
+                new BorrowStatusHistory
                 {
-                    EquipmentId = request.EquipmentId,
-                    Quantity = 1,
-                    Note = request.Purpose
+                    ToStatus = initialStatus,
+                    Note = "Tạo phiếu mượn",
+                    ChangedByUserId = userId
                 }
             ]
         };
@@ -158,7 +200,7 @@ public class BorrowController : ControllerBase
             "Create",
             nameof(BorrowRecord),
             record.Id,
-            new { record.EquipmentId, record.TeacherId, record.ExpectedReturnDate },
+            new { EquipmentIds = equipmentIds, record.TeacherId, record.ExpectedReturnDate },
             cancellationToken);
 
         var message = request.TeacherId.HasValue
@@ -190,7 +232,7 @@ public class BorrowController : ControllerBase
                 .ThenInclude(item => item!.AssetCategory)
             .Include(item => item.Details)
                 .ThenInclude(item => item.Equipment)
-            .Where(item => item.Status == Pending || item.Status == Borrowed)
+        .Where(item => item.Status == Pending || item.Status == Borrowed || item.Status == ProcessingReturn)
             .OrderByDescending(item => item.BorrowDate)
             .ToListAsync(cancellationToken);
 
@@ -199,6 +241,7 @@ public class BorrowController : ControllerBase
             id = item.Id,
             student = item.User!.Username,
             device = item.Equipment!.Name,
+            equipmentId = item.EquipmentId,
             category = item.Equipment.AssetCategory?.Name ?? string.Empty,
             serial = item.Equipment.Serial,
             requestDate = item.BorrowDate,
@@ -214,7 +257,11 @@ public class BorrowController : ControllerBase
                 detail.EquipmentId,
                 equipmentName = detail.Equipment?.Name ?? string.Empty,
                 detail.Quantity,
-                detail.Note
+                detail.Note,
+                detail.Status,
+                detail.ReturnCondition,
+                detail.ReturnNote,
+                detail.ReturnedAt
             })
         }));
     }
@@ -230,6 +277,8 @@ public class BorrowController : ControllerBase
             .AsNoTracking()
             .Include(item => item.User)
             .Include(item => item.Equipment)
+            .Include(item => item.Details)
+                .ThenInclude(detail => detail.Equipment)
             .Where(item => item.Status != Pending && item.Status != TeacherPending);
 
         if (role is Roles.Student or Roles.Teacher)
@@ -251,7 +300,29 @@ public class BorrowController : ControllerBase
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,
                 warrantyAction = item.WarrantyAction,
-                compensationAmount = item.CompensationAmount
+                compensationAmount = item.CompensationAmount,
+                details = item.Details.Select(detail => new
+                {
+                    detail.Id,
+                    detail.EquipmentId,
+                    equipmentName = detail.Equipment!.Name,
+                    serial = detail.Equipment.Serial,
+                    detail.Quantity,
+                    detail.Status,
+                    detail.ReturnCondition,
+                    detail.ReturnNote,
+                    detail.ReturnedAt,
+                    detail.CompensationAmount
+                }),
+                statusHistory = item.StatusHistory
+                    .OrderBy(history => history.CreatedAt)
+                    .Select(history => new
+                    {
+                        history.FromStatus,
+                        history.ToStatus,
+                        history.Note,
+                        history.CreatedAt
+                    })
             })
             .ToListAsync(cancellationToken);
 
@@ -268,6 +339,8 @@ public class BorrowController : ControllerBase
             .AsNoTracking()
             .Include(item => item.User)
             .Include(item => item.Equipment)
+            .Include(item => item.Details)
+                .ThenInclude(detail => detail.Equipment)
             .Where(item => item.Status == TeacherPending && item.TeacherId == teacherId)
             .Select(item => new
             {
@@ -277,7 +350,15 @@ public class BorrowController : ControllerBase
                 requestDate = item.BorrowDate,
                 returnDate = item.ExpectedReturnDate,
                 purpose = item.Purpose,
-                status = item.Status
+                status = item.Status,
+                details = item.Details.Select(detail => new
+                {
+                    detail.EquipmentId,
+                    equipmentName = detail.Equipment!.Name,
+                    serial = detail.Equipment.Serial,
+                    detail.Note,
+                    detail.Status
+                })
             })
             .ToListAsync(cancellationToken);
 
@@ -288,20 +369,43 @@ public class BorrowController : ControllerBase
     [Authorize(Roles = Roles.Teacher)]
     public async Task<IActionResult> TeacherApproveRequest(
         int id,
+        [FromBody] DecisionNoteDto dto,
         CancellationToken cancellationToken)
     {
+        var note = NormalizeDecisionNote(dto, required: true);
+        if (note is null)
+        {
+            return BadRequest(new { message = "Giảng viên phải nhập ghi chú khi duyệt." });
+        }
         var teacherId = GetCurrentUserId();
         var updated = await _context.BorrowRecords
             .Where(item => item.Id == id
                 && item.Status == TeacherPending
                 && item.TeacherId == teacherId)
             .ExecuteUpdateAsync(
-                updates => updates.SetProperty(item => item.Status, Pending),
+                updates => updates
+                    .SetProperty(item => item.Status, Pending)
+                    .SetProperty(item => item.TeacherDecisionNote, note),
                 cancellationToken);
         if (updated == 0)
         {
             return Conflict(new { message = "Yêu cầu không tồn tại hoặc đã được xử lý." });
         }
+
+        await _context.BorrowRequestDetails
+            .Where(detail => detail.BorrowRecordId == id)
+            .ExecuteUpdateAsync(
+                updates => updates.SetProperty(detail => detail.Status, Pending),
+                cancellationToken);
+
+        _context.BorrowStatusHistories.Add(new BorrowStatusHistory
+        {
+            BorrowRecordId = id,
+            FromStatus = TeacherPending,
+            ToStatus = Pending,
+            Note = note,
+            ChangedByUserId = teacherId
+        });
 
         await _auditService.WriteAsync(
             HttpContext,
@@ -318,8 +422,14 @@ public class BorrowController : ControllerBase
     [Authorize(Roles = Roles.Teacher)]
     public async Task<IActionResult> TeacherRejectRequest(
         int id,
+        [FromBody] DecisionNoteDto dto,
         CancellationToken cancellationToken)
     {
+        var note = NormalizeDecisionNote(dto, required: true);
+        if (note is null)
+        {
+            return BadRequest(new { message = "Giảng viên phải nhập lý do từ chối." });
+        }
         var teacherId = GetCurrentUserId();
         var record = await _context.BorrowRecords
             .AsNoTracking()
@@ -336,12 +446,29 @@ public class BorrowController : ControllerBase
                 && item.Status == TeacherPending
                 && item.TeacherId == teacherId)
             .ExecuteUpdateAsync(
-                updates => updates.SetProperty(item => item.Status, Rejected),
+                updates => updates
+                    .SetProperty(item => item.Status, Rejected)
+                    .SetProperty(item => item.TeacherDecisionNote, note),
                 cancellationToken);
         if (updated == 0)
         {
             return Conflict(new { message = "Yêu cầu đã được xử lý." });
         }
+
+        await _context.BorrowRequestDetails
+            .Where(detail => detail.BorrowRecordId == id)
+            .ExecuteUpdateAsync(
+                updates => updates.SetProperty(detail => detail.Status, Rejected),
+                cancellationToken);
+
+        _context.BorrowStatusHistories.Add(new BorrowStatusHistory
+        {
+            BorrowRecordId = id,
+            FromStatus = TeacherPending,
+            ToStatus = Rejected,
+            Note = note,
+            ChangedByUserId = teacherId
+        });
 
         await _auditService.WriteAsync(
             HttpContext,
@@ -363,6 +490,8 @@ public class BorrowController : ControllerBase
         var record = await _context.BorrowRecords
             .AsNoTracking()
             .Include(item => item.Equipment)
+            .Include(item => item.Details)
+                .ThenInclude(detail => detail.Equipment)
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (record is null || record.Status != Pending)
         {
@@ -382,38 +511,52 @@ public class BorrowController : ControllerBase
             return Conflict(new { message = "Yêu cầu đã được người khác xử lý." });
         }
 
+        var equipmentIds = record.Details.Select(detail => detail.EquipmentId).Distinct().ToArray();
         var claimedEquipment = await _context.Equipments
-            .Where(item => item.Id == record.EquipmentId
+            .Where(item => equipmentIds.Contains(item.Id)
                 && item.Status == EquipmentStatuses.Available)
             .ExecuteUpdateAsync(
                 updates => updates
                     .SetProperty(item => item.Status, EquipmentStatuses.Borrowed)
                     .SetProperty(item => item.BorrowCount, item => item.BorrowCount + 1),
                 cancellationToken);
-        if (claimedEquipment == 0)
+        if (claimedEquipment != equipmentIds.Length)
         {
             await transaction.RollbackAsync(cancellationToken);
             return Conflict(new { message = "Tài sản này không còn sẵn sàng." });
         }
 
+        await _context.BorrowRequestDetails
+            .Where(detail => detail.BorrowRecordId == id)
+            .ExecuteUpdateAsync(
+                updates => updates.SetProperty(detail => detail.Status, BorrowStatuses.Borrowed),
+                cancellationToken);
         await _context.BorrowRecords
             .Where(item => item.Id == id && item.Status == ProcessingApproval)
             .ExecuteUpdateAsync(
                 updates => updates.SetProperty(item => item.Status, Borrowed),
                 cancellationToken);
+        _context.BorrowStatusHistories.Add(new BorrowStatusHistory
+        {
+            BorrowRecordId = id,
+            FromStatus = ProcessingApproval,
+            ToStatus = Borrowed,
+            Note = "Quản lý lab duyệt toàn bộ tài sản trong phiếu.",
+            ChangedByUserId = GetCurrentUserId()
+        });
         await _auditService.WriteAsync(
             HttpContext,
             "Approve",
             nameof(BorrowRecord),
             id,
-            new { record.EquipmentId },
+            new { EquipmentIds = equipmentIds },
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         await _hubContext.Clients.User(record.UserId.ToString())
             .SendAsync(
                 "ReceiveNotification",
-                $"Yêu cầu mượn {record.Equipment?.Name} đã được duyệt.",
+                $"Yêu cầu mượn {record.Equipment?.Name} và {Math.Max(0, equipmentIds.Length - 1)} tài sản kèm theo đã được duyệt.",
                 cancellationToken);
         return Ok(new { message = "Đã duyệt yêu cầu mượn." });
     }
@@ -422,6 +565,7 @@ public class BorrowController : ControllerBase
     [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> RejectRequest(
         int id,
+        [FromBody] DecisionNoteDto? dto,
         CancellationToken cancellationToken)
     {
         var record = await _context.BorrowRecords
@@ -432,15 +576,33 @@ public class BorrowController : ControllerBase
             return NotFound(new { message = "Không tìm thấy yêu cầu." });
         }
 
+        var note = NormalizeDecisionNote(dto, required: false) ?? "Quản lý lab từ chối yêu cầu.";
         var updated = await _context.BorrowRecords
             .Where(item => item.Id == id && item.Status == Pending)
             .ExecuteUpdateAsync(
-                updates => updates.SetProperty(item => item.Status, Rejected),
+                updates => updates
+                    .SetProperty(item => item.Status, Rejected)
+                    .SetProperty(item => item.ManagerDecisionNote, note),
                 cancellationToken);
         if (updated == 0)
         {
             return Conflict(new { message = "Yêu cầu đã được xử lý." });
         }
+
+        await _context.BorrowRequestDetails
+            .Where(detail => detail.BorrowRecordId == id)
+            .ExecuteUpdateAsync(
+                updates => updates.SetProperty(detail => detail.Status, Rejected),
+                cancellationToken);
+
+        _context.BorrowStatusHistories.Add(new BorrowStatusHistory
+        {
+            BorrowRecordId = id,
+            FromStatus = Pending,
+            ToStatus = Rejected,
+            Note = note,
+            ChangedByUserId = GetCurrentUserId()
+        });
 
         await _auditService.WriteAsync(
             HttpContext,
@@ -461,22 +623,35 @@ public class BorrowController : ControllerBase
         CancellationToken cancellationToken)
     {
         dto ??= new ReturnInspectionDto();
-        dto.Condition = dto.Condition.Trim();
+        dto.Condition = NormalizeReturnCondition(dto.Condition);
         dto.Note = dto.Note.Trim();
+        dto.Items ??= new();
 
-        if (dto.Condition is not (EquipmentStatuses.Available or EquipmentStatuses.Broken))
+        if (dto.Items.Count == 0)
         {
-            return BadRequest(new { message = "Tình trạng trả chỉ có thể là Rảnh hoặc Hỏng." });
+            dto.Items.Add(new ReturnItemDto
+            {
+                Condition = dto.Condition,
+                Note = dto.Note,
+                CompensationAmount = dto.CompensationAmount
+            });
         }
 
-        if (dto.Note.Length > 2000 || dto.CompensationAmount < 0)
+        foreach (var item in dto.Items)
         {
-            return BadRequest(new { message = "Ghi chú hoặc số tiền bồi thường không hợp lệ." });
+            item.Condition = NormalizeReturnCondition(item.Condition);
+            item.Note = item.Note.Trim();
+            if (item.Condition is not (EquipmentStatuses.Available or EquipmentStatuses.Broken)
+                || item.Note.Length > 2000
+                || item.CompensationAmount < 0)
+            {
+                return BadRequest(new { message = "Tình trạng trả hoặc thông tin kiểm tra không hợp lệ." });
+            }
         }
 
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         var claimedRequest = await _context.BorrowRecords
-            .Where(item => item.Id == id && item.Status == Borrowed)
+            .Where(item => item.Id == id && (item.Status == Borrowed || item.Status == ProcessingReturn))
             .ExecuteUpdateAsync(
                 updates => updates.SetProperty(item => item.Status, ProcessingReturn),
                 cancellationToken);
@@ -488,56 +663,89 @@ public class BorrowController : ControllerBase
 
         var record = await _context.BorrowRecords
             .Include(item => item.Equipment)
+            .Include(item => item.Details)
+                .ThenInclude(detail => detail.Equipment)
             .FirstAsync(item => item.Id == id, cancellationToken);
-        var equipment = record.Equipment!;
-        var isWarrantyActive = equipment.WarrantyExpiry.HasValue
-            && equipment.WarrantyExpiry.Value >= DateTime.UtcNow;
-
-        record.ActualReturnDate = DateTime.UtcNow;
-        record.ReturnCondition = dto.Condition;
-        record.ReturnInspectionNote = dto.Note;
-        record.IsUnderWarrantyAtReturn = isWarrantyActive;
-        record.InspectedByUserId = GetCurrentUserId();
-
-        if (dto.Condition == EquipmentStatuses.Available)
+        var targetDetails = dto.Items.Any(item => item.EquipmentId > 0)
+            ? record.Details.Where(detail => dto.Items.Select(item => item.EquipmentId).Contains(detail.EquipmentId)).ToList()
+            : record.Details.ToList();
+        if (targetDetails.Count == 0 || targetDetails.Any(detail => detail.ReturnedAt.HasValue))
         {
-            record.Status = BorrowStatuses.Returned;
-            record.WarrantyAction = "Không cần xử lý";
-            record.CompensationAmount = 0;
-            equipment.Status = EquipmentStatuses.Available;
+            await transaction.RollbackAsync(cancellationToken);
+            return Conflict(new { message = "Tài sản trong phiếu không tồn tại hoặc đã được nhận trả." });
         }
-        else if (isWarrantyActive)
-        {
-            record.Status = BorrowStatuses.ReturnedDamaged;
-            record.WarrantyAction = "Còn bảo hành - chuyển sửa/bảo hành";
-            record.CompensationAmount = 0;
-            equipment.Status = EquipmentStatuses.Warranty;
-            AddMaintenance(record, dto.Note, "Bảo hành");
-        }
-        else
-        {
-            record.Status = BorrowStatuses.ReturnedDamaged;
-            record.WarrantyAction = "Hết bảo hành - kiểm tra bồi thường";
-            record.CompensationAmount = dto.CompensationAmount;
-            equipment.Status = EquipmentStatuses.Broken;
-            AddMaintenance(record, dto.Note, "Kiểm tra trả");
 
-            if (dto.CompensationAmount > 0)
+        var inspectorId = GetCurrentUserId();
+        foreach (var detail in targetDetails)
+        {
+            var itemDto = dto.Items.FirstOrDefault(item => item.EquipmentId == detail.EquipmentId)
+                ?? dto.Items[0];
+            var equipment = detail.Equipment!;
+            var isWarrantyActive = equipment.WarrantyExpiry.HasValue
+                && equipment.WarrantyExpiry.Value >= DateTime.UtcNow;
+            var note = itemDto.Note;
+            detail.ReturnCondition = itemDto.Condition;
+            detail.ReturnNote = note;
+            detail.ReturnedAt = DateTime.UtcNow;
+            detail.CompensationAmount = 0;
+            detail.Status = itemDto.Condition == EquipmentStatuses.Available
+                ? BorrowStatuses.Returned
+                : BorrowStatuses.ReturnedDamaged;
+
+            if (itemDto.Condition == EquipmentStatuses.Available)
             {
-                _context.Penalties.Add(new Penalty
+                equipment.Status = EquipmentStatuses.Available;
+            }
+            else if (isWarrantyActive)
+            {
+                equipment.Status = EquipmentStatuses.UnderWarranty;
+                AddMaintenance(detail.EquipmentId, note, "Bảo hành");
+            }
+            else
+            {
+                equipment.Status = EquipmentStatuses.Broken;
+                AddMaintenance(detail.EquipmentId, note, "Kiểm tra trả");
+                detail.CompensationAmount = itemDto.CompensationAmount;
+                if (itemDto.CompensationAmount > 0)
                 {
-                    UserId = record.UserId,
-                    EquipmentId = record.EquipmentId,
-                    BorrowRecordId = record.Id,
-                    Reason = string.IsNullOrWhiteSpace(dto.Note)
-                        ? "Tài sản hỏng khi trả"
-                        : dto.Note,
-                    Amount = dto.CompensationAmount,
-                    Status = PenaltyStatuses.Unpaid,
-                    CreatedAt = DateTime.UtcNow
-                });
+                    _context.Penalties.Add(new Penalty
+                    {
+                        UserId = record.UserId,
+                        EquipmentId = detail.EquipmentId,
+                        BorrowRecordId = record.Id,
+                        Reason = string.IsNullOrWhiteSpace(note) ? "Tài sản hỏng khi trả" : note,
+                        Amount = itemDto.CompensationAmount,
+                        Status = PenaltyStatuses.Unpaid,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
             }
         }
+
+        var allReturned = record.Details.All(detail => detail.ReturnedAt.HasValue);
+        var anyDamaged = record.Details.Any(detail => detail.Status == BorrowStatuses.ReturnedDamaged);
+        var previousStatus = record.Status;
+        record.Status = allReturned
+            ? (anyDamaged ? BorrowStatuses.ReturnedDamaged : BorrowStatuses.Returned)
+            : ProcessingReturn;
+        record.InspectedByUserId = inspectorId;
+        record.ReturnCondition = targetDetails.First().ReturnCondition;
+        record.ReturnInspectionNote = targetDetails.First().ReturnNote;
+        record.CompensationAmount = record.Details.Sum(detail => detail.CompensationAmount);
+        record.ActualReturnDate = allReturned ? DateTime.UtcNow : null;
+        record.IsUnderWarrantyAtReturn = targetDetails.Any(detail =>
+            detail.ReturnCondition == EquipmentStatuses.Broken
+            && detail.Equipment!.WarrantyExpiry.HasValue
+            && detail.Equipment.WarrantyExpiry.Value >= DateTime.UtcNow);
+        record.WarrantyAction = anyDamaged ? "Đã chuyển xử lý hư hỏng/bảo hành" : "Không cần xử lý";
+        _context.BorrowStatusHistories.Add(new BorrowStatusHistory
+        {
+            BorrowRecordId = id,
+            FromStatus = previousStatus,
+            ToStatus = record.Status,
+            Note = allReturned ? "Đã nhận trả toàn bộ tài sản trong phiếu." : "Đã nhận trả một phần tài sản trong phiếu.",
+            ChangedByUserId = inspectorId
+        });
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.WriteAsync(
@@ -545,18 +753,13 @@ public class BorrowController : ControllerBase
             "Return",
             nameof(BorrowRecord),
             id,
-            new
-            {
-                dto.Condition,
-                WarrantyActive = isWarrantyActive,
-                dto.CompensationAmount
-            },
+            new { ItemCount = targetDetails.Count, AllReturned = allReturned },
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         await _hubContext.Clients.User(record.UserId.ToString())
-            .SendAsync("ReceiveNotification", "Phiếu trả tài sản của bạn đã được ghi nhận.", cancellationToken);
-        return Ok(new { message = "Đã ghi nhận trả tài sản." });
+            .SendAsync("ReceiveNotification", "Kết quả nhận trả tài sản trong phiếu của bạn đã được ghi nhận.", cancellationToken);
+        return Ok(new { message = allReturned ? "Đã ghi nhận trả toàn bộ tài sản." : "Đã ghi nhận trả một phần tài sản." });
     }
 
     [HttpPut("{id:int}/report-damage")]
@@ -629,11 +832,32 @@ public class BorrowController : ControllerBase
         return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     }
 
-    private void AddMaintenance(BorrowRecord record, string note, string performedBy)
+    private static string? NormalizeDecisionNote(DecisionNoteDto? dto, bool required)
+    {
+        var note = dto?.Note?.Trim();
+        if (string.IsNullOrWhiteSpace(note))
+        {
+            return required ? null : string.Empty;
+        }
+
+        return note.Length > 2000 ? note[..2000] : note;
+    }
+
+    private static string NormalizeReturnCondition(string? condition)
+    {
+        return condition?.Trim() switch
+        {
+            "Rảnh" or "Sẵn sàng" => EquipmentStatuses.Available,
+            "Hỏng" => EquipmentStatuses.Broken,
+            _ => condition?.Trim() ?? string.Empty
+        };
+    }
+
+    private void AddMaintenance(int equipmentId, string note, string performedBy)
     {
         _context.MaintenanceRecords.Add(new MaintenanceRecord
         {
-            EquipmentId = record.EquipmentId,
+            EquipmentId = equipmentId,
             MaintenanceDate = DateTime.UtcNow,
             Description = string.IsNullOrWhiteSpace(note)
                 ? "Kiểm tra tài sản sau khi trả."

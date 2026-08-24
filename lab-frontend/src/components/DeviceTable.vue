@@ -82,6 +82,19 @@
       <a-form-item label="Dự kiến trả" required>
         <a-date-picker v-model:value="borrowForm.returnDate" style="width: 100%" :disabled-date="disablePastDate" />
       </a-form-item>
+      <a-form-item label="Tài sản trong phiếu mượn" required>
+        <a-select v-model:value="borrowSelectionToAdd" placeholder="Chọn thêm tài sản đang rảnh" allowClear @change="addBorrowItem">
+          <a-select-option v-for="item in availableBorrowOptions" :key="item.id" :value="item.id">
+            {{ item.name }} — {{ item.serial }}
+          </a-select-option>
+        </a-select>
+        <a-list v-if="borrowItems.length" size="small" bordered class="borrow-items-list">
+          <a-list-item v-for="item in borrowItems" :key="item.id">
+            <span>{{ item.name }} — {{ item.serial }}</span>
+            <a-button type="link" danger size="small" @click="removeBorrowItem(item.id)">Bỏ</a-button>
+          </a-list-item>
+        </a-list>
+      </a-form-item>
       <a-form-item v-if="role === 'Sinh viên'" label="Giảng viên bảo lãnh" required>
         <a-select v-model:value="borrowForm.teacherId" placeholder="Chọn giảng viên" allowClear>
           <a-select-option v-for="t in teachers" :key="t.id" :value="t.id">{{ t.username }}</a-select-option>
@@ -323,7 +336,13 @@ let html5QrcodeScanner = null
 
 const isBorrowVisible = ref(false)
 const currentBorrowEquipmentId = ref(null)
+const borrowItems = ref([])
+const borrowSelectionToAdd = ref(null)
 const borrowForm = ref({ returnDate: null, purpose: '', teacherId: null })
+
+const availableBorrowOptions = computed(() => dataSource.value.filter(item =>
+  statusMatches(item.status, STATUS.AVAILABLE) && !borrowItems.value.some(selected => selected.id === item.id)
+))
 
 onMounted(() => {
   fetchData()
@@ -527,7 +546,26 @@ const showQR = (record) => {
 
 const handleBorrowClick = (record) => {
   currentBorrowEquipmentId.value = record.id
+  borrowItems.value = [{ id: record.id, name: record.name, serial: record.serial }]
+  borrowSelectionToAdd.value = null
   isBorrowVisible.value = true
+}
+
+const addBorrowItem = (id) => {
+  if (!id) return
+  const item = dataSource.value.find(candidate => candidate.id === id)
+  if (item && !borrowItems.value.some(selected => selected.id === id)) {
+    borrowItems.value.push({ id: item.id, name: item.name, serial: item.serial })
+  }
+  borrowSelectionToAdd.value = null
+}
+
+const removeBorrowItem = (id) => {
+  if (borrowItems.value.length <= 1) {
+    message.warning('Phiếu mượn phải có ít nhất một tài sản!')
+    return
+  }
+  borrowItems.value = borrowItems.value.filter(item => item.id !== id)
 }
 
 const submitBorrowRequest = async () => {
@@ -541,13 +579,16 @@ const submitBorrowRequest = async () => {
   borrowSubmitting.value = true
   try {
     await borrowApi.createRequest({
-      equipmentId: currentBorrowEquipmentId.value,
       expectedReturnDate: borrowForm.value.returnDate.endOf('day').toISOString(),
       purpose: borrowForm.value.purpose,
-      teacherId: borrowForm.value.teacherId || null
+      teacherId: borrowForm.value.teacherId || null,
+      equipmentId: borrowItems.value[0]?.id || currentBorrowEquipmentId.value,
+      items: borrowItems.value.map(item => ({ equipmentId: item.id }))
     })
     message.success('Đã gửi yêu cầu mượn!')
     isBorrowVisible.value = false
+    borrowItems.value = []
+    borrowSelectionToAdd.value = null
     borrowForm.value = { returnDate: null, purpose: '', teacherId: null }
   } catch (err) {
     message.error(err.response?.data?.message || 'Có lỗi xảy ra khi gửi yêu cầu mượn!')

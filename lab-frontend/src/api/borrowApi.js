@@ -9,7 +9,7 @@ export const borrowApi = {
   returnEquipment: (id, data = null) => axiosClient.put(`/borrow/${id}/return`, data),
   reportDamage: (id, data) => axiosClient.put(`/borrow/${id}/report-damage`, data),
   getTeacherPending: () => axiosClient.get('/borrow/teacher-pending'),
-  teacherApprove: (id) => axiosClient.put(`/borrow/${id}/teacher-approve`),
-  teacherReject: (id) => axiosClient.put(`/borrow/${id}/teacher-reject`),
+  teacherApprove: (id, note) => axiosClient.put(`/borrow/${id}/teacher-approve`, { note }),
+  teacherReject: (id, note) => axiosClient.put(`/borrow/${id}/teacher-reject`, { note }),
   remind: (id) => axiosClient.post(`/borrow/${id}/remind`)
 };

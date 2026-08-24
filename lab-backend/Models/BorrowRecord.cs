@@ -20,6 +20,8 @@ namespace LabManagementAPI.Models
         public string Purpose { get; set; } = string.Empty;
 
         public string Status { get; set; } = BorrowStatuses.Pending;
+        public string TeacherDecisionNote { get; set; } = string.Empty;
+        public string ManagerDecisionNote { get; set; } = string.Empty;
 
         public string ReturnCondition { get; set; } = string.Empty;
         public string ReturnInspectionNote { get; set; } = string.Empty;
@@ -29,5 +31,6 @@ namespace LabManagementAPI.Models
         public int? InspectedByUserId { get; set; }
         public User? InspectedByUser { get; set; }
         public ICollection<BorrowRequestDetail> Details { get; set; } = new List<BorrowRequestDetail>();
+        public ICollection<BorrowStatusHistory> StatusHistory { get; set; } = new List<BorrowStatusHistory>();
     }
 }

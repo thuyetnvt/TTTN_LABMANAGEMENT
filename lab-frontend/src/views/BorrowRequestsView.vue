@@ -44,26 +44,27 @@
 
     <a-modal v-model:open="isReturnModalVisible" title="Kiểm tra tài sản khi trả" @ok="submitReturnInspection" @cancel="isReturnModalVisible = false" okText="Lưu kiểm tra" cancelText="Hủy" :confirmLoading="returnSubmitting">
       <a-form layout="vertical">
-        <a-form-item label="Tình trạng sau kiểm tra" required>
-          <a-select v-model:value="returnForm.condition">
-            <a-select-option :value="STATUS.AVAILABLE">Rảnh</a-select-option>
-            <a-select-option :value="STATUS.BROKEN">Hỏng</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="Ghi chú kiểm tra">
-          <a-textarea v-model:value="returnForm.note" :rows="3" placeholder="Mô tả tình trạng thực tế, lỗi phát hiện, phụ kiện thiếu..." />
-        </a-form-item>
-        <a-form-item v-if="statusMatches(returnForm.condition, STATUS.BROKEN)">
-          <a-alert
-            type="info"
-            show-icon
-            message="Hệ thống tự kiểm tra hạn bảo hành"
-            description="Còn bảo hành: chuyển bảo hành. Hết bảo hành: ghi nhận hỏng và bồi thường (nếu có)."
-          />
-        </a-form-item>
-        <a-form-item v-if="statusMatches(returnForm.condition, STATUS.BROKEN)" label="Số tiền bồi thường nếu hết bảo hành">
-          <a-input-number v-model:value="returnForm.compensationAmount" style="width: 100%" :min="0" :step="10000" :formatter="value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')" :parser="value => value.replace(/\$\s?|(,*)/g, '')" />
-        </a-form-item>
+        <a-alert
+          type="info"
+          show-icon
+          message="Kiểm tra theo từng tài sản"
+          description="Có thể ghi nhận riêng tình trạng, ghi chú và bồi thường cho từng món trong phiếu."
+          style="margin-bottom: 16px"
+        />
+        <a-card v-for="item in returnForm.items" :key="item.equipmentId" size="small" :title="`${item.equipmentName || 'Tài sản'} — ${item.serial || ''}`" style="margin-bottom: 12px">
+          <a-form-item label="Tình trạng sau kiểm tra" required>
+            <a-select v-model:value="item.condition">
+              <a-select-option :value="STATUS.AVAILABLE">Rảnh</a-select-option>
+              <a-select-option :value="STATUS.BROKEN">Hỏng</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="Ghi chú kiểm tra">
+            <a-textarea v-model:value="item.note" :rows="2" placeholder="Mô tả lỗi, phụ kiện thiếu..." />
+          </a-form-item>
+          <a-form-item v-if="statusMatches(item.condition, STATUS.BROKEN)" label="Số tiền bồi thường nếu hết bảo hành">
+            <a-input-number v-model:value="item.compensationAmount" style="width: 100%" :min="0" :step="10000" :formatter="value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')" :parser="value => value.replace(/\$\s?|(,*)/g, '')" />
+          </a-form-item>
+        </a-card>
       </a-form>
     </a-modal>
   </div>
@@ -88,7 +89,8 @@ const currentReturnRecord = ref(null)
 const returnForm = ref({
   condition: STATUS.AVAILABLE,
   note: '',
-  compensationAmount: 0
+  compensationAmount: 0,
+  items: []
 })
 
 const columns = [
@@ -142,10 +144,21 @@ const handleReject = async (record) => {
 
 const showReturnModal = (record) => {
   currentReturnRecord.value = record
+  const details = record.details?.length
+    ? record.details
+    : [{ equipmentId: record.equipmentId, equipmentName: record.device, serial: record.serial }]
   returnForm.value = {
     condition: STATUS.AVAILABLE,
     note: '',
-    compensationAmount: 0
+    compensationAmount: 0,
+    items: details.filter(item => !item.returnedAt).map(item => ({
+      equipmentId: item.equipmentId,
+      equipmentName: item.equipmentName,
+      serial: item.serial,
+      condition: STATUS.AVAILABLE,
+      note: '',
+      compensationAmount: 0
+    }))
   }
   isReturnModalVisible.value = true
 }
@@ -153,7 +166,18 @@ const showReturnModal = (record) => {
 const submitReturnInspection = async () => {
   returnSubmitting.value = true
   try {
-    await borrowApi.returnEquipment(currentReturnRecord.value.id, returnForm.value)
+    if (!returnForm.value.items.length) {
+      message.warning('Không còn tài sản chưa nhận trả trong phiếu này!')
+      return
+    }
+    await borrowApi.returnEquipment(currentReturnRecord.value.id, {
+      items: returnForm.value.items.map(item => ({
+        equipmentId: item.equipmentId,
+        condition: item.condition,
+        note: item.note,
+        compensationAmount: item.compensationAmount
+      }))
+    })
     message.success('Đã lưu kết quả kiểm tra và cập nhật trạng thái tài sản!')
     isReturnModalVisible.value = false
     fetchRequests()

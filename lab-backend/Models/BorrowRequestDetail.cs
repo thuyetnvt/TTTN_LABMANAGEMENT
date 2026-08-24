@@ -13,5 +13,11 @@ namespace LabManagementAPI.Models
         public int Quantity { get; set; } = 1;
 
         public string Note { get; set; } = string.Empty;
+
+        public string Status { get; set; } = BorrowStatuses.Pending;
+        public string ReturnCondition { get; set; } = string.Empty;
+        public string ReturnNote { get; set; } = string.Empty;
+        public DateTime? ReturnedAt { get; set; }
+        public decimal CompensationAmount { get; set; }
     }
 }

@@ -20,6 +20,7 @@ namespace LabManagementAPI.Data
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<LocationNode> LocationNodes { get; set; }
+        public DbSet<BorrowStatusHistory> BorrowStatusHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -108,6 +109,8 @@ namespace LabManagementAPI.Data
             {
                 entity.Property(record => record.Purpose).HasMaxLength(1000);
                 entity.Property(record => record.Status).HasMaxLength(50);
+                entity.Property(record => record.TeacherDecisionNote).HasMaxLength(2000);
+                entity.Property(record => record.ManagerDecisionNote).HasMaxLength(2000);
                 entity.Property(record => record.ReturnCondition).HasMaxLength(50);
                 entity.Property(record => record.ReturnInspectionNote).HasMaxLength(2000);
                 entity.Property(record => record.WarrantyAction).HasMaxLength(255);
@@ -135,10 +138,31 @@ namespace LabManagementAPI.Data
             modelBuilder.Entity<BorrowRequestDetail>(entity =>
             {
                 entity.Property(detail => detail.Note).HasMaxLength(1000);
+                entity.Property(detail => detail.Status).HasMaxLength(50);
+                entity.Property(detail => detail.ReturnCondition).HasMaxLength(50);
+                entity.Property(detail => detail.ReturnNote).HasMaxLength(2000);
+                entity.Property(detail => detail.CompensationAmount).HasPrecision(18, 2);
+                entity.HasIndex(detail => new { detail.BorrowRecordId, detail.EquipmentId }).IsUnique();
                 entity.HasOne(detail => detail.Equipment)
                     .WithMany()
                     .HasForeignKey(detail => detail.EquipmentId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<BorrowStatusHistory>(entity =>
+            {
+                entity.Property(history => history.FromStatus).HasMaxLength(50);
+                entity.Property(history => history.ToStatus).HasMaxLength(50);
+                entity.Property(history => history.Note).HasMaxLength(2000);
+                entity.HasIndex(history => new { history.BorrowRecordId, history.CreatedAt });
+                entity.HasOne(history => history.BorrowRecord)
+                    .WithMany(record => record.StatusHistory)
+                    .HasForeignKey(history => history.BorrowRecordId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(history => history.ChangedByUser)
+                    .WithMany()
+                    .HasForeignKey(history => history.ChangedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<ConsumableRequest>(entity =>
