@@ -88,6 +88,16 @@ public class UsersController : ControllerBase
         public string NewPassword { get; set; } = string.Empty;
     }
 
+    public sealed class UpdateProfileDto
+    {
+        [EmailAddress, MaxLength(256)] public string? Email { get; set; }
+        [MaxLength(255)] public string FullName { get; set; } = string.Empty;
+        [MaxLength(100)] public string? UniversityCode { get; set; }
+        [MaxLength(30)] public string Phone { get; set; } = string.Empty;
+        [MaxLength(255)] public string Department { get; set; } = string.Empty;
+        [MaxLength(100)] public string? ClassName { get; set; }
+    }
+
     [HttpGet]
     [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers(
@@ -128,6 +138,58 @@ public class UsersController : ControllerBase
                 user.UniversityCode
             })
             .ToListAsync(cancellationToken);
+    }
+
+    [HttpGet("me")]
+    public async Task<ActionResult<UserDto>> GetOwnProfile(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        var profile = await _context.Users.AsNoTracking()
+            .Where(user => user.Id == userId && user.IsActive)
+            .Select(user => new UserDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                FullName = user.FullName,
+                UniversityCode = user.UniversityCode,
+                Phone = user.Phone,
+                Department = user.Department,
+                ClassName = user.ClassName,
+                Role = user.Role,
+                IsActive = user.IsActive
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        return profile is null ? Unauthorized() : Ok(profile);
+    }
+
+    [HttpPut("me/profile")]
+    public async Task<IActionResult> UpdateOwnProfile(
+        [FromBody] UpdateProfileDto dto,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        var user = await _context.Users.FindAsync([userId], cancellationToken);
+        if (user is null || !user.IsActive) return Unauthorized();
+
+        var email = NormalizeEmail(dto.Email);
+        var universityCode = dto.UniversityCode?.Trim();
+        if (!string.IsNullOrWhiteSpace(email)
+            && await _context.Users.AnyAsync(item => item.Id != userId && item.Email == email, cancellationToken))
+            return Conflict(new { message = "Email đã được sử dụng." });
+        if (!string.IsNullOrWhiteSpace(universityCode)
+            && await _context.Users.AnyAsync(item => item.Id != userId && item.UniversityCode == universityCode, cancellationToken))
+            return Conflict(new { message = "Mã sinh viên/mã cán bộ đã tồn tại." });
+
+        user.Email = email;
+        user.FullName = dto.FullName.Trim();
+        user.UniversityCode = universityCode;
+        user.Phone = dto.Phone.Trim();
+        user.Department = dto.Department.Trim();
+        user.ClassName = dto.ClassName?.Trim();
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(HttpContext, "UpdateProfile", nameof(User), userId, cancellationToken: cancellationToken);
+        return NoContent();
     }
 
     [HttpPost]
@@ -379,4 +441,9 @@ public class UsersController : ControllerBase
         var email = value?.Trim().ToLowerInvariant();
         return string.IsNullOrWhiteSpace(email) ? null : email;
     }
+
+    private int GetCurrentUserId()
+        => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+            ? userId
+            : throw new UnauthorizedAccessException("Token không có định danh người dùng.");
 }

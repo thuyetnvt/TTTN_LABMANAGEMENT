@@ -37,8 +37,13 @@
           <span>{{ $t('menu.borrowHistory') }}</span>
         </a-menu-item>
 
+        <a-menu-item key="profile" @click="$router.push({ name: 'Profile' })">
+          <user-outlined />
+          <span>Hồ sơ cá nhân</span>
+        </a-menu-item>
+
         <!-- Divider/Group cho tính năng Quản lý -->
-        <a-menu-divider v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" />
+        <a-menu-divider v-if="isManagerRole(role)" />
         
 
         <!-- Menu riêng cho Giảng viên -->
@@ -48,23 +53,23 @@
         </a-menu-item>
 
         <!-- Menu vận hành lab -->
-        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m3" @click="$router.push({ name: 'Maintenance' })">
+        <a-menu-item v-if="isManagerRole(role)" key="m3" @click="$router.push({ name: 'Maintenance' })">
           <tool-outlined />
           <span>{{ $t('menu.maintenanceHistory') }}</span>
         </a-menu-item>
-        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m_schedule" @click="$router.push({ name: 'MaintenanceSchedules' })">
+        <a-menu-item v-if="isManagerRole(role)" key="m_schedule" @click="$router.push({ name: 'MaintenanceSchedules' })">
           <calendar-outlined />
           <span>Bảo trì định kỳ</span>
         </a-menu-item>
-        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m_location" @click="$router.push({ name: 'Locations' })">
+        <a-menu-item v-if="isManagerRole(role)" key="m_location" @click="$router.push({ name: 'Locations' })">
           <environment-outlined />
           <span>Vị trí tài sản</span>
         </a-menu-item>
-        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m_inventory" @click="$router.push({ name: 'Inventory' })">
+        <a-menu-item v-if="isManagerRole(role)" key="m_inventory" @click="$router.push({ name: 'Inventory' })">
           <scan-outlined />
           <span>Kiểm kê tài sản</span>
         </a-menu-item>
-        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="m_reports" @click="$router.push({ name: 'Reports' })">
+        <a-menu-item v-if="isManagerRole(role)" key="m_reports" @click="$router.push({ name: 'Reports' })">
           <bar-chart-outlined />
           <span>Báo cáo</span>
         </a-menu-item>
@@ -76,28 +81,28 @@
         </a-menu-item>
 
         <!-- Nhóm Admin / Trưởng lab / Phó lab -->
-        <a-menu-divider v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" />
+        <a-menu-divider v-if="isManagerRole(role)" />
         
-        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="g1_1" @click="$router.push({ name: 'BorrowRequests' })">
+        <a-menu-item v-if="isManagerRole(role)" key="g1_1" @click="$router.push({ name: 'BorrowRequests' })">
           <solution-outlined />
           <span>{{ $t('menu.borrowRequests') }}</span>
         </a-menu-item>
-        <a-menu-item v-if="['Admin', 'Trưởng lab', 'Phó lab'].includes(role)" key="g1_2" @click="$router.push({ name: 'ConsumableRequests' })">
+        <a-menu-item v-if="isManagerRole(role)" key="g1_2" @click="$router.push({ name: 'ConsumableRequests' })">
           <experiment-outlined />
           <span>{{ $t('menu.consumableRequests') }}</span>
         </a-menu-item>
-        <a-menu-item v-if="role === 'Admin'" key="g1_3" @click="$router.push({ name: 'AdminUsers' })">
+        <a-menu-item v-if="isAdminRole(role)" key="g1_3" @click="$router.push({ name: 'AdminUsers' })">
           <team-outlined />
           <span>{{ $t('menu.userManagement') }}</span>
         </a-menu-item>
-        <a-menu-item v-if="role === 'Admin'" key="g1_4" @click="$router.push({ name: 'AuditLogs' })">
+        <a-menu-item v-if="isAdminRole(role)" key="g1_4" @click="$router.push({ name: 'AuditLogs' })">
           <history-outlined />
           <span>{{ $t('menu.auditLogs') }}</span>
         </a-menu-item>
 
         <!-- Nhóm Sinh viên / Giảng viên (History) -->
-        <a-menu-divider v-if="['Sinh viên', 'Giảng viên'].includes(role)" />
-        <a-menu-item v-if="['Sinh viên', 'Giảng viên'].includes(role)" key="g2_2" @click="$router.push({ name: 'ConsumableRequests' })">
+        <a-menu-divider v-if="isBorrowerRole(role)" />
+        <a-menu-item v-if="isBorrowerRole(role)" key="g2_2" @click="$router.push({ name: 'ConsumableRequests' })">
           <history-outlined />
           <span>{{ $t('menu.studentConsumableHistory') }}</span>
         </a-menu-item>
@@ -274,6 +279,7 @@ import {
   ExperimentOutlined,
   PayCircleOutlined,
   TeamOutlined,
+  UserOutlined,
   SearchOutlined,
   BellOutlined,
   CloseOutlined,
@@ -290,7 +296,7 @@ import * as signalR from '@microsoft/signalr'
 import { equipmentApi } from '../api/equipmentApi'
 import { userApi } from '../api/userApi'
 import { notificationApi } from '../api/notificationApi'
-import { roleLabel } from '../constants/business'
+import { isAdminRole, isBorrowerRole, isManagerRole, roleLabel } from '../constants/business'
 
 // Dark mode logic removed
 
@@ -338,7 +344,7 @@ const routeMenuKeys = {
 }
 const selectedKey = computed(() => {
   if (route.name === 'ConsumableRequests') {
-    return ['Admin', 'Trưởng lab', 'Phó lab'].includes(role.value) ? 'g1_2' : 'g2_2'
+    return isManagerRole(role.value) ? 'g1_2' : 'g2_2'
   }
   return routeMenuKeys[route.name] || '0'
 })

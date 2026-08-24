@@ -1,5 +1,7 @@
 ﻿import { createRouter, createWebHistory } from 'vue-router'
 
+import { BORROWER_ROLES, MANAGER_ROLES, ROLE } from '../constants/business'
+
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue'), meta: { requiresAuth: false } },
   { path: '/forgot-password', name: 'ForgotPassword', component: () => import('../views/ForgotPasswordView.vue'), meta: { requiresAuth: false } },
@@ -13,19 +15,20 @@ const routes = [
     children: [
       { path: '', name: 'Overview', component: () => import('../views/OverviewView.vue') },
       { path: 'devices', name: 'Devices', component: () => import('../views/DevicesView.vue') },
-      { path: 'locations', name: 'Locations', component: () => import('../views/LocationsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
-      { path: 'inventory', name: 'Inventory', component: () => import('../views/InventoryView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
+      { path: 'locations', name: 'Locations', component: () => import('../views/LocationsView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
+      { path: 'inventory', name: 'Inventory', component: () => import('../views/InventoryView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
       { path: 'notifications', name: 'Notifications', component: () => import('../views/NotificationsView.vue') },
-      { path: 'reports', name: 'Reports', component: () => import('../views/ReportsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
-      { path: 'admin/users', name: 'AdminUsers', component: () => import('../views/AdminUsersView.vue'), meta: { allowedRoles: ['Admin'] } },
-      { path: 'admin/audit-logs', name: 'AuditLogs', component: () => import('../views/AuditLogsView.vue'), meta: { allowedRoles: ['Admin'] } },
-      { path: 'borrow-requests', name: 'BorrowRequests', component: () => import('../views/BorrowRequestsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
+      { path: 'profile', name: 'Profile', component: () => import('../views/ProfileView.vue') },
+      { path: 'reports', name: 'Reports', component: () => import('../views/ReportsView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
+      { path: 'admin/users', name: 'AdminUsers', component: () => import('../views/AdminUsersView.vue'), meta: { allowedRoles: [ROLE.ADMIN] } },
+      { path: 'admin/audit-logs', name: 'AuditLogs', component: () => import('../views/AuditLogsView.vue'), meta: { allowedRoles: [ROLE.ADMIN] } },
+      { path: 'borrow-requests', name: 'BorrowRequests', component: () => import('../views/BorrowRequestsView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
       { path: 'borrow-history', name: 'BorrowHistory', component: () => import('../views/BorrowHistoryView.vue') },
-      { path: 'maintenance', name: 'Maintenance', component: () => import('../views/MaintenanceView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
-      { path: 'maintenance-schedules', name: 'MaintenanceSchedules', component: () => import('../views/MaintenanceSchedulesView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
-      { path: 'consumable-requests', name: 'ConsumableRequests', component: () => import('../views/ConsumableRequestsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab', 'Sinh viên', 'Giảng viên'] } },
-      { path: 'penalty', name: 'Penalty', component: () => import('../views/PenaltyView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab', 'Sinh viên', 'Giảng viên'] } },
-      { path: 'teacher-approval', name: 'TeacherApproval', component: () => import('../views/TeacherApprovalView.vue'), meta: { allowedRoles: ['Giảng viên'] } }
+      { path: 'maintenance', name: 'Maintenance', component: () => import('../views/MaintenanceView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
+      { path: 'maintenance-schedules', name: 'MaintenanceSchedules', component: () => import('../views/MaintenanceSchedulesView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
+      { path: 'consumable-requests', name: 'ConsumableRequests', component: () => import('../views/ConsumableRequestsView.vue'), meta: { allowedRoles: [...MANAGER_ROLES, ...BORROWER_ROLES] } },
+      { path: 'penalty', name: 'Penalty', component: () => import('../views/PenaltyView.vue'), meta: { allowedRoles: [...MANAGER_ROLES, ...BORROWER_ROLES] } },
+      { path: 'teacher-approval', name: 'TeacherApproval', component: () => import('../views/TeacherApprovalView.vue'), meta: { allowedRoles: [ROLE.TEACHER] } }
     ]
   },
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/NotFoundView.vue'), meta: { requiresAuth: false } }
