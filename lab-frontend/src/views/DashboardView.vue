@@ -130,11 +130,26 @@
           <div class="action-icons">
             <!-- Dark mode removed -->
 
-            <a-button type="text" class="header-icon-btn" title="Thông báo realtime">
-              <template #icon>
-                <bell-outlined />
+            <a-popover v-model:open="notificationOpen" trigger="click" placement="bottomRight">
+              <template #content>
+                <div class="notification-popover">
+                  <div class="notification-popover-header"><strong>Thông báo</strong><a @click="router.push({ name: 'Notifications' }); notificationOpen = false">Xem tất cả</a></div>
+                  <a-list :data-source="notifications.slice(0, 5)" size="small">
+                    <template #renderItem="{ item }">
+                      <a-list-item :class="{ unread: !item.isRead }" @click="openNotification(item)">
+                        <a-list-item-meta :title="item.title" :description="item.message" />
+                      </a-list-item>
+                    </template>
+                  </a-list>
+                  <a-empty v-if="!notifications.length" description="Chưa có thông báo" :image-style="{ height: '40px' }" />
+                </div>
               </template>
-            </a-button>
+              <a-badge :count="unreadCount" :overflow-count="99">
+                <a-button type="text" class="header-icon-btn" title="Thông báo">
+                  <template #icon><bell-outlined /></template>
+                </a-button>
+              </a-badge>
+            </a-popover>
           </div>
           <div class="user-profile" title="Đổi mật khẩu" @click="changePasswordVisible = true">
             <a-avatar :size="38" class="user-avatar">
@@ -264,6 +279,7 @@ import { notification } from 'ant-design-vue'
 import * as signalR from '@microsoft/signalr'
 import { equipmentApi } from '../api/equipmentApi'
 import { userApi } from '../api/userApi'
+import { notificationApi } from '../api/notificationApi'
 
 // Dark mode logic removed
 
@@ -301,6 +317,7 @@ const routeMenuKeys = {
   Maintenance: 'm3',
   Locations: 'm_location',
   Inventory: 'm_inventory',
+  Notifications: 'notifications',
   Penalty: 'm4',
   BorrowRequests: 'g1_1',
   AdminUsers: 'g1_3',
@@ -322,6 +339,27 @@ const passwordForm = ref({
 })
 const searchQuery = ref('')
 const searchData = ref([])
+const notifications = ref([])
+const unreadCount = ref(0)
+const notificationOpen = ref(false)
+
+const loadNotifications = async () => {
+  try {
+    notifications.value = await notificationApi.getAll() || []
+    const result = await notificationApi.getUnreadCount()
+    unreadCount.value = result?.count || 0
+  } catch (error) { console.error('Lỗi tải thông báo', error) }
+}
+
+const openNotification = async item => {
+  if (!item.isRead) {
+    await notificationApi.markRead(item.id)
+    item.isRead = true
+    unreadCount.value = Math.max(0, unreadCount.value - 1)
+  }
+  notificationOpen.value = false
+  if (item.url) router.push(item.url)
+}
 
 const loadSearchData = async () => {
   try {
@@ -357,6 +395,7 @@ const handleSelectSearchResult = (item) => {
 let hubConnection = null
 
 onMounted(() => {
+  loadNotifications()
   // Kết nối SignalR
   const signalRUrl = import.meta.env.VITE_SIGNALR_URL || 'http://localhost:5248/notificationHub'
   hubConnection = new signalR.HubConnectionBuilder()
@@ -366,13 +405,15 @@ onMounted(() => {
     .withAutomaticReconnect()
     .build()
 
-  hubConnection.on('ReceiveNotification', (message) => {
+  hubConnection.on('ReceiveNotification', (payload) => {
+    const text = typeof payload === 'string' ? payload : payload?.message
     notification.info({
       message: 'Thông báo mới',
-      description: message,
+      description: text,
       placement: 'topRight',
       duration: 5
     })
+    loadNotifications()
   })
 
   hubConnection.start()

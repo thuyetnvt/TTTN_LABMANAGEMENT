@@ -1,12 +1,10 @@
 using System.Net;
 using System.Security.Claims;
 using LabManagementAPI.Data;
-using LabManagementAPI.Hubs;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace LabManagementAPI.Controllers;
@@ -25,18 +23,18 @@ public class BorrowController : ControllerBase
 
     private readonly AppDbContext _context;
     private readonly IEmailService _emailService;
-    private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly INotificationService _notificationService;
     private readonly IAuditService _auditService;
 
     public BorrowController(
         AppDbContext context,
         IEmailService emailService,
-        IHubContext<NotificationHub> hubContext,
+        INotificationService notificationService,
         IAuditService auditService)
     {
         _context = context;
         _emailService = emailService;
-        _hubContext = hubContext;
+        _notificationService = notificationService;
         _auditService = auditService;
     }
 
@@ -208,13 +206,22 @@ public class BorrowController : ControllerBase
             : "Có yêu cầu mượn mới đang chờ quản lý lab duyệt.";
         if (request.TeacherId.HasValue)
         {
-            await _hubContext.Clients.User(request.TeacherId.Value.ToString())
-                .SendAsync("ReceiveNotification", message, cancellationToken);
+            await _notificationService.NotifyUserAsync(
+                request.TeacherId.Value,
+                "BORROW_TEACHER_PENDING",
+                "Yêu cầu mượn cần bảo lãnh",
+                message,
+                "/dashboard/teacher-approval",
+                cancellationToken);
         }
         else
         {
-            await _hubContext.Clients.Group(NotificationHub.ManagerGroup)
-                .SendAsync("ReceiveNotification", message, cancellationToken);
+            await _notificationService.NotifyManagersAsync(
+                "BORROW_PENDING",
+                "Yêu cầu mượn mới",
+                message,
+                "/dashboard/borrow-requests",
+                cancellationToken);
         }
 
         return Ok(new { record.Id, message = "Đã gửi yêu cầu mượn thành công." });
@@ -413,8 +420,12 @@ public class BorrowController : ControllerBase
             nameof(BorrowRecord),
             id,
             cancellationToken: cancellationToken);
-        await _hubContext.Clients.Group(NotificationHub.ManagerGroup)
-            .SendAsync("ReceiveNotification", "Có yêu cầu mượn đã được giảng viên bảo lãnh.", cancellationToken);
+        await _notificationService.NotifyManagersAsync(
+            "BORROW_TEACHER_APPROVED",
+            "Yêu cầu mượn đã được bảo lãnh",
+            "Có yêu cầu mượn đã được giảng viên bảo lãnh.",
+            "/dashboard/borrow-requests",
+            cancellationToken);
         return Ok(new { message = "Đã duyệt bảo lãnh." });
     }
 
@@ -476,8 +487,13 @@ public class BorrowController : ControllerBase
             nameof(BorrowRecord),
             id,
             cancellationToken: cancellationToken);
-        await _hubContext.Clients.User(record.UserId.ToString())
-            .SendAsync("ReceiveNotification", "Yêu cầu mượn của bạn đã bị từ chối bảo lãnh.", cancellationToken);
+        await _notificationService.NotifyUserAsync(
+            record.UserId,
+            "BORROW_TEACHER_REJECTED",
+            "Yêu cầu mượn bị từ chối bảo lãnh",
+            "Yêu cầu mượn của bạn đã bị từ chối bảo lãnh.",
+            "/dashboard/borrow-history",
+            cancellationToken);
         return Ok(new { message = "Đã từ chối bảo lãnh." });
     }
 
@@ -553,11 +569,13 @@ public class BorrowController : ControllerBase
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        await _hubContext.Clients.User(record.UserId.ToString())
-            .SendAsync(
-                "ReceiveNotification",
-                $"Yêu cầu mượn {record.Equipment?.Name} và {Math.Max(0, equipmentIds.Length - 1)} tài sản kèm theo đã được duyệt.",
-                cancellationToken);
+        await _notificationService.NotifyUserAsync(
+            record.UserId,
+            "BORROW_APPROVED",
+            "Yêu cầu mượn đã được duyệt",
+            $"Yêu cầu mượn {record.Equipment?.Name} và {Math.Max(0, equipmentIds.Length - 1)} tài sản kèm theo đã được duyệt.",
+            "/dashboard/borrow-history",
+            cancellationToken);
         return Ok(new { message = "Đã duyệt yêu cầu mượn." });
     }
 
@@ -610,8 +628,13 @@ public class BorrowController : ControllerBase
             nameof(BorrowRecord),
             id,
             cancellationToken: cancellationToken);
-        await _hubContext.Clients.User(record.UserId.ToString())
-            .SendAsync("ReceiveNotification", "Yêu cầu mượn của bạn đã bị từ chối.", cancellationToken);
+        await _notificationService.NotifyUserAsync(
+            record.UserId,
+            "BORROW_REJECTED",
+            "Yêu cầu mượn bị từ chối",
+            "Yêu cầu mượn của bạn đã bị từ chối.",
+            "/dashboard/borrow-history",
+            cancellationToken);
         return Ok(new { message = "Đã từ chối yêu cầu mượn." });
     }
 
@@ -757,8 +780,13 @@ public class BorrowController : ControllerBase
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        await _hubContext.Clients.User(record.UserId.ToString())
-            .SendAsync("ReceiveNotification", "Kết quả nhận trả tài sản trong phiếu của bạn đã được ghi nhận.", cancellationToken);
+        await _notificationService.NotifyUserAsync(
+            record.UserId,
+            "BORROW_RETURNED",
+            "Đã ghi nhận nhận trả tài sản",
+            "Kết quả nhận trả tài sản trong phiếu của bạn đã được ghi nhận.",
+            "/dashboard/borrow-history",
+            cancellationToken);
         return Ok(new { message = allReturned ? "Đã ghi nhận trả toàn bộ tài sản." : "Đã ghi nhận trả một phần tài sản." });
     }
 

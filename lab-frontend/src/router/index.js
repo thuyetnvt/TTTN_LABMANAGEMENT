@@ -15,6 +15,7 @@ const routes = [
       { path: 'devices', name: 'Devices', component: () => import('../views/DevicesView.vue') },
       { path: 'locations', name: 'Locations', component: () => import('../views/LocationsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
       { path: 'inventory', name: 'Inventory', component: () => import('../views/InventoryView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },
+      { path: 'notifications', name: 'Notifications', component: () => import('../views/NotificationsView.vue') },
       { path: 'admin/users', name: 'AdminUsers', component: () => import('../views/AdminUsersView.vue'), meta: { allowedRoles: ['Admin'] } },
       { path: 'admin/audit-logs', name: 'AuditLogs', component: () => import('../views/AuditLogsView.vue'), meta: { allowedRoles: ['Admin'] } },
       { path: 'borrow-requests', name: 'BorrowRequests', component: () => import('../views/BorrowRequestsView.vue'), meta: { allowedRoles: ['Admin', 'Trưởng lab', 'Phó lab'] } },

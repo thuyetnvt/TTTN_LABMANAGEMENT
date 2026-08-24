@@ -23,6 +23,7 @@ namespace LabManagementAPI.Data
         public DbSet<BorrowStatusHistory> BorrowStatusHistories { get; set; }
         public DbSet<InventorySession> InventorySessions { get; set; }
         public DbSet<InventoryItem> InventoryItems { get; set; }
+        public DbSet<AppNotification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -207,6 +208,19 @@ namespace LabManagementAPI.Data
                     .WithMany()
                     .HasForeignKey(item => item.ScannedByUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<AppNotification>(entity =>
+            {
+                entity.Property(item => item.Type).HasMaxLength(50);
+                entity.Property(item => item.Title).HasMaxLength(255);
+                entity.Property(item => item.Message).HasMaxLength(2000);
+                entity.Property(item => item.Url).HasMaxLength(500);
+                entity.HasIndex(item => new { item.UserId, item.IsRead, item.CreatedAt });
+                entity.HasOne(item => item.User)
+                    .WithMany()
+                    .HasForeignKey(item => item.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<ConsumableRequest>(entity =>

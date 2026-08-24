@@ -16,7 +16,14 @@ export const STATUS = Object.freeze({
   CONSUMABLE_PROCESSING: 'CONSUMABLE_PROCESSING',
   CONSUMABLE_ISSUED: 'CONSUMABLE_ISSUED',
   UNPAID: 'UNPAID',
-  PAID: 'PAID'
+  PAID: 'PAID',
+  INVENTORY_OPEN: 'INVENTORY_OPEN',
+  INVENTORY_COMPLETED: 'INVENTORY_COMPLETED',
+  INVENTORY_PENDING: 'INVENTORY_PENDING',
+  INVENTORY_FOUND: 'INVENTORY_FOUND',
+  INVENTORY_WRONG_LOCATION: 'INVENTORY_WRONG_LOCATION',
+  INVENTORY_DAMAGED: 'INVENTORY_DAMAGED',
+  INVENTORY_MISSING: 'INVENTORY_MISSING'
 })
 
 export const ROLE_LABELS = Object.freeze({
@@ -52,7 +59,14 @@ const LEGACY_STATUS = Object.freeze({
   'Hoàn thành': STATUS.MAINTENANCE_COMPLETED,
   'Đã cấp phát': STATUS.CONSUMABLE_ISSUED,
   'Chưa thanh toán': STATUS.UNPAID,
-  'Đã thanh toán': STATUS.PAID
+  'Đã thanh toán': STATUS.PAID,
+  'Đang kiểm kê': STATUS.INVENTORY_OPEN,
+  'Đã kết thúc kiểm kê': STATUS.INVENTORY_COMPLETED,
+  'Chưa kiểm kê': STATUS.INVENTORY_PENDING,
+  'Đã tìm thấy': STATUS.INVENTORY_FOUND,
+  'Sai vị trí': STATUS.INVENTORY_WRONG_LOCATION,
+  'Hỏng khi kiểm kê': STATUS.INVENTORY_DAMAGED,
+  'Thất lạc': STATUS.INVENTORY_MISSING
 })
 
 export const normalizeStatus = (value) => LEGACY_STATUS[value] || value || ''
@@ -75,6 +89,13 @@ export const statusLabel = (value) => ({
   [STATUS.CONSUMABLE_PENDING]: 'Chờ duyệt cấp phát',
   [STATUS.CONSUMABLE_PROCESSING]: 'Đang xử lý cấp phát',
   [STATUS.CONSUMABLE_ISSUED]: 'Đã cấp phát',
+  [STATUS.INVENTORY_OPEN]: 'Đang kiểm kê',
+  [STATUS.INVENTORY_COMPLETED]: 'Đã kết thúc kiểm kê',
+  [STATUS.INVENTORY_PENDING]: 'Chưa kiểm kê',
+  [STATUS.INVENTORY_FOUND]: 'Đã tìm thấy',
+  [STATUS.INVENTORY_WRONG_LOCATION]: 'Sai vị trí',
+  [STATUS.INVENTORY_DAMAGED]: 'Hỏng khi kiểm kê',
+  [STATUS.INVENTORY_MISSING]: 'Thất lạc',
   [STATUS.UNPAID]: 'Chưa thanh toán',
   [STATUS.PAID]: 'Đã thanh toán'
 }[normalizeStatus(value)] || value || 'Chưa xác định')
@@ -98,6 +119,13 @@ export const statusColor = (value) => ({
   [STATUS.CONSUMABLE_PENDING]: 'orange',
   [STATUS.CONSUMABLE_PROCESSING]: 'blue',
   [STATUS.CONSUMABLE_ISSUED]: 'green'
+  ,[STATUS.INVENTORY_OPEN]: 'blue'
+  ,[STATUS.INVENTORY_COMPLETED]: 'green'
+  ,[STATUS.INVENTORY_PENDING]: 'orange'
+  ,[STATUS.INVENTORY_FOUND]: 'green'
+  ,[STATUS.INVENTORY_WRONG_LOCATION]: 'orange'
+  ,[STATUS.INVENTORY_DAMAGED]: 'red'
+  ,[STATUS.INVENTORY_MISSING]: 'red'
 }[normalizeStatus(value)] || 'default')
 
 export const statusMatches = (value, expected) => normalizeStatus(value) === expected

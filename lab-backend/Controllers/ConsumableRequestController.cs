@@ -1,12 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using LabManagementAPI.Data;
-using LabManagementAPI.Hubs;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace LabManagementAPI.Controllers;
@@ -22,16 +20,16 @@ public class ConsumableRequestController : ControllerBase
     private const string Rejected = ConsumableRequestStatuses.Rejected;
 
     private readonly AppDbContext _context;
-    private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly INotificationService _notificationService;
     private readonly IAuditService _auditService;
 
     public ConsumableRequestController(
         AppDbContext context,
-        IHubContext<NotificationHub> hubContext,
+        INotificationService notificationService,
         IAuditService auditService)
     {
         _context = context;
-        _hubContext = hubContext;
+        _notificationService = notificationService;
         _auditService = auditService;
     }
 
@@ -144,8 +142,12 @@ public class ConsumableRequestController : ControllerBase
             new { request.ConsumableId, request.Quantity },
             cancellationToken);
 
-        await _hubContext.Clients.Group(NotificationHub.ManagerGroup)
-            .SendAsync("ReceiveNotification", "Có yêu cầu cấp phát vật tư mới.", cancellationToken);
+        await _notificationService.NotifyManagersAsync(
+            "CONSUMABLE_PENDING",
+            "Yêu cầu cấp phát vật tư mới",
+            "Có yêu cầu cấp phát vật tư mới.",
+            "/dashboard/consumable-requests",
+            cancellationToken);
         return Ok(new { request.Id, message = "Đã gửi yêu cầu cấp phát." });
     }
 
@@ -227,8 +229,13 @@ public class ConsumableRequestController : ControllerBase
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        await _hubContext.Clients.User(request.UserId.ToString())
-            .SendAsync("ReceiveNotification", "Yêu cầu vật tư của bạn đã được cấp phát.", cancellationToken);
+        await _notificationService.NotifyUserAsync(
+            request.UserId,
+            "CONSUMABLE_ISSUED",
+            "Yêu cầu vật tư đã được cấp phát",
+            "Yêu cầu vật tư của bạn đã được cấp phát.",
+            "/dashboard/consumable-requests",
+            cancellationToken);
         return Ok(new { message = "Đã duyệt và trừ tồn kho." });
     }
 
@@ -266,8 +273,13 @@ public class ConsumableRequestController : ControllerBase
             id,
             cancellationToken: cancellationToken);
 
-        await _hubContext.Clients.User(request.UserId.ToString())
-            .SendAsync("ReceiveNotification", "Yêu cầu vật tư của bạn đã bị từ chối.", cancellationToken);
+        await _notificationService.NotifyUserAsync(
+            request.UserId,
+            "CONSUMABLE_REJECTED",
+            "Yêu cầu vật tư bị từ chối",
+            "Yêu cầu vật tư của bạn đã bị từ chối.",
+            "/dashboard/consumable-requests",
+            cancellationToken);
         return Ok(new { message = "Đã từ chối yêu cầu." });
     }
 
