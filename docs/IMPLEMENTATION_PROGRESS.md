@@ -156,3 +156,14 @@
 
 - Đã hoàn thiện và kiểm chứng local các module nghiệp vụ chính, backend/frontend build, unit test, Docker health, E2E smoke và audit dependency.
 - Chưa tuyên bố production-ready tuyệt đối: chưa diễn tập restore trên production, chưa có adapter MinIO/S3, chưa có chứng thư mã hóa Data Protection trong deployment thật và các E2E business flow đầy đủ vẫn cần credential/test data riêng.
+
+## 2026-08-25 — Giai đoạn 13: audit cuối, design system và business E2E
+
+- Bổ sung shared UI components cho page header, filter, empty/error state, data table/list responsive, confirm dialog, upload, location tree, notification bell và audit action label; nối vào các màn hình báo cáo, kiểm kê, thông báo, audit log, thiết bị và dashboard.
+- Chuẩn hóa token giao diện theo design system xanh navy/trắng/xám; loại bỏ số liệu marketing giả khỏi landing/login/forgot password, giữ toàn bộ nhãn người dùng bằng tiếng Việt.
+- Bổ sung correlation ID cho mọi request backend và kiểm tra giữ header trong container; thêm test AuthController để xác minh login, forgot-password generic response và reset token một lần.
+- Bổ sung test transaction/IDOR/RBAC cho borrow và consumable; phát hiện và sửa lỗi thiếu `SaveChangesAsync` khi ghi `ConsumableTransaction`.
+- Thêm business E2E opt-in có dữ liệu prefix `E2E-`, đã chạy đạt flow mượn nhiều tài sản → teacher/manager approval → handover → return → maintenance → QR inventory.
+- Kết quả cuối: backend **18/18**, frontend **2/2**, E2E business **1/1**, E2E responsive smoke **4 pass/4 skip**, Docker healthy.
+
+Các giới hạn production còn lại giữ nguyên: chưa có adapter MinIO/S3, chưa diễn tập restore production, chưa cấu hình certificate Data Protection trong deployment thật và frontend vẫn còn một số file view lớn cần tách tiếp nếu tiếp tục tối ưu maintainability.

@@ -37,3 +37,16 @@ Ngày 25/08/2026 trên branch `codex/iot-lab-asset-upgrade`:
 - `docker compose up -d --build backend frontend`: đạt; backend healthy, `/health` trả `Healthy`, frontend port `8081` trả HTTP 200, migration không pending.
 - Docker còn cảnh báo mặc định “No XML encryptor configured” của ASP.NET Data Protection; key đã được persist vào volume, nhưng deployment production phải cấu hình certificate/encryptor để mã hóa key at rest.
 - CI đã thêm job E2E độc lập; job chạy smoke suite không cần seed credential, còn business flow cần môi trường test có dữ liệu/secret riêng.
+
+## Kiểm chứng cuối phiên nâng cấp ngày 25/08/2026
+
+- Backend test project: đạt **18/18**; bao phủ đăng nhập, reset password/token version, IDOR/RBAC mượn trả, transaction đa tài sản, tồn kho vật tư và upload MIME/path.
+- `dotnet build --configuration Release --no-restore`: đạt, 0 warning/0 error.
+- Frontend `npm test`: đạt 2/2; `npm run build`: đạt, chỉ còn cảnh báo chunk lớn do bundle ApexCharts.
+- `npm audit` trong `lab-frontend`: 0 vulnerability.
+- E2E smoke chạy cả Chromium desktop và mobile: **4 pass, 4 skip**; các skip là test business/admin cần credential khi chạy không truyền biến môi trường.
+- E2E business có dữ liệu cô lập prefix `E2E-`: **1/1 pass trong 1,4 phút**, đi qua đăng nhập các vai trò bằng API, UI sinh viên, mượn nhiều tài sản, giảng viên duyệt, quản lý duyệt/bàn giao/trả, bảo trì và kiểm kê QR.
+- Docker sau rebuild: db/backend/frontend healthy; backend `/health` trả `Healthy`; kiểm tra trực tiếp trong container xác nhận `X-Correlation-ID` được phản hồi đúng giá trị gửi vào; frontend `http://localhost:8081` trả HTTP 200.
+- Các dữ liệu E2E được tạo có chủ đích để giữ trace/audit; có thể lọc bằng tiền tố `E2E-` khi dọn môi trường kiểm thử, không dùng làm số liệu giao diện.
+
+Các kiểm chứng trên là local/Docker, không thay thế diễn tập restore trên production, triển khai MinIO/S3 hoặc cấu hình certificate mã hóa Data Protection trong môi trường thật.
