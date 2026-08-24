@@ -31,9 +31,18 @@
 - Migration `20260824165820_AddIoTAssetMetadataAndLocations` tạo schema mới, gán mã/QR cho tài sản cũ và đưa vị trí tự do cũ vào node `LEGACY` để không mất dữ liệu.
 - Backend build và frontend production build đạt; frontend vẫn có warning từ dependency SignalR/chunk lớn.
 
+## 2026-08-25 — Giai đoạn 3: phiếu mượn nhiều tài sản
+
+- Commit `6f070fa`: `feat: refactor multi-asset borrowing workflow`.
+- Phiếu mượn hỗ trợ nhiều tài sản, giữ `EquipmentId` cho client cũ và chống trùng tài sản trong cùng phiếu.
+- Đã thêm trạng thái chi tiết từng món, lịch sử chuyển trạng thái, ghi chú duyệt của giảng viên/quản lý và migration backfill dữ liệu cũ.
+- Duyệt kho claim toàn bộ tài sản trong transaction; trả tài sản cho phép xử lý từng món, cập nhật bảo hành/bảo trì/bồi thường riêng.
+- Frontend đã có giỏ chọn nhiều tài sản, duyệt bảo lãnh bắt buộc ghi chú và form kiểm tra trả theo từng món.
+- Kiểm chứng: backend build đạt 0 warning/0 error; frontend production build đạt, còn warning chunk lớn và annotation từ dependency SignalR.
+
 ## Đang làm tiếp
 
-- Refactor phiếu mượn thành nhiều thiết bị, bắt buộc bảo lãnh, và lịch sử xử lý.
+- QR/kiểm kê/bảo trì, vật tư có transaction, notification realtime và hardening các màn hình còn lại.
 
 ## Quy tắc tiếp tục
 
