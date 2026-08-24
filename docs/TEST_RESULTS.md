@@ -24,3 +24,4 @@ Ngày 25/08/2026 trên branch `codex/iot-lab-asset-upgrade`:
 - `docker compose up -d --build backend frontend`: build và khởi động đạt; migration mới cho inventory evidence, maintenance, traceability, user profile, return evidence và borrow header đã áp dụng.
 - Docker backend `/health`: `Healthy`; frontend public endpoint trên port `8081` trả HTTP 200 theo cấu hình `.env` hiện tại.
 - Trong lần chạy đầu, seed gặp dữ liệu hồ sơ cũ có `ClassName = NULL`; đã sửa model/seed tương thích nullable, rebuild và chạy lại thành công. Cảnh báo Data Protection key chưa persist trong volume vẫn còn và cần xử lý khi deploy production.
+- Sau commit hồ sơ cá nhân và gom role guard: `dotnet build --no-restore` đạt 0 warning/0 error; `npm test` đạt 2/2; `npm run build` đạt, chỉ còn cảnh báo từ dependency SignalR/chunk lớn.

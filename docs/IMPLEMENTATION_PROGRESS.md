@@ -133,3 +133,9 @@
 - Storage mới có adapter local; MinIO/S3 và diễn tập backup/restore production chưa được kiểm chứng.
 - Một số component frontend cũ còn cần tiếp tục gom các điều kiện role vào helper dùng chung và tách nhỏ bảng lớn; chức năng nghiệp vụ đã nối API thật.
 - Chưa chạy migration trên database production; chỉ database Docker local đã được kiểm chứng.
+
+## 2026-08-25 — Giai đoạn 11: hồ sơ cá nhân và gom phân quyền frontend
+
+- Commit `40eab95`: `feat: add self-service user profile`; thêm `GET /api/users/me`, `PUT /api/users/me/profile`, màn hình hồ sơ cá nhân và giữ đổi mật khẩu với token invalidation.
+- Commit `aa4f905`: `refactor: centralize frontend role guards`; các route và màn hình chính dùng `ROLE`, `MANAGER_ROLES`, `BORROWER_ROLES` cùng helper `isManagerRole/isAdminRole/...`, không còn rải mảng role literal trong điều kiện UI.
+- Frontend production build và unit test tiếp tục đạt sau hai commit này.
