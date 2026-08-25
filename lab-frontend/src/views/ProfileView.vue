@@ -27,10 +27,10 @@
           <a-form layout="vertical" class="profile-form" @submit.prevent="save">
             <a-row :gutter="[18, 0]">
               <a-col :xs="24" :md="12"><a-form-item label="Họ và tên"><a-input v-model:value="profile.fullName" /></a-form-item></a-col>
-              <a-col v-if="showUniversityCode" :xs="24" :md="12"><a-form-item :label="isStudent ? 'Mã sinh viên' : 'Mã cán bộ'"><a-input v-model:value="profile.universityCode" /></a-form-item></a-col>
+              <a-col :xs="24" :md="12"><a-form-item :label="universityCodeLabel"><a-input v-model:value="profile.universityCode" /></a-form-item></a-col>
               <a-col :xs="24" :md="12"><a-form-item label="Email"><a-input v-model:value="profile.email" /></a-form-item></a-col>
               <a-col :xs="24" :md="12"><a-form-item label="Số điện thoại"><a-input v-model:value="profile.phone" /></a-form-item></a-col>
-              <a-col :xs="24" :md="12"><a-form-item label="Khoa/bộ môn"><a-input v-model:value="profile.department" /></a-form-item></a-col>
+              <a-col :xs="24" :md="12"><a-form-item :label="departmentLabel"><a-input v-model:value="profile.department" /></a-form-item></a-col>
               <a-col v-if="isStudent" :xs="24" :md="12"><a-form-item label="Lớp"><a-input v-model:value="profile.className" /></a-form-item></a-col>
             </a-row>
             <a-button type="primary" html-type="submit" :loading="saving">Lưu hồ sơ</a-button>
@@ -46,7 +46,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { userApi } from '../api/userApi'
-import { isAdminRole, isStudentRole, roleLabel } from '../constants/business'
+import { isStudentRole, roleLabel } from '../constants/business'
 import { useAuthStore } from '../stores/authStore'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -61,7 +61,8 @@ const avatarPreviewUrl = ref('')
 const previewVersion = ref('preview')
 const profile = reactive({ username: '', role: '', email: '', fullName: '', universityCode: '', phone: '', department: '', className: '', hasAvatar: false, avatarUpdatedAt: '' })
 const isStudent = computed(() => isStudentRole(profile.role))
-const showUniversityCode = computed(() => !isAdminRole(profile.role))
+const universityCodeLabel = computed(() => isStudent.value ? 'Mã sinh viên' : 'Mã cán bộ')
+const departmentLabel = computed(() => isStudent.value ? 'Khoa/ngành' : 'Khoa/bộ môn hoặc đơn vị')
 const avatarUrl = computed(() => profile.hasAvatar ? userApi.avatarUrl() : '')
 
 const applyProfile = (data) => { if (data) { Object.assign(profile, data); authStore.setUser(data) } }
@@ -72,9 +73,13 @@ const load = async () => {
   finally { loading.value = false }
 }
 const save = async () => {
+  if (isStudent.value && !profile.className?.trim()) {
+    message.warning('Vui lòng nhập lớp.')
+    return
+  }
   saving.value = true
   try {
-    await userApi.updateMe({ email: profile.email, fullName: profile.fullName, universityCode: showUniversityCode.value ? profile.universityCode : null, phone: profile.phone, department: profile.department, className: isStudent.value ? profile.className : null })
+    await userApi.updateMe({ email: profile.email, fullName: profile.fullName, universityCode: profile.universityCode, phone: profile.phone, department: profile.department, className: profile.className })
     applyProfile(await userApi.getMe())
     message.success('Đã cập nhật hồ sơ cá nhân.')
   } catch (error) { message.error(error?.message || 'Không thể cập nhật hồ sơ cá nhân.') }
