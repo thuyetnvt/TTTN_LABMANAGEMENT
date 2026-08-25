@@ -169,13 +169,24 @@ public class DashboardController : ControllerBase
                 });
             }
 
-            if (pendingRequests > 0)
+            if (pendingBorrows > 0)
             {
                 alerts.Add(new
                 {
-                    Type = "pending-requests",
-                    Title = "Yêu cầu chờ duyệt",
-                    Message = $"Có {pendingRequests} yêu cầu cần xử lý.",
+                    Type = "pending-borrow-requests",
+                    Title = "Yêu cầu mượn chờ duyệt",
+                    Message = $"Có {pendingBorrows} yêu cầu mượn cần xử lý.",
+                    Level = "info"
+                });
+            }
+
+            if (pendingConsumables > 0)
+            {
+                alerts.Add(new
+                {
+                    Type = "pending-consumable-requests",
+                    Title = "Yêu cầu cấp phát chờ duyệt",
+                    Message = $"Có {pendingConsumables} yêu cầu cấp phát cần xử lý.",
                     Level = "info"
                 });
             }

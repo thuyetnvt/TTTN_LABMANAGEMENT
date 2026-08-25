@@ -60,6 +60,8 @@ test('không hiển thị [object Object] khi response lỗi là object', () => 
 test('điều hướng cảnh báo Dashboard đến đúng màn hình', () => {
   assert.deepEqual(getDashboardAlertTarget('overdue'), { name: 'BorrowRequests' })
   assert.deepEqual(getDashboardAlertTarget('low-stock'), { name: 'Devices', query: { tab: 'consumables' } })
+  assert.deepEqual(getDashboardAlertTarget('pending-borrow-requests'), { name: 'BorrowRequests' })
+  assert.deepEqual(getDashboardAlertTarget('pending-consumable-requests'), { name: 'ConsumableRequests' })
   assert.deepEqual(getDashboardAlertTarget('warranty-soon'), { name: 'Devices', query: { status: 'warranty' } })
   assert.equal(getDashboardAlertTarget('unknown'), null)
 })

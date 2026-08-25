@@ -51,6 +51,43 @@ public sealed class DashboardControllerTests
         Assert.Contains("Nhiều tài sản (2)", payload);
     }
 
+    [Fact]
+    public async Task Stats_separates_pending_borrow_and_consumable_alerts()
+    {
+        await using var context = CreateContext();
+        context.Users.Add(new User { Id = 1, Username = "admin", Role = Roles.Admin });
+        context.Consumables.Add(new Consumable
+        {
+            Id = 1,
+            Name = "Cảm biến siêu âm",
+            Unit = "cái",
+            Quantity = 8,
+            MinQuantity = 10
+        });
+        context.ConsumableRequests.Add(new ConsumableRequest
+        {
+            Id = 1,
+            ConsumableId = 1,
+            UserId = 1,
+            Quantity = 2,
+            Reason = "Thực hành",
+            Status = ConsumableRequestStatuses.Pending
+        });
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context);
+        var result = await controller.GetStats(CancellationToken.None);
+
+        var response = Assert.IsType<OkObjectResult>(result);
+        var payload = JsonSerializer.Serialize(response.Value, new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        });
+        Assert.Contains("pending-consumable-requests", payload);
+        Assert.Contains("Yêu cầu cấp phát chờ duyệt", payload);
+        Assert.DoesNotContain("pending-borrow-requests", payload);
+    }
+
     private static AppDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
