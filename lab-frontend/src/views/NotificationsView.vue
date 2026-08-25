@@ -9,7 +9,7 @@
         <template #renderItem="{ item }">
           <a-list-item :class="{ unread: !item.isRead }" @click="openNotification(item)">
             <a-list-item-meta :title="item.title" :description="item.message">
-              <template #avatar><a-avatar :style="{ backgroundColor: item.isRead ? '#94a3b8' : '#2563eb' }"><bell-outlined /></a-avatar></template>
+              <template #avatar><a-avatar :style="{ backgroundColor: item.isRead ? '#94a3b8' : 'var(--color-primary)' }"><bell-outlined /></a-avatar></template>
             </a-list-item-meta>
             <span class="time">{{ formatDate(item.createdAt) }}</span>
           </a-list-item>

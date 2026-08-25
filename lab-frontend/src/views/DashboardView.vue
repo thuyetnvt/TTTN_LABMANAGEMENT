@@ -688,7 +688,7 @@ const submitChangePassword = async () => {
   justify-content: center;
   flex: 0 0 36px;
   color: var(--color-primary);
-  background: rgba(37, 99, 235, 0.1);
+  background: rgba(217, 119, 87, 0.1);
   font-size: 18px;
 }
 
@@ -729,7 +729,7 @@ const submitChangePassword = async () => {
 .search-bar:focus-within {
   background: #ffffff;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.1);
 }
 
 .search-icon {

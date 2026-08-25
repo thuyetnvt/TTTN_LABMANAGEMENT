@@ -5,17 +5,17 @@ html,
 }
 
 :root {
-  --color-canvas-cream: #F6F8FB;
+  --color-canvas-cream: #F2F0ED;
   --color-surface: #FFFFFF;
-  --color-surface-dark: #0F172A;
+  --color-surface-dark: #181715;
   --color-on-dark: #FFFFFF;
-  --color-primary: #2563EB;
-  --color-primary-hover: #1D4ED8;
+  --color-primary: #D97757;
+  --color-primary-hover: #C26A4D;
   --color-success: #16A34A;
   --color-warning: #F59E0B;
   --color-danger: #DC2626;
   --color-purple: #7C3AED;
-  --color-ink: #0F172A;
+  --color-ink: #111827;
   --color-secondary: #64748B;
   --color-border: #E2E8F0;
   --font-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -67,7 +67,7 @@ body.dark-mode .ant-table-cell-fix-right-first::after {
 .ant-select-focused:not(.ant-select-customize-input) .ant-select-selector,
 .ant-picker-focused {
   border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.15) !important;
 }
 
 /* Fix lỗi viền kép (double border) ở ô Mật khẩu (Password) hoặc ô có icon */
