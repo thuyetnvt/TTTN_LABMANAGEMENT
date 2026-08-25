@@ -357,6 +357,8 @@ const filteredDataSource = computed(() => {
   if (status && status !== 'all') {
     if (status === 'problem') {
       result = result.filter(item => [STATUS.BROKEN, STATUS.UNDER_WARRANTY].includes(item.status))
+    } else if (status === 'warranty') {
+      result = result.filter(item => statusMatches(item.status, STATUS.UNDER_WARRANTY))
     } else {
       result = result.filter(item => statusMatches(item.status, status))
     }

@@ -38,8 +38,9 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { SettingOutlined } from '@ant-design/icons-vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { isManagerRole } from '../constants/business'
 import DeviceTable from '../components/DeviceTable.vue'
@@ -47,9 +48,14 @@ import ConsumablesTable from '../components/ConsumablesTable.vue'
 import AssetCategoriesTable from '../components/AssetCategoriesTable.vue'
 
 const authStore = useAuthStore()
+const route = useRoute()
 const role = computed(() => authStore.role)
-const activeTab = ref('1')
+const activeTab = ref(route.query.tab === 'consumables' ? '2' : '1')
 const categoryModalVisible = ref(false)
+
+watch(() => route.query.tab, (tab) => {
+  activeTab.value = tab === 'consumables' ? '2' : '1'
+})
 </script>
 
 <style scoped>

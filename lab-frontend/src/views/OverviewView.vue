@@ -46,7 +46,18 @@
       </a-card>
 
       <a-card title="Cảnh báo cần xử lý" :bordered="false" class="alert-card overview-alert-card">
-        <div v-for="(alert, index) in stats.alerts" :key="index" class="compact-alert" :class="alert.level">
+        <div
+          v-for="(alert, index) in stats.alerts"
+          :key="index"
+          class="compact-alert is-clickable"
+          :class="alert.level"
+          role="button"
+          tabindex="0"
+          :aria-label="`${alert.title}: ${alert.message}`"
+          @click="handleAlertClick(alert)"
+          @keydown.enter.prevent="handleAlertClick(alert)"
+          @keydown.space.prevent="handleAlertClick(alert)"
+        >
           <div class="compact-alert-icon">
             <component :is="getAlertIcon(alert.level)" />
           </div>
@@ -74,7 +85,18 @@
 
         <a-col :xs="24" :xl="8">
           <a-card title="Cảnh báo cần xử lý" :bordered="false" class="alert-card priority-alert">
-            <div v-for="(alert, index) in stats.alerts" :key="index" class="compact-alert" :class="alert.level">
+            <div
+              v-for="(alert, index) in stats.alerts"
+              :key="index"
+              class="compact-alert is-clickable"
+              :class="alert.level"
+              role="button"
+              tabindex="0"
+              :aria-label="`${alert.title}: ${alert.message}`"
+              @click="handleAlertClick(alert)"
+              @keydown.enter.prevent="handleAlertClick(alert)"
+              @keydown.space.prevent="handleAlertClick(alert)"
+            >
               <div class="compact-alert-icon">
                 <component :is="getAlertIcon(alert.level)" />
               </div>
@@ -145,6 +167,7 @@ import VueApexCharts from 'vue3-apexcharts'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../stores/authStore'
 import { isManagerRole } from '../constants/business'
+import { getDashboardAlertTarget } from '../utils/dashboardAlerts'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -205,6 +228,11 @@ const openEquipmentList = (filter) => {
     name: 'Devices',
     query: filter && filter !== 'all' ? { status: filter } : {}
   })
+}
+
+const handleAlertClick = (alert) => {
+  const target = getDashboardAlertTarget(alert?.type)
+  if (target) router.push(target)
 }
 
 const getAlertIcon = (level) => {
@@ -400,6 +428,17 @@ onMounted(async () => {
   border-left-width: 4px;
   border-radius: 12px;
   background: #ffffff;
+}
+
+.compact-alert.is-clickable {
+  cursor: pointer;
+}
+
+.compact-alert.is-clickable:hover,
+.compact-alert.is-clickable:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 58, 90, 0.1);
+  outline: none;
 }
 
 .compact-alert.warning {

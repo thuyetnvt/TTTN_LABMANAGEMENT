@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { ROLE_LABELS, STATUS, normalizeStatus, roleLabel, statusLabel, statusMatches } from '../src/constants/business.js'
 import { useNotificationStore } from '../src/stores/notificationStore.js'
 import { getApiErrorMessage, getApiSuccessMessage } from '../src/utils/apiError.js'
+import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
 
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
@@ -54,4 +55,11 @@ test('không hiển thị [object Object] khi response lỗi là object', () => 
     getApiErrorMessage({ response: { data: { message: { detail: 'not-a-string' } } }, message: 'Mất kết nối.' }, 'Không thể gửi nhắc trả.'),
     'Mất kết nối.'
   )
+})
+
+test('điều hướng cảnh báo Dashboard đến đúng màn hình', () => {
+  assert.deepEqual(getDashboardAlertTarget('overdue'), { name: 'BorrowRequests' })
+  assert.deepEqual(getDashboardAlertTarget('low-stock'), { name: 'Devices', query: { tab: 'consumables' } })
+  assert.deepEqual(getDashboardAlertTarget('warranty-soon'), { name: 'Devices', query: { status: 'warranty' } })
+  assert.equal(getDashboardAlertTarget('unknown'), null)
 })
