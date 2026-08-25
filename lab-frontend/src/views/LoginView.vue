@@ -14,8 +14,11 @@
 
         <!-- Hero Text -->
         <h1 class="hero-title">
-          {{ $t('hero.title1') }} {{ $t('hero.title2') }}<br />
-          <span class="text-coral">{{ $t('hero.title3') }}</span>
+          <span class="hero-title-line">{{ $t('hero.title1') }}</span>
+          <span class="hero-title-line hero-title-brand">
+            <span class="hero-title-iot">{{ $t('hero.title2') }}</span>
+            <span class="text-coral">{{ $t('hero.title3') }}</span>
+          </span>
         </h1>
         <p class="hero-desc">
           {{ $t('hero.desc') }}
@@ -81,6 +84,11 @@
     <!-- Nửa phải: Form đăng nhập (White side) -->
     <div class="right-side">
       <div class="right-content">
+        <div class="mobile-brand">
+          <experiment-outlined />
+          <span>LabManagement</span>
+          <small>Phòng Lab IoT · Khoa CNTT</small>
+        </div>
         <div class="login-header">
           <h2>{{ $t('login.welcomeBack') }}</h2>
           <p>{{ $t('login.loginToContinue') }}</p>
@@ -418,5 +426,143 @@ const handleLogin = () => {
 @media (max-width: 992px) {
   .left-side { display: none; }
   .right-side { width: 100%; }
+}
+
+/* Public blue theme */
+.split-layout {
+  min-height: 100dvh;
+  height: auto;
+  overflow: auto;
+  background: var(--public-background);
+  color: var(--public-heading);
+}
+.left-side {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(135deg, var(--public-navy-start), var(--public-navy-end));
+  overflow: hidden;
+  padding: clamp(32px, 5vw, 72px);
+}
+.left-side::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px),
+    radial-gradient(circle at 78% 20%, rgba(255,255,255,0.22), transparent 26%);
+  background-size: 32px 32px, 32px 32px, auto;
+}
+.left-content { position: relative; z-index: 1; max-width: 620px; }
+.brand-header { margin-bottom: 42px; }
+.logo { color: #fff; }
+.logo svg { color: var(--public-coral); }
+.platform-tag { color: rgba(255,255,255,0.82); border-left-color: rgba(255,255,255,0.3); }
+.tag-pill { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.22); color: rgba(255,255,255,0.92); }
+.hero-title {
+  font-family: var(--font-sans);
+  font-size: clamp(34px, 4vw, 50px);
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  color: #fff;
+  margin-bottom: 22px;
+}
+.hero-title-line { display: block; }
+.hero-title-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.hero-title-iot, .text-coral { color: #fff; }
+.hero-title-brand .text-coral { color: var(--public-coral); }
+.hero-desc { color: rgba(255,255,255,0.82); max-width: 540px; }
+.features-grid { gap: 16px; margin-bottom: 40px; }
+.feature-item {
+  min-height: 86px;
+  padding: 16px;
+  align-items: flex-start;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+}
+.feature-icon { background: rgba(255,255,255,0.14); color: #fff; }
+.feature-text h4 { color: #fff; }
+.feature-text p { color: rgba(255,255,255,0.72); }
+.stats-section { border-top-color: rgba(255,255,255,0.2); }
+.stats-title { color: rgba(255,255,255,0.78); }
+.stat-box h3 { color: #fff; }
+.stat-box p { color: rgba(255,255,255,0.68); }
+.right-side {
+  background: var(--public-background);
+  padding: clamp(24px, 4vw, 64px);
+}
+.right-content {
+  max-width: 440px;
+  padding: 40px;
+  background: var(--public-card);
+  border: 1px solid #E2E8F0;
+  border-radius: 24px;
+  box-shadow: 0 20px 55px rgba(15,58,90,0.12);
+}
+.mobile-brand { display: none; }
+.login-header { margin-bottom: 30px; }
+.login-header h2 { color: var(--public-heading); }
+.login-header p { color: var(--public-muted); }
+.login-form :deep(.ant-form-item-label > label) { color: var(--public-heading); }
+.login-form :deep(.ant-input),
+.login-form :deep(.ant-input-affix-wrapper) {
+  border-color: #CBD5E1;
+  border-radius: 10px;
+  color: var(--public-heading);
+  background: #fff;
+}
+.login-form :deep(.ant-input:hover),
+.login-form :deep(.ant-input-affix-wrapper:hover),
+.login-form :deep(.ant-input-affix-wrapper-focused) {
+  border-color: var(--public-blue);
+}
+.forgot-link, .back-link { color: var(--public-blue); }
+.contact-admin { color: var(--public-heading); }
+.submit-btn {
+  background: var(--public-coral) !important;
+  border-color: var(--public-coral) !important;
+  border-radius: 10px;
+  height: 48px;
+}
+.submit-btn:hover { background: #C96345 !important; border-color: #C96345 !important; }
+.extra-links { color: var(--public-muted); }
+.right-footer { position: static; margin-top: 28px; }
+.footer-links, .copyright { color: var(--public-muted); }
+
+@media (max-width: 992px) {
+  .right-side { min-height: 100dvh; padding: 24px; }
+  .right-content { max-width: 460px; }
+  .mobile-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+    color: var(--public-heading);
+    font-size: 20px;
+    font-weight: 750;
+  }
+  .mobile-brand svg { color: var(--public-coral); }
+  .mobile-brand small { flex-basis: 100%; text-align: center; color: var(--public-muted); font-size: 12px; font-weight: 500; }
+}
+@media (max-width: 520px) {
+  .right-side { padding: 14px; }
+  .right-content { padding: 28px 22px; border-radius: 18px; }
+  .hero-title-brand { gap: 12px; font-size: 0.92em; }
+  .features-grid { grid-template-columns: 1fr; }
+  .stats-row { gap: 14px; flex-wrap: wrap; }
+  .stat-box { flex: 1 1 40%; }
+  .right-footer { margin-top: 24px; }
 }
 </style>

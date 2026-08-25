@@ -32,8 +32,8 @@
   },
   hero: {
     brandTag: 'Hệ thống quản lý tài sản Phòng Lab IoT',
-    title1: 'Quản lý tài sản',
-    title2: 'Phòng Lab IoT',
+    title1: 'Quản lý tài sản Phòng Lab',
+    title2: 'IoT',
     title3: 'Khoa CNTT',
     desc: 'Quản lý thiết bị, mượn trả, bàn giao, kiểm kê, bảo trì và vật tư của Phòng Lab IoT trên một hệ thống thống nhất.',
     feature1Title: 'Tài sản',
