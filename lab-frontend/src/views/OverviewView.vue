@@ -34,79 +34,96 @@
       </a-col>
     </a-row>
 
-    <a-row :gutter="[16, 16]" class="priority-row">
-      <a-col :xs="24" :xl="16">
-        <a-card
-          v-if="isManager"
-          title="Xu hướng mượn thiết bị (6 tháng qua)"
-          :bordered="false"
-          class="chart-card trend-card"
-        >
-          <apexchart type="bar" height="226" :options="barOptions" :series="barSeries"></apexchart>
-        </a-card>
+    <div v-if="!isManager" class="student-overview-grid">
+      <a-card title="Hoạt động gần đây" :bordered="false" class="timeline-card student-activity-card">
+        <a-timeline>
+          <a-timeline-item v-for="(act, index) in stats.activities" :key="index" :color="act.color">
+            <p class="timeline-date">{{ new Date(act.date).toLocaleString('vi-VN') }}</p>
+            <p class="timeline-content">{{ act.message }}</p>
+          </a-timeline-item>
+          <a-empty v-if="!stats.activities.length" description="Chưa có hoạt động nào" />
+        </a-timeline>
+      </a-card>
 
-        <a-card v-else title="Hoạt động gần đây" :bordered="false" class="timeline-card">
-          <a-timeline>
-            <a-timeline-item v-for="(act, index) in stats.activities" :key="index" :color="act.color">
-              <p class="timeline-date">{{ new Date(act.date).toLocaleString('vi-VN') }}</p>
-              <p class="timeline-content">{{ act.message }}</p>
-            </a-timeline-item>
-            <a-empty v-if="!stats.activities.length" description="Chưa có hoạt động nào" />
-          </a-timeline>
-        </a-card>
-      </a-col>
-
-      <a-col :xs="24" :xl="8">
-        <a-card title="Cảnh báo cần xử lý" :bordered="false" class="alert-card priority-alert">
-          <div v-for="(alert, index) in stats.alerts" :key="index" class="compact-alert" :class="alert.level">
-            <div class="compact-alert-icon">
-              <component :is="getAlertIcon(alert.level)" />
-            </div>
-            <div class="compact-alert-content">
-              <div class="compact-alert-title">{{ alert.title }}</div>
-              <div class="compact-alert-desc">{{ alert.message }}</div>
-            </div>
-            <arrow-right-outlined class="compact-alert-arrow" />
+      <a-card title="Cảnh báo cần xử lý" :bordered="false" class="alert-card student-alert-card">
+        <div v-for="(alert, index) in stats.alerts" :key="index" class="compact-alert" :class="alert.level">
+          <div class="compact-alert-icon">
+            <component :is="getAlertIcon(alert.level)" />
           </div>
-          <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <a-card v-if="isManager" title="Thông tin quản trị" :bordered="false" class="admin-info-card">
-      <div class="admin-info-list">
-        <div class="admin-info-item">
-          <team-outlined />
-          <span>Tổng số người dùng</span>
-          <strong>{{ stats.advanced.totalUsers }}</strong>
+          <div class="compact-alert-content">
+            <div class="compact-alert-title">{{ alert.title }}</div>
+            <div class="compact-alert-desc">{{ alert.message }}</div>
+          </div>
+          <arrow-right-outlined class="compact-alert-arrow" />
         </div>
-        <div class="admin-info-item">
-          <pay-circle-outlined />
-          <span>Bồi thường đã thu</span>
-          <strong>{{ formatCurrency(stats.advanced.totalPenalties) }}</strong>
+        <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
+      </a-card>
+
+      <a-card title="Trạng thái thiết bị" :bordered="false" class="chart-card student-status-card">
+        <apexchart type="donut" height="220" :options="pieOptions" :series="pieSeries"></apexchart>
+      </a-card>
+    </div>
+
+    <template v-else>
+      <a-row :gutter="[16, 16]" class="priority-row">
+        <a-col :xs="24" :xl="16">
+          <a-card title="Xu hướng mượn thiết bị (6 tháng qua)" :bordered="false" class="chart-card trend-card">
+            <apexchart type="bar" height="226" :options="barOptions" :series="barSeries"></apexchart>
+          </a-card>
+        </a-col>
+
+        <a-col :xs="24" :xl="8">
+          <a-card title="Cảnh báo cần xử lý" :bordered="false" class="alert-card priority-alert">
+            <div v-for="(alert, index) in stats.alerts" :key="index" class="compact-alert" :class="alert.level">
+              <div class="compact-alert-icon">
+                <component :is="getAlertIcon(alert.level)" />
+              </div>
+              <div class="compact-alert-content">
+                <div class="compact-alert-title">{{ alert.title }}</div>
+                <div class="compact-alert-desc">{{ alert.message }}</div>
+              </div>
+              <arrow-right-outlined class="compact-alert-arrow" />
+            </div>
+            <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
+          </a-card>
+        </a-col>
+      </a-row>
+
+      <a-card title="Thông tin quản trị" :bordered="false" class="admin-info-card">
+        <div class="admin-info-list">
+          <div class="admin-info-item">
+            <team-outlined />
+            <span>Tổng số người dùng</span>
+            <strong>{{ stats.advanced.totalUsers }}</strong>
+          </div>
+          <div class="admin-info-item">
+            <pay-circle-outlined />
+            <span>Bồi thường đã thu</span>
+            <strong>{{ formatCurrency(stats.advanced.totalPenalties) }}</strong>
+          </div>
         </div>
-      </div>
-    </a-card>
+      </a-card>
 
-    <a-row :gutter="[16, 16]" class="secondary-row">
-      <a-col :xs="24" :xl="16">
-        <a-card v-if="isManager" title="Hoạt động gần đây" :bordered="false" class="timeline-card">
-          <a-timeline>
-            <a-timeline-item v-for="(act, index) in stats.activities" :key="index" :color="act.color">
-              <p class="timeline-date">{{ new Date(act.date).toLocaleString('vi-VN') }}</p>
-              <p class="timeline-content">{{ act.message }}</p>
-            </a-timeline-item>
-            <a-empty v-if="!stats.activities.length" description="Chưa có hoạt động nào" />
-          </a-timeline>
-        </a-card>
-      </a-col>
+      <a-row :gutter="[16, 16]" class="secondary-row">
+        <a-col :xs="24" :xl="16">
+          <a-card title="Hoạt động gần đây" :bordered="false" class="timeline-card">
+            <a-timeline>
+              <a-timeline-item v-for="(act, index) in stats.activities" :key="index" :color="act.color">
+                <p class="timeline-date">{{ new Date(act.date).toLocaleString('vi-VN') }}</p>
+                <p class="timeline-content">{{ act.message }}</p>
+              </a-timeline-item>
+              <a-empty v-if="!stats.activities.length" description="Chưa có hoạt động nào" />
+            </a-timeline>
+          </a-card>
+        </a-col>
 
-      <a-col :xs="24" :xl="8">
-        <a-card title="Trạng thái thiết bị" :bordered="false" class="chart-card">
-          <apexchart type="donut" height="220" :options="pieOptions" :series="pieSeries"></apexchart>
-        </a-card>
-      </a-col>
-    </a-row>
+        <a-col :xs="24" :xl="8">
+          <a-card title="Trạng thái thiết bị" :bordered="false" class="chart-card">
+            <apexchart type="donut" height="220" :options="pieOptions" :series="pieSeries"></apexchart>
+          </a-card>
+        </a-col>
+      </a-row>
+    </template>
   </div>
 </template>
 
@@ -328,15 +345,10 @@ onMounted(async () => {
 
 .priority-row {
   align-items: stretch;
-  margin-top: 0;
 }
 
 .priority-row :deep(.ant-col) {
   display: flex;
-}
-
-.secondary-row {
-  margin-top: 16px;
 }
 
 .chart-card,
@@ -377,17 +389,11 @@ onMounted(async () => {
   padding: 16px 20px;
 }
 
-.trend-card,
-.priority-alert {
-  min-height: 314px;
-}
-
 .trend-card :deep(.ant-card-body) {
   padding: 16px 20px 8px;
 }
 
 .compact-alert {
-  min-height: 80px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -508,6 +514,21 @@ onMounted(async () => {
   font-weight: 500;
 }
 
+.student-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.student-overview-grid > .ant-card {
+  min-width: 0;
+}
+
+.student-status-card {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 991px) {
   .header h2 {
     font-size: 26px;
@@ -517,9 +538,12 @@ onMounted(async () => {
     display: block;
   }
 
-  .trend-card,
-  .priority-alert {
-    min-height: auto;
+  .student-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-status-card {
+    grid-column: auto;
   }
 }
 
