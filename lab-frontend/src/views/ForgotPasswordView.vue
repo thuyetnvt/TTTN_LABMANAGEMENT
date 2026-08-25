@@ -6,7 +6,7 @@
           <div class="logo">
             <experiment-outlined />
             <span>LabManagement</span>
-            <span class="platform-tag">Nền tảng</span>
+            <span class="platform-tag">Phòng Lab IoT</span>
           </div>
           <div class="tag-pill">{{ $t('hero.brandTag') }}</div>
         </div>
@@ -52,20 +52,20 @@
           <div class="stats-title">{{ $t('hero.statsTitle') }}</div>
           <div class="stats-row">
             <div class="stat-box">
-              <h3>IoT</h3>
-              <p>Siêu dữ liệu thiết bị</p>
+              <h3>Tài sản</h3>
+              <p>Mã, số seri và vị trí</p>
             </div>
             <div class="stat-box">
               <h3>QR</h3>
-              <p>Quét và truy vết tài sản</p>
+              <p>Tra cứu và kiểm kê</p>
             </div>
             <div class="stat-box">
-              <h3>360°</h3>
-              <p>Bàn giao và kiểm kê</p>
+              <h3>Mượn trả</h3>
+              <p>Phê duyệt và bàn giao</p>
             </div>
             <div class="stat-box">
-              <h3>API</h3>
-              <p>Luồng nghiệp vụ thật</p>
+              <h3>Bảo trì</h3>
+              <p>Lịch định kỳ và lịch sử</p>
             </div>
           </div>
         </div>
@@ -102,14 +102,8 @@
         </a-form>
 
         <div class="right-footer">
-          <div class="footer-links">
-            <a href="#">Chính sách bảo mật</a>
-            <span class="divider">|</span>
-            <a href="#">Trợ giúp</a>
-            <span class="divider">|</span>
-            <a href="#">Điều khoản sử dụng</a>
-          </div>
-          <div class="copyright">© 2026 LabManagement. Quản lý phòng thí nghiệm và tài sản.</div>
+          <div class="footer-links">Liên kết đặt lại mật khẩu chỉ được gửi tới email đã đăng ký.</div>
+          <div class="copyright">© 2026 LabManagement — Phòng Lab IoT, Khoa Công nghệ Thông tin.</div>
         </div>
       </div>
     </div>

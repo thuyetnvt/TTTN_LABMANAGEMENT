@@ -7,7 +7,7 @@
         <div class="brand-header">
           <div class="logo">
             <experiment-outlined /> <span>LabManagement</span>
-            <span class="platform-tag">Nền tảng</span>
+            <span class="platform-tag">Phòng Lab IoT</span>
           </div>
           <div class="tag-pill">{{ $t('hero.brandTag') }}</div>
         </div>
@@ -58,20 +58,20 @@
           <div class="stats-title">{{ $t('hero.statsTitle') }}</div>
           <div class="stats-row">
             <div class="stat-box">
-              <h3>IoT</h3>
-              <p>Định danh tài sản</p>
+              <h3>Tài sản</h3>
+              <p>Mã, số seri và vị trí</p>
             </div>
             <div class="stat-box">
               <h3>QR</h3>
-              <p>Kiểm kê và bàn giao</p>
+              <p>Tra cứu và kiểm kê</p>
             </div>
             <div class="stat-box">
-              <h3>360°</h3>
-              <p>Theo dõi vòng đời</p>
+              <h3>Mượn trả</h3>
+              <p>Phê duyệt và bàn giao</p>
             </div>
             <div class="stat-box">
-              <h3>API</h3>
-              <p>Dữ liệu kết nối thật</p>
+              <h3>Bảo trì</h3>
+              <p>Lịch định kỳ và lịch sử</p>
             </div>
           </div>
         </div>
@@ -118,21 +118,15 @@
 
           <!-- Liên kết phụ -->
           <div class="extra-links">
-            {{ $t('login.noAccount') }} <a href="mailto:support@labmanagement.edu.vn" class="contact-admin">{{ $t('login.contactAdmin') }}</a>
+            {{ $t('login.noAccount') }} <span class="contact-admin">{{ $t('login.contactAdmin') }}</span>
             <br><br>
             <router-link to="/" class="back-link">Trang chủ</router-link>
           </div>
         </a-form>
 
         <div class="right-footer">
-          <div class="footer-links">
-            <a href="#">Chính sách bảo mật</a>
-            <span class="divider">|</span>
-            <a href="#">Trợ giúp</a>
-            <span class="divider">|</span>
-            <a href="#">Điều khoản sử dụng</a>
-          </div>
-          <div class="copyright">© 2026 LabManagement. Quản lý phòng thí nghiệm và tài sản.</div>
+          <div class="footer-links">Tài khoản và dữ liệu được quản lý theo phân quyền của hệ thống.</div>
+          <div class="copyright">© 2026 LabManagement — Phòng Lab IoT, Khoa Công nghệ Thông tin.</div>
         </div>
       </div>
     </div>
