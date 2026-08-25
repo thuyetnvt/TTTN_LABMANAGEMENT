@@ -33,7 +33,13 @@
                 <template v-else-if="statusMatches(record.status, STATUS.BORROWED)">
                   <a-button type="primary" ghost size="small" @click="showHandoverModal(record)">Bàn giao</a-button>
                   <a-button type="default" size="small" @click="showReturnModal(record)">Kiểm tra trả</a-button>
-                  <a-button type="primary" size="small" @click="handleRemind(record)">Nhắc trả</a-button>
+                  <a-button
+                    type="primary"
+                    size="small"
+                    :loading="isReminding(record.id)"
+                    :disabled="isReminding(record.id)"
+                    @click="handleRemind(record)"
+                  >Nhắc trả</a-button>
                 </template>
               </a-space>
             </template>
@@ -193,6 +199,7 @@ import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import { HANDOVER_CONDITIONS, STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { handoverApi } from '../api/handoverApi'
+import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -210,6 +217,7 @@ const handoverEvidenceFile = ref(null)
 const handoverEvidenceType = ref('PHOTO')
 const handoverEvidencePreviewUrl = ref('')
 const handoverAt = ref(new Date())
+const remindingRecordIds = ref(new Set())
 const returnForm = ref({
   condition: STATUS.AVAILABLE,
   note: '',
@@ -242,6 +250,7 @@ const formatFileSize = (bytes) => {
 }
 const borrowRecordCode = computed(() => currentHandoverRecord.value?.id ? `BR-${String(currentHandoverRecord.value.id).padStart(6, '0')}` : '—')
 const completedHandoverItems = computed(() => handoverForm.value.items.filter(item => Boolean(item.condition)).length)
+const isReminding = id => remindingRecordIds.value.has(id)
 
 const fetchRequests = async () => {
   loading.value = true
@@ -260,7 +269,7 @@ const handleApprove = async (record) => {
     message.success(`Đã duyệt cho ${record.student} mượn tài sản!`)
     fetchRequests()
   } catch (error) {
-    message.error(error?.response?.data?.message || 'Lỗi duyệt yêu cầu!')
+    message.error(getApiErrorMessage(error, 'Lỗi duyệt yêu cầu!'))
   }
 }
 
@@ -422,19 +431,27 @@ const submitHandover = async () => {
     isHandoverModalVisible.value = false
     clearHandoverEvidence()
   } catch (error) {
-    message.error(error.response?.data?.message || 'Không thể lập biên bản bàn giao!')
+    message.error(getApiErrorMessage(error, 'Không thể lập biên bản bàn giao!'))
   } finally { handoverSubmitting.value = false }
 }
 
 onBeforeUnmount(clearHandoverEvidence)
 
 const handleRemind = async (record) => {
+  if (isReminding(record.id)) return
+
+  remindingRecordIds.value = new Set(remindingRecordIds.value).add(record.id)
+  const messageKey = `remind-${record.id}`
   try {
-    message.loading({ content: 'Đang gửi nhắc trả...', key: 'remind' })
-    await borrowApi.remind(record.id)
-    message.success({ content: 'Đã gửi email nhắc trả!', key: 'remind' })
+    message.loading({ content: 'Đang gửi nhắc trả...', key: messageKey })
+    const result = await borrowApi.remind(record.id)
+    message.success({ content: getApiSuccessMessage(result, 'Đã gửi email nhắc trả thành công.'), key: messageKey })
   } catch (error) {
-    message.error({ content: error.response?.data || 'Lỗi khi gửi email nhắc trả!', key: 'remind' })
+    message.error({ content: getApiErrorMessage(error, 'Không thể gửi nhắc trả.'), key: messageKey })
+  } finally {
+    const nextIds = new Set(remindingRecordIds.value)
+    nextIds.delete(record.id)
+    remindingRecordIds.value = nextIds
   }
 }
 </script>

@@ -42,6 +42,7 @@ import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole, isManagerRole } from '../constants/business'
+import { getApiErrorMessage } from '../utils/apiError'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -105,7 +106,7 @@ const submitForm = async () => {
     isFormVisible.value = false
     fetchData()
   } catch (error) {
-    message.error(error?.response?.data || 'Lỗi khi lưu danh mục!')
+    message.error(getApiErrorMessage(error, 'Lỗi khi lưu danh mục!'))
   } finally {
     submitting.value = false
   }
@@ -124,7 +125,7 @@ const handleDelete = (record) => {
         message.success('Đã xóa danh mục!')
         fetchData()
       } catch (error) {
-        message.error(error?.response?.data || 'Không thể xóa danh mục!')
+        message.error(getApiErrorMessage(error, 'Không thể xóa danh mục!'))
       }
     }
   })

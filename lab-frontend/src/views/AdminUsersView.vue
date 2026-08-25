@@ -35,6 +35,7 @@ import UserForm from '../components/UserForm.vue'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole } from '../constants/business'
+import { getApiErrorMessage } from '../utils/apiError'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -96,7 +97,7 @@ const handleDelete = (record) => {
         message.success(`Đã xóa tài khoản: ${record.username}`)
         fetchUsers()
       } catch (error) {
-        message.error(error?.response?.data || 'Lỗi khi xóa tài khoản!')
+        message.error(getApiErrorMessage(error, 'Lỗi khi xóa tài khoản!'))
       }
     }
   })
@@ -117,10 +118,8 @@ const handleModalOk = async () => {
     isModalVisible.value = false
     fetchUsers()
   } catch (error) {
-    if (error?.response?.data) {
-      message.error(error.response.data)
-    } else if (!error.errorFields) {
-      message.error('Có lỗi xảy ra!')
+    if (!error.errorFields) {
+      message.error(getApiErrorMessage(error, 'Có lỗi xảy ra!'))
     }
   } finally {
     submitting.value = false

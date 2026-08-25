@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createPinia, setActivePinia } from 'pinia'
 import { ROLE_LABELS, STATUS, normalizeStatus, roleLabel, statusLabel, statusMatches } from '../src/constants/business.js'
 import { useNotificationStore } from '../src/stores/notificationStore.js'
+import { getApiErrorMessage, getApiSuccessMessage } from '../src/utils/apiError.js'
 
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
@@ -27,4 +28,30 @@ test('notification store dedupe realtime và chỉ tăng unread một lần', ()
   assert.equal(store.handleRealtimeNotification(payload), false)
   assert.equal(store.unreadCount, 1)
   assert.equal(store.items.length, 1)
+})
+
+test('lấy message backend khi gửi nhắc trả thành công', () => {
+  assert.equal(
+    getApiSuccessMessage({ message: 'SMTP đã gửi email.' }, 'Đã gửi email nhắc trả thành công.'),
+    'SMTP đã gửi email.'
+  )
+  assert.equal(
+    getApiSuccessMessage({}, 'Đã gửi email nhắc trả thành công.'),
+    'Đã gửi email nhắc trả thành công.'
+  )
+})
+
+test('không hiển thị [object Object] khi response lỗi là object', () => {
+  assert.equal(
+    getApiErrorMessage({ response: { data: { message: 'Người mượn chưa có email.' } } }, 'Không thể gửi nhắc trả.'),
+    'Người mượn chưa có email.'
+  )
+  assert.equal(
+    getApiErrorMessage({ response: { data: { code: 'SMTP_NOT_CONFIGURED' } }, message: 'SMTP chưa cấu hình.' }, 'Không thể gửi nhắc trả.'),
+    'SMTP chưa cấu hình.'
+  )
+  assert.equal(
+    getApiErrorMessage({ response: { data: { message: { detail: 'not-a-string' } } }, message: 'Mất kết nối.' }, 'Không thể gửi nhắc trả.'),
+    'Mất kết nối.'
+  )
 })

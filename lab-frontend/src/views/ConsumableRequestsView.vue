@@ -34,6 +34,7 @@ import { consumableRequestApi } from '../api/consumableRequestApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import { STATUS, isManagerRole, statusMatches } from '../constants/business'
+import { getApiErrorMessage } from '../utils/apiError'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -72,7 +73,7 @@ const handleApprove = async (id) => {
     message.success('Đã duyệt và trừ số lượng vật tư!')
     fetchData()
   } catch (error) {
-    message.error(error?.response?.data || 'Không đủ số lượng vật tư trong kho!')
+    message.error(getApiErrorMessage(error, 'Không đủ số lượng vật tư trong kho!'))
   }
 }
 
