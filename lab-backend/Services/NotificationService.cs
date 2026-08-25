@@ -41,10 +41,19 @@ public sealed class NotificationService : INotificationService
         }).ToList();
         _context.Notifications.AddRange(notifications);
         await _context.SaveChangesAsync(cancellationToken);
-        foreach (var userId in ids)
+        foreach (var notification in notifications)
         {
-            await _hubContext.Clients.User(userId.ToString())
-                .SendAsync("ReceiveNotification", new { title, message, url }, cancellationToken);
+            await _hubContext.Clients.User(notification.UserId.ToString())
+                .SendAsync("ReceiveNotification", new
+                {
+                    notification.Id,
+                    notification.Type,
+                    notification.Title,
+                    notification.Message,
+                    notification.Url,
+                    notification.IsRead,
+                    notification.CreatedAt
+                }, cancellationToken);
         }
     }
 

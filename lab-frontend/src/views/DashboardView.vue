@@ -132,21 +132,49 @@
           <div class="action-icons">
             <!-- Dark mode removed -->
 
-            <a-popover v-model:open="notificationOpen" trigger="click" placement="bottomRight">
+            <a-popover
+              v-model:open="notificationOpen"
+              trigger="click"
+              placement="bottomRight"
+              overlay-class-name="notification-overlay"
+            >
               <template #content>
-                <div class="notification-popover">
-                  <div class="notification-popover-header"><strong>Thông báo</strong><a @click="router.push({ name: 'Notifications' }); notificationOpen = false">Xem tất cả</a></div>
-                  <a-list :data-source="notifications.slice(0, 5)" size="small">
+                <div class="notification-popover" data-testid="notification-popover">
+                  <div class="notification-popover-header" data-testid="notification-popover-header">
+                    <strong>Thông báo</strong>
+                    <a-button v-if="notificationStore.hasUnread" type="link" size="small" @click.stop="markAllNotifications">Đánh dấu tất cả đã đọc</a-button>
+                  </div>
+                  <div class="notification-popover-list" data-testid="notification-popover-list">
+                    <a-skeleton v-if="notificationStore.loading" active :paragraph="{ rows: 4 }" />
+                    <a-alert v-else-if="notificationStore.error" type="error" show-icon :message="notificationStore.error">
+                      <template #action><a-button size="small" @click="notificationStore.fetchRecent(true)">Thử lại</a-button></template>
+                    </a-alert>
+                    <a-list v-else-if="notificationStore.recentItems.length" :data-source="notificationStore.recentItems" size="small">
                     <template #renderItem="{ item }">
-                      <a-list-item :class="{ unread: !item.isRead }" @click="openNotification(item)">
-                        <a-list-item-meta :title="item.title" :description="item.message" />
+                      <a-list-item :class="['notification-item', { 'notification-item-unread': !item.isRead }]" tabindex="0" role="button" @click="openNotification(item)" @keydown.enter="openNotification(item)">
+                        <template #extra><span class="notification-dot" :aria-hidden="item.isRead" /></template>
+                        <a-list-item-meta>
+                          <template #avatar><span class="notification-type-icon"><component :is="notificationIcon(item.type)" /></span></template>
+                          <template #title>
+                            <span class="notification-item-title">{{ item.title }}</span>
+                            <a-tag class="notification-type-tag">{{ notificationTypeLabel(item.type) }}</a-tag>
+                          </template>
+                          <template #description>
+                            <span class="notification-item-description">{{ item.message }}</span>
+                            <span class="notification-item-time">{{ formatRelativeTime(item.createdAt) }}</span>
+                          </template>
+                        </a-list-item-meta>
                       </a-list-item>
                     </template>
-                  </a-list>
-                  <a-empty v-if="!notifications.length" description="Chưa có thông báo" :image-style="{ height: '40px' }" />
+                    </a-list>
+                    <a-empty v-else description="Chưa có thông báo" :image-style="{ height: '40px' }" />
+                  </div>
+                  <div class="notification-popover-footer" data-testid="notification-popover-footer">
+                    <a-button type="link" @click="goToNotifications">Xem tất cả thông báo</a-button>
+                  </div>
                 </div>
               </template>
-              <NotificationBell :unread-count="unreadCount" />
+              <NotificationBell :unread-count="notificationStore.unreadCount" @open="handleNotificationOpen" />
             </a-popover>
           </div>
           <AccountMenu
@@ -287,10 +315,11 @@ import { notification } from 'ant-design-vue'
 import * as signalR from '@microsoft/signalr'
 import { equipmentApi } from '../api/equipmentApi'
 import { userApi } from '../api/userApi'
-import { notificationApi } from '../api/notificationApi'
 import { isAdminRole, isBorrowerRole, isManagerRole, isTeacherRole, roleLabel } from '../constants/business'
 import NotificationBell from '../components/NotificationBell.vue'
 import AccountMenu from '../components/AccountMenu.vue'
+import { useNotificationStore } from '../stores/notificationStore'
+import { formatRelativeTime, notificationIcon, notificationTypeLabel } from '../utils/notificationUtils'
 
 // Dark mode logic removed
 
@@ -312,6 +341,7 @@ onUnmounted(() => {
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 const role = computed(() => authStore.role)
 const collapsed = ref(false)
 const searchShortcut = computed(() => {
@@ -353,20 +383,10 @@ const passwordForm = ref({
 })
 const searchQuery = ref('')
 const searchData = ref([])
-const notifications = ref([])
-const unreadCount = ref(0)
 const notificationOpen = ref(false)
 const accountProfile = ref({ username: '', fullName: '' })
 const accountDisplayName = computed(() => accountProfile.value.fullName || accountProfile.value.username || 'Tài khoản')
 const accountInitials = computed(() => accountDisplayName.value.trim().charAt(0).toUpperCase() || role.value.charAt(0).toUpperCase())
-
-const loadNotifications = async () => {
-  try {
-    notifications.value = await notificationApi.getAll() || []
-    const result = await notificationApi.getUnreadCount()
-    unreadCount.value = result?.count || 0
-  } catch (error) { console.error('Lỗi tải thông báo', error) }
-}
 
 const loadAccountProfile = async () => {
   try {
@@ -376,14 +396,33 @@ const loadAccountProfile = async () => {
   }
 }
 
+const handleNotificationOpen = () => {
+  notificationOpen.value = true
+  notificationStore.fetchRecent().catch(() => {})
+}
+
+const goToNotifications = () => {
+  notificationOpen.value = false
+  router.push({ name: 'Notifications' })
+}
+
 const openNotification = async item => {
-  if (!item.isRead) {
-    await notificationApi.markRead(item.id)
-    item.isRead = true
-    unreadCount.value = Math.max(0, unreadCount.value - 1)
+  try {
+    await notificationStore.markRead(item.id)
+  } catch (error) {
+    notification.error({ message: 'Không thể cập nhật thông báo', description: error?.message || 'Vui lòng thử lại.' })
+    return
   }
   notificationOpen.value = false
-  if (item.url) router.push(item.url)
+  if (typeof item.url === 'string' && item.url.startsWith('/')) router.push(item.url)
+}
+
+const markAllNotifications = async () => {
+  try {
+    await notificationStore.markAllRead()
+  } catch (error) {
+    notification.error({ message: 'Không thể cập nhật thông báo', description: error?.message || 'Vui lòng thử lại.' })
+  }
 }
 
 const loadSearchData = async () => {
@@ -420,7 +459,7 @@ const handleSelectSearchResult = (item) => {
 let hubConnection = null
 
 onMounted(() => {
-  loadNotifications()
+  notificationStore.fetchRecent().catch(() => {})
   loadAccountProfile()
   // Kết nối SignalR
   const signalRUrl = import.meta.env.VITE_SIGNALR_URL || 'http://localhost:5248/notificationHub'
@@ -432,14 +471,14 @@ onMounted(() => {
     .build()
 
   hubConnection.on('ReceiveNotification', (payload) => {
-    const text = typeof payload === 'string' ? payload : payload?.message
-    notification.info({
-      message: 'Thông báo mới',
-      description: text,
-      placement: 'topRight',
-      duration: 5
-    })
-    loadNotifications()
+    if (notificationStore.handleRealtimeNotification(payload)) {
+      notification.info({
+        message: 'Thông báo mới',
+        description: typeof payload === 'string' ? payload : payload?.message,
+        placement: 'topRight',
+        duration: 5
+      })
+    }
   })
 
   hubConnection.start()
@@ -820,6 +859,84 @@ const submitChangePassword = async () => {
   height: calc(100vh - 64px);
   overflow-y: auto;
   min-height: 0;
+}
+
+:global(.notification-overlay) { max-width: calc(100vw - 24px); }
+:global(.notification-overlay .ant-popover-inner) { padding: 0; overflow: hidden; border-radius: 14px; }
+:global(.notification-overlay .ant-popover-inner-content) { padding: 0; }
+:global(.notification-popover) {
+  width: min(400px, calc(100vw - 24px));
+  max-height: min(600px, calc(100vh - 24px));
+  display: flex;
+  flex-direction: column;
+  color: var(--color-ink);
+}
+:global(.notification-popover-header),
+:global(.notification-popover-footer) {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+}
+:global(.notification-popover-header) { border-bottom: 1px solid var(--color-border); }
+:global(.notification-popover-header strong) { font-size: 16px; }
+:global(.notification-popover-footer) { justify-content: center; border-top: 1px solid var(--color-border); }
+:global(.notification-popover-list) { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 8px; }
+:global(.notification-popover-list .ant-list-item) { border: 0; }
+:global(.notification-item) {
+  position: relative;
+  display: block !important;
+  padding: 11px 10px !important;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+:global(.notification-item:hover),
+:global(.notification-item:focus-visible) { background: rgba(217, 119, 87, 0.08); outline: none; }
+:global(.notification-item-unread) { background: rgba(217, 119, 87, 0.08); }
+:global(.notification-item .ant-list-item-meta) { min-width: 0; }
+:global(.notification-item .ant-list-item-meta-title) { margin-bottom: 2px !important; }
+:global(.notification-item .ant-list-item-meta-description) { color: var(--color-secondary); }
+:global(.notification-type-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--color-primary);
+  background: rgba(217, 119, 87, 0.12);
+}
+:global(.notification-item-title) {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+:global(.notification-type-tag) { margin-inline-start: 6px; color: var(--color-primary); border-color: rgba(217, 119, 87, .25); background: transparent; }
+:global(.notification-item-description) {
+  display: block;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+:global(.notification-item-time) { display: block; margin-top: 3px; font-size: 11px; color: var(--color-secondary); }
+:global(.notification-dot) { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--color-primary); }
+:global(.notification-item:not(.notification-item-unread) .notification-dot) { visibility: hidden; }
+
+@media (max-width: 520px) {
+  :global(.notification-overlay) { inset-inline: 12px !important; width: auto !important; }
+  :global(.notification-overlay .ant-popover-arrow) { display: none; }
+  :global(.notification-popover) { width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
+  :global(.notification-popover-header),
+  :global(.notification-popover-footer) { padding: 12px; }
 }
 /* Command Palette Modal Styles */
 :global(.cmd-palette .ant-modal-content) {

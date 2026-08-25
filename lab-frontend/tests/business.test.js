@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createPinia, setActivePinia } from 'pinia'
 import { ROLE_LABELS, STATUS, normalizeStatus, roleLabel, statusLabel, statusMatches } from '../src/constants/business.js'
+import { useNotificationStore } from '../src/stores/notificationStore.js'
 
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
@@ -14,4 +16,15 @@ test('chuẩn hóa trạng thái cũ nhưng giữ mã ổn định', () => {
   assert.equal(normalizeStatus('Đang mượn'), STATUS.BORROWED)
   assert.equal(statusMatches('Đang mượn', STATUS.BORROWED), true)
   assert.equal(statusMatches(STATUS.BROKEN, STATUS.AVAILABLE), false)
+})
+
+test('notification store dedupe realtime và chỉ tăng unread một lần', () => {
+  setActivePinia(createPinia())
+  const store = useNotificationStore()
+  const payload = { id: 9001, type: 'BORROW_PENDING', title: 'Yêu cầu mới', message: 'Kiểm thử', url: '' }
+
+  assert.equal(store.handleRealtimeNotification(payload), true)
+  assert.equal(store.handleRealtimeNotification(payload), false)
+  assert.equal(store.unreadCount, 1)
+  assert.equal(store.items.length, 1)
 })

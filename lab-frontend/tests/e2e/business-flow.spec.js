@@ -7,6 +7,7 @@ const apiBaseUrl = `${frontendBaseUrl.replace(/\/$/, '')}/api`
 test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiểm kê QR', async ({ page, request }) => {
   test.setTimeout(180000)
   test.skip(!businessFlowEnabled, 'Đặt E2E_BUSINESS_FLOW=1 để chạy flow nghiệp vụ có ghi dữ liệu test.')
+  test.skip(process.env.E2E_TEST_DATABASE !== '1', 'Business E2E chỉ được chạy khi E2E_TEST_DATABASE=1 để không ghi dữ liệu vào môi trường thật.')
   const apiOnly = process.env.E2E_BUSINESS_API_ONLY === '1'
 
   const password = process.env.E2E_BUSINESS_PASSWORD || process.env.E2E_ADMIN_PASSWORD
