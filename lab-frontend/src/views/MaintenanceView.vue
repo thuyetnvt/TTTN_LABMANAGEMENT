@@ -20,14 +20,15 @@
           </template>
           <template v-if="column.key === 'action'">
               <a-space>
-                <a-button
-                  v-if="statusMatches(record.status, STATUS.MAINTENANCE_IN_PROGRESS)"
-                  type="primary"
-                  size="small"
-                  @click="showCompleteModal(record)"
-                >
-                  Hoàn tất
-                </a-button>
+                <a-tooltip v-if="statusMatches(record.status, STATUS.MAINTENANCE_IN_PROGRESS)" title="Hoàn tất bảo trì">
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="showCompleteModal(record)"
+                  >
+                    <template #icon><CheckCircleOutlined /></template>
+                  </a-button>
+                </a-tooltip>
                 <a-tooltip v-if="isAdminRole(role) && statusMatches(record.status, STATUS.MAINTENANCE_COMPLETED)" title="Xóa phiếu bảo trì">
                   <a-button
                     type="link"
@@ -186,7 +187,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { message, Upload } from 'ant-design-vue'
-import { DeleteOutlined } from '@ant-design/icons-vue'
+import { DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { maintenanceApi } from '../api/maintenanceApi'
 import { equipmentApi } from '../api/equipmentApi'

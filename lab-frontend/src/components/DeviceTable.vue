@@ -83,7 +83,9 @@
           <a-button v-if="isAdminRole(role)" type="link" danger size="small" @click="handleDelete(record.id)" title="Xóa">
             <template #icon><DeleteOutlined /></template>
           </a-button>
-          <a-button v-if="isManagerRole(role)" type="link" size="small" @click="handleInventory(record)">Kiểm kê</a-button>
+          <a-button v-if="isManagerRole(role)" type="link" size="small" @click="handleInventory(record)" title="Kiểm kê">
+            <template #icon><ScanOutlined /></template>
+          </a-button>
           <a-button v-if="isBorrowerRole(role) && statusMatches(record.status, STATUS.AVAILABLE)" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
         </a-space>
       </template>
@@ -135,7 +137,7 @@
   </a-modal>
 
   <a-modal v-model:open="isScannerVisible" :title="inventoryScannerMode ? 'Quét QR kiểm kê' : 'Quét QR để mượn'" :footer="null" @cancel="stopScanner" centered>
-    <div id="qr-reader" style="width: 100%;"></div>
+    <QRScanner ref="qrScannerRef" @scan-success="onScanSuccess" />
   </a-modal>
 
   <a-modal v-model:open="isBorrowVisible" title="Yêu cầu mượn tài sản" @ok="submitBorrowRequest" okText="Gửi yêu cầu" cancelText="Hủy" :confirmLoading="borrowSubmitting">
@@ -296,12 +298,12 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import QrcodeVue from 'qrcode.vue'
-import { Html5QrcodeScanner } from 'html5-qrcode'
+import QRScanner from './QRScanner.vue'
 import { message, Modal, Upload } from 'ant-design-vue'
 import StatusBadge from './StatusBadge.vue'
 import LocationTreeSelect from './LocationTreeSelect.vue'
 import { STATUS, isAdminRole, isBorrowerRole, isManagerRole, isStudentRole, statusLabel, statusMatches } from '../constants/business'
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, DeleteOutlined, EyeOutlined, ScanOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { equipmentApi } from '../api/equipmentApi'
 import { borrowApi } from '../api/borrowApi'
@@ -831,19 +833,16 @@ const submitBorrowRequest = async () => {
   }
 }
 
+const qrScannerRef = ref(null)
+
 const showScannerModal = (mode = 'borrow') => {
   inventoryScannerMode.value = mode === 'inventory'
   isScannerVisible.value = true
-  nextTick(() => {
-    html5QrcodeScanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: { width: 250, height: 250 } }, false)
-    html5QrcodeScanner.render(onScanSuccess, () => {})
-  })
 }
 
 const stopScanner = () => {
-  if (html5QrcodeScanner) {
-    html5QrcodeScanner.clear().catch(error => console.error('Failed to clear QR scanner', error))
-    html5QrcodeScanner = null
+  if (qrScannerRef.value) {
+    qrScannerRef.value.stopScanning()
   }
 }
 

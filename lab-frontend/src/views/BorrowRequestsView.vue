@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="borrow-requests-container">
     <div class="toolbar">
       <h2>Duyệt yêu cầu mượn/trả</h2>
@@ -226,8 +226,8 @@ const returnForm = ref({
 })
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'student', key: 'student', width: 130 },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160 },
+  { title: 'Người mượn', dataIndex: 'student', key: 'student', fixed: 'left', width: 130 },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', fixed: 'left', width: 160 },
   { title: 'Danh mục', dataIndex: 'category', key: 'category', width: 110 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
   { title: 'Chi tiết yêu cầu', key: 'details', width: 180 },
