@@ -28,21 +28,56 @@
       </a-table>
     </a-card>
 
-    <a-modal v-model:open="modalOpen" :title="editing ? 'Sửa kế hoạch' : 'Tạo kế hoạch bảo trì'" :confirm-loading="saving" ok-text="Lưu" cancel-text="Hủy" @ok="save">
+    <a-modal
+      v-model:open="modalOpen"
+      :title="editing ? 'Sửa kế hoạch' : 'Tạo kế hoạch bảo trì'"
+      :width="900"
+      :confirm-loading="saving"
+      ok-text="Lưu"
+      cancel-text="Hủy"
+      wrap-class-name="maintenance-form-modal"
+      @ok="save"
+    >
       <a-form layout="vertical">
-        <a-form-item label="Thiết bị" required>
-          <a-select v-model:value="form.equipmentId" show-search option-filter-prop="label" :disabled="!!editing">
-            <a-select-option v-for="equipment in equipments" :key="equipment.id" :value="equipment.id" :label="`${equipment.name} ${equipment.serial}`">{{ equipment.name }} — {{ equipment.serial }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="Tên kế hoạch" required><a-input v-model:value="form.name" placeholder="VD: Hiệu chuẩn hàng quý" /></a-form-item>
-        <a-form-item label="Chu kỳ" required>
-          <a-space style="width: 100%"><a-input-number v-model:value="form.intervalDays" :min="1" :max="3650" /><a-select v-model:value="form.intervalUnit" style="width: 140px"><a-select-option value="DAY">Ngày</a-select-option><a-select-option value="WEEK">Tuần</a-select-option><a-select-option value="MONTH">Tháng</a-select-option><a-select-option value="QUARTER">Quý</a-select-option><a-select-option value="YEAR">Năm</a-select-option></a-select></a-space>
-        </a-form-item>
-        <a-form-item label="Hạn kế tiếp"><a-input v-model:value="form.nextDueAt" type="date" /></a-form-item>
-        <a-form-item label="Ghi chú"><a-textarea v-model:value="form.notes" :rows="3" /></a-form-item>
-        <a-form-item label="Checklist bảo trì"><a-textarea v-model:value="form.checklist" :rows="4" placeholder="Mỗi dòng một hạng mục kiểm tra" /></a-form-item>
-        <a-form-item v-if="editing" label="Trạng thái"><a-switch v-model:checked="form.isActive" checked-children="Bật" un-checked-children="Tắt" /></a-form-item>
+        <div class="maintenance-form-grid">
+          <div class="form-column">
+            <a-form-item label="Thiết bị" required>
+              <a-select v-model:value="form.equipmentId" show-search option-filter-prop="label" :disabled="!!editing">
+                <a-select-option v-for="equipment in equipments" :key="equipment.id" :value="equipment.id" :label="`${equipment.name} ${equipment.serial}`">{{ equipment.name }} — {{ equipment.serial }}</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="Tên kế hoạch" required>
+              <a-input v-model:value="form.name" placeholder="VD: Hiệu chuẩn hàng quý" />
+            </a-form-item>
+            <a-form-item label="Chu kỳ" required>
+              <a-space class="maintenance-cycle-fields">
+                <a-input-number v-model:value="form.intervalDays" :min="1" :max="3650" />
+                <a-select v-model:value="form.intervalUnit">
+                  <a-select-option value="DAY">Ngày</a-select-option>
+                  <a-select-option value="WEEK">Tuần</a-select-option>
+                  <a-select-option value="MONTH">Tháng</a-select-option>
+                  <a-select-option value="QUARTER">Quý</a-select-option>
+                  <a-select-option value="YEAR">Năm</a-select-option>
+                </a-select>
+              </a-space>
+            </a-form-item>
+            <a-form-item label="Hạn kế tiếp">
+              <a-input v-model:value="form.nextDueAt" type="date" />
+            </a-form-item>
+          </div>
+
+          <div class="form-column">
+            <a-form-item label="Ghi chú">
+              <a-textarea v-model:value="form.notes" :rows="5" placeholder="Ghi chú cho kế hoạch bảo trì" />
+            </a-form-item>
+            <a-form-item label="Checklist bảo trì">
+              <a-textarea v-model:value="form.checklist" :rows="5" placeholder="Mỗi dòng một hạng mục kiểm tra" />
+            </a-form-item>
+            <a-form-item v-if="editing" label="Trạng thái">
+              <a-switch v-model:checked="form.isActive" checked-children="Bật" un-checked-children="Tắt" />
+            </a-form-item>
+          </div>
+        </div>
       </a-form>
     </a-modal>
   </div>
@@ -124,4 +159,50 @@ onMounted(async () => { equipments.value = await equipmentApi.getAll() || []; aw
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 h2 { margin: 0; }
 .muted { margin: 5px 0 0; color: #777; }
+
+:global(.maintenance-form-modal .ant-modal) {
+  max-width: calc(100vw - 32px);
+}
+
+:global(.maintenance-form-modal .ant-modal-footer) {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.maintenance-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
+  align-items: start;
+}
+
+.form-column {
+  min-width: 0;
+}
+
+.maintenance-cycle-fields {
+  display: flex;
+  width: 100%;
+}
+
+.maintenance-cycle-fields :deep(.ant-input-number) {
+  flex: 1;
+  min-width: 0;
+}
+
+.maintenance-cycle-fields :deep(.ant-select) {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  :global(.maintenance-form-modal .ant-modal) {
+    max-width: calc(100vw - 32px);
+  }
+
+  .maintenance-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
