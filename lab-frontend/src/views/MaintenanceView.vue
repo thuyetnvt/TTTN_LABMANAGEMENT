@@ -6,7 +6,8 @@
     </div>
     
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
+      <div class="maintenance-desktop-table">
+        <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1450 }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'maintenanceDate'">
              {{ formatDate(record[column.key]) }}
@@ -18,29 +19,91 @@
              <StatusBadge :status="record.status" />
           </template>
           <template v-if="column.key === 'action'">
-            <a-space>
+              <a-space>
+                <a-button
+                  v-if="statusMatches(record.status, STATUS.MAINTENANCE_IN_PROGRESS)"
+                  type="primary"
+                  size="small"
+                  @click="showCompleteModal(record)"
+                >
+                  Hoàn tất
+                </a-button>
+                <a-tooltip v-if="isAdminRole(role) && statusMatches(record.status, STATUS.MAINTENANCE_COMPLETED)" title="Xóa phiếu bảo trì">
+                  <a-button
+                    type="link"
+                    danger
+                    class="table-delete-action"
+                    aria-label="Xóa phiếu bảo trì"
+                    :loading="deleteLoading && deletingId === record.id"
+                    :disabled="deleteLoading"
+                    @click="requestDelete(record.id)"
+                  >
+                    <template #icon><DeleteOutlined /></template>
+                  </a-button>
+                </a-tooltip>
+              </a-space>
+          </template>
+        </template>
+        </a-table>
+      </div>
+
+      <ResponsiveDataList
+        class="maintenance-mobile-list"
+        :items="dataSource"
+        :loading="loading"
+        empty-description="Chưa có lịch sử bảo trì"
+      >
+        <template #default="{ item }">
+          <div class="maintenance-mobile-card">
+            <div class="maintenance-mobile-card-header">
+              <strong>{{ item.device || 'Thiết bị chưa xác định' }}</strong>
+              <StatusBadge :status="item.status" />
+            </div>
+            <div class="maintenance-mobile-details">
+              <div><span>Ngày thực hiện</span><strong>{{ formatDate(item.maintenanceDate) }}</strong></div>
+              <div><span>Người thực hiện</span><strong>{{ item.performedBy || '—' }}</strong></div>
+              <div><span>Chi phí</span><strong>{{ Number(item.cost || 0).toLocaleString('vi-VN') }} VNĐ</strong></div>
+              <div><span>Nội dung</span><strong>{{ item.description || '—' }}</strong></div>
+              <div><span>Kết quả</span><strong>{{ item.result || '—' }}</strong></div>
+            </div>
+            <div class="maintenance-mobile-actions">
               <a-button
-                v-if="statusMatches(record.status, STATUS.MAINTENANCE_IN_PROGRESS)"
+                v-if="statusMatches(item.status, STATUS.MAINTENANCE_IN_PROGRESS)"
                 type="primary"
                 size="small"
-                @click="showCompleteModal(record)"
+                @click="showCompleteModal(item)"
               >
                 Hoàn tất
               </a-button>
-              <a-button
-                v-if="isAdminRole(role) && statusMatches(record.status, STATUS.MAINTENANCE_COMPLETED)"
-                type="link"
-                danger
-                size="small"
-                @click="handleDelete(record.id)"
-              >
-                Xóa
-              </a-button>
-            </a-space>
-          </template>
+              <a-tooltip v-if="isAdminRole(role) && statusMatches(item.status, STATUS.MAINTENANCE_COMPLETED)" title="Xóa phiếu bảo trì">
+                <a-button
+                  type="link"
+                  danger
+                  class="table-delete-action"
+                  aria-label="Xóa phiếu bảo trì"
+                  :loading="deleteLoading && deletingId === item.id"
+                  :disabled="deleteLoading"
+                  @click="requestDelete(item.id)"
+                >
+                  <template #icon><DeleteOutlined /></template>
+                </a-button>
+              </a-tooltip>
+            </div>
+          </div>
         </template>
-      </a-table>
+      </ResponsiveDataList>
     </a-card>
+
+    <ConfirmDialog
+      :open="deleteDialogOpen"
+      title="Xóa lịch sử bảo trì"
+      message="Bạn có chắc chắn muốn xóa phiếu bảo trì này không?"
+      ok-text="Xóa"
+      ok-type="danger"
+      :loading="deleteLoading"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
 
     <a-modal v-model:open="isFormVisible" title="Thêm lịch sử bảo trì" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting" width="700px" wrapClassName="responsive-modal">
       <a-form layout="vertical">
@@ -122,12 +185,15 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { message, Modal, Upload } from 'ant-design-vue'
+import { message, Upload } from 'ant-design-vue'
+import { DeleteOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { maintenanceApi } from '../api/maintenanceApi'
 import { equipmentApi } from '../api/equipmentApi'
 import { consumableApi } from '../api/consumableApi'
 import StatusBadge from '../components/StatusBadge.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { STATUS, isAdminRole, isManagerRole, statusMatches } from '../constants/business'
 
 const authStore = useAuthStore()
@@ -142,6 +208,9 @@ const isFormVisible = ref(false)
 const isCompleteVisible = ref(false)
 const completing = ref(false)
 const completingRecordId = ref(null)
+const deleteDialogOpen = ref(false)
+const deleteLoading = ref(false)
+const deletingId = ref(null)
 const completeResult = ref('')
 const completeStatus = ref(STATUS.AVAILABLE)
 const completeChecklistResult = ref('')
@@ -159,14 +228,14 @@ const formData = ref({
 })
 
 const columns = [
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device' },
-  { title: 'Ngày thực hiện', dataIndex: 'maintenanceDate', key: 'maintenanceDate' },
-  { title: 'Nội dung', dataIndex: 'description', key: 'description' },
-  { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy' },
-  { title: 'Chi phí', dataIndex: 'cost', key: 'cost' },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status' },
-  { title: 'Kết quả', dataIndex: 'result', key: 'result' },
-  { title: 'Hành động', key: 'action', align: 'center' }
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 180 },
+  { title: 'Ngày thực hiện', dataIndex: 'maintenanceDate', key: 'maintenanceDate', width: 140 },
+  { title: 'Nội dung', dataIndex: 'description', key: 'description', width: 320 },
+  { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', width: 170 },
+  { title: 'Chi phí', dataIndex: 'cost', key: 'cost', width: 120 },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160 },
+  { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 280 },
+  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 80 }
 ]
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'
@@ -223,23 +292,32 @@ const submitForm = async () => {
   }
 }
 
-const handleDelete = (id) => {
-  Modal.confirm({
-    title: 'Xóa lịch sử',
-    content: 'Bạn có chắc chắn muốn xóa lịch sử này không?',
-    okText: 'Xóa',
-    okType: 'danger',
-    cancelText: 'Hủy',
-    onOk: async () => {
-      try {
-        await maintenanceApi.delete(id)
-        message.success('Đã xóa thành công!')
-        fetchData()
-      } catch (error) {
-        message.error('Lỗi khi xóa!')
-      }
-    }
-  })
+const requestDelete = (id) => {
+  if (deleteLoading.value) return
+  deletingId.value = id
+  deleteDialogOpen.value = true
+}
+
+const cancelDelete = () => {
+  if (deleteLoading.value) return
+  deleteDialogOpen.value = false
+  deletingId.value = null
+}
+
+const confirmDelete = async () => {
+  if (!deletingId.value || deleteLoading.value) return
+  deleteLoading.value = true
+  try {
+    await maintenanceApi.delete(deletingId.value)
+    message.success('Đã xóa thành công!')
+    deleteDialogOpen.value = false
+    await fetchData()
+  } catch (error) {
+    message.error('Lỗi khi xóa!')
+  } finally {
+    deleteLoading.value = false
+    deletingId.value = null
+  }
 }
 
 const showCompleteModal = (record) => {
@@ -303,6 +381,55 @@ h2 {
   margin: 0;
   font-weight: 600;
   color: #1f1f1f;
+}
+.maintenance-desktop-table {
+  display: block;
+}
+.maintenance-mobile-list {
+  display: none;
+}
+.maintenance-mobile-card {
+  display: grid;
+  gap: 14px;
+}
+.maintenance-mobile-card-header,
+.maintenance-mobile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.maintenance-mobile-card-header strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.maintenance-mobile-details {
+  display: grid;
+  gap: 10px;
+}
+.maintenance-mobile-details div {
+  display: grid;
+  gap: 2px;
+}
+.maintenance-mobile-details span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.maintenance-mobile-details strong {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .maintenance-desktop-table {
+    display: none;
+  }
+  .maintenance-mobile-list {
+    display: grid;
+  }
+  .toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 </style>
 
