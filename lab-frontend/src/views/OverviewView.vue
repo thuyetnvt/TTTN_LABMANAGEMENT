@@ -34,8 +34,8 @@
       </a-col>
     </a-row>
 
-    <div v-if="!isManager" class="student-overview-grid">
-      <a-card title="Hoạt động gần đây" :bordered="false" class="timeline-card student-activity-card">
+    <div v-if="!isManager" class="overview-content-grid">
+      <a-card title="Hoạt động gần đây" :bordered="false" class="timeline-card overview-activity-card">
         <a-timeline>
           <a-timeline-item v-for="(act, index) in stats.activities" :key="index" :color="act.color">
             <p class="timeline-date">{{ new Date(act.date).toLocaleString('vi-VN') }}</p>
@@ -45,7 +45,7 @@
         </a-timeline>
       </a-card>
 
-      <a-card title="Cảnh báo cần xử lý" :bordered="false" class="alert-card student-alert-card">
+      <a-card title="Cảnh báo cần xử lý" :bordered="false" class="alert-card overview-alert-card">
         <div v-for="(alert, index) in stats.alerts" :key="index" class="compact-alert" :class="alert.level">
           <div class="compact-alert-icon">
             <component :is="getAlertIcon(alert.level)" />
@@ -59,7 +59,7 @@
         <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
       </a-card>
 
-      <a-card title="Trạng thái thiết bị" :bordered="false" class="chart-card student-status-card">
+      <a-card title="Trạng thái thiết bị" :bordered="false" class="chart-card overview-status-card">
         <apexchart type="donut" height="220" :options="pieOptions" :series="pieSeries"></apexchart>
       </a-card>
     </div>
@@ -276,7 +276,6 @@ onMounted(async () => {
   border: 1px solid rgba(0,0,0,0.05);
   border-radius: 12px;
   box-shadow: none;
-  height: 108px;
   background: #ffffff;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
@@ -294,7 +293,6 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 14px;
-  height: 108px;
   padding: 20px 22px;
 }
 
@@ -367,7 +365,6 @@ onMounted(async () => {
 .timeline-card :deep(.ant-card-head),
 .alert-card :deep(.ant-card-head),
 .admin-info-card :deep(.ant-card-head) {
-  min-height: 54px;
   padding: 0 20px;
   border-bottom: 1px solid rgba(0,0,0,0.05);
 }
@@ -477,7 +474,6 @@ onMounted(async () => {
 }
 
 .admin-info-item {
-  min-height: 52px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -514,18 +510,19 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-.student-overview-grid {
+.overview-content-grid {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
   gap: 16px;
   align-items: start;
 }
 
-.student-overview-grid > .ant-card {
+.overview-content-grid > .ant-card {
   min-width: 0;
+  align-self: start;
 }
 
-.student-status-card {
+.overview-status-card {
   grid-column: 1 / -1;
 }
 
@@ -538,21 +535,16 @@ onMounted(async () => {
     display: block;
   }
 
-  .student-overview-grid {
+  .overview-content-grid {
     grid-template-columns: 1fr;
   }
 
-  .student-status-card {
-    grid-column: auto;
+  .overview-status-card {
+    grid-column: 1;
   }
 }
 
 @media (max-width: 575px) {
-  .stat-card,
-  .stat-card :deep(.ant-card-body) {
-    height: 104px;
-  }
-
   .stat-card :deep(.ant-card-body) {
     padding: 16px;
   }
