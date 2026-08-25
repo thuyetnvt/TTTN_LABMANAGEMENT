@@ -55,6 +55,12 @@ export const MANAGER_ROLES = Object.freeze([
 ])
 
 export const BORROWER_ROLES = Object.freeze([ROLE.STUDENT, ROLE.TEACHER])
+export const HANDOVER_CONDITIONS = Object.freeze({
+  GOOD: STATUS.AVAILABLE,
+  SCRATCHED: 'SCRATCHED',
+  MISSING_ACCESSORIES: 'MISSING_ACCESSORIES',
+  BROKEN: STATUS.BROKEN,
+})
 export const isManagerRole = (value) => MANAGER_ROLES.includes(value)
 export const isBorrowerRole = (value) => BORROWER_ROLES.includes(value)
 export const isAdminRole = (value) => value === ROLE.ADMIN

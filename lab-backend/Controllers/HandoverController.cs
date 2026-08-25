@@ -83,7 +83,10 @@ public class HandoverController : ControllerBase
         foreach (var item in dto.Items)
         {
             item.Condition = item.Condition.Trim(); item.Accessories = item.Accessories.Trim(); item.Note = item.Note.Trim();
-            if (item.Condition is not (EquipmentStatuses.Available or EquipmentStatuses.Broken))
+            if (item.Condition is not (EquipmentStatuses.Available
+                or "SCRATCHED"
+                or "MISSING_ACCESSORIES"
+                or EquipmentStatuses.Broken))
                 return BadRequest(new { message = "Tình trạng bàn giao không hợp lệ." });
         }
 
