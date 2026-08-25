@@ -8,28 +8,65 @@
     </PageHeader>
 
     <a-card :bordered="false" class="filter-card">
-      <a-row :gutter="12" align="middle">
-        <a-col :xs="24" :sm="8"><label>Từ ngày</label><a-input v-model:value="filters.from" type="date" /></a-col>
-        <a-col :xs="24" :sm="8"><label>Đến ngày</label><a-input v-model:value="filters.to" type="date" /></a-col>
-        <a-col :xs="24" :sm="8"><a-button class="load-button" type="primary" :loading="loading" @click="load">Lọc báo cáo</a-button></a-col>
-      </a-row>
+      <div class="filter-fields">
+        <div class="filter-field">
+          <label for="reports-from">Từ ngày</label>
+          <a-input id="reports-from" v-model:value="filters.from" type="date" />
+        </div>
+        <div class="filter-field">
+          <label for="reports-to">Đến ngày</label>
+          <a-input id="reports-to" v-model:value="filters.to" type="date" />
+        </div>
+        <div class="filter-actions">
+          <a-button type="primary" :loading="loading" @click="load">Lọc</a-button>
+          <a-button :disabled="loading" @click="resetFilters">Đặt lại</a-button>
+        </div>
+      </div>
     </a-card>
 
-    <a-row :gutter="12" class="summary-grid">
-      <a-col v-for="item in summaryCards" :key="item.label" :xs="12" :lg="4"><a-card :bordered="false" class="summary-card"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></a-card></a-col>
-    </a-row>
+    <div class="summary-grid">
+      <a-card v-for="item in summaryCards" :key="item.label" :bordered="false" class="summary-card">
+        <span>{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+      </a-card>
+    </div>
 
-    <a-row :gutter="16">
-      <a-col :xs="24" :lg="12"><a-card title="Theo trạng thái" :bordered="false"><a-table :data-source="report.byStatus" :columns="statusColumns" row-key="status" size="small" :pagination="false"><template #bodyCell="{ column, record }"><template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template></template></a-table></a-card></a-col>
-      <a-col :xs="24" :lg="12"><a-card title="Theo danh mục" :bordered="false"><a-table :data-source="report.byCategory" :columns="categoryColumns" row-key="category" size="small" :pagination="false" /></a-card></a-col>
-    </a-row>
+    <div class="reports-grid reports-grid--charts">
+      <a-card title="Theo trạng thái" :bordered="false" class="report-panel">
+        <a-table class="report-table" :data-source="report.byStatus" :columns="statusColumns" row-key="status" size="small" :pagination="false">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template>
+          </template>
+        </a-table>
+      </a-card>
+      <a-card title="Theo danh mục" :bordered="false" class="report-panel">
+        <div class="category-table-scroll">
+          <a-table class="report-table" :data-source="report.byCategory" :columns="categoryColumns" row-key="category" size="small" :pagination="false" />
+        </div>
+      </a-card>
+    </div>
 
-    <a-row :gutter="16" class="report-row">
-      <a-col :xs="24" :lg="12"><a-card title="Tài sản đang mượn/quá hạn" :bordered="false"><a-table :data-source="report.borrowed" :columns="borrowColumns" row-key="id" size="small" :pagination="{ pageSize: 8 }"><template #bodyCell="{ column, record }"><template v-if="column.key === 'expectedReturnDate'">{{ formatDate(record.expectedReturnDate) }}</template><template v-if="column.key === 'overdue'"><a-tag :color="record.overdue ? 'red' : 'green'">{{ record.overdue ? 'Quá hạn' : 'Trong hạn' }}</a-tag></template></template></a-table></a-card></a-col>
-      <a-col :xs="24" :lg="12"><a-card title="Vật tư sắp hết" :bordered="false"><a-table :data-source="report.lowStock" :columns="stockColumns" row-key="id" size="small" :pagination="false" /></a-card></a-col>
-    </a-row>
+    <div class="reports-grid reports-grid--details report-row">
+      <a-card title="Tài sản đang mượn/quá hạn" :bordered="false" class="report-panel">
+        <a-table class="report-table" :data-source="report.borrowed" :columns="borrowColumns" row-key="id" size="small" :pagination="{ pageSize: 8 }">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'expectedReturnDate'">{{ formatDate(record.expectedReturnDate) }}</template>
+            <template v-if="column.key === 'overdue'"><a-tag :color="record.overdue ? 'red' : 'green'">{{ record.overdue ? 'Quá hạn' : 'Trong hạn' }}</a-tag></template>
+          </template>
+        </a-table>
+      </a-card>
+      <a-card title="Vật tư sắp hết" :bordered="false" class="report-panel">
+        <a-table class="report-table" :data-source="report.lowStock" :columns="stockColumns" row-key="id" size="small" :pagination="false" />
+      </a-card>
+    </div>
 
-    <a-card title="Thiết bị sắp hết bảo hành trong 30 ngày" :bordered="false" class="report-row"><a-table :data-source="report.warrantySoon" :columns="warrantyColumns" row-key="id" size="small" :pagination="false"><template #bodyCell="{ column, record }"><template v-if="column.key === 'warrantyExpiry'">{{ formatDate(record.warrantyExpiry) }}</template></template></a-table></a-card>
+    <a-card title="Thiết bị sắp hết bảo hành trong 30 ngày" :bordered="false" class="report-panel report-row report-panel--full">
+      <a-table class="report-table" :data-source="report.warrantySoon" :columns="warrantyColumns" row-key="id" size="small" :pagination="false">
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'warrantyExpiry'">{{ formatDate(record.warrantyExpiry) }}</template>
+        </template>
+      </a-table>
+    </a-card>
   </div>
 </template>
 
@@ -64,6 +101,10 @@ const load = async () => {
   loading.value = true
   try { report.value = await reportsApi.summary(filters.value) } catch (error) { message.error(error?.response?.data?.message || 'Không tải được báo cáo.') } finally { loading.value = false }
 }
+const resetFilters = () => {
+  filters.value = { from: '', to: '' }
+  load()
+}
 const exportReport = async () => {
   exporting.value = true
   try {
@@ -87,17 +128,40 @@ onMounted(load)
 
 <style scoped>
 .reports-page { padding: 0; }
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-h2 { margin: 0; }
-.page-header p { margin: 5px 0 0; color: #64748b; }
-.filter-card { margin-bottom: 16px; }
-label { display: block; margin-bottom: 6px; color: #475569; font-size: 13px; }
-.load-button { margin-top: 22px; }
-.summary-grid { margin-bottom: 16px; }
-.summary-card { min-height: 90px; }
+.filter-card { margin-bottom: 20px; }
+.filter-fields { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto; align-items: end; gap: 16px; }
+.filter-field label { display: block; margin-bottom: 7px; color: var(--color-ink); font-size: 14px; font-weight: 600; }
+.filter-actions { display: flex; gap: 10px; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.summary-card { padding: 4px; }
 .summary-card span, .summary-card strong { display: block; }
-.summary-card span { color: #64748b; }
-.summary-card strong { margin-top: 8px; color: #0f172a; font-size: 22px; }
-.report-row { margin-top: 16px; }
-@media (max-width: 575px) { .page-header { flex-direction: column; gap: 12px; } .load-button { width: 100%; } }
+.summary-card span { color: var(--color-secondary); font-size: 15px; line-height: 1.4; }
+.summary-card strong { margin-top: 10px; color: var(--color-ink); font-size: 28px; line-height: 1.2; font-weight: 700; }
+.reports-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+.report-panel { display: flex; flex-direction: column; min-width: 0; }
+.report-panel--full { width: 100%; }
+.report-panel :deep(.ant-card-body) { display: flex; flex: 1; flex-direction: column; min-width: 0; padding: 20px; }
+.report-table { min-width: 0; }
+.category-table-scroll { max-height: 360px; overflow-y: auto; }
+.category-table-scroll :deep(.ant-table-thead > tr > th) { position: sticky; top: 0; z-index: 1; background: var(--color-surface); }
+.report-row { margin-top: 20px; }
+@media (max-width: 1199px) {
+  .reports-grid { gap: 16px; }
+  .report-panel :deep(.ant-card-body) { padding: 18px; }
+}
+@media (max-width: 767px) {
+  .filter-fields { grid-template-columns: 1fr; gap: 12px; }
+  .filter-actions { grid-column: auto; }
+  .filter-actions .ant-btn { flex: 1; }
+  .summary-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .reports-grid { grid-template-columns: 1fr; gap: 16px; }
+  .report-row { margin-top: 16px; }
+  .report-panel :deep(.ant-card-body) { padding: 16px; }
+  .category-table-scroll { max-height: 300px; }
+}
+@media (max-width: 479px) {
+  .filter-fields { grid-template-columns: 1fr; }
+  .filter-actions { grid-column: auto; }
+  .summary-grid { grid-template-columns: 1fr 1fr; }
+}
 </style>
