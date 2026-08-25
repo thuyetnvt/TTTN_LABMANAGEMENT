@@ -55,9 +55,16 @@
             {{ entityLabel(record.entityType) }}
           </template>
           <template v-else-if="column.key === 'details'">
-            <a-button type="link" size="small" @click="showDetails(record)" title="Xem chi tiết">
-              <template #icon><EyeOutlined /></template>
-            </a-button>
+            <a-tooltip title="Xem chi tiết">
+              <a-button
+                type="link"
+                class="table-detail-action"
+                aria-label="Xem chi tiết nhật ký"
+                @click="showDetails(record)"
+              >
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
           </template>
         </template>
       </DataTable>

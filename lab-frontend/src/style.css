@@ -116,6 +116,24 @@ body.dark-mode .ant-table-cell-fix-right-first::after {
   color: var(--color-primary-hover) !important;
 }
 
+.table-detail-action.ant-btn {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--color-primary) !important;
+}
+
+.table-detail-action.ant-btn:hover,
+.table-detail-action.ant-btn:focus-visible {
+  color: var(--color-primary-hover) !important;
+  background-color: rgba(217, 119, 87, 0.12) !important;
+}
+
 /* Áp dụng thiết kế Claude cho Tabs (Chuyển tab) */
 .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
   color: var(--color-primary) !important;

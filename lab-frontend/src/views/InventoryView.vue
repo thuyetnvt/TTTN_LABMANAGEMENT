@@ -5,26 +5,46 @@
     </PageHeader>
 
     <a-card :bordered="false">
-      <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered>
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template>
-          <template v-else-if="column.key === 'progress'">
-            {{ record.found + record.wrongLocation + record.damaged }}/{{ record.total }} đã quét
-            <a-progress :percent="progress(record)" size="small" />
+      <div class="inventory-desktop-table">
+        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered>
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template>
+            <template v-else-if="column.key === 'progress'">
+              {{ record.found + record.wrongLocation + record.damaged }}/{{ record.total }} đã quét
+              <a-progress :percent="progress(record)" size="small" />
+            </template>
+            <template v-else-if="column.key === 'startedAt'">{{ formatDate(record.startedAt) }}</template>
+            <template v-else-if="column.key === 'action'">
+              <a-tooltip title="Xem chi tiết">
+                <a-button
+                  type="link"
+                  class="table-detail-action"
+                  aria-label="Xem chi tiết đợt kiểm kê"
+                  @click="openDetail(record)"
+                >
+                  <template #icon><EyeOutlined /></template>
+                </a-button>
+              </a-tooltip>
+            </template>
           </template>
-          <template v-else-if="column.key === 'startedAt'">{{ formatDate(record.startedAt) }}</template>
-          <template v-else-if="column.key === 'action'">
-            <a-button type="link" size="small" @click="openDetail(record)">Chi tiết</a-button>
-          </template>
-        </template>
-      </a-table>
+        </a-table>
+      </div>
     </a-card>
     <ResponsiveDataList :items="sessions" :loading="loading" empty-description="Chưa có đợt kiểm kê">
       <template #default="{ item }">
         <div class="mobile-session-header"><strong>{{ item.name }}</strong><StatusBadge :status="item.status" /></div>
         <div class="mobile-session-meta">{{ item.code }} · {{ item.found + item.wrongLocation + item.damaged }}/{{ item.total }} đã quét</div>
         <a-progress :percent="progress(item)" size="small" />
-        <a-button type="link" size="small" @click="openDetail(item)">Xem chi tiết</a-button>
+        <a-tooltip title="Xem chi tiết">
+          <a-button
+            type="link"
+            class="table-detail-action"
+            aria-label="Xem chi tiết đợt kiểm kê"
+            @click="openDetail(item)"
+          >
+            <template #icon><EyeOutlined /></template>
+          </a-button>
+        </a-tooltip>
       </template>
     </ResponsiveDataList>
 
@@ -76,6 +96,7 @@ import { ref, onMounted } from 'vue'
 import { onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { Upload } from 'ant-design-vue'
+import { EyeOutlined } from '@ant-design/icons-vue'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import StatusBadge from '../components/StatusBadge.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -107,7 +128,7 @@ const columns = [
   { title: 'Thiếu/chưa quét', key: 'missing', customRender: ({ record }) => `${record.missing}/${record.total}` },
   { title: 'Trạng thái', key: 'status' },
   { title: 'Bắt đầu', key: 'startedAt' },
-  { title: 'Thao tác', key: 'action' }
+  { title: 'Thao tác', key: 'action', width: 96, align: 'center' }
 ]
 const itemColumns = [
   { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName' },
@@ -229,8 +250,10 @@ onUnmounted(() => qrScanner?.clear().catch(() => {}))
 </script>
 
 <style scoped>
+.inventory-desktop-table { display: block; }
 .mobile-session-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .mobile-session-meta { margin: 8px 0 4px; color: var(--color-secondary); font-size: 13px; }
+@media (max-width: 767px) { .inventory-desktop-table { display: none; } }
 </style>
 
 <style scoped>

@@ -67,9 +67,16 @@
       </template>
       <template v-else-if="column.key === 'action'">
         <a-space>
-          <a-button type="link" size="small" @click="showViewModal(record)" title="Xem chi tiết">
-            <template #icon><EyeOutlined /></template>
-          </a-button>
+          <a-tooltip title="Xem chi tiết">
+            <a-button
+              type="link"
+              class="table-detail-action"
+              aria-label="Xem chi tiết thiết bị"
+              @click="showViewModal(record)"
+            >
+              <template #icon><EyeOutlined /></template>
+            </a-button>
+          </a-tooltip>
           <a-button v-if="isManagerRole(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
             <template #icon><EditOutlined /></template>
           </a-button>
