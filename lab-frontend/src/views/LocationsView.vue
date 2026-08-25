@@ -19,8 +19,12 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" @click="openEdit(record)">Sửa</a-button>
-              <a-button type="link" danger :disabled="record.equipmentCount > 0" @click="removeLocation(record)">Xóa</a-button>
+              <a-button type="link" size="small" @click="openEdit(record)" title="Sửa">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+              <a-button type="link" danger size="small" :disabled="record.equipmentCount > 0" @click="removeLocation(record)" title="Xóa">
+                <template #icon><DeleteOutlined /></template>
+              </a-button>
             </a-space>
           </template>
         </template>
@@ -49,6 +53,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { message, Modal } from 'ant-design-vue'
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { locationApi } from '../api/locationApi'
 
 const locations = ref([])

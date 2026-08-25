@@ -32,8 +32,8 @@ const dataSource = ref([])
 const loading = ref(false)
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'student', key: 'student', width: 130 },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160 },
+  { title: 'Người mượn', dataIndex: 'student', key: 'student', fixed: 'left', width: 130 },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', fixed: 'left', width: 160 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },
   { title: 'Ngày trả/hạn trả', dataIndex: 'returnDate', key: 'returnDate', width: 130 },

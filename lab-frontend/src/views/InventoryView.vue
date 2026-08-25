@@ -70,7 +70,7 @@
             <a-button @click="downloadReport('excel')">Xuất Excel chênh lệch</a-button>
             <a-button @click="downloadReport('pdf')">Xuất PDF chênh lệch</a-button>
           </a-space>
-          <div v-if="cameraOpen" id="inventory-qr-reader" class="qr-reader" />
+          <QRScanner v-if="cameraOpen" @scan-success="onScanSuccessInventory" class="qr-reader" />
           <a-input-search v-model:value="scanToken" placeholder="Nhập QR token để ghi nhận nhanh" enter-button="Ghi nhận" :loading="scanning" @search="scanByToken" />
           <a-alert v-if="scanMessage" :type="scanMessageType" :message="scanMessage" show-icon />
         </a-space>
@@ -97,7 +97,7 @@ import { onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { Upload } from 'ant-design-vue'
 import { EyeOutlined } from '@ant-design/icons-vue'
-import { Html5QrcodeScanner } from 'html5-qrcode'
+import QRScanner from '../components/QRScanner.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
@@ -119,7 +119,6 @@ const scanning = ref(false)
 const scanMessage = ref('')
 const scanMessageType = ref('success')
 const cameraOpen = ref(false)
-let qrScanner = null
 
 const columns = [
   { title: 'Mã đợt', dataIndex: 'code', key: 'code' },
@@ -193,22 +192,12 @@ const scanByToken = async value => {
 }
 
 const toggleCamera = () => {
-  if (cameraOpen.value) {
-    qrScanner?.clear().catch(() => {})
-    qrScanner = null
-    cameraOpen.value = false
-    return
-  }
-  cameraOpen.value = true
-  setTimeout(() => {
-    qrScanner = new Html5QrcodeScanner('inventory-qr-reader', { fps: 10, qrbox: 220 }, false)
-    qrScanner.render(decoded => {
-      scanByToken(decoded)
-      qrScanner?.clear().catch(() => {})
-      qrScanner = null
-      cameraOpen.value = false
-    }, () => {})
-  }, 0)
+  cameraOpen.value = !cameraOpen.value
+}
+
+const onScanSuccessInventory = (decoded) => {
+  scanByToken(decoded)
+  cameraOpen.value = false
 }
 
 const uploadEvidence = async (record, file) => {
@@ -246,7 +235,6 @@ const completeSession = async () => {
 }
 
 onMounted(fetchAll)
-onUnmounted(() => qrScanner?.clear().catch(() => {}))
 </script>
 
 <style scoped>
