@@ -59,7 +59,11 @@ public sealed class FileStorageTests
                 1024);
 
             Assert.True(storage.IsSafePath(saved.StoredPath));
-            Assert.True(File.Exists(saved.StoredPath));
+            var storedFilePath = Path.Combine(
+                root,
+                "uploads",
+                saved.StoredPath.Replace('/', Path.DirectorySeparatorChar));
+            Assert.True(File.Exists(storedFilePath));
             Assert.EndsWith(".png", saved.StoredPath, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("photo", Path.GetFileName(saved.StoredPath), StringComparison.OrdinalIgnoreCase);
         }

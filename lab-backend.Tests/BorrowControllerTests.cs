@@ -306,6 +306,7 @@ public sealed class BorrowControllerTests
             => throw new NotSupportedException();
 
         public bool IsSafePath(string path) => false;
+        public string GetStorageKey(string storedPath) => storedPath;
         public Task<Stream?> OpenReadAsync(string path, CancellationToken cancellationToken = default)
             => Task.FromResult<Stream?>(null);
         public Task DeleteAsync(string path, CancellationToken cancellationToken = default)
