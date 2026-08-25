@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test'
 
 test('public pages render in Vietnamese and protected route redirects', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Đăng nhập' })).toBeVisible()
-  await expect(page.getByText('Hệ sinh thái quản lý toàn diện')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Đăng nhập', exact: true })).toBeVisible()
+  await expect(page.getByText('Hệ thống quản lý tài sản Phòng Lab IoT', { exact: true })).toBeVisible()
 
   await page.goto('/login')
   await expect(page.getByText('Chào mừng trở lại')).toBeVisible()
