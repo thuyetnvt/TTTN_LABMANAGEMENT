@@ -1,5 +1,5 @@
 <template>
-  <a-layout style="height: 100vh; overflow: hidden; background: var(--color-canvas-cream);">
+  <a-layout class="dashboard-shell">
     <!-- Thanh Menu Bên Trái (Sider) -->
     <a-layout-sider 
       v-model:collapsed="collapsed" 
@@ -15,103 +15,92 @@
         <div class="logo-icon"><experiment-outlined /></div>
         <span class="logo-text" v-if="!collapsed">LabManagement</span>
       </div>
-      
-      <a-menu 
-        :selectedKeys="[selectedKey]"
-        theme="light" 
-        mode="inline"
-        class="ladi-menu"
-      >
-        <a-menu-item key="0" @click="$router.push({ name: 'Overview' })">
-          <appstore-filled />
-          <span>{{ $t('menu.overview') }}</span>
-        </a-menu-item>
-        
-        <a-menu-item key="1" @click="$router.push({ name: 'Devices' })">
-          <desktop-outlined />
-          <span>{{ $t('menu.devices') }}</span>
-        </a-menu-item>
-        
-        <a-menu-item key="3" @click="$router.push({ name: 'BorrowHistory' })">
-          <history-outlined />
-          <span>{{ $t('menu.borrowHistory') }}</span>
-        </a-menu-item>
 
-        <a-menu-item key="profile" @click="$router.push({ name: 'Profile' })">
-          <user-outlined />
-          <span>Hồ sơ cá nhân</span>
-        </a-menu-item>
+      <div data-testid="sidebar-menu-scroll" class="sidebar-menu-scroll">
+        <a-menu
+          :selectedKeys="[selectedKey]"
+          theme="light"
+          mode="inline"
+          class="ladi-menu"
+        >
+          <a-menu-item key="0" data-testid="menu-overview" @click="$router.push({ name: 'Overview' })">
+            <appstore-filled /><span>{{ $t('menu.overview') }}</span>
+          </a-menu-item>
 
-        <!-- Divider/Group cho tính năng Quản lý -->
-        <a-menu-divider v-if="isManagerRole(role)" />
-        
+          <a-menu-item-group title="Quản lý tài sản">
+            <a-menu-item key="1" data-testid="menu-devices" @click="$router.push({ name: 'Devices' })">
+              <desktop-outlined /><span>{{ $t('menu.devices') }}</span>
+            </a-menu-item>
+            <a-menu-item v-if="isManagerRole(role)" key="m_location" @click="$router.push({ name: 'Locations' })">
+              <environment-outlined /><span>Vị trí</span>
+            </a-menu-item>
+            <a-menu-item v-if="isManagerRole(role)" key="m_inventory" @click="$router.push({ name: 'Inventory' })">
+              <scan-outlined /><span>Kiểm kê</span>
+            </a-menu-item>
+          </a-menu-item-group>
 
-        <!-- Menu riêng cho Giảng viên -->
-        <a-menu-item v-if="isTeacherRole(role)" key="m_teacher" @click="$router.push({ name: 'TeacherApproval' })">
-          <solution-outlined />
-          <span>{{ $t('menu.teacherApproval') }}</span>
-        </a-menu-item>
+          <a-menu-item-group title="Mượn và trả">
+            <a-menu-item key="3" @click="$router.push({ name: 'BorrowHistory' })">
+              <history-outlined /><span>{{ $t('menu.borrowHistory') }}</span>
+            </a-menu-item>
+            <a-menu-item v-if="isManagerRole(role)" key="g1_1" @click="$router.push({ name: 'BorrowRequests' })">
+              <solution-outlined /><span>Phiếu chờ duyệt</span>
+            </a-menu-item>
+            <a-menu-item v-if="isBorrowerRole(role)" key="g2_2" @click="$router.push({ name: 'ConsumableRequests' })">
+              <history-outlined /><span>{{ $t('menu.studentConsumableHistory') }}</span>
+            </a-menu-item>
+          </a-menu-item-group>
 
-        <!-- Menu vận hành lab -->
-        <a-menu-item v-if="isManagerRole(role)" key="m3" @click="$router.push({ name: 'Maintenance' })">
-          <tool-outlined />
-          <span>{{ $t('menu.maintenanceHistory') }}</span>
-        </a-menu-item>
-        <a-menu-item v-if="isManagerRole(role)" key="m_schedule" @click="$router.push({ name: 'MaintenanceSchedules' })">
-          <calendar-outlined />
-          <span>Bảo trì định kỳ</span>
-        </a-menu-item>
-        <a-menu-item v-if="isManagerRole(role)" key="m_location" @click="$router.push({ name: 'Locations' })">
-          <environment-outlined />
-          <span>Vị trí tài sản</span>
-        </a-menu-item>
-        <a-menu-item v-if="isManagerRole(role)" key="m_inventory" @click="$router.push({ name: 'Inventory' })">
-          <scan-outlined />
-          <span>Kiểm kê tài sản</span>
-        </a-menu-item>
-        <a-menu-item v-if="isManagerRole(role)" key="m_reports" @click="$router.push({ name: 'Reports' })">
-          <bar-chart-outlined />
-          <span>Báo cáo</span>
-        </a-menu-item>
-        
-        <!-- Menu cho Đền bù -->
-        <a-menu-item key="m4" @click="$router.push({ name: 'Penalty' })">
-          <pay-circle-outlined />
-          <span>{{ $t('menu.penalty') }}</span>
-        </a-menu-item>
+          <a-menu-item-group title="Vận hành">
+            <a-menu-item v-if="isManagerRole(role)" key="m3" @click="$router.push({ name: 'Maintenance' })">
+              <tool-outlined /><span>{{ $t('menu.maintenanceHistory') }}</span>
+            </a-menu-item>
+            <a-menu-item v-if="isManagerRole(role)" key="m_schedule" @click="$router.push({ name: 'MaintenanceSchedules' })">
+              <calendar-outlined /><span>Lịch bảo trì</span>
+            </a-menu-item>
+            <a-menu-item v-if="isManagerRole(role)" key="g1_2" @click="$router.push({ name: 'ConsumableRequests' })">
+              <experiment-outlined /><span>Yêu cầu cấp phát</span>
+            </a-menu-item>
+            <a-menu-item key="m4" @click="$router.push({ name: 'Penalty' })">
+              <pay-circle-outlined /><span>{{ $t('menu.penalty') }}</span>
+            </a-menu-item>
+            <a-menu-item v-if="isManagerRole(role)" key="m_reports" @click="$router.push({ name: 'Reports' })">
+              <bar-chart-outlined /><span>Báo cáo</span>
+            </a-menu-item>
+            <a-menu-item v-if="isTeacherRole(role)" key="m_teacher" @click="$router.push({ name: 'TeacherApproval' })">
+              <solution-outlined /><span>{{ $t('menu.teacherApproval') }}</span>
+            </a-menu-item>
+          </a-menu-item-group>
 
-        <!-- Nhóm Admin / Trưởng lab / Phó lab -->
-        <a-menu-divider v-if="isManagerRole(role)" />
-        
-        <a-menu-item v-if="isManagerRole(role)" key="g1_1" @click="$router.push({ name: 'BorrowRequests' })">
-          <solution-outlined />
-          <span>{{ $t('menu.borrowRequests') }}</span>
-        </a-menu-item>
-        <a-menu-item v-if="isManagerRole(role)" key="g1_2" @click="$router.push({ name: 'ConsumableRequests' })">
-          <experiment-outlined />
-          <span>{{ $t('menu.consumableRequests') }}</span>
-        </a-menu-item>
-        <a-menu-item v-if="isAdminRole(role)" key="g1_3" @click="$router.push({ name: 'AdminUsers' })">
-          <team-outlined />
-          <span>{{ $t('menu.userManagement') }}</span>
-        </a-menu-item>
-        <a-menu-item v-if="isAdminRole(role)" key="g1_4" @click="$router.push({ name: 'AuditLogs' })">
-          <history-outlined />
-          <span>{{ $t('menu.auditLogs') }}</span>
-        </a-menu-item>
+          <a-menu-item-group v-if="isAdminRole(role)" title="Quản trị hệ thống">
+            <a-menu-item key="g1_3" data-testid="menu-admin-users" @click="$router.push({ name: 'AdminUsers' })">
+              <team-outlined /><span>{{ $t('menu.userManagement') }}</span>
+            </a-menu-item>
+            <a-menu-item key="g1_4" @click="$router.push({ name: 'AuditLogs' })">
+              <history-outlined /><span>{{ $t('menu.auditLogs') }}</span>
+            </a-menu-item>
+          </a-menu-item-group>
+        </a-menu>
+      </div>
 
-        <!-- Nhóm Sinh viên / Giảng viên (History) -->
-        <a-menu-divider v-if="isBorrowerRole(role)" />
-        <a-menu-item v-if="isBorrowerRole(role)" key="g2_2" @click="$router.push({ name: 'ConsumableRequests' })">
-          <history-outlined />
-          <span>{{ $t('menu.studentConsumableHistory') }}</span>
-        </a-menu-item>
-
-        <a-menu-item key="logout" @click="handleLogout" class="logout-item">
-          <logout-outlined />
-          <span>{{ $t('menu.logout') }} ({{ roleLabel(role) }})</span>
-        </a-menu-item>
-      </a-menu>
+      <div v-if="!collapsed" data-testid="sidebar-account-footer" class="sidebar-account-footer">
+        <AccountMenu
+          :display-name="accountDisplayName"
+          :role="role"
+          placement="topRight"
+          test-id="sidebar-account-menu-trigger"
+          @profile="router.push({ name: 'Profile' })"
+          @password="changePasswordVisible = true"
+          @logout="handleLogout"
+        >
+          <template #trigger>
+            <div class="sidebar-account-trigger">
+              <a-avatar :size="34" class="user-avatar">{{ accountInitials }}</a-avatar>
+              <span class="sidebar-account-copy"><strong>{{ accountDisplayName }}</strong><small>{{ roleLabel(role) }}</small></span>
+            </div>
+          </template>
+        </AccountMenu>
+      </div>
     </a-layout-sider>
 
     <!-- Khu Vực Nội Dung Bên Phải -->
@@ -119,7 +108,7 @@
       <!-- Thanh Header -->
       <a-layout-header class="ladi-header">
         <div class="header-left">
-          <a-button type="text" class="sidebar-toggle" @click="collapsed = !collapsed">
+          <a-button type="text" class="sidebar-toggle" data-testid="sidebar-toggle" @click="collapsed = !collapsed">
             <template #icon>
               <menu-unfold-outlined v-if="collapsed" />
               <menu-fold-outlined v-else />
@@ -160,11 +149,19 @@
               <NotificationBell :unread-count="unreadCount" />
             </a-popover>
           </div>
-          <div class="user-profile" title="Đổi mật khẩu" @click="changePasswordVisible = true">
-            <a-avatar :size="38" class="user-avatar">
-              {{ role.charAt(0).toUpperCase() }}
-            </a-avatar>
-          </div>
+          <AccountMenu
+            :display-name="accountDisplayName"
+            :role="role"
+            @profile="router.push({ name: 'Profile' })"
+            @password="changePasswordVisible = true"
+            @logout="handleLogout"
+          >
+            <template #trigger>
+              <div class="user-profile" title="Tài khoản" data-testid="account-menu-trigger">
+                <a-avatar :size="38" class="user-avatar">{{ accountInitials }}</a-avatar>
+              </div>
+            </template>
+          </AccountMenu>
         </div>
       </a-layout-header>
 
@@ -293,6 +290,7 @@ import { userApi } from '../api/userApi'
 import { notificationApi } from '../api/notificationApi'
 import { isAdminRole, isBorrowerRole, isManagerRole, isTeacherRole, roleLabel } from '../constants/business'
 import NotificationBell from '../components/NotificationBell.vue'
+import AccountMenu from '../components/AccountMenu.vue'
 
 // Dark mode logic removed
 
@@ -326,6 +324,7 @@ const routeMenuKeys = {
   Overview: '0',
   Devices: '1',
   BorrowHistory: '3',
+  Profile: 'profile',
   TeacherApproval: 'm_teacher',
   Maintenance: 'm3',
   MaintenanceSchedules: 'm_schedule',
@@ -357,6 +356,9 @@ const searchData = ref([])
 const notifications = ref([])
 const unreadCount = ref(0)
 const notificationOpen = ref(false)
+const accountProfile = ref({ username: '', fullName: '' })
+const accountDisplayName = computed(() => accountProfile.value.fullName || accountProfile.value.username || 'Tài khoản')
+const accountInitials = computed(() => accountDisplayName.value.trim().charAt(0).toUpperCase() || role.value.charAt(0).toUpperCase())
 
 const loadNotifications = async () => {
   try {
@@ -364,6 +366,14 @@ const loadNotifications = async () => {
     const result = await notificationApi.getUnreadCount()
     unreadCount.value = result?.count || 0
   } catch (error) { console.error('Lỗi tải thông báo', error) }
+}
+
+const loadAccountProfile = async () => {
+  try {
+    accountProfile.value = await userApi.getMe() || accountProfile.value
+  } catch (error) {
+    console.error('Lỗi tải thông tin tài khoản', error)
+  }
 }
 
 const openNotification = async item => {
@@ -411,6 +421,7 @@ let hubConnection = null
 
 onMounted(() => {
   loadNotifications()
+  loadAccountProfile()
   // Kết nối SignalR
   const signalRUrl = import.meta.env.VITE_SIGNALR_URL || 'http://localhost:5248/notificationHub'
   hubConnection = new signalR.HubConnectionBuilder()
@@ -444,7 +455,7 @@ onUnmounted(() => {
 
 const handleLogout = () => {
   authStore.logout()
-  router.push('/')
+  router.push('/login')
 }
 
 const submitChangePassword = async () => {
@@ -493,6 +504,19 @@ const submitChangePassword = async () => {
   border-right: 1px solid rgba(0,0,0,0.05);
 }
 
+.dashboard-shell {
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-canvas-cream);
+}
+
+.ladi-sider :deep(.ant-layout-sider-children) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  overflow: hidden;
+}
+
 .ladi-sider :deep(.ant-layout-sider-trigger) {
   display: none;
 }
@@ -522,11 +546,29 @@ const submitChangePassword = async () => {
   letter-spacing: -0.5px;
 }
 
+.sidebar-menu-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
 /* Menu Customization to match LadiPage */
 .ladi-menu {
+  min-height: 100%;
   border-right: none;
   padding: 14px 10px;
   background: var(--color-canvas-cream);
+}
+.ladi-menu :deep(.ant-menu-item-group-title) {
+  padding: 14px 12px 7px;
+  color: #8a94a6;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 18px;
+  text-transform: uppercase;
 }
 .ladi-menu :deep(.ant-menu-item) {
   border-radius: 10px;
@@ -554,12 +596,28 @@ const submitChangePassword = async () => {
   font-size: 16px;
 }
 
-/* Logout Button Placement */
-.logout-item {
-  margin-top: 40px !important;
-  color: #ef4444 !important;
+.sidebar-account-footer {
+  flex: 0 0 auto;
+  padding: 12px 14px 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--color-canvas-cream);
 }
-.logout-item:hover {
+.sidebar-account-trigger {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.sidebar-account-trigger:hover { background: rgba(0, 0, 0, 0.04); }
+.sidebar-account-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.sidebar-account-copy strong,
+.sidebar-account-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-account-copy strong { color: #111827; font-size: 13px; }
+.sidebar-account-copy small { color: #6b7280; font-size: 11px; }
+.account-menu-logout:hover {
   background-color: #fef2f2 !important;
   color: #dc2626 !important;
 }
@@ -761,6 +819,7 @@ const submitChangePassword = async () => {
   background: var(--color-canvas-cream);
   height: calc(100vh - 64px);
   overflow-y: auto;
+  min-height: 0;
 }
 /* Command Palette Modal Styles */
 :global(.cmd-palette .ant-modal-content) {
