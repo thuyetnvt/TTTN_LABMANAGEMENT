@@ -17,6 +17,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.x
+      - name: Install EF Core CLI
+        run: |
+          dotnet tool install --global dotnet-ef --version 9.0.0
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
       - run: dotnet restore
       - run: dotnet restore ../lab-backend.Tests/LabManagementAPI.Tests.csproj
       - run: dotnet build --no-restore --configuration Release
