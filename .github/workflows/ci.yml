@@ -65,6 +65,12 @@ jobs:
     needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose config
+      - name: Validate Docker Compose configuration
+        run: docker compose config
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          MYSQL_PASSWORD: ci-app-password
+          JWT_KEY: ci-jwt-key-for-compose-validation-only-32chars
+          SEED_DEFAULT_PASSWORD: ci-seed-password
       - run: docker build -t labmanagement-backend ./lab-backend
       - run: docker build -t labmanagement-frontend ./lab-frontend
