@@ -2,7 +2,12 @@
   <a-dropdown :placement="placement" trigger="click">
     <div :data-testid="testId" class="account-menu-trigger">
       <slot name="trigger">
-        <a-avatar :size="38" class="user-avatar">{{ initials }}</a-avatar>
+        <UserAvatar
+          :name="displayName"
+          :avatar-url="avatarUrl"
+          :avatar-updated-at="avatarUpdatedAt"
+          :size="38"
+        />
       </slot>
     </div>
     <template #overlay>
@@ -34,17 +39,19 @@
 import { computed } from 'vue'
 import { LockOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { roleLabel } from '../constants/business'
+import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps({
   displayName: { type: String, default: 'Tài khoản' },
   role: { type: String, default: 'Guest' },
+  avatarUrl: { type: String, default: '' },
+  avatarUpdatedAt: { type: [String, Date], default: '' },
   placement: { type: String, default: 'bottomRight' },
   testId: { type: String, default: 'account-menu-trigger' }
 })
 
 const emit = defineEmits(['profile', 'password', 'logout'])
 const roleText = computed(() => roleLabel(props.role))
-const initials = computed(() => (props.displayName || roleText.value || 'T').trim().charAt(0).toUpperCase())
 
 const handleMenuClick = ({ key }) => emit(key)
 </script>

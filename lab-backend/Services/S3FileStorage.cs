@@ -101,6 +101,9 @@ public sealed class S3FileStorage : IFileStorage
             && normalized.Length > prefix.Length;
     }
 
+    public string GetStorageKey(string storedPath)
+        => storedPath.Trim().Replace('\\', '/');
+
     public async Task<Stream?> OpenReadAsync(string path, CancellationToken cancellationToken = default)
     {
         if (!IsSafePath(path)) return null;

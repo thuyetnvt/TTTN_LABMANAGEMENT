@@ -17,11 +17,16 @@ export const useAuthStore = defineStore('auth', {
     user: null,
   }),
   actions: {
+    setUser(profile) {
+      this.user = profile ? { ...(this.user || {}), ...profile } : null
+      if (profile?.role) this.role = profile.role
+    },
     async login(username, password, remember = false) {
       try {
         const data = await authApi.login({ username, password })
         this.token = data.token
         this.role = data.role
+        this.user = { username: data.username || username, role: data.role }
         
         clearAuthStorage()
         const storage = remember ? localStorage : sessionStorage

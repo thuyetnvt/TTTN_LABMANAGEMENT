@@ -55,6 +55,7 @@ namespace LabManagementAPI.Data
                 entity.Property(u => u.Department).HasMaxLength(255);
                 entity.Property(u => u.ClassName).HasMaxLength(100);
                 entity.Property(u => u.Role).HasMaxLength(50);
+                entity.Property(u => u.AvatarStorageKey).HasMaxLength(1000);
                 entity.HasIndex(u => u.Username).IsUnique();
                 entity.HasIndex(u => u.Email).IsUnique();
                 entity.HasIndex(u => u.UniversityCode).IsUnique();

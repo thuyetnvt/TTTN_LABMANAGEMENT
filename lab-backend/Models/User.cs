@@ -15,4 +15,6 @@ public class User
     public bool IsActive { get; set; } = true;
     public int TokenVersion { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string? AvatarStorageKey { get; set; }
+    public DateTime? AvatarUpdatedAt { get; set; }
 }

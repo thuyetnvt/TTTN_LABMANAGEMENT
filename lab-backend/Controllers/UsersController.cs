@@ -15,13 +15,34 @@ namespace LabManagementAPI.Controllers;
 [Authorize]
 public class UsersController : ControllerBase
 {
+    private const long MaxAvatarBytes = 2 * 1024 * 1024;
+    private const long MaxAvatarRequestBytes = MaxAvatarBytes + 64 * 1024;
+    private static readonly IReadOnlySet<string> AvatarExtensions =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
+    private static readonly IReadOnlyDictionary<string, string> AvatarContentTypes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [".jpg"] = "image/jpeg",
+            [".jpeg"] = "image/jpeg",
+            [".png"] = "image/png",
+            [".webp"] = "image/webp"
+        };
+
     private readonly AppDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly IFileStorage _fileStorage;
+    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(AppDbContext context, IAuditService auditService)
+    public UsersController(
+        AppDbContext context,
+        IAuditService auditService,
+        IFileStorage fileStorage,
+        ILogger<UsersController> logger)
     {
         _context = context;
         _auditService = auditService;
+        _fileStorage = fileStorage;
+        _logger = logger;
     }
 
     public sealed class UserDto
@@ -36,6 +57,14 @@ public class UsersController : ControllerBase
         public string? ClassName { get; set; }
         public string Role { get; set; } = string.Empty;
         public bool IsActive { get; set; }
+        public bool HasAvatar { get; set; }
+        public DateTime? AvatarUpdatedAt { get; set; }
+    }
+
+    public sealed class AvatarStateDto
+    {
+        public bool HasAvatar { get; set; }
+        public DateTime? AvatarUpdatedAt { get; set; }
     }
 
     public sealed class CreateUserDto
@@ -118,7 +147,9 @@ public class UsersController : ControllerBase
                 Department = user.Department,
                 ClassName = user.ClassName,
                 Role = user.Role,
-                IsActive = user.IsActive
+                IsActive = user.IsActive,
+                HasAvatar = user.AvatarStorageKey != null,
+                AvatarUpdatedAt = user.AvatarUpdatedAt
             })
             .ToListAsync(cancellationToken);
     }
@@ -158,7 +189,9 @@ public class UsersController : ControllerBase
                 Department = user.Department,
                 ClassName = user.ClassName,
                 Role = user.Role,
-                IsActive = user.IsActive
+                IsActive = user.IsActive,
+                HasAvatar = user.AvatarStorageKey != null,
+                AvatarUpdatedAt = user.AvatarUpdatedAt
             })
             .SingleOrDefaultAsync(cancellationToken);
         return profile is null ? Unauthorized() : Ok(profile);
@@ -193,6 +226,107 @@ public class UsersController : ControllerBase
         await _auditService.WriteAsync(HttpContext, "UpdateProfile", nameof(User), userId, cancellationToken: cancellationToken);
         return NoContent();
     }
+
+    [HttpPost("me/avatar")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaxAvatarRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxAvatarRequestBytes)]
+    [EnableRateLimiting("sensitive")]
+    public async Task<ActionResult<AvatarStateDto>> UploadOwnAvatar(
+        [FromForm] IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        var user = await _context.Users.FindAsync([userId], cancellationToken);
+        if (user is null || !user.IsActive) return Unauthorized();
+        if (file is null) return BadRequest(new { message = "Vui lòng chọn ảnh đại diện." });
+
+        try
+        {
+            ValidateAvatar(file);
+        }
+        catch (InvalidDataException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        var previousKey = user.AvatarStorageKey;
+        StoredFile stored;
+        try
+        {
+            stored = await _fileStorage.SaveAsync(
+                file,
+                $"avatars/users/{user.Id}",
+                AvatarExtensions,
+                MaxAvatarBytes,
+                cancellationToken);
+        }
+        catch (InvalidDataException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+
+        user.AvatarStorageKey = _fileStorage.GetStorageKey(stored.StoredPath);
+        user.AvatarUpdatedAt = DateTime.UtcNow;
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            await TryDeleteStorageFileAsync(user.AvatarStorageKey);
+            throw;
+        }
+
+        if (!string.IsNullOrWhiteSpace(previousKey)
+            && !string.Equals(previousKey, user.AvatarStorageKey, StringComparison.Ordinal))
+        {
+            await TryDeleteStorageFileAsync(previousKey);
+        }
+
+        await _auditService.WriteAsync(
+            HttpContext,
+            "UpdateAvatar",
+            nameof(User),
+            user.Id,
+            cancellationToken: cancellationToken);
+
+        return Ok(new AvatarStateDto
+        {
+            HasAvatar = true,
+            AvatarUpdatedAt = user.AvatarUpdatedAt
+        });
+    }
+
+    [HttpDelete("me/avatar")]
+    [EnableRateLimiting("sensitive")]
+    public async Task<IActionResult> DeleteOwnAvatar(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        var user = await _context.Users.FindAsync([userId], cancellationToken);
+        if (user is null || !user.IsActive) return Unauthorized();
+
+        var previousKey = user.AvatarStorageKey;
+        user.AvatarStorageKey = null;
+        user.AvatarUpdatedAt = null;
+        await _context.SaveChangesAsync(cancellationToken);
+        await TryDeleteStorageFileAsync(previousKey);
+        await _auditService.WriteAsync(
+            HttpContext,
+            "DeleteAvatar",
+            nameof(User),
+            user.Id,
+            cancellationToken: cancellationToken);
+        return NoContent();
+    }
+
+    [HttpGet("me/avatar")]
+    public async Task<IActionResult> DownloadOwnAvatar(CancellationToken cancellationToken)
+        => await DownloadAvatar(GetCurrentUserId(), cancellationToken);
+
+    [HttpGet("{id:int}/avatar")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> DownloadUserAvatar(int id, CancellationToken cancellationToken)
+        => await DownloadAvatar(id, cancellationToken);
 
     [HttpPost]
     [Authorize(Roles = Roles.Admin)]
@@ -425,6 +559,50 @@ public class UsersController : ControllerBase
             cancellationToken: cancellationToken);
 
         return Ok(new { message = "Đổi mật khẩu thành công. Vui lòng đăng nhập lại." });
+    }
+
+    private async Task<IActionResult> DownloadAvatar(int userId, CancellationToken cancellationToken)
+    {
+        var user = await _context.Users
+            .AsNoTracking()
+            .Where(item => item.Id == userId && item.IsActive)
+            .Select(item => new { item.AvatarStorageKey })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (user is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(user.AvatarStorageKey)
+            || !_fileStorage.IsSafePath(user.AvatarStorageKey))
+            return NotFound();
+
+        var stream = await _fileStorage.OpenReadAsync(user.AvatarStorageKey, cancellationToken);
+        if (stream is null) return NotFound();
+
+        var extension = Path.GetExtension(user.AvatarStorageKey);
+        return File(stream, AvatarContentTypes.GetValueOrDefault(extension, "application/octet-stream"));
+    }
+
+    private static void ValidateAvatar(IFormFile file)
+    {
+        var extension = Path.GetExtension(Path.GetFileName(file.FileName)).ToLowerInvariant();
+        if (file.Length <= 0 || file.Length > MaxAvatarBytes)
+            throw new InvalidDataException("Ảnh đại diện phải có dung lượng tối đa 2 MB.");
+        if (!AvatarExtensions.Contains(extension))
+            throw new InvalidDataException("Chỉ hỗ trợ ảnh JPG, PNG hoặc WebP.");
+        if (!AvatarContentTypes.TryGetValue(extension, out var expectedMime)
+            || !string.Equals(file.ContentType, expectedMime, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("MIME type của ảnh không hợp lệ.");
+    }
+
+    private async Task TryDeleteStorageFileAsync(string? storageKey)
+    {
+        if (string.IsNullOrWhiteSpace(storageKey)) return;
+        try
+        {
+            await _fileStorage.DeleteAsync(storageKey);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Không thể xóa file avatar cũ {StorageKey}.", storageKey);
+        }
     }
 
     private static bool VerifyPassword(string password, string passwordHash)

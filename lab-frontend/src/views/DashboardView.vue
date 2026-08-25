@@ -87,6 +87,8 @@
         <AccountMenu
           :display-name="accountDisplayName"
           :role="role"
+          :avatar-url="accountAvatarUrl"
+          :avatar-updated-at="accountAvatarUpdatedAt"
           placement="topRight"
           test-id="sidebar-account-menu-trigger"
           @profile="router.push({ name: 'Profile' })"
@@ -95,7 +97,12 @@
         >
           <template #trigger>
             <div class="sidebar-account-trigger">
-              <a-avatar :size="34" class="user-avatar">{{ accountInitials }}</a-avatar>
+              <UserAvatar
+                :name="accountDisplayName"
+                :avatar-url="accountAvatarUrl"
+                :avatar-updated-at="accountAvatarUpdatedAt"
+                :size="34"
+              />
               <span class="sidebar-account-copy"><strong>{{ accountDisplayName }}</strong><small>{{ roleLabel(role) }}</small></span>
             </div>
           </template>
@@ -180,13 +187,20 @@
           <AccountMenu
             :display-name="accountDisplayName"
             :role="role"
+            :avatar-url="accountAvatarUrl"
+            :avatar-updated-at="accountAvatarUpdatedAt"
             @profile="router.push({ name: 'Profile' })"
             @password="changePasswordVisible = true"
             @logout="handleLogout"
           >
             <template #trigger>
               <div class="user-profile" title="Tài khoản" data-testid="account-menu-trigger">
-                <a-avatar :size="38" class="user-avatar">{{ accountInitials }}</a-avatar>
+                <UserAvatar
+                  :name="accountDisplayName"
+                  :avatar-url="accountAvatarUrl"
+                  :avatar-updated-at="accountAvatarUpdatedAt"
+                  :size="38"
+                />
               </div>
             </template>
           </AccountMenu>
@@ -318,6 +332,7 @@ import { userApi } from '../api/userApi'
 import { isAdminRole, isBorrowerRole, isManagerRole, isTeacherRole, roleLabel } from '../constants/business'
 import NotificationBell from '../components/NotificationBell.vue'
 import AccountMenu from '../components/AccountMenu.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 import { useNotificationStore } from '../stores/notificationStore'
 import { formatRelativeTime, notificationIcon, notificationTypeLabel } from '../utils/notificationUtils'
 
@@ -384,13 +399,15 @@ const passwordForm = ref({
 const searchQuery = ref('')
 const searchData = ref([])
 const notificationOpen = ref(false)
-const accountProfile = ref({ username: '', fullName: '' })
+const accountProfile = computed(() => authStore.user || { username: '', fullName: '' })
 const accountDisplayName = computed(() => accountProfile.value.fullName || accountProfile.value.username || 'Tài khoản')
-const accountInitials = computed(() => accountDisplayName.value.trim().charAt(0).toUpperCase() || role.value.charAt(0).toUpperCase())
+const accountAvatarUrl = computed(() => accountProfile.value.hasAvatar ? userApi.avatarUrl() : '')
+const accountAvatarUpdatedAt = computed(() => accountProfile.value.avatarUpdatedAt || '')
 
 const loadAccountProfile = async () => {
   try {
-    accountProfile.value = await userApi.getMe() || accountProfile.value
+    const profile = await userApi.getMe()
+    if (profile) authStore.setUser(profile)
   } catch (error) {
     console.error('Lỗi tải thông tin tài khoản', error)
   }

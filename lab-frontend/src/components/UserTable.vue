@@ -4,6 +4,17 @@
       <template v-if="column.key === 'role'">
         <a-tag :color="isAdminRole(record.role) ? 'gold' : 'blue'">{{ roleLabel(record.role) }}</a-tag>
       </template>
+      <template v-else-if="column.key === 'fullName'">
+        <div class="user-name-cell">
+          <UserAvatar
+            :name="record.fullName || record.username"
+            :avatar-url="record.hasAvatar ? userApi.avatarUrl(record.id) : ''"
+            :avatar-updated-at="record.avatarUpdatedAt"
+            :size="32"
+          />
+          <span>{{ record.fullName || '—' }}</span>
+        </div>
+      </template>
       <template v-else-if="column.key === 'action'">
         <template v-if="isAdminRole(role)">
           <a-button type="link" size="small" @click="$emit('edit', record)" title="Sửa">
@@ -24,6 +35,8 @@ import { computed } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { isAdminRole, roleLabel } from '../constants/business'
+import { userApi } from '../api/userApi'
+import UserAvatar from './UserAvatar.vue'
 
 defineProps({
   dataSource: {
@@ -46,3 +59,7 @@ const columns = [
   { title: 'Hành động', key: 'action', width: 150, align: 'center' }
 ]
 </script>
+
+<style scoped>
+.user-name-cell { display: inline-flex; align-items: center; gap: 10px; min-width: 190px; }
+</style>

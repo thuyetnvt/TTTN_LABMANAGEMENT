@@ -60,21 +60,29 @@ public sealed class LocalFileStorage : IFileStorage
         var storedPath = Path.Combine(directory, $"{Guid.NewGuid():N}{extension}");
         await using var output = new FileStream(storedPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true);
         await input.CopyToAsync(output, cancellationToken);
-        return new StoredFile(originalName, storedPath, ContentTypes[extension], file.Length);
+        return new StoredFile(originalName, GetStorageKey(storedPath), ContentTypes[extension], file.Length);
     }
 
     public bool IsSafePath(string path)
     {
-        var fullPath = Path.GetFullPath(path);
+        var fullPath = ResolvePath(path);
         return fullPath.StartsWith(_rootDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal)
             && File.Exists(fullPath);
+    }
+
+    public string GetStorageKey(string storedPath)
+    {
+        var fullPath = ResolvePath(storedPath);
+        if (!fullPath.StartsWith(_rootDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            throw new InvalidDataException("Đường dẫn lưu file không hợp lệ.");
+        return Path.GetRelativePath(_rootDirectory, fullPath).Replace(Path.DirectorySeparatorChar, '/');
     }
 
     public Task<Stream?> OpenReadAsync(string path, CancellationToken cancellationToken = default)
     {
         if (!IsSafePath(path)) return Task.FromResult<Stream?>(null);
         Stream stream = new FileStream(
-            Path.GetFullPath(path),
+            ResolvePath(path),
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
@@ -85,8 +93,17 @@ public sealed class LocalFileStorage : IFileStorage
 
     public Task DeleteAsync(string path, CancellationToken cancellationToken = default)
     {
-        if (IsSafePath(path)) File.Delete(Path.GetFullPath(path));
+        if (IsSafePath(path)) File.Delete(ResolvePath(path));
         return Task.CompletedTask;
+    }
+
+    private string ResolvePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+        var candidate = Path.IsPathRooted(path)
+            ? path
+            : Path.Combine(_rootDirectory, path.Replace('/', Path.DirectorySeparatorChar));
+        return Path.GetFullPath(candidate);
     }
 
     private static bool IsValidSignature(string extension, byte[] header, int read)
