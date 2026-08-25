@@ -44,6 +44,8 @@ public class DashboardController : ControllerBase
             .AsNoTracking()
             .Include(record => record.User)
             .Include(record => record.Equipment)
+            .Include(record => record.Details)
+                .ThenInclude(detail => detail.Equipment)
             .AsQueryable();
         if (!isManager)
         {
@@ -54,17 +56,22 @@ public class DashboardController : ControllerBase
             .OrderByDescending(record => record.BorrowDate)
             .Take(5)
             .ToListAsync(cancellationToken);
-        var borrowActivities = recentBorrows.Select(record => new DashboardActivity(
-            "borrow",
-            isManager
-                ? $"{record.User!.Username} đã yêu cầu mượn {record.Equipment!.Name} ({record.Status})"
-                : $"Bạn đã yêu cầu mượn {record.Equipment!.Name} ({record.Status})",
-            record.BorrowDate,
-            record.Status == BorrowStatuses.Returned
-                ? "blue"
-                : record.Status is BorrowStatuses.Pending or BorrowStatuses.TeacherPending
-                    ? "orange"
-                    : "green"));
+        var borrowActivities = recentBorrows.Select(record =>
+        {
+            var equipmentName = EquipmentLabel(record);
+            var userName = record.User?.Username ?? "Người dùng";
+            return new DashboardActivity(
+                "borrow",
+                isManager
+                    ? $"{userName} đã yêu cầu mượn {equipmentName} ({record.Status})"
+                    : $"Bạn đã yêu cầu mượn {equipmentName} ({record.Status})",
+                record.BorrowDate,
+                record.Status == BorrowStatuses.Returned
+                    ? "blue"
+                    : record.Status is BorrowStatuses.Pending or BorrowStatuses.TeacherPending
+                        ? "orange"
+                        : "green");
+        });
 
         var activities = new List<DashboardActivity>(borrowActivities);
         if (isManager)
@@ -92,6 +99,8 @@ public class DashboardController : ControllerBase
             .AsNoTracking()
             .Include(record => record.User)
             .Include(record => record.Equipment)
+            .Include(record => record.Details)
+                .ThenInclude(detail => detail.Equipment)
             .Where(record => record.Status == BorrowStatuses.Borrowed
                 && record.ExpectedReturnDate < DateTime.UtcNow);
         if (!isManager)
@@ -103,12 +112,12 @@ public class DashboardController : ControllerBase
         var alerts = overdueRecords.Select(record =>
         {
             var days = Math.Max(1, (DateTime.UtcNow.Date - record.ExpectedReturnDate.Date).Days);
-            var personName = isManager ? record.User!.Username : "Bạn";
+            var personName = isManager ? record.User?.Username ?? "Người dùng" : "Bạn";
             return new
             {
                 Type = "overdue",
                 Title = "Quá hạn mượn thiết bị",
-                Message = $"{personName} đang mượn {record.Equipment!.Name} quá hạn {days} ngày.",
+                Message = $"{personName} đang mượn {EquipmentLabel(record)} quá hạn {days} ngày.",
                 Level = "error"
             } as object;
         }).ToList();
@@ -262,4 +271,30 @@ public class DashboardController : ControllerBase
         string Message,
         DateTime Date,
         string Color);
+
+    private static string EquipmentLabel(BorrowRecord record)
+    {
+        if (!string.IsNullOrWhiteSpace(record.Equipment?.Name))
+        {
+            return record.Equipment.Name;
+        }
+
+        var detailNames = record.Details
+            .Select(detail => detail.Equipment?.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (detailNames.Count == 1)
+        {
+            return detailNames[0]!;
+        }
+
+        if (record.Details.Count > 0)
+        {
+            return $"Nhiều tài sản ({record.Details.Count})";
+        }
+
+        return "thiết bị chưa xác định";
+    }
 }
