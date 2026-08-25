@@ -25,7 +25,7 @@ jobs:
       - run: dotnet restore ../lab-backend.Tests/LabManagementAPI.Tests.csproj
       - run: dotnet build --no-restore --configuration Release
       - run: dotnet test ../lab-backend.Tests/LabManagementAPI.Tests.csproj --configuration Release --no-restore
-      - run: dotnet ef migrations script --idempotent --no-build --output migration-script.sql
+      - run: dotnet ef migrations script --idempotent --no-build --configuration Release --output migration-script.sql
 
   frontend:
     runs-on: ubuntu-latest
