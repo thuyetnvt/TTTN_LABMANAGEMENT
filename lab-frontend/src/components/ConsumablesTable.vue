@@ -4,7 +4,8 @@
       <a-button type="primary" @click="showAddModal">+ Thêm vật tư</a-button>
     </div>
 
-    <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1100 }">
+    <div class="consumables-desktop-table">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1930 }">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'quantity'">
           <span :style="{ color: record.quantity <= record.minQuantity ? '#dc2626' : '#16a34a', fontWeight: 700 }">
@@ -37,7 +38,39 @@
           </a-space>
         </template>
       </template>
-    </a-table>
+      </a-table>
+    </div>
+
+    <a-list v-if="dataSource.length" class="consumables-mobile-list" :data-source="dataSource">
+      <template #renderItem="{ item }">
+        <a-list-item class="consumable-mobile-item">
+          <div class="consumable-mobile-main">
+            <div class="consumable-mobile-heading">
+              <strong>{{ item.name }}</strong>
+              <a-tag color="orange">{{ item.code || 'Chưa có mã' }}</a-tag>
+            </div>
+            <dl class="consumable-mobile-details">
+              <div><dt>Danh mục</dt><dd>{{ item.categoryName || '—' }}</dd></div>
+              <div><dt>Tồn kho</dt><dd>{{ item.quantity }} {{ item.unit }}</dd></div>
+              <div><dt>Tồn tối thiểu</dt><dd>{{ item.minQuantity }} {{ item.unit }}</dd></div>
+              <div v-if="item.responsiblePerson"><dt>Người phụ trách</dt><dd>{{ item.responsiblePerson }}</dd></div>
+            </dl>
+            <a-tag :color="item.quantity <= item.minQuantity ? 'red' : 'green'">
+              {{ item.quantity <= item.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
+            </a-tag>
+          </div>
+          <div class="consumable-mobile-actions">
+            <a-button v-if="isBorrowerRole(role)" type="primary" ghost size="small" @click="showRequestModal(item)">Yêu cầu cấp phát</a-button>
+            <template v-if="isManagerRole(role)">
+              <a-button type="link" size="small" @click="showHistoryModal(item)">Lịch sử</a-button>
+              <a-button type="link" size="small" @click="showEditModal(item)">Sửa</a-button>
+            </template>
+            <a-button v-if="isAdminRole(role)" type="link" danger size="small" @click="handleDelete(item.id)">Xóa</a-button>
+          </div>
+        </a-list-item>
+      </template>
+    </a-list>
+    <a-empty v-else-if="!loading" class="consumables-mobile-empty" description="Chưa có vật tư" />
 
     <a-modal v-model:open="isFormVisible" :title="isEditMode ? 'Sửa vật tư' : 'Thêm vật tư'" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting" width="800px" wrapClassName="responsive-modal">
       <a-form layout="vertical">
@@ -170,8 +203,8 @@ const loading = ref(false)
 const submitting = ref(false)
 
 const columns = [
-  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 180 },
-  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', fixed: 'left', width: 180 },
+  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', fixed: 'left', width: 150 },
+  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', fixed: 'left', width: 240 },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100 },
   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 110 },
@@ -374,6 +407,94 @@ const handleDelete = (id) => {
   display: flex;
   justify-content: flex-start;
   margin-bottom: 16px;
+}
+
+.consumables-mobile-list,
+.consumables-mobile-empty {
+  display: none;
+}
+
+.consumables-desktop-table :deep(.ant-table-cell) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.consumable-mobile-item {
+  display: block;
+  padding: 16px 4px;
+}
+
+.consumable-mobile-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.consumable-mobile-heading strong {
+  min-width: 0;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.consumable-mobile-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.consumable-mobile-details div {
+  min-width: 0;
+}
+
+.consumable-mobile-details dt {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.consumable-mobile-details dd {
+  margin: 2px 0 0;
+  color: var(--color-ink);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.consumable-mobile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+@media (max-width: 767px) {
+  .consumables-desktop-table {
+    display: none;
+  }
+
+  .consumables-mobile-list {
+    display: block;
+  }
+
+  .consumables-mobile-empty {
+    display: block;
+  }
+}
+
+@media (max-width: 420px) {
+  .consumable-mobile-heading {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .consumable-mobile-details {
+    grid-template-columns: 1fr;
+  }
+
+  .consumable-mobile-actions {
+    justify-content: flex-start;
+  }
 }
 </style>
 

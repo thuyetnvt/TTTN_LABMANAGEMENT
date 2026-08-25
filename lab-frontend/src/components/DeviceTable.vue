@@ -70,16 +70,12 @@
           <a-button type="link" size="small" @click="showViewModal(record)" title="Xem chi tiết">
             <template #icon><EyeOutlined /></template>
           </a-button>
-          <a-tooltip :title="!isManagerRole(role) ? 'Chỉ dành cho quản lý' : 'Sửa'">
-            <a-button :disabled="!isManagerRole(role)" type="link" size="small" @click="showEditModal(record)">
-              <template #icon><EditOutlined /></template>
-            </a-button>
-          </a-tooltip>
-          <a-tooltip :title="!isAdminRole(role) ? 'Chỉ dành cho quản trị viên' : 'Xóa'">
-            <a-button :disabled="!isAdminRole(role)" type="link" danger size="small" @click="handleDelete(record.id)">
-              <template #icon><DeleteOutlined /></template>
-            </a-button>
-          </a-tooltip>
+          <a-button v-if="isManagerRole(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
+            <template #icon><EditOutlined /></template>
+          </a-button>
+          <a-button v-if="isAdminRole(role)" type="link" danger size="small" @click="handleDelete(record.id)" title="Xóa">
+            <template #icon><DeleteOutlined /></template>
+          </a-button>
           <a-button v-if="isManagerRole(role)" type="link" size="small" @click="handleInventory(record)">Kiểm kê</a-button>
           <a-button v-if="isBorrowerRole(role) && statusMatches(record.status, STATUS.AVAILABLE)" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
         </a-space>
@@ -272,22 +268,19 @@
     </a-form>
   </a-modal>
 
-  <a-modal v-model:open="isViewVisible" title="Chi tiết thiết bị" :footer="null" width="700px">
-    <a-descriptions bordered :column="2">
-      <a-descriptions-item label="Tên thiết bị">{{ viewData.name }}</a-descriptions-item>
-      <a-descriptions-item label="Danh mục">{{ viewData.categoryName }}</a-descriptions-item>
-      <a-descriptions-item label="Model">{{ viewData.model }}</a-descriptions-item>
-      <a-descriptions-item label="Số seri">{{ viewData.serial }}</a-descriptions-item>
-      <a-descriptions-item label="Tên seri" :span="2">{{ viewData.serialName || 'Không có' }}</a-descriptions-item>
-      <a-descriptions-item label="Vị trí">{{ viewData.location }}</a-descriptions-item>
-      <a-descriptions-item label="Người chịu trách nhiệm">{{ viewData.responsiblePerson || 'Không có' }}</a-descriptions-item>
-      <a-descriptions-item label="Ngày nhập">{{ viewData.entryDate ? new Date(viewData.entryDate).toLocaleDateString('vi-VN') : 'Không có' }}</a-descriptions-item>
-      <a-descriptions-item label="Hạn bảo hành">{{ viewData.warrantyExpiry ? new Date(viewData.warrantyExpiry).toLocaleDateString('vi-VN') : 'Không có' }}</a-descriptions-item>
-      <a-descriptions-item label="Số hóa đơn">{{ viewData.invoiceNumber || 'Không có' }}</a-descriptions-item>
-      <a-descriptions-item label="Trạng thái">
-          <StatusBadge :status="viewData.status" />
-      </a-descriptions-item>
-    </a-descriptions>
+  <a-modal v-model:open="isViewVisible" title="Chi tiết thiết bị" :footer="null" width="780px" wrap-class-name="equipment-detail-modal">
+    <div class="equipment-detail-content" data-testid="equipment-detail-modal">
+      <section v-for="section in detailSections" :key="section.key" class="equipment-detail-section">
+        <h3>{{ section.title }}</h3>
+        <dl class="equipment-detail-grid">
+          <div v-for="field in section.fields" :key="field.key" class="equipment-detail-field">
+            <dt>{{ field.label }}</dt>
+            <dd v-if="field.key === 'status'"><StatusBadge :status="viewData.status" /></dd>
+            <dd v-else>{{ field.value }}</dd>
+          </div>
+        </dl>
+      </section>
+    </div>
   </a-modal>
 </template>
 
@@ -517,6 +510,53 @@ const showViewModal = (record) => {
   viewData.value = { ...record }
   isViewVisible.value = true
 }
+
+const hasDetailValue = (value) => value !== null && value !== undefined && String(value).trim() !== ''
+const detailDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : ''
+const detailField = (key, label, value) => ({ key, label, value })
+
+const detailSections = computed(() => {
+  const data = viewData.value || {}
+  const sections = [
+    {
+      key: 'basic',
+      title: 'Thông tin cơ bản',
+      fields: [
+        detailField('assetCode', 'Mã tài sản', data.assetCode),
+        detailField('name', 'Tên thiết bị', data.name),
+        detailField('categoryName', 'Danh mục', data.categoryName),
+        detailField('model', 'Model', data.model),
+        detailField('serial', 'Số seri', data.serial),
+        detailField('serialName', 'Tên định danh', data.serialName),
+        detailField('invoiceNumber', 'Số hóa đơn', data.invoiceNumber)
+      ]
+    },
+    {
+      key: 'location',
+      title: 'Vị trí',
+      fields: [detailField('location', 'Vị trí lưu trữ', data.location)]
+    },
+    {
+      key: 'management',
+      title: 'Quản lý',
+      fields: [
+        detailField('responsiblePerson', 'Người phụ trách', data.responsiblePerson),
+        detailField('status', 'Trạng thái', data.status)
+      ]
+    },
+    {
+      key: 'warranty',
+      title: 'Bảo hành',
+      fields: [
+        detailField('entryDate', 'Ngày nhập', detailDate(data.entryDate)),
+        detailField('warrantyExpiry', 'Hạn bảo hành', detailDate(data.warrantyExpiry))
+      ]
+    }
+  ]
+  return sections
+    .map(section => ({ ...section, fields: section.fields.filter(field => hasDetailValue(field.value)) }))
+    .filter(section => section.fields.length)
+})
 
 const beforeDecisionUpload = (file) => {
   const allowedExtensions = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png']
@@ -901,6 +941,75 @@ const onScanSuccess = (decodedText) => {
 
 .import-summary {
   margin: 16px 0;
+}
+
+.equipment-detail-content {
+  display: grid;
+  gap: 18px;
+}
+
+:global(.equipment-detail-modal .ant-modal) {
+  max-width: calc(100vw - 24px);
+}
+
+.equipment-detail-section {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  background: #fffaf7;
+}
+
+.equipment-detail-section h3 {
+  margin: 0 0 12px;
+  color: var(--color-ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.equipment-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin: 0;
+}
+
+.equipment-detail-field {
+  min-width: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.equipment-detail-field dt {
+  margin-bottom: 5px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.equipment-detail-field dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  :global(.equipment-detail-modal .ant-modal) {
+    width: calc(100vw - 24px) !important;
+    margin: 12px auto;
+  }
+
+  .equipment-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .equipment-detail-section {
+    padding: 14px;
+  }
 }
 </style>
 
