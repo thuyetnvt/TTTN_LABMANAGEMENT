@@ -28,23 +28,23 @@
     b3Title: 'Hậu kiểm chặt.',
     b3Desc: 'Trả tốt thì đưa về Rảnh, hỏng thì xét bảo hành hoặc bồi thường.',
     footerSys: 'LabManagement',
-    footerCopy: '© 2026 LabManagement. Quản lý phòng thí nghiệm và tài sản.'
+    footerCopy: '© 2026 LabManagement — Hệ thống quản lý tài sản Phòng Lab IoT, Khoa Công nghệ Thông tin.'
   },
   hero: {
-    brandTag: 'Nền tảng quản lý phòng thí nghiệm',
-    title1: 'Quản lý',
-    title2: 'phòng thí nghiệm',
-    title3: 'hiện đại',
-    desc: 'Theo dõi thiết bị, tài sản, mượn trả, bảo trì và bồi thường trong một hệ thống trực quan, dễ kiểm soát.',
-    feature1Title: 'Thiết bị',
-    feature1Desc: 'Quản lý số seri, vị trí và trạng thái.',
+    brandTag: 'Hệ thống quản lý tài sản Phòng Lab IoT',
+    title1: 'Quản lý tài sản',
+    title2: 'Phòng Lab IoT',
+    title3: 'Khoa CNTT',
+    desc: 'Quản lý thiết bị, mượn trả, bàn giao, kiểm kê, bảo trì và vật tư của Phòng Lab IoT trên một hệ thống thống nhất.',
+    feature1Title: 'Tài sản',
+    feature1Desc: 'Quản lý mã, số seri, vị trí và trạng thái.',
     feature2Title: 'Mượn trả',
-    feature2Desc: 'Duyệt yêu cầu và nhắc hạn trả.',
-    feature3Title: 'Danh mục',
-    feature3Desc: 'Phân loại IoT, AI, tài sản và linh kiện.',
+    feature2Desc: 'Bảo lãnh, phê duyệt, bàn giao và trả tài sản.',
+    feature3Title: 'Kiểm kê',
+    feature3Desc: 'Quét QR và theo dõi chênh lệch tài sản.',
     feature4Title: 'Bảo trì',
-    feature4Desc: 'Theo dõi sửa chữa và bảo hành.',
-    statsTitle: 'Hiệu quả vận hành',
+    feature4Desc: 'Lập lịch định kỳ và lưu lịch sử xử lý.',
+    statsTitle: 'Nghiệp vụ được hỗ trợ',
     stat1Desc: 'Tài sản',
     stat2Desc: 'Lượt xử lý',
     stat3Desc: 'Sẵn sàng',
@@ -52,7 +52,7 @@
   },
   login: {
     welcomeBack: 'Chào mừng trở lại',
-    loginToContinue: 'Đăng nhập để tiếp tục quản lý phòng lab',
+    loginToContinue: 'Đăng nhập để sử dụng hệ thống Phòng Lab IoT',
     account: 'Tài khoản',
     accountPlaceholder: 'Nhập tài khoản',
     accountRequired: 'Vui lòng nhập tài khoản',
@@ -63,7 +63,7 @@
     loggingIn: 'Đang đăng nhập...',
     loginBtn: 'Đăng nhập',
     noAccount: 'Chưa có tài khoản?',
-    contactAdmin: 'Liên hệ quản trị viên',
+    contactAdmin: 'Liên hệ quản trị viên Phòng Lab IoT',
     loginSuccess: 'Đăng nhập thành công'
   },
   forgot: {
@@ -95,7 +95,7 @@
   },
   header: {
     search: 'Tìm kiếm',
-    workspace: 'Phòng thí nghiệm trung tâm'
+    workspace: 'Phòng Lab IoT – Khoa CNTT'
   },
   search_modal: {
     placeholder: 'Tìm thiết bị theo tên hoặc số seri',
@@ -174,6 +174,5 @@
     unitPlaceholder: 'Nhập đơn vị'
   }
 }
-
 
 

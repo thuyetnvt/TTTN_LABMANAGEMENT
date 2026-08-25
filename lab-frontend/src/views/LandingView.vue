@@ -19,9 +19,9 @@
     <section class="hero-section">
       <div class="hero-container">
         <div class="hero-content">
-          <div class="badge">Nền tảng LabManagement 2.0</div>
-          <h1 class="hero-title">Chuyển đổi số toàn diện <span class="highlight">không gian phòng lab</span></h1>
-          <p class="hero-subtitle">Nền tảng tiên phong giúp tối ưu hóa quản lý thiết bị, kiểm soát quy trình mượn trả và tự động hóa bảo trì. Đưa phòng thí nghiệm của bạn vận hành chuyên nghiệp, thông minh và hiệu quả hơn bao giờ hết.</p>
+          <div class="badge">Hệ thống quản lý tài sản Phòng Lab IoT</div>
+          <h1 class="hero-title">Quản lý tài sản và vận hành <span class="highlight">Phòng Lab IoT</span></h1>
+          <p class="hero-subtitle">Hỗ trợ Khoa Công nghệ Thông tin quản lý thiết bị, mượn trả, bàn giao, kiểm kê, bảo trì và vật tư trên một hệ thống thống nhất.</p>
           <div class="hero-cta">
             <a-button type="primary" size="large" class="cta-btn btn-primary primary-cta" @click="$router.push('/login')">
               Vào hệ thống
@@ -41,20 +41,20 @@
     <section class="stats-section">
       <div class="stats-grid">
         <div class="stat-item">
-          <h2>IoT</h2>
-          <p>Định danh tài sản</p>
+          <h2>Tài sản</h2>
+          <p>Mã, số seri và vị trí</p>
         </div>
         <div class="stat-item">
           <h2>QR</h2>
-          <p>Kiểm kê và bàn giao</p>
+          <p>Tra cứu và kiểm kê</p>
         </div>
         <div class="stat-item">
-          <h2>360°</h2>
-          <p>Theo dõi vòng đời</p>
+          <h2>Mượn trả</h2>
+          <p>Phê duyệt và bàn giao</p>
         </div>
         <div class="stat-item">
-          <h2>API</h2>
-          <p>Dữ liệu kết nối thật</p>
+          <h2>Bảo trì</h2>
+          <p>Lịch định kỳ và lịch sử</p>
         </div>
       </div>
     </section>
@@ -62,8 +62,8 @@
     <!-- Features Section (Cream) -->
     <section class="features-section" id="features">
       <div class="section-header">
-        <h2 class="serif-title">Hệ sinh thái quản lý toàn diện</h2>
-        <p>Được thiết kế chuyên biệt cho môi trường học thuật và nghiên cứu, giúp tự động hóa và số hóa toàn bộ các quy trình nghiệp vụ thủ công.</p>
+        <h2 class="serif-title">Nghiệp vụ chính của hệ thống</h2>
+        <p>Các chức năng phục vụ quản lý tài sản và hoạt động hằng ngày của Phòng Lab IoT.</p>
       </div>
       
       <div class="features-grid">
@@ -71,24 +71,24 @@
           <div class="feature-icon-wrapper">
             <desktop-outlined class="feature-icon" />
           </div>
-          <h3>Kiểm soát tài sản thông minh</h3>
-          <p>Lưu trữ chi tiết thông số kỹ thuật, vị trí lưu trữ, lịch sử vòng đời thiết bị và tự động cảnh báo khi đến hạn bảo hành.</p>
+          <h3>Tài sản và vị trí</h3>
+          <p>Quản lý mã tài sản, số seri, model, thông tin thiết bị IoT, danh mục, vị trí dạng cây, người phụ trách, bảo hành và mã QR.</p>
         </div>
         
         <div class="feature-card">
           <div class="feature-icon-wrapper">
             <history-outlined class="feature-icon" />
           </div>
-          <h3>Quy trình mượn trả khép kín</h3>
-          <p>Tích hợp phê duyệt đa tầng, quét mã QR nhận diện thiết bị siêu tốc và hệ thống nhắc nhở lịch trả hoàn toàn tự động.</p>
+          <h3>Mượn trả và bàn giao</h3>
+          <p>Hỗ trợ phiếu mượn nhiều tài sản, giảng viên bảo lãnh, quản lý phê duyệt, lập biên bản bàn giao, trả tài sản và lưu file minh chứng.</p>
         </div>
         
         <div class="feature-card">
           <div class="feature-icon-wrapper">
             <tool-outlined class="feature-icon" />
           </div>
-          <h3>Đánh giá & Bảo trì tự động</h3>
-          <p>Ghi nhận chính xác tình trạng thiết bị sau mỗi lần sử dụng. Phân luồng xử lý sửa chữa, bảo hành minh bạch và rõ ràng.</p>
+          <h3>Kiểm kê, bảo trì và vật tư</h3>
+          <p>Kiểm kê tài sản bằng QR, theo dõi chênh lệch, lập lịch bảo trì định kỳ, lưu lịch sử sửa chữa và quản lý cấp phát vật tư tiêu hao.</p>
         </div>
       </div>
     </section>
@@ -100,26 +100,26 @@
           <img src="/feature.png" alt="Giao diện quản lý thiết bị lab" class="shadow-img" />
         </div>
         <div class="split-content">
-          <h2 class="serif-title">Quản trị dữ liệu tập trung, quyết định chính xác</h2>
-          <p class="split-desc">Triển khai hệ thống phân loại linh hoạt từ thiết bị IoT, AI đến vật tư tiêu hao. Mọi lịch sử tác động đều được số hóa, lưu vết hoàn chỉnh và minh bạch tuyệt đối.</p>
+          <h2 class="serif-title">Dữ liệu tập trung, phân quyền theo vai trò</h2>
+          <p class="split-desc">Thông tin tài sản và các nghiệp vụ liên quan được quản lý tập trung, có lịch sử thay đổi, thông báo, báo cáo và nhật ký hoạt động theo quyền truy cập.</p>
           
           <ul class="benefit-list">
             <li>
               <check-circle-filled class="check-icon" />
               <div>
-                <strong>Cấu trúc linh hoạt.</strong> Tùy biến không gian lưu trữ và phân nhóm tài sản theo đặc thù của từng phòng nghiên cứu.
+                <strong>Quản lý theo vị trí.</strong> Tổ chức tòa nhà, phòng, tủ và khu vực lưu trữ theo cấu trúc cây, hạn chế nhập sai tên vị trí.
               </div>
             </li>
             <li>
               <check-circle-filled class="check-icon" />
               <div>
-                <strong>Phân quyền đa lớp.</strong> Phân bổ quyền hạn chi tiết từ Ban quản lý đến Sinh viên, đảm bảo tính toàn vẹn của dữ liệu.
+                <strong>Phân quyền rõ ràng.</strong> Quản trị viên, Trưởng lab, Phó lab, Giảng viên và Sinh viên sử dụng đúng chức năng được giao.
               </div>
             </li>
             <li>
               <check-circle-filled class="check-icon" />
               <div>
-                <strong>Quy trình chuẩn hóa.</strong> Giám sát chặt chẽ vòng đời thiết bị từ lúc nhập kho đến khi thanh lý, tối đa hóa tuổi thọ tài sản.
+                <strong>Lưu vết nghiệp vụ.</strong> Theo dõi lịch sử tài sản, mượn trả, bàn giao, kiểm kê, bảo trì, vật tư và các thao tác quan trọng.
               </div>
             </li>
           </ul>
@@ -130,10 +130,10 @@
     <!-- CTA Band Coral -->
     <section class="cta-band-coral">
       <div class="cta-band-content">
-        <h2 class="serif-title">Sẵn sàng để tối ưu hóa phòng lab của bạn?</h2>
-        <p>Bắt đầu trải nghiệm nền tảng quản lý chuyên nghiệp và hiệu quả ngay hôm nay.</p>
+        <h2 class="serif-title">Đăng nhập để sử dụng hệ thống</h2>
+        <p>Tài khoản được cấp và phân quyền bởi quản trị viên Phòng Lab IoT.</p>
         <a-button size="large" class="cta-btn btn-cream" @click="$router.push('/login')">
-          Trải nghiệm ngay
+          Đăng nhập
         </a-button>
       </div>
     </section>
@@ -146,7 +146,7 @@
           <span>LabManagement</span>
         </div>
         <div class="footer-copy">
-          © 2026 LabManagement. Quản lý phòng thí nghiệm và tài sản.
+          © 2026 LabManagement — Hệ thống quản lý tài sản Phòng Lab IoT, Khoa Công nghệ Thông tin.
         </div>
       </div>
     </footer>
