@@ -6,7 +6,7 @@
 
     <a-card :bordered="false">
       <div class="inventory-desktop-table">
-        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered>
+        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered :scroll="{ x: 1220 }">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template>
             <template v-else-if="column.key === 'progress'">
@@ -121,13 +121,13 @@ const scanMessageType = ref('success')
 const cameraOpen = ref(false)
 
 const columns = [
-  { title: 'Mã đợt', dataIndex: 'code', key: 'code' },
-  { title: 'Tên đợt', dataIndex: 'name', key: 'name' },
+  { title: 'Mã đợt', dataIndex: 'code', key: 'code', width: 150 },
+  { title: 'Tên đợt', dataIndex: 'name', key: 'name', width: 260 },
   { title: 'Tiến độ', key: 'progress', width: 190 },
-  { title: 'Thiếu/chưa quét', key: 'missing', customRender: ({ record }) => `${record.missing}/${record.total}` },
-  { title: 'Trạng thái', key: 'status' },
-  { title: 'Bắt đầu', key: 'startedAt' },
-  { title: 'Thao tác', key: 'action', width: 96, align: 'center' }
+  { title: 'Thiếu/chưa quét', key: 'missing', width: 150, customRender: ({ record }) => `${record.missing}/${record.total}` },
+  { title: 'Trạng thái', key: 'status', width: 150 },
+  { title: 'Bắt đầu', key: 'startedAt', width: 140 },
+  { title: 'Thao tác', key: 'action', fixed: 'right', width: 180, align: 'center' }
 ]
 const itemColumns = [
   { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName' },

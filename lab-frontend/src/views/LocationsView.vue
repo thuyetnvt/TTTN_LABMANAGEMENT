@@ -9,7 +9,7 @@
     </div>
 
     <a-card :bordered="false">
-      <a-table :data-source="locations" :columns="columns" :loading="loading" row-key="id" :scroll="{ x: 900 }">
+      <a-table :data-source="locations" :columns="columns" :loading="loading" row-key="id" :scroll="{ x: 1240 }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'parent'">
             {{ parentName(record.parentId) }}
@@ -81,13 +81,13 @@ const typeOptions = [
   { value: 'SHELF', label: 'Ngăn' }
 ]
 const columns = [
-  { title: 'Mã', dataIndex: 'code', key: 'code' },
-  { title: 'Tên vị trí', dataIndex: 'name', key: 'name' },
-  { title: 'Loại', dataIndex: 'type', key: 'type' },
-  { title: 'Vị trí cha', key: 'parent' },
-  { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount' },
-  { title: 'Trạng thái', key: 'status' },
-  { title: 'Thao tác', key: 'action' }
+  { title: 'Mã', dataIndex: 'code', key: 'code', width: 150 },
+  { title: 'Tên vị trí', dataIndex: 'name', key: 'name', width: 240 },
+  { title: 'Loại', dataIndex: 'type', key: 'type', width: 150 },
+  { title: 'Vị trí cha', key: 'parent', width: 240 },
+  { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount', width: 130 },
+  { title: 'Trạng thái', key: 'status', width: 150 },
+  { title: 'Thao tác', key: 'action', fixed: 'right', width: 180, align: 'center' }
 ]
 
 const parentOptions = computed(() => locations.value.filter(item => item.id !== editing.value?.id && item.isActive))

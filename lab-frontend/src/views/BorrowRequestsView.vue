@@ -240,7 +240,7 @@ const columns = [
   { title: 'Hạn trả', key: 'dueStatus', align: 'center', width: 130 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 180 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 120 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 190 }
+  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 180 }
 ]
 
 onMounted(() => fetchRequests())

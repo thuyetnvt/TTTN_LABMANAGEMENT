@@ -237,7 +237,7 @@ const columns = [
   { title: 'Chi phí', dataIndex: 'cost', key: 'cost', width: 120 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160 },
   { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 280 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 80 }
+  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 180 }
 ]
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'
