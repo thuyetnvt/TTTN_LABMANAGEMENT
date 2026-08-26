@@ -92,7 +92,11 @@
               <template #icon><ScanOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-button v-if="isBorrowerRole(role) && statusMatches(record.status, STATUS.AVAILABLE)" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
+          <a-tooltip v-if="isBorrowerRole(role) && statusMatches(record.status, STATUS.AVAILABLE)" title="Mượn thiết bị">
+            <a-button type="link" size="small" @click="handleBorrowClick(record)">
+              <template #icon><ShoppingCartOutlined /></template>
+            </a-button>
+          </a-tooltip>
         </a-space>
       </template>
     </template>
@@ -157,7 +161,7 @@
             {{ item.name }} — {{ item.serial }}
           </a-select-option>
         </a-select>
-        <a-list v-if="borrowItems.length" size="small" bordered class="borrow-items-list">
+        <a-list v-if="borrowItems.length" size="small" bordered class="borrow-items-list" style="margin-top: 12px">
           <a-list-item v-for="item in borrowItems" :key="item.id">
             <span>{{ item.name }} — {{ item.serial }}</span>
             <a-button type="link" danger size="small" @click="removeBorrowItem(item.id)">Bỏ</a-button>
@@ -283,7 +287,7 @@
     </a-form>
   </a-modal>
 
-  <a-modal v-model:open="isViewVisible" title="Chi tiết thiết bị" :footer="null" width="780px" wrap-class-name="equipment-detail-modal">
+  <a-modal v-model:open="isViewVisible" title="Chi tiết thiết bị" :footer="null" width="780px" wrap-class-name="equipment-detail-modal" centered>
     <div class="equipment-detail-content" data-testid="equipment-detail-modal">
       <section v-for="section in detailSections" :key="section.key" class="equipment-detail-section">
         <h3>{{ section.title }}</h3>
@@ -309,7 +313,7 @@ import { message, Modal, Upload } from 'ant-design-vue'
 import StatusBadge from './StatusBadge.vue'
 import LocationTreeSelect from './LocationTreeSelect.vue'
 import { STATUS, isAdminRole, isBorrowerRole, isManagerRole, isStudentRole, statusLabel, statusMatches } from '../constants/business'
-import { EditOutlined, DeleteOutlined, EyeOutlined, ScanOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, DeleteOutlined, EyeOutlined, ScanOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { equipmentApi } from '../api/equipmentApi'
 import { borrowApi } from '../api/borrowApi'
@@ -344,7 +348,7 @@ const columns = [
   { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130 },
   { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 180 }
+  { title: 'Hành động', key: 'action', fixed: 'right', width: 110 }
 ]
 
 const searchQuery = ref('')
@@ -958,8 +962,8 @@ const onScanSuccess = (decodedText) => {
 }
 
 .equipment-detail-content {
-  display: grid;
-  gap: 18px;
+  column-count: 2;
+  column-gap: 18px;
 }
 
 :global(.equipment-detail-modal .ant-modal) {
@@ -967,15 +971,17 @@ const onScanSuccess = (decodedText) => {
 }
 
 .equipment-detail-section {
+  break-inside: avoid;
+  margin-bottom: 12px;
   min-width: 0;
-  padding: 16px;
+  padding: 12px 16px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 12px;
   background: #fffaf7;
 }
 
 .equipment-detail-section h3 {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--color-ink);
   font-size: 15px;
   font-weight: 700;
@@ -983,19 +989,19 @@ const onScanSuccess = (decodedText) => {
 
 .equipment-detail-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 20px;
+  grid-template-columns: 1fr;
+  gap: 6px;
   margin: 0;
 }
 
 .equipment-detail-field {
   min-width: 0;
-  padding-bottom: 10px;
+  padding-bottom: 6px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .equipment-detail-field dt {
-  margin-bottom: 5px;
+  margin-bottom: 2px;
   color: #64748b;
   font-size: 12px;
   font-weight: 600;
@@ -1015,9 +1021,11 @@ const onScanSuccess = (decodedText) => {
     width: calc(100vw - 24px) !important;
     margin: 12px auto;
   }
+  .equipment-detail-content {
+    column-count: 1;
+  }
 
   .equipment-detail-grid {
-    grid-template-columns: 1fr;
     gap: 10px;
   }
 
