@@ -11,7 +11,7 @@
         v-model:value="searchQuery"
         placeholder="Tìm kiếm theo tên thiết bị..."
         style="width: 250px"
-        @change="handleSearchChange"
+        @input="handleSearchChange"
       />
     </div>
     <div class="right-actions">
@@ -77,15 +77,21 @@
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-button v-if="isManagerRole(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
-            <template #icon><EditOutlined /></template>
-          </a-button>
-          <a-button v-if="isAdminRole(role)" type="link" danger size="small" @click="handleDelete(record.id)" title="Xóa">
-            <template #icon><DeleteOutlined /></template>
-          </a-button>
-          <a-button v-if="isManagerRole(role)" type="link" size="small" @click="handleInventory(record)" title="Kiểm kê">
-            <template #icon><ScanOutlined /></template>
-          </a-button>
+          <a-tooltip v-if="isManagerRole(role)" title="Sửa thiết bị">
+            <a-button type="link" size="small" aria-label="Sửa thiết bị" @click="showEditModal(record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="isAdminRole(role)" title="Xóa thiết bị">
+            <a-button type="link" danger size="small" aria-label="Xóa thiết bị" @click="handleDelete(record.id)">
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="isManagerRole(role)" title="Kiểm kê thiết bị">
+            <a-button type="link" size="small" aria-label="Kiểm kê thiết bị" @click="handleInventory(record)">
+              <template #icon><ScanOutlined /></template>
+            </a-button>
+          </a-tooltip>
           <a-button v-if="isBorrowerRole(role) && statusMatches(record.status, STATUS.AVAILABLE)" type="primary" size="small" @click="handleBorrowClick(record)">Mượn</a-button>
         </a-space>
       </template>

@@ -95,9 +95,11 @@
             <h3>Lập biên bản bàn giao</h3>
             <p>Ghi nhận tình trạng thực tế trước khi bàn giao tài sản.</p>
           </div>
-          <a-button type="text" aria-label="Đóng modal lập biên bản bàn giao" class="handover-close" @click="closeHandoverModal">
-            <template #icon><CloseOutlined /></template>
-          </a-button>
+          <a-tooltip title="Đóng">
+            <a-button type="text" aria-label="Đóng modal lập biên bản bàn giao" class="handover-close" @click="closeHandoverModal">
+              <template #icon><CloseOutlined /></template>
+            </a-button>
+          </a-tooltip>
         </header>
 
         <div class="handover-modal-content">
@@ -170,9 +172,11 @@
                 <a-image v-if="handoverEvidencePreviewUrl" :src="handoverEvidencePreviewUrl" :width="48" :height="48" />
                 <FileOutlined v-else class="handover-file-icon" />
                 <div class="handover-file-copy"><strong>{{ handoverEvidenceFile.name }}</strong><span>{{ formatFileSize(handoverEvidenceFile.size) }}</span></div>
-                <a-button type="text" danger aria-label="Xóa file minh chứng" @click="clearHandoverEvidence">
-                  <template #icon><DeleteOutlined /></template>
-                </a-button>
+                <a-tooltip title="Xóa file minh chứng">
+                  <a-button type="text" danger aria-label="Xóa file minh chứng" @click="clearHandoverEvidence">
+                    <template #icon><DeleteOutlined /></template>
+                  </a-button>
+                </a-tooltip>
               </div>
             </a-form-item>
             <a-form-item v-if="handoverEvidenceFile" label="Loại minh chứng">

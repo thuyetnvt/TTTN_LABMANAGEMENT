@@ -24,6 +24,7 @@
                   <a-button
                     type="link"
                     size="small"
+                    aria-label="Hoàn tất bảo trì"
                     @click="showCompleteModal(record)"
                   >
                     <template #icon><CheckCircleOutlined /></template>

@@ -18,7 +18,6 @@
           <a-input id="reports-to" v-model:value="filters.to" type="date" />
         </div>
         <div class="filter-actions">
-          <a-button type="primary" :loading="loading" @click="load">Lọc</a-button>
           <a-button :disabled="loading" @click="resetFilters">Đặt lại</a-button>
         </div>
       </div>
@@ -71,7 +70,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -103,7 +102,6 @@ const load = async () => {
 }
 const resetFilters = () => {
   filters.value = { from: '', to: '' }
-  load()
 }
 const exportReport = async () => {
   exporting.value = true
@@ -123,6 +121,8 @@ const exportPdf = async () => {
     message.success('Đã xuất báo cáo PDF.')
   } catch (error) { message.error(error?.response?.data?.message || 'Không thể xuất báo cáo PDF.') } finally { exportingPdf.value = false }
 }
+
+watch(filters, load, { deep: true })
 onMounted(load)
 </script>
 

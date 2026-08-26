@@ -5,24 +5,20 @@
         <a-tag :color="isAdminRole(record.role) ? 'gold' : 'blue'">{{ roleLabel(record.role) }}</a-tag>
       </template>
       <template v-else-if="column.key === 'fullName'">
-        <div class="user-name-cell">
-          <UserAvatar
-            :name="record.fullName || record.username"
-            :avatar-url="record.hasAvatar ? userApi.avatarUrl(record.id) : ''"
-            :avatar-updated-at="record.avatarUpdatedAt"
-            :size="32"
-          />
-          <span>{{ record.fullName || '—' }}</span>
-        </div>
+        <span>{{ record.fullName || '—' }}</span>
       </template>
       <template v-else-if="column.key === 'action'">
         <template v-if="isAdminRole(role)">
-          <a-button type="link" size="small" @click="$emit('edit', record)" title="Sửa">
-            <template #icon><EditOutlined /></template>
-          </a-button>
-          <a-button v-if="record.username !== 'admin'" type="link" danger size="small" @click="$emit('delete', record)" title="Xóa">
-            <template #icon><DeleteOutlined /></template>
-          </a-button>
+          <a-tooltip title="Sửa người dùng">
+            <a-button type="link" size="small" aria-label="Sửa người dùng" @click="$emit('edit', record)">
+              <template #icon><EditOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-if="record.username !== 'admin'" title="Xóa người dùng">
+            <a-button type="link" danger size="small" aria-label="Xóa người dùng" @click="$emit('delete', record)">
+              <template #icon><DeleteOutlined /></template>
+            </a-button>
+          </a-tooltip>
         </template>
         <span v-else style="color: #9ca3af;">Chỉ xem</span>
       </template>
@@ -35,8 +31,6 @@ import { computed } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { isAdminRole, roleLabel } from '../constants/business'
-import { userApi } from '../api/userApi'
-import UserAvatar from './UserAvatar.vue'
 
 defineProps({
   dataSource: {
@@ -59,7 +53,3 @@ const columns = [
   { title: 'Hành động', key: 'action', width: 150, align: 'center' }
 ]
 </script>
-
-<style scoped>
-.user-name-cell { display: inline-flex; align-items: center; gap: 10px; min-width: 190px; }
-</style>

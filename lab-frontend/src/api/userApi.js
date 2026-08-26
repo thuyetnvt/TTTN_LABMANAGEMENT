@@ -13,7 +13,9 @@ export const userApi = {
     })
   },
   deleteAvatar: () => axiosClient.delete('/users/me/avatar'),
-  avatarUrl: (userId = null) => `${apiBaseUrl}/users/${userId ? `${userId}/` : ''}avatar`,
+  // The own-avatar endpoint is explicitly /users/me/avatar. Using
+  // /users/avatar falls through to the collection route and returns 405.
+  avatarUrl: (userId = null) => `${apiBaseUrl}/users/${userId ? `${userId}/` : 'me/'}avatar`,
   create: (data) => axiosClient.post('/users', data),
   update: (id, data) => axiosClient.put(`/users/${id}`, data),
   changePassword: (data) => axiosClient.put('/users/me/password', data),

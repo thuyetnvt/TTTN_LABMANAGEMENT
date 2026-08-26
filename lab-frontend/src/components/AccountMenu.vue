@@ -1,15 +1,17 @@
 <template>
   <a-dropdown :placement="placement" trigger="click">
-    <div :data-testid="testId" class="account-menu-trigger">
-      <slot name="trigger">
-        <UserAvatar
-          :name="displayName"
-          :avatar-url="avatarUrl"
-          :avatar-updated-at="avatarUpdatedAt"
-          :size="38"
-        />
-      </slot>
-    </div>
+    <a-tooltip title="Mở menu tài khoản">
+      <div :data-testid="testId" class="account-menu-trigger" aria-label="Mở menu tài khoản">
+        <slot name="trigger">
+          <UserAvatar
+            :name="displayName"
+            :avatar-url="avatarUrl"
+            :avatar-updated-at="avatarUpdatedAt"
+            :size="38"
+          />
+        </slot>
+      </div>
+    </a-tooltip>
     <template #overlay>
       <a-menu class="account-menu" @click="handleMenuClick">
         <div class="account-menu-heading">

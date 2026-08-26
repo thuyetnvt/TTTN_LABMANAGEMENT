@@ -115,12 +115,20 @@
       <!-- Thanh Header -->
       <a-layout-header class="ladi-header">
         <div class="header-left">
-          <a-button type="text" class="sidebar-toggle" data-testid="sidebar-toggle" @click="collapsed = !collapsed">
-            <template #icon>
-              <menu-unfold-outlined v-if="collapsed" />
-              <menu-fold-outlined v-else />
-            </template>
-          </a-button>
+          <a-tooltip :title="collapsed ? 'Mở menu' : 'Thu gọn menu'">
+            <a-button
+              type="text"
+              class="sidebar-toggle"
+              data-testid="sidebar-toggle"
+              :aria-label="collapsed ? 'Mở menu' : 'Thu gọn menu'"
+              @click="collapsed = !collapsed"
+            >
+              <template #icon>
+                <menu-unfold-outlined v-if="collapsed" />
+                <menu-fold-outlined v-else />
+              </template>
+            </a-button>
+          </a-tooltip>
           <div class="workspace-selector">
             <span class="workspace-icon"><experiment-outlined /></span>
             <span class="workspace-name">{{ $t('header.workspace') }}</span>
@@ -233,7 +241,11 @@
           <desktop-outlined />
           <span>Thiết bị</span>
         </div>
-        <close-outlined class="cmd-close" @click="searchVisible = false" />
+        <a-tooltip title="Đóng tìm kiếm">
+          <button type="button" class="cmd-close" aria-label="Đóng tìm kiếm" @click="searchVisible = false">
+            <close-outlined />
+          </button>
+        </a-tooltip>
       </div>
       
       <div class="cmd-body">
@@ -360,10 +372,9 @@ const notificationStore = useNotificationStore()
 const role = computed(() => authStore.role)
 const collapsed = ref(false)
 const searchShortcut = computed(() => {
-  if (typeof navigator !== 'undefined' && /win/i.test(navigator.userAgent)) {
-    return 'Ctrl K'
-  }
-  return '⌘ K'
+  if (typeof navigator === 'undefined') return 'Ctrl K'
+  const platform = navigator.userAgentData?.platform || navigator.platform || navigator.userAgent
+  return /mac|iphone|ipad|ipod/i.test(platform) ? '⌘ K' : 'Ctrl K'
 })
 const routeMenuKeys = {
   Overview: '0',
@@ -479,7 +490,7 @@ onMounted(() => {
   notificationStore.fetchRecent().catch(() => {})
   loadAccountProfile()
   // Kết nối SignalR
-  const signalRUrl = import.meta.env.VITE_SIGNALR_URL || 'http://localhost:5248/notificationHub'
+  const signalRUrl = import.meta.env.VITE_SIGNALR_URL || '/notificationHub'
   hubConnection = new signalR.HubConnectionBuilder()
     .withUrl(signalRUrl, {
       accessTokenFactory: () => localStorage.getItem('token') || sessionStorage.getItem('token') || ''
@@ -657,6 +668,10 @@ const submitChangePassword = async () => {
   padding: 12px 14px 16px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   background: var(--color-canvas-cream);
+}
+.sidebar-account-footer :deep(.account-menu-trigger) {
+  display: block;
+  width: 100%;
 }
 .sidebar-account-trigger {
   display: flex;
@@ -997,10 +1012,13 @@ const submitChangePassword = async () => {
   white-space: nowrap;
 }
 .cmd-close {
+  border: 0;
+  background: transparent;
   font-size: 16px;
   color: #9ca3af;
   cursor: pointer;
   padding: 4px;
+  line-height: 1;
 }
 .cmd-close:hover {
   color: #111827;

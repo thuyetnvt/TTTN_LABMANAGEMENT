@@ -2,7 +2,7 @@ import axiosClient from './axiosClient'
 
 const authApi = {
   login(credentials) {
-    // Gọi API thật tới C# Backend (POST http://localhost:5248/api/auth/login)
+    // Gọi API thật qua base URL được cấu hình cho môi trường hiện tại.
     return axiosClient.post('/auth/login', credentials)
   },
   forgotPassword(data) {

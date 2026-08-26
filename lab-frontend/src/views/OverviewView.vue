@@ -65,7 +65,9 @@
             <div class="compact-alert-title">{{ alert.title }}</div>
             <div class="compact-alert-desc">{{ alert.message }}</div>
           </div>
-          <arrow-right-outlined class="compact-alert-arrow" />
+          <a-tooltip title="Xem và xử lý cảnh báo">
+            <arrow-right-outlined class="compact-alert-arrow" />
+          </a-tooltip>
         </div>
         <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
       </a-card>
@@ -104,7 +106,9 @@
                 <div class="compact-alert-title">{{ alert.title }}</div>
                 <div class="compact-alert-desc">{{ alert.message }}</div>
               </div>
-              <arrow-right-outlined class="compact-alert-arrow" />
+              <a-tooltip title="Xem và xử lý cảnh báo">
+                <arrow-right-outlined class="compact-alert-arrow" />
+              </a-tooltip>
             </div>
             <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
           </a-card>

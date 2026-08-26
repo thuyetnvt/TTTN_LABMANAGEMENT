@@ -19,12 +19,23 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small" @click="openEdit(record)" title="Sửa">
-                <template #icon><EditOutlined /></template>
-              </a-button>
-              <a-button type="link" danger size="small" :disabled="record.equipmentCount > 0" @click="removeLocation(record)" title="Xóa">
-                <template #icon><DeleteOutlined /></template>
-              </a-button>
+              <a-tooltip title="Sửa vị trí">
+                <a-button type="link" size="small" aria-label="Sửa vị trí" @click="openEdit(record)">
+                  <template #icon><EditOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip :title="deleteLocationLabel(record)">
+                <a-button
+                  type="link"
+                  danger
+                  size="small"
+                  :aria-label="deleteLocationLabel(record)"
+                  :disabled="!canDeleteLocation(record)"
+                  @click="removeLocation(record)"
+                >
+                  <template #icon><DeleteOutlined /></template>
+                </a-button>
+              </a-tooltip>
             </a-space>
           </template>
         </template>
@@ -55,6 +66,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { locationApi } from '../api/locationApi'
+import { getApiErrorMessage } from '../utils/apiError'
 
 const locations = ref([])
 const loading = ref(false)
@@ -80,13 +92,17 @@ const columns = [
 
 const parentOptions = computed(() => locations.value.filter(item => item.id !== editing.value?.id && item.isActive))
 const parentName = (id) => locations.value.find(item => item.id === id)?.name || '—'
+const canDeleteLocation = (record) => Number(record.equipmentCount || 0) === 0
+const deleteLocationLabel = (record) => canDeleteLocation(record)
+  ? 'Xóa vị trí'
+  : `Không thể xóa: vị trí còn ${record.equipmentCount} tài sản`
 
 const fetchLocations = async () => {
   loading.value = true
   try {
     locations.value = await locationApi.getAll() || []
   } catch (error) {
-    message.error(error?.response?.data?.message || 'Không tải được danh sách vị trí.')
+    message.error(getApiErrorMessage(error, 'Không tải được danh sách vị trí.'))
   } finally {
     loading.value = false
   }
@@ -109,13 +125,17 @@ const submit = async () => {
     modalOpen.value = false
     await fetchLocations()
   } catch (error) {
-    message.error(error?.response?.data?.message || 'Không thể lưu vị trí.')
+    message.error(getApiErrorMessage(error, 'Không thể lưu vị trí.'))
   } finally {
     saving.value = false
   }
 }
 
 const removeLocation = (record) => {
+  if (!canDeleteLocation(record)) {
+    message.warning(`Không thể xóa vị trí vì đang có ${record.equipmentCount} tài sản. Hãy chuyển tài sản hoặc ngừng sử dụng vị trí.`)
+    return
+  }
   Modal.confirm({
     title: 'Xóa vị trí',
     content: `Bạn có chắc muốn xóa vị trí ${record.name}?`,
@@ -124,7 +144,7 @@ const removeLocation = (record) => {
     cancelText: 'Hủy',
     onOk: async () => {
       try { await locationApi.remove(record.id); message.success('Đã xóa vị trí.'); await fetchLocations() }
-      catch (error) { message.error(error?.response?.data?.message || 'Không thể xóa vị trí.') }
+      catch (error) { message.error(getApiErrorMessage(error, 'Không thể xóa vị trí.')) }
     }
   })
 }

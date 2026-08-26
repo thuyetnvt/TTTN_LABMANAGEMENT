@@ -26,15 +26,21 @@
         <template v-else-if="column.key === 'action'">
           <a-space>
             <a-button v-if="isBorrowerRole(role)" type="link" size="small" @click="showRequestModal(record)">Yêu cầu cấp phát</a-button>
-            <a-button v-if="isManagerRole(role)" type="link" size="small" @click="showHistoryModal(record)" title="Lịch sử">
-              <template #icon><HistoryOutlined /></template>
-            </a-button>
-            <a-button v-if="isManagerRole(role)" type="link" size="small" @click="showEditModal(record)" title="Sửa">
-              <template #icon><EditOutlined /></template>
-            </a-button>
-            <a-button v-if="isAdminRole(role)" type="link" danger size="small" @click="handleDelete(record.id)" title="Xóa">
-              <template #icon><DeleteOutlined /></template>
-            </a-button>
+            <a-tooltip v-if="isManagerRole(role)" title="Xem lịch sử vật tư">
+              <a-button type="link" size="small" aria-label="Xem lịch sử vật tư" @click="showHistoryModal(record)">
+                <template #icon><HistoryOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="isManagerRole(role)" title="Sửa vật tư">
+              <a-button type="link" size="small" aria-label="Sửa vật tư" @click="showEditModal(record)">
+                <template #icon><EditOutlined /></template>
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="isAdminRole(role)" title="Xóa vật tư">
+              <a-button type="link" danger size="small" aria-label="Xóa vật tư" @click="handleDelete(record.id)">
+                <template #icon><DeleteOutlined /></template>
+              </a-button>
+            </a-tooltip>
           </a-space>
         </template>
       </template>

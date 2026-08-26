@@ -86,7 +86,12 @@ const passwordRules = [
 
 const getFormData = async () => {
   await formRef.value.validate()
-  return { ...formState }
+  const data = { ...formState }
+  // Updating a user keeps the existing password when the field is blank.
+  // Do not send an empty string because the API only validates password
+  // length when a new password is actually provided.
+  if (isEditing.value && !data.password.trim()) delete data.password
+  return data
 }
 
 defineExpose({ setFormData, getFormData })

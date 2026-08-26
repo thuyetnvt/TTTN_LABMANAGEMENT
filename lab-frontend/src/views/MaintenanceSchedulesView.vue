@@ -19,9 +19,27 @@
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
-              <a-button v-if="record.isActive" size="small" type="primary" @click="generate(record)">Tạo phiếu</a-button>
-              <a-button size="small" @click="openEdit(record)">Sửa</a-button>
-              <a-button v-if="isAdminRole(role)" size="small" danger @click="remove(record)">Xóa</a-button>
+              <a-tooltip v-if="record.isActive" title="Tạo phiếu bảo trì">
+                <a-button
+                  size="small"
+                  type="link"
+                  class="schedule-action-button"
+                  aria-label="Tạo phiếu bảo trì"
+                  @click="generate(record)"
+                >
+                  <template #icon><FileAddOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip title="Sửa kế hoạch bảo trì">
+                <a-button type="link" size="small" class="schedule-action-button" aria-label="Sửa kế hoạch bảo trì" @click="openEdit(record)">
+                  <template #icon><EditOutlined /></template>
+                </a-button>
+              </a-tooltip>
+              <a-tooltip v-if="isAdminRole(role)" title="Xóa kế hoạch bảo trì">
+                <a-button type="link" size="small" class="schedule-action-button" aria-label="Xóa kế hoạch bảo trì" @click="remove(record)">
+                  <template #icon><DeleteOutlined /></template>
+                </a-button>
+              </a-tooltip>
             </a-space>
           </template>
         </template>
@@ -86,6 +104,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { message, Modal } from 'ant-design-vue'
+import { DeleteOutlined, EditOutlined, FileAddOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole } from '../constants/business'
 import { equipmentApi } from '../api/equipmentApi'
@@ -106,7 +125,7 @@ const columns = [
   { title: 'Chu kỳ', dataIndex: 'intervalDays', key: 'intervalDays', customRender: ({ record }) => `${record.intervalDays} ${({ DAY: 'ngày', WEEK: 'tuần', MONTH: 'tháng', QUARTER: 'quý', YEAR: 'năm' })[record.intervalUnit] || 'ngày'}` },
   { title: 'Hạn kế tiếp', dataIndex: 'nextDueAt', key: 'nextDueAt' },
   { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive' },
-  { title: 'Hành động', key: 'action' }
+  { title: 'Hành động', key: 'action', width: 150, align: 'center' }
 ]
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'
@@ -159,6 +178,21 @@ onMounted(async () => { equipments.value = await equipmentApi.getAll() || []; aw
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 h2 { margin: 0; }
 .muted { margin: 5px 0 0; color: #777; }
+
+:deep(.schedule-action-button) {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  box-shadow: none;
+  color: var(--color-primary);
+}
+
+:deep(.schedule-action-button:hover),
+:deep(.schedule-action-button:focus-visible) {
+  color: var(--color-primary-hover);
+  background: rgba(217, 119, 87, 0.12);
+}
 
 :global(.maintenance-form-modal .ant-modal) {
   max-width: calc(100vw - 32px);

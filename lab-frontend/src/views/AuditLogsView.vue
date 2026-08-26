@@ -28,7 +28,6 @@
           <a-select-option value="ConsumableRequest">Yêu cầu vật tư</a-select-option>
           <a-select-option value="AssetCategory">Danh mục</a-select-option>
         </a-select>
-        <a-button type="primary" @click="applyFilters">Lọc</a-button>
         <a-button @click="resetFilters">Xóa lọc</a-button>
       </div>
     </FilterBar>
@@ -77,7 +76,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { auditApi } from '../api/auditApi'
@@ -128,16 +127,14 @@ const fetchLogs = async () => {
   }
 }
 
-const applyFilters = () => {
-  pagination.current = 1
-  fetchLogs()
-}
-
 const resetFilters = () => {
+  if (!filters.action && !filters.entityType) {
+    pagination.current = 1
+    fetchLogs()
+    return
+  }
   filters.action = undefined
   filters.entityType = undefined
-  pagination.current = 1
-  fetchLogs()
 }
 
 const handleTableChange = (pager) => {
@@ -170,6 +167,14 @@ const entityLabel = (entityType) => ({
 }[entityType] || entityType)
 
 const formatDateTime = (value) => value ? new Date(value).toLocaleString('vi-VN') : ''
+
+watch(
+  () => [filters.action, filters.entityType],
+  () => {
+    pagination.current = 1
+    fetchLogs()
+  }
+)
 
 onMounted(fetchLogs)
 </script>

@@ -55,6 +55,10 @@ test('không hiển thị [object Object] khi response lỗi là object', () => 
     getApiErrorMessage({ response: { data: { message: { detail: 'not-a-string' } } }, message: 'Mất kết nối.' }, 'Không thể gửi nhắc trả.'),
     'Mất kết nối.'
   )
+  assert.equal(
+    getApiErrorMessage({ response: { data: { errors: { Password: ['Mật khẩu phải có ít nhất 8 ký tự.'] } } } }, 'Dữ liệu không hợp lệ.'),
+    'Mật khẩu phải có ít nhất 8 ký tự.'
+  )
 })
 
 test('điều hướng cảnh báo Dashboard đến đúng màn hình', () => {
