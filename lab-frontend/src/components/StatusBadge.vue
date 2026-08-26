@@ -1,20 +1,16 @@
 <template>
-  <a-tag :color="getStatusColor(status, type)" :title="getStatusLabel(status, type)">
-    {{ getStatusLabel(status, type) }}
+  <a-tag :color="statusColor(status)" :title="status">
+    {{ statusLabel(status) }}
   </a-tag>
 </template>
 
 <script setup>
-import { getStatusColor, getStatusLabel } from '../utils/statusLabels'
+import { statusColor, statusLabel } from '../constants/business'
 
 defineProps({
   status: {
     type: String,
     default: ''
-  },
-  type: {
-    type: String,
-    default: 'equipment'
   }
 })
 </script>

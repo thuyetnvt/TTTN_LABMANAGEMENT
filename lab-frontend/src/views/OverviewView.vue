@@ -1,363 +1,222 @@
 <template>
   <div class="overview-container">
-    <template v-if="isManager">
-      <header class="manager-header">
-        <div>
-          <h2>Tổng quan quản trị</h2>
-          <p class="subtitle">Các công việc và cảnh báo cần xử lý trong Phòng Lab IoT.</p>
-        </div>
-        <div class="manager-header-actions">
-          <a-button :loading="refreshing" @click="refreshStats">
-            <template #icon><ReloadOutlined /></template>
-            Làm mới
-          </a-button>
-          <span class="updated-at">Cập nhật: {{ formattedUpdatedAt }}</span>
-        </div>
-      </header>
+    <div class="header">
+      <h2 class="serif-title">Tổng quan hệ thống</h2>
+      <p class="subtitle">Theo dõi nhanh thiết bị, yêu cầu và cảnh báo cần xử lý.</p>
+    </div>
 
-      <section class="manager-section manager-kpi-section" aria-label="Chỉ số tổng quan">
-        <div class="manager-kpi-grid">
-          <div v-for="item in managerKpis" :key="item.key" class="manager-kpi-card">
-            <span class="manager-kpi-icon" :class="`tone-${item.tone}`" aria-hidden="true">
-              <component :is="item.icon" />
-            </span>
-            <div class="manager-kpi-copy">
-              <span class="manager-kpi-label">{{ item.label }}</span>
-              <strong>{{ item.value }}</strong>
-              <small>{{ item.description }}</small>
-            </div>
+    <a-row v-if="isManager && stats.advanced" :gutter="[12, 12]" class="stat-grid">
+      <a-col v-for="item in managerStats" :key="item.label" :xs="24" :sm="12" :lg="6">
+        <a-card class="stat-card is-clickable" :class="item.tone" @click="openEquipmentList(item.filter)">
+          <div class="stat-icon">
+            <component :is="item.icon" />
           </div>
-        </div>
-      </section>
-
-      <section class="manager-two-column manager-section manager-primary-grid">
-        <a-card :bordered="false" class="manager-panel manager-chart-panel">
-          <template #title>Trạng thái thiết bị</template>
-          <div v-if="hasManagerStatusData" class="manager-donut-layout">
-            <apexchart type="donut" height="190" :options="managerDonutOptions" :series="managerDonutSeries" />
-            <div class="manager-status-legend">
-              <div v-for="item in managerStatusRows" :key="item.key" class="manager-status-legend-item">
-                <span class="status-dot" :class="`status-dot--${item.tone}`" aria-hidden="true" />
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </div>
-            </div>
-          </div>
-          <a-empty v-else description="Chưa có dữ liệu trạng thái thiết bị" />
-        </a-card>
-
-        <a-card :bordered="false" class="manager-panel manager-attention-panel">
-          <template #title>Cần xử lý ngay</template>
-          <div class="manager-attention-list">
-            <div v-for="item in managerAttentionItems" :key="item.key" class="manager-attention-item">
-              <span class="manager-attention-icon" :class="`tone-${item.tone}`" aria-hidden="true">
-                <component :is="item.icon" />
-              </span>
-              <span class="manager-attention-copy">
-                <strong>{{ item.label }}</strong>
-                <small>{{ item.description }}</small>
-              </span>
-              <strong class="manager-attention-value">{{ item.value }}</strong>
-              <a-button type="link" class="manager-attention-action" @click="navigateTo(item.route)">Xem</a-button>
-            </div>
+          <div class="stat-info">
+            <span class="label">{{ item.label }}</span>
+            <span class="value">{{ item.value }}</span>
+            <span v-if="item.note" class="note">{{ item.note }}</span>
           </div>
         </a-card>
-      </section>
+      </a-col>
+    </a-row>
 
-      <section class="manager-two-column manager-section manager-secondary-grid">
-        <a-card :bordered="false" class="manager-panel manager-chart-panel">
-          <template #title>Lượt mượn 6 tháng gần đây</template>
-          <apexchart
-            v-if="hasBorrowTrendData"
-            type="bar"
-            height="190"
-            :options="borrowTrendOptions"
-            :series="borrowTrendSeries"
-          />
-          <a-empty v-else description="Chưa có dữ liệu lượt mượn" />
-        </a-card>
-
-        <a-card :bordered="false" class="manager-panel manager-activity-panel">
-          <template #title>
-            <div class="panel-title-row">
-              <span>Hoạt động gần đây</span>
-              <a-button v-if="canViewAuditLogs" type="link" @click="navigateTo({ name: 'AuditLogs' })">
-                Xem toàn bộ nhật ký
-              </a-button>
-            </div>
-          </template>
-          <div v-if="recentActivities.length" class="activity-list">
-            <div v-for="(activity, index) in recentActivities" :key="`${activity.date}-${index}`" class="activity-item">
-              <span class="activity-icon" :class="`activity-icon--${activity.color || 'default'}`" aria-hidden="true">
-                <component :is="getActivityIcon(activity.action)" />
-              </span>
-              <div class="activity-copy">
-                <p>{{ activity.message }}</p>
-                <span class="activity-meta">{{ activity.performer || 'Hệ thống' }} · {{ formatDateTime(activity.date) }}</span>
-              </div>
-            </div>
+    <a-row v-else :gutter="[12, 12]" class="stat-grid">
+      <a-col v-for="item in studentStats" :key="item.label" :xs="24" :sm="12">
+        <a-card class="stat-card" :class="item.tone">
+          <div class="stat-icon">
+            <component :is="item.icon" />
           </div>
-          <a-empty v-else description="Chưa có hoạt động nào" />
+          <div class="stat-info">
+            <span class="label">{{ item.label }}</span>
+            <span class="value">{{ item.value }}</span>
+          </div>
         </a-card>
-      </section>
+      </a-col>
+    </a-row>
 
-      <section class="manager-section manager-quick-actions" aria-labelledby="quick-actions-heading">
-        <h3 id="quick-actions-heading" class="manager-section-title">Thao tác nhanh</h3>
-        <div class="quick-actions-grid">
-          <a-button v-for="item in managerQuickActions" :key="item.key" class="quick-action-button" @click="navigateTo(item.route)">
-            <template #icon><component :is="item.icon" /></template>
-            <span>{{ item.label }}</span>
-            <ArrowRightOutlined class="quick-action-arrow" />
-          </a-button>
+    <div v-if="!isManager" class="overview-content-grid">
+      <a-card title="Hoạt động gần đây" :bordered="false" class="timeline-card overview-activity-card">
+        <a-timeline>
+          <a-timeline-item v-for="(act, index) in stats.activities" :key="index" :color="act.color">
+            <p class="timeline-date">{{ new Date(act.date).toLocaleString('vi-VN') }}</p>
+            <p class="timeline-content">{{ act.message }}</p>
+          </a-timeline-item>
+          <a-empty v-if="!stats.activities.length" description="Chưa có hoạt động nào" />
+        </a-timeline>
+      </a-card>
+
+      <a-card title="Cảnh báo cần xử lý" :bordered="false" class="alert-card overview-alert-card">
+        <div
+          v-for="(alert, index) in stats.alerts"
+          :key="index"
+          class="compact-alert is-clickable"
+          :class="alert.level"
+          role="button"
+          tabindex="0"
+          :aria-label="`${alert.title}: ${alert.message}`"
+          @click="handleAlertClick(alert)"
+          @keydown.enter.prevent="handleAlertClick(alert)"
+          @keydown.space.prevent="handleAlertClick(alert)"
+        >
+          <div class="compact-alert-icon">
+            <component :is="getAlertIcon(alert.level)" />
+          </div>
+          <div class="compact-alert-content">
+            <div class="compact-alert-title">{{ alert.title }}</div>
+            <div class="compact-alert-desc">{{ alert.message }}</div>
+          </div>
+          <a-tooltip title="Xem và xử lý cảnh báo">
+            <arrow-right-outlined class="compact-alert-arrow" />
+          </a-tooltip>
         </div>
-      </section>
-    </template>
+        <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
+      </a-card>
+
+      <a-card title="Trạng thái thiết bị" :bordered="false" class="chart-card overview-status-card">
+        <apexchart type="donut" height="220" :options="pieOptions" :series="pieSeries"></apexchart>
+      </a-card>
+    </div>
 
     <template v-else>
-      <div class="header">
-        <h2 class="serif-title">Tổng quan hệ thống</h2>
-        <p class="subtitle">Theo dõi nhanh thiết bị, yêu cầu và cảnh báo cần xử lý.</p>
-      </div>
+      <a-row :gutter="[16, 16]" class="priority-row">
+        <a-col :xs="24" :xl="16">
+          <a-card title="Xu hướng mượn thiết bị (6 tháng qua)" :bordered="false" class="chart-card trend-card">
+            <apexchart type="bar" height="226" :options="barOptions" :series="barSeries"></apexchart>
+          </a-card>
+        </a-col>
 
-      <a-row :gutter="[12, 12]" class="stat-grid">
-        <a-col v-for="item in studentStats" :key="item.label" :xs="24" :sm="12">
-          <a-card class="stat-card" :class="item.tone">
-            <div class="stat-icon"><component :is="item.icon" /></div>
-            <div class="stat-info">
-              <span class="label">{{ item.label }}</span>
-              <span class="value">{{ item.value }}</span>
+        <a-col :xs="24" :xl="8">
+          <a-card title="Cảnh báo cần xử lý" :bordered="false" class="alert-card priority-alert">
+            <div
+              v-for="(alert, index) in stats.alerts"
+              :key="index"
+              class="compact-alert is-clickable"
+              :class="alert.level"
+              role="button"
+              tabindex="0"
+              :aria-label="`${alert.title}: ${alert.message}`"
+              @click="handleAlertClick(alert)"
+              @keydown.enter.prevent="handleAlertClick(alert)"
+              @keydown.space.prevent="handleAlertClick(alert)"
+            >
+              <div class="compact-alert-icon">
+                <component :is="getAlertIcon(alert.level)" />
+              </div>
+              <div class="compact-alert-content">
+                <div class="compact-alert-title">{{ alert.title }}</div>
+                <div class="compact-alert-desc">{{ alert.message }}</div>
+              </div>
+              <a-tooltip title="Xem và xử lý cảnh báo">
+                <arrow-right-outlined class="compact-alert-arrow" />
+              </a-tooltip>
             </div>
+            <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
           </a-card>
         </a-col>
       </a-row>
 
-      <div class="borrower-content-grid">
-        <a-card title="Hoạt động gần đây" :bordered="false" class="borrower-panel">
-          <a-timeline>
-            <a-timeline-item v-for="(activity, index) in stats.activities" :key="index" :color="activity.color">
-              <p class="timeline-date">{{ formatDateTime(activity.date) }}</p>
-              <p class="timeline-content">{{ activity.message }}</p>
-            </a-timeline-item>
-          </a-timeline>
-          <a-empty v-if="!stats.activities.length" description="Chưa có hoạt động nào" />
-        </a-card>
-
-        <a-card title="Cảnh báo cần xử lý" :bordered="false" class="borrower-panel">
-          <div
-            v-for="(alert, index) in stats.alerts"
-            :key="index"
-            class="borrower-alert is-clickable"
-            :class="alert.level"
-            role="button"
-            tabindex="0"
-            :aria-label="`${alert.title}: ${alert.message}`"
-            @click="handleAlertClick(alert)"
-            @keydown.enter.prevent="handleAlertClick(alert)"
-            @keydown.space.prevent="handleAlertClick(alert)"
-          >
-            <component :is="getAlertIcon(alert.level)" />
-            <span><strong>{{ alert.title }}</strong><small>{{ alert.message }}</small></span>
-            <ArrowRightOutlined />
+      <a-card title="Thông tin quản trị" :bordered="false" class="admin-info-card">
+        <div class="admin-info-list">
+          <div class="admin-info-item">
+            <team-outlined />
+            <span>Tổng số người dùng</span>
+            <strong>{{ stats.advanced.totalUsers }}</strong>
           </div>
-          <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
-        </a-card>
+          <div class="admin-info-item">
+            <pay-circle-outlined />
+            <span>Bồi thường đã thu</span>
+            <strong>{{ formatCurrency(stats.advanced.totalPenalties) }}</strong>
+          </div>
+        </div>
+      </a-card>
 
-        <a-card title="Trạng thái thiết bị" :bordered="false" class="borrower-panel borrower-status-panel">
-          <apexchart type="donut" height="220" :options="pieOptions" :series="pieSeries" />
-        </a-card>
-      </div>
+      <a-row :gutter="[16, 16]" class="secondary-row">
+        <a-col :xs="24" :xl="16">
+          <a-card title="Hoạt động gần đây" :bordered="false" class="timeline-card">
+            <a-timeline>
+              <a-timeline-item v-for="(act, index) in stats.activities" :key="index" :color="act.color">
+                <p class="timeline-date">{{ new Date(act.date).toLocaleString('vi-VN') }}</p>
+                <p class="timeline-content">{{ act.message }}</p>
+              </a-timeline-item>
+              <a-empty v-if="!stats.activities.length" description="Chưa có hoạt động nào" />
+            </a-timeline>
+          </a-card>
+        </a-col>
+
+        <a-col :xs="24" :xl="8">
+          <a-card title="Trạng thái thiết bị" :bordered="false" class="chart-card">
+            <apexchart type="donut" height="220" :options="pieOptions" :series="pieSeries"></apexchart>
+          </a-card>
+        </a-col>
+      </a-row>
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import {
-  AppstoreOutlined,
   ArrowRightOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  FileSearchOutlined,
-  PlusOutlined,
-  ReloadOutlined,
+  DesktopOutlined,
+  PayCircleOutlined,
   TeamOutlined,
   ToolOutlined,
-  WarningOutlined
+  WarningOutlined,
 } from '@ant-design/icons-vue'
 import VueApexCharts from 'vue3-apexcharts'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../stores/authStore'
-import { isAdminRole, isManagerRole } from '../constants/business'
+import { isManagerRole } from '../constants/business'
 import { getDashboardAlertTarget } from '../utils/dashboardAlerts'
-import { getApiErrorMessage } from '../utils/apiError'
 
-const router = useRouter()
 const authStore = useAuthStore()
+const router = useRouter()
 const role = computed(() => authStore.role)
 const isManager = computed(() => isManagerRole(role.value))
-const canViewAuditLogs = computed(() => isAdminRole(role.value))
 const apexchart = VueApexCharts
-const refreshing = ref(false)
 
 const stats = ref({
-  updatedAt: null,
-  pendingBorrowRequests: 0,
-  overdueBorrowRecords: 0,
-  lowStockConsumables: 0,
-  warrantyExpiringSoon: 0,
-  maintenanceInProgress: 0,
   counts: { total: 0, available: 0, maintenance: 0, borrowed: 0, broken: 0, warranty: 0 },
   activities: [],
   alerts: [],
-  advanced: { pendingRequests: 0, lowStockConsumables: [], borrowTrends: [] }
+  advanced: { totalUsers: 0, totalPenalties: 0, pendingRequests: 0, lowStockConsumables: [], borrowTrends: [] }
 })
 
-const formatNumber = value => Number(value || 0).toLocaleString('vi-VN')
-const formatDateTime = value => value ? new Date(value).toLocaleString('vi-VN') : '—'
-const formatUpdatedAt = value => value ? new Date(value).toLocaleString('vi-VN') : 'Chưa cập nhật'
+const formatCurrency = (value) => `${Number(value || 0).toLocaleString('vi-VN')} ₫`
 
-const managerKpis = computed(() => [
+const managerStats = computed(() => [
+  { label: 'Tổng thiết bị', value: stats.value.counts.total, icon: DesktopOutlined, tone: 'coral', filter: 'all' },
+  { label: 'Thiết bị rảnh', value: stats.value.counts.available, icon: CheckCircleOutlined, tone: 'green', filter: 'Rảnh' },
+  { label: 'Đang mượn', value: stats.value.counts.borrowed, icon: ClockCircleOutlined, tone: 'amber', filter: 'Đang mượn' },
   {
-    key: 'total-equipment',
-    label: 'Tổng thiết bị',
-    value: formatNumber(stats.value.counts.total),
-    description: 'Tài sản trong hệ thống',
-    icon: AppstoreOutlined,
-    tone: 'primary'
-  },
-  {
-    key: 'borrowed-equipment',
-    label: 'Đang mượn',
-    value: formatNumber(stats.value.counts.borrowed),
-    description: 'Tài sản đang được sử dụng',
-    icon: ClockCircleOutlined,
-    tone: 'success'
-  },
-  {
-    key: 'pending-work',
-    label: 'Chờ xử lý',
-    value: formatNumber(stats.value.advanced?.pendingRequests ?? stats.value.pendingBorrowRequests),
-    description: 'Phiếu cần kiểm tra',
-    icon: FileSearchOutlined,
-    tone: 'warning'
-  },
-  {
-    key: 'broken-warranty',
     label: 'Hỏng/Bảo hành',
-    value: formatNumber(Number(stats.value.counts.broken || 0) + Number(stats.value.counts.warranty || 0)),
-    description: 'Tài sản cần theo dõi',
+    value: (stats.value.counts.broken || 0) + (stats.value.counts.warranty || 0),
+    note: `Hỏng ${stats.value.counts.broken || 0} / Bảo hành ${stats.value.counts.warranty || 0}`,
     icon: ToolOutlined,
-    tone: 'danger'
+    tone: 'red',
+    filter: 'problem'
   }
-])
-
-const managerStatusRows = computed(() => [
-  { key: 'available', label: 'Rảnh', value: Number(stats.value.counts.available || 0), tone: 'success' },
-  { key: 'borrowed', label: 'Đang mượn', value: Number(stats.value.counts.borrowed || 0), tone: 'info' },
-  { key: 'warranty', label: 'Bảo hành', value: Number(stats.value.counts.warranty || 0), tone: 'warning' },
-  { key: 'broken', label: 'Hỏng', value: Number(stats.value.counts.broken || 0), tone: 'danger' }
-])
-
-const hasManagerStatusData = computed(() => managerStatusRows.value.some(item => item.value > 0))
-const managerDonutSeries = computed(() => managerStatusRows.value.map(item => item.value))
-const managerDonutOptions = computed(() => ({
-  chart: { type: 'donut', toolbar: { show: false }, fontFamily: 'inherit' },
-  labels: managerStatusRows.value.map(item => item.label),
-  colors: ['#7FBD68', '#4D91D8', '#F2B24B', '#E35F4E'],
-  stroke: { width: 3, colors: ['#fff'] },
-  legend: { show: false },
-  dataLabels: { enabled: false },
-  tooltip: { y: { formatter: value => formatNumber(value) } },
-  plotOptions: {
-    pie: {
-      donut: {
-        size: '68%',
-        labels: {
-          show: true,
-          name: { show: true, color: '#64748b', fontSize: '12px', offsetY: 18 },
-          value: { show: true, color: '#10233F', fontSize: '23px', fontWeight: 700, offsetY: -12, formatter: value => formatNumber(value) },
-          total: { show: true, showAlways: true, label: 'Thiết bị', color: '#64748b', formatter: chartContext => formatNumber(chartContext.globals.seriesTotals.reduce((sum, value) => sum + value, 0)) }
-        }
-      }
-    }
-  }
-}))
-
-const recentActivities = computed(() => stats.value.activities.slice(0, 5))
-const formattedUpdatedAt = computed(() => formatUpdatedAt(stats.value.updatedAt))
-
-const getActivityIcon = action => ({
-  Create: PlusOutlined,
-  Update: EditOutlined,
-  Delete: DeleteOutlined,
-  Approve: CheckCircleOutlined,
-  TeacherApprove: CheckCircleOutlined,
-  Return: ClockCircleOutlined,
-  SendReturnReminder: ClockCircleOutlined,
-  LoginSucceeded: CheckCircleOutlined,
-  LoginFailed: WarningOutlined
-}[action] || FileSearchOutlined)
-
-const managerAttentionItems = computed(() => [
-  {
-    key: 'pending-borrow-requests', label: 'Phiếu chờ duyệt',
-    value: formatNumber(stats.value.pendingBorrowRequests), description: 'Phiếu mượn cần kiểm tra',
-    icon: FileSearchOutlined, tone: 'warning', route: { name: 'BorrowRequests' }
-  },
-  {
-    key: 'overdue-borrow-records', label: 'Mượn quá hạn',
-    value: formatNumber(stats.value.overdueBorrowRecords), description: 'Phiếu cần nhắc trả',
-    icon: ClockCircleOutlined, tone: 'danger', route: { name: 'BorrowHistory' }
-  },
-  {
-    key: 'low-stock-consumables', label: 'Vật tư sắp hết',
-    value: formatNumber(stats.value.lowStockConsumables), description: 'Mặt hàng dưới mức tối thiểu',
-    icon: AppstoreOutlined, tone: 'warning', route: { name: 'ConsumableRequests' }
-  },
-  {
-    key: 'warranty-expiring-soon', label: 'Bảo hành sắp hết',
-    value: formatNumber(stats.value.warrantyExpiringSoon), description: 'Thiết bị trong 30 ngày tới',
-    icon: ToolOutlined, tone: 'info', route: { name: 'Devices', query: { status: 'warranty' } }
-  }
-])
-
-const borrowTrendItems = computed(() => stats.value.advanced?.borrowTrends || [])
-const hasBorrowTrendData = computed(() => borrowTrendItems.value.length > 0 && borrowTrendItems.value.some(item => Number(item.count ?? item.Count ?? 0) > 0))
-const borrowTrendSeries = computed(() => [{
-  name: 'Lượt mượn',
-  data: borrowTrendItems.value.map(item => Number(item.count ?? item.Count ?? 0))
-}])
-const borrowTrendOptions = computed(() => ({
-  chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-  colors: ['#DF7657'],
-  plotOptions: { bar: { borderRadius: 4, columnWidth: '42%' } },
-  dataLabels: { enabled: false },
-  grid: { borderColor: '#edf0f2', strokeDashArray: 3 },
-  xaxis: {
-    categories: borrowTrendItems.value.map(item => item.month ?? item.Month ?? ''),
-    labels: { style: { colors: '#64748b', fontSize: '11px' } },
-    axisBorder: { color: '#d9dee3' },
-    axisTicks: { color: '#d9dee3' }
-  },
-  yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: '#64748b', fontSize: '11px' }, formatter: value => Math.round(value) } },
-  tooltip: { y: { formatter: value => `${formatNumber(value)} lượt` } }
-}))
-
-const managerQuickActions = computed(() => [
-  ...(canViewAuditLogs.value ? [{ key: 'users', label: 'Quản lý người dùng', icon: TeamOutlined, route: { name: 'AdminUsers' } }] : []),
-  { key: 'borrow-requests', label: 'Duyệt phiếu', icon: FileSearchOutlined, route: { name: 'BorrowRequests' } },
-  { key: 'add-equipment', label: 'Thêm tài sản', icon: PlusOutlined, route: { name: 'Devices' } },
-  { key: 'reports', label: 'Xem báo cáo', icon: AppstoreOutlined, route: { name: 'Reports' } }
 ])
 
 const studentStats = computed(() => [
   { label: 'Đang mượn', value: stats.value.counts.borrowed, icon: ClockCircleOutlined, tone: 'amber' },
   { label: 'Thiết bị rảnh', value: stats.value.counts.available, icon: CheckCircleOutlined, tone: 'green' }
 ])
+
+const barOptions = ref({
+  chart: { id: 'borrow-trends', toolbar: { show: false }, parentHeightOffset: 0 },
+  grid: { borderColor: 'rgba(0,0,0,0.05)', padding: { top: 0, right: 8, bottom: -4, left: 4 } },
+  xaxis: { categories: [] },
+  colors: ['var(--color-primary)'],
+  plotOptions: { bar: { borderRadius: 6, columnWidth: '34%', dataLabels: { position: 'top' } } },
+  dataLabels: { enabled: true, offsetY: -18, style: { colors: ['var(--color-ink)'], fontSize: '11px', fontWeight: 700 } },
+  yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' } } }
+})
+const barSeries = ref([{ name: 'Lượt mượn', data: [] }])
 
 const pieOptions = ref({
   chart: { type: 'donut' },
@@ -368,140 +227,380 @@ const pieOptions = ref({
 })
 const pieSeries = ref([0, 0, 0, 0])
 
-const navigateTo = route => router.push(route)
+const openEquipmentList = (filter) => {
+  router.push({
+    name: 'Devices',
+    query: filter && filter !== 'all' ? { status: filter } : {}
+  })
+}
 
-const handleAlertClick = alert => {
+const handleAlertClick = (alert) => {
   const target = getDashboardAlertTarget(alert?.type)
-  if (target) navigateTo(target)
+  if (target) router.push(target)
 }
 
-const getAlertIcon = level => level === 'info' ? ClockCircleOutlined : WarningOutlined
+const getAlertIcon = (level) => {
+  if (level === 'info') return ClockCircleOutlined
+  return WarningOutlined
+}
 
-const refreshStats = async () => {
-  refreshing.value = true
+onMounted(async () => {
   try {
-    const result = await dashboardApi.getStats()
-    stats.value = result
-    pieSeries.value = [
-      result.counts?.available || 0,
-      result.counts?.borrowed || 0,
-      result.counts?.warranty || 0,
-      result.counts?.broken || 0
-    ]
-  } catch (error) {
-    message.error(getApiErrorMessage(error, 'Không tải được dữ liệu tổng quan.'))
-  } finally {
-    refreshing.value = false
-  }
-}
+    const res = await dashboardApi.getStats()
+    stats.value = res
 
-onMounted(refreshStats)
+    pieSeries.value = [
+      res.counts.available,
+      res.counts.borrowed,
+      res.counts.warranty ?? 0,
+      res.counts.broken ?? 0
+    ]
+
+    if (res.advanced?.borrowTrends) {
+      barOptions.value = {
+        ...barOptions.value,
+        xaxis: { categories: res.advanced.borrowTrends.map(t => t.month) }
+      }
+      barSeries.value = [{
+        name: 'Lượt mượn',
+        data: res.advanced.borrowTrends.map(t => t.count)
+      }]
+    }
+  } catch (err) {
+    message.error('Lỗi lấy dữ liệu thống kê')
+  }
+})
 </script>
 
 <style scoped>
-.overview-container { padding: 0; }
-.manager-header, .panel-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.manager-header { margin-bottom: 18px; }
-.manager-header h2, .header h2 { margin: 0; color: #10233f; font-family: var(--font-serif); font-size: 30px; font-weight: 500; line-height: 1.15; letter-spacing: -0.02em; }
-.subtitle { margin: 6px 0 0; color: #64748b; font-size: 14px; }
-.manager-header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.manager-header-actions :deep(.ant-btn) { border-color: #dfe4e8; color: #10233f; }
-.manager-header-actions :deep(.ant-btn:hover), .manager-header-actions :deep(.ant-btn:focus) { border-color: #df7657; color: #df7657; }
-.updated-at { color: #64748b; font-size: 11px; white-space: nowrap; }
-.manager-section { margin-top: 16px; }
-.manager-kpi-grid, .quick-actions-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.manager-kpi-card { display: flex; align-items: center; min-width: 0; gap: 12px; padding: 14px 16px; border: 1px solid #e7eaed; border-radius: 10px; background: #fff; box-shadow: 0 2px 8px rgba(16, 35, 63, .04); }
-.manager-kpi-icon, .manager-attention-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 50%; }
-.manager-kpi-icon { width: 40px; height: 40px; font-size: 19px; }
-.manager-kpi-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.manager-kpi-label { overflow: hidden; color: #526276; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.manager-kpi-copy strong { color: #10233f; font-size: 25px; line-height: 1.05; }
-.manager-kpi-copy small { overflow: hidden; color: #94a3b8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.tone-primary { color: #2376c5; background: #eaf4ff; }
-.tone-success { color: #4d9b3b; background: #edf8e9; }
-.tone-warning { color: #d98b18; background: #fff6e5; }
-.tone-danger { color: #d84c43; background: #fff0ee; }
-.tone-info { color: #4d91d8; background: #edf5ff; }
-.manager-two-column { display: grid; gap: 16px; }
-.manager-primary-grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.45fr); }
-.manager-secondary-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); }
-.manager-panel { min-width: 0; border: 1px solid #e7eaed; border-radius: 10px; background: #fff; box-shadow: 0 2px 8px rgba(16, 35, 63, .04); }
-.manager-panel :deep(.ant-card-head) { min-height: 47px; padding: 0 16px; border-bottom: 1px solid #eef1f3; }
-.manager-panel :deep(.ant-card-head-title) { padding: 13px 0; color: #10233f; font-size: 15px; font-weight: 650; }
-.manager-panel :deep(.ant-card-body) { padding: 13px 16px; }
-.manager-chart-panel :deep(.ant-card-body) { min-height: 190px; }
-.manager-donut-layout { display: grid; grid-template-columns: minmax(170px, .95fr) minmax(145px, 1fr); align-items: center; gap: 4px; }
-.manager-status-legend { display: flex; flex-direction: column; gap: 11px; padding-right: 8px; }
-.manager-status-legend-item { display: grid; grid-template-columns: 8px 1fr auto; align-items: center; gap: 8px; color: #526276; font-size: 12px; }
-.manager-status-legend-item strong { color: #10233f; font-size: 13px; }
-.status-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; }
-.status-dot--success { background: #7fbd68; }
-.status-dot--info { background: #4d91d8; }
-.status-dot--warning { background: #f2b24b; }
-.status-dot--danger { background: #e35f4e; }
-.manager-attention-list { display: flex; flex-direction: column; gap: 7px; }
-.manager-attention-item { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto auto; align-items: center; gap: 9px; min-height: 39px; padding: 5px 7px; border: 1px solid #eef1f3; border-radius: 7px; }
-.manager-attention-icon { width: 28px; height: 28px; border-radius: 8px; font-size: 14px; }
-.manager-attention-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.manager-attention-copy strong { overflow: hidden; color: #10233f; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.manager-attention-copy small { overflow: hidden; color: #94a3b8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.manager-attention-value { color: #10233f; font-size: 15px; }
-.manager-attention-action { padding-inline: 7px; color: #2d82c8; font-size: 12px; }
-.panel-title-row { align-items: center; }
-.panel-title-row .ant-btn { padding-inline: 0; color: #df7657; font-size: 12px; }
-.activity-list { display: flex; flex-direction: column; gap: 10px; }
-.activity-item { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
-.activity-icon { display: inline-flex; align-items: center; justify-content: center; width: 27px; height: 27px; margin-top: 1px; flex: 0 0 27px; border-radius: 8px; background: #f8fafc; }
-.activity-icon--green { color: #4d9b3b; background: #edf8e9; }
-.activity-icon--blue, .activity-icon--info { color: #4d91d8; background: #edf5ff; }
-.activity-icon--orange, .activity-icon--warning { color: #d98b18; background: #fff6e5; }
-.activity-icon--red, .activity-icon--error { color: #d84c43; background: #fff0ee; }
-.activity-icon--purple { color: #7652b6; background: #f3effc; }
-.activity-copy { min-width: 0; }
-.activity-copy p { display: -webkit-box; margin: 0; overflow: hidden; color: #334155; font-size: 12px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.activity-meta { display: block; margin-top: 3px; overflow: hidden; color: #94a3b8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.manager-section-title { margin: 0 0 9px; color: #10233f; font-size: 15px; font-weight: 650; }
-.quick-action-button { display: flex; align-items: center; justify-content: flex-start; width: 100%; height: 43px; padding-inline: 13px; border-color: #e7eaed; border-radius: 9px; color: #10233f; text-align: left; }
-.quick-action-button:hover, .quick-action-button:focus { border-color: #df7657; color: #df7657; }
-.quick-action-button > span:not(.ant-btn-icon) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.quick-action-arrow { margin-left: auto; color: #94a3b8; font-size: 11px; }
-.header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
-.serif-title { font-family: var(--font-serif); }
-.stat-grid { margin-bottom: 16px; }
-.stat-card, .borrower-panel { border: 1px solid rgba(0, 0, 0, .05); border-radius: 12px; background: #fff; box-shadow: none; }
-.stat-card :deep(.ant-card-body) { display: flex; align-items: center; gap: 14px; padding: 20px 22px; }
-.stat-icon { display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; flex: 0 0 54px; border-radius: 12px; font-size: 24px; }
-.stat-info { display: flex; flex-direction: column; min-width: 0; }
-.stat-info .label { color: #334155; font-size: 14px; font-weight: 600; }
-.stat-info .value { margin-top: 6px; color: #0f172a; font-size: 28px; font-weight: 700; line-height: 1.05; }
+.overview-container {
+  padding: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.header h2 {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--color-ink);
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.subtitle {
+  color: #64748b;
+  font-size: 15px;
+  margin: 0;
+}
+
+.stat-grid {
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  border: 1px solid rgba(0,0,0,0.05);
+  border-radius: 12px;
+  box-shadow: none;
+  background: #ffffff;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.stat-card.is-clickable {
+  cursor: pointer;
+}
+
+.stat-card.is-clickable:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+.stat-card :deep(.ant-card-body) {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 22px;
+}
+
+.stat-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 54px;
+  font-size: 24px;
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stat-info .label {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.stat-info .value {
+  color: #0f172a;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.05;
+  margin-top: 6px;
+}
+
+.stat-info .note {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin-top: 6px;
+}
+
+.stat-card.coral .stat-icon { color: var(--color-primary); background: rgba(217, 119, 87, 0.1); }
 .stat-card.green .stat-icon { color: #059669; background: #ecfdf5; }
 .stat-card.amber .stat-icon { color: #d97706; background: #fffbeb; }
-.borrower-content-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
-.borrower-status-panel { grid-column: 1 / -1; }
-.borrower-panel :deep(.ant-card-head) { padding: 0 20px; border-bottom: 1px solid rgba(0, 0, 0, .05); }
-.borrower-panel :deep(.ant-card-head-title) { padding: 15px 0; color: #0f172a; font-size: 18px; font-weight: 600; }
-.borrower-panel :deep(.ant-card-body) { padding: 16px 20px; }
-.timeline-date { margin-bottom: 4px; color: #9ca3af; font-size: 12px; }
-.timeline-content { color: #374151; font-weight: 500; }
-.borrower-alert { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 12px; border-left: 3px solid #94a3b8; border-radius: 8px; background: #f8fafc; }
-.borrower-alert.is-clickable { cursor: pointer; }
-.borrower-alert span { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
-.borrower-alert small { color: #475569; line-height: 1.35; }
-.borrower-alert.warning { border-left-color: #d97706; background: #fffbeb; }
-.borrower-alert.info { border-left-color: #2563eb; background: #eff6ff; }
-.borrower-alert.error { border-left-color: #dc2626; background: #fef2f2; }
-@media (max-width: 1199px) {
-  .manager-kpi-grid, .quick-actions-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .manager-two-column { grid-template-columns: 1fr; }
+.stat-card.red .stat-icon { color: #dc2626; background: #fef2f2; }
+
+.priority-row {
+  align-items: stretch;
 }
-@media (max-width: 767px) {
-  .manager-header { align-items: flex-start; flex-direction: column; }
-  .manager-header-actions { align-items: flex-start; }
-  .manager-kpi-grid, .quick-actions-grid, .borrower-content-grid { grid-template-columns: 1fr; }
-  .manager-donut-layout { grid-template-columns: 1fr; }
-  .manager-status-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 10px 7px; }
-  .manager-attention-item { grid-template-columns: 30px minmax(0, 1fr) auto auto; }
-  .borrower-status-panel { grid-column: auto; }
-  .manager-header h2, .header h2 { font-size: 27px; }
+
+.priority-row :deep(.ant-col) {
+  display: flex;
+}
+
+.chart-card,
+.timeline-card,
+.alert-card,
+.admin-info-card {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,0.05);
+  border-radius: 12px;
+  box-shadow: none;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.chart-card :deep(.ant-card-head),
+.timeline-card :deep(.ant-card-head),
+.alert-card :deep(.ant-card-head),
+.admin-info-card :deep(.ant-card-head) {
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.chart-card :deep(.ant-card-head-title),
+.timeline-card :deep(.ant-card-head-title),
+.alert-card :deep(.ant-card-head-title),
+.admin-info-card :deep(.ant-card-head-title) {
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 15px 0;
+}
+
+.chart-card :deep(.ant-card-body),
+.timeline-card :deep(.ant-card-body),
+.alert-card :deep(.ant-card-body),
+.admin-info-card :deep(.ant-card-body) {
+  padding: 16px 20px;
+}
+
+.trend-card :deep(.ant-card-body) {
+  padding: 16px 20px 8px;
+}
+
+.compact-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(0,0,0,0.05);
+  border-left-width: 4px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.compact-alert.is-clickable {
+  cursor: pointer;
+}
+
+.compact-alert.is-clickable:hover,
+.compact-alert.is-clickable:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 58, 90, 0.1);
+  outline: none;
+}
+
+.compact-alert.warning {
+  border-left-color: #f59e0b;
+  background: #fffcf2;
+}
+
+.compact-alert.info {
+  border-left-color: #2563eb;
+  background: #f5f9ff;
+}
+
+.compact-alert.error {
+  border-left-color: #dc2626;
+  background: #fff7f7;
+}
+
+.compact-alert.success {
+  border-left-color: #059669;
+  background: #f7fffb;
+}
+
+.compact-alert-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 34px;
+  font-size: 18px;
+  background: #ffffff;
+}
+
+.compact-alert.warning .compact-alert-icon { color: #d97706; }
+.compact-alert.info .compact-alert-icon { color: #2563eb; }
+.compact-alert.error .compact-alert-icon { color: #dc2626; }
+.compact-alert.success .compact-alert-icon { color: #059669; }
+
+.compact-alert-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.compact-alert-title {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.compact-alert-desc {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.35;
+  margin-top: 5px;
+}
+
+.compact-alert-arrow {
+  color: #94a3b8;
+  flex: 0 0 auto;
+}
+
+.admin-info-card {
+  margin-top: 16px;
+}
+
+.admin-info-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.admin-info-item .anticon {
+  color: #315efb;
+  font-size: 18px;
+}
+
+.admin-info-item strong {
+  margin-left: auto;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.timeline-date {
+  color: #9ca3af;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.timeline-content {
+  color: #374151;
+  font-weight: 500;
+}
+
+.overview-content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.overview-content-grid > .ant-card {
+  min-width: 0;
+  align-self: start;
+}
+
+.overview-status-card {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 991px) {
+  .header h2 {
+    font-size: 26px;
+  }
+
+  .priority-row :deep(.ant-col) {
+    display: block;
+  }
+
+  .overview-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-status-card {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 575px) {
+  .stat-card :deep(.ant-card-body) {
+    padding: 16px;
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+    font-size: 22px;
+  }
+
+  .admin-info-list {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

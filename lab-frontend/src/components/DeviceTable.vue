@@ -327,8 +327,7 @@ import QRScanner from './QRScanner.vue'
 import { message, Modal, Upload } from 'ant-design-vue'
 import StatusBadge from './StatusBadge.vue'
 import LocationTreeSelect from './LocationTreeSelect.vue'
-import { STATUS, isAdminRole, isBorrowerRole, isManagerRole, isStudentRole, statusMatches } from '../constants/business'
-import { getEquipmentStatusLabel } from '../utils/statusLabels'
+import { STATUS, isAdminRole, isBorrowerRole, isManagerRole, isStudentRole, statusLabel, statusMatches } from '../constants/business'
 import { EditOutlined, DeleteOutlined, EyeOutlined, ScanOutlined, ShoppingCartOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { equipmentApi } from '../api/equipmentApi'
@@ -898,7 +897,7 @@ const onScanSuccess = (decodedText) => {
     return
   }
   if (!statusMatches(device.status, STATUS.AVAILABLE)) {
-    message.warning(`Thiết bị ${device.name} hiện đang ${getEquipmentStatusLabel(device.status)}. Không thể mượn!`)
+    message.warning(`Thiết bị ${device.name} hiện đang ${statusLabel(device.status)}. Không thể mượn!`)
     return
   }
   handleBorrowClick(device)

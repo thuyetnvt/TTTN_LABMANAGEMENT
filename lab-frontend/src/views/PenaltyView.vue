@@ -6,7 +6,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1300 }">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'amount'">
             <span style="color: #ef4444; font-weight: 600;">{{ record.amount.toLocaleString('vi-VN') }} ₫</span>
@@ -15,7 +15,7 @@
             {{ new Date(record.createdAt).toLocaleDateString('vi-VN') }}
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" type="penalty" />
+            <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'action'">
             <a-button v-if="statusMatches(record.status, STATUS.UNPAID) && isManagerRole(role)"
@@ -45,13 +45,13 @@ const dataSource = ref([])
 const loading = ref(false)
 
 const columns = [
-  { title: 'Người bồi thường', dataIndex: 'username', key: 'username', width: 180 },
-  { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName', width: 240 },
-  { title: 'Lý do / Tình trạng', dataIndex: 'reason', key: 'reason', width: 260 },
-  { title: 'Số tiền phạt', dataIndex: 'amount', key: 'amount', width: 150, align: 'right' },
-  { title: 'Ngày lập', dataIndex: 'createdAt', key: 'createdAt', width: 140, align: 'center' },
-  { title: 'Trạng thái', key: 'status', width: 150, align: 'center' },
-  { title: 'Hành động', key: 'action', fixed: 'right', width: 180, align: 'center' }
+  { title: 'Người bồi thường', dataIndex: 'username', key: 'username' },
+  { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName' },
+  { title: 'Lý do / Tình trạng', dataIndex: 'reason', key: 'reason' },
+  { title: 'Số tiền phạt', dataIndex: 'amount', key: 'amount', align: 'right' },
+  { title: 'Ngày lập', dataIndex: 'createdAt', key: 'createdAt', align: 'center' },
+  { title: 'Trạng thái', key: 'status', align: 'center' },
+  { title: 'Hành động', key: 'action', align: 'center' }
 ]
 
 onMounted(() => {

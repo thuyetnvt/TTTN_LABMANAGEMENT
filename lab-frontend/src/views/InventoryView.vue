@@ -6,9 +6,9 @@
 
     <a-card :bordered="false">
       <div class="inventory-desktop-table">
-        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered :scroll="{ x: 1220 }">
+        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered>
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
+            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template>
             <template v-else-if="column.key === 'progress'">
               {{ record.found + record.wrongLocation + record.damaged }}/{{ record.total }} đã quét
               <a-progress :percent="progress(record)" size="small" />
@@ -32,7 +32,7 @@
     </a-card>
     <ResponsiveDataList :items="sessions" :loading="loading" empty-description="Chưa có đợt kiểm kê">
       <template #default="{ item }">
-        <div class="mobile-session-header"><strong>{{ item.name }}</strong><StatusBadge :status="item.status" type="inventory" /></div>
+        <div class="mobile-session-header"><strong>{{ item.name }}</strong><StatusBadge :status="item.status" /></div>
         <div class="mobile-session-meta">{{ item.code }} · {{ item.found + item.wrongLocation + item.damaged }}/{{ item.total }} đã quét</div>
         <a-progress :percent="progress(item)" size="small" />
         <a-tooltip title="Xem chi tiết">
@@ -61,7 +61,7 @@
         <a-descriptions bordered :column="1" size="small">
           <a-descriptions-item label="Mã đợt">{{ selectedSession.code }}</a-descriptions-item>
           <a-descriptions-item label="Tên đợt">{{ selectedSession.name }}</a-descriptions-item>
-          <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedSession.status" type="inventory" /></a-descriptions-item>
+          <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedSession.status" /></a-descriptions-item>
         </a-descriptions>
         <a-divider />
         <a-space direction="vertical" size="middle" style="width: 100%">
@@ -76,7 +76,7 @@
         </a-space>
         <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="{ pageSize: 8 }">
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
+            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template>
             <template v-else-if="column.key === 'scannedAt'">{{ record.scannedAt ? formatDate(record.scannedAt) : 'Chưa quét' }}</template>
             <template v-else-if="column.key === 'evidence'">
               <a-upload :before-upload="file => uploadEvidence(record, file)" :show-upload-list="false" accept=".jpg,.jpeg,.png,.webp,.pdf">
@@ -121,13 +121,13 @@ const scanMessageType = ref('success')
 const cameraOpen = ref(false)
 
 const columns = [
-  { title: 'Mã đợt', dataIndex: 'code', key: 'code', width: 150 },
-  { title: 'Tên đợt', dataIndex: 'name', key: 'name', width: 260 },
+  { title: 'Mã đợt', dataIndex: 'code', key: 'code' },
+  { title: 'Tên đợt', dataIndex: 'name', key: 'name' },
   { title: 'Tiến độ', key: 'progress', width: 190 },
-  { title: 'Thiếu/chưa quét', key: 'missing', width: 150, customRender: ({ record }) => `${record.missing}/${record.total}` },
-  { title: 'Trạng thái', key: 'status', width: 150 },
-  { title: 'Bắt đầu', key: 'startedAt', width: 140 },
-  { title: 'Thao tác', key: 'action', fixed: 'right', width: 180, align: 'center' }
+  { title: 'Thiếu/chưa quét', key: 'missing', customRender: ({ record }) => `${record.missing}/${record.total}` },
+  { title: 'Trạng thái', key: 'status' },
+  { title: 'Bắt đầu', key: 'startedAt' },
+  { title: 'Thao tác', key: 'action', width: 96, align: 'center' }
 ]
 const itemColumns = [
   { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName' },

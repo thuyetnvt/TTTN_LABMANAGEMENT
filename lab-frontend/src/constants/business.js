@@ -1,5 +1,3 @@
-import { getEquipmentStatusLabel } from '../utils/statusLabels.js'
-
 export const STATUS = Object.freeze({
   AVAILABLE: 'AVAILABLE',
   BORROW_PENDING: 'BORROW_PENDING',
@@ -100,7 +98,34 @@ const LEGACY_STATUS = Object.freeze({
 
 export const normalizeStatus = (value) => LEGACY_STATUS[value] || value || ''
 
-export const statusLabel = (value) => getEquipmentStatusLabel(normalizeStatus(value))
+export const statusLabel = (value) => ({
+  [STATUS.AVAILABLE]: 'Rảnh',
+  [STATUS.BORROW_PENDING]: 'Chờ duyệt',
+  [STATUS.TEACHER_PENDING]: 'Chờ giảng viên duyệt',
+  APPROVAL_PROCESSING: 'Đang xử lý duyệt',
+  [STATUS.APPROVED]: 'Đã duyệt',
+  [STATUS.BORROWED]: 'Đang mượn',
+  [STATUS.RETURN_PROCESSING]: 'Đang xử lý trả',
+  [STATUS.RETURNED]: 'Đã trả',
+  [STATUS.RETURNED_DAMAGED]: 'Đã trả, có hư hỏng',
+  [STATUS.REJECTED]: 'Từ chối',
+  [STATUS.UNDER_WARRANTY]: 'Bảo hành',
+  [STATUS.BROKEN]: 'Hỏng',
+  [STATUS.MAINTENANCE_IN_PROGRESS]: 'Đang bảo trì',
+  [STATUS.MAINTENANCE_COMPLETED]: 'Đã hoàn thành bảo trì',
+  [STATUS.CONSUMABLE_PENDING]: 'Chờ duyệt cấp phát',
+  [STATUS.CONSUMABLE_PROCESSING]: 'Đang xử lý cấp phát',
+  [STATUS.CONSUMABLE_ISSUED]: 'Đã cấp phát',
+  [STATUS.INVENTORY_OPEN]: 'Đang kiểm kê',
+  [STATUS.INVENTORY_COMPLETED]: 'Đã kết thúc kiểm kê',
+  [STATUS.INVENTORY_PENDING]: 'Chưa kiểm kê',
+  [STATUS.INVENTORY_FOUND]: 'Đã tìm thấy',
+  [STATUS.INVENTORY_WRONG_LOCATION]: 'Sai vị trí',
+  [STATUS.INVENTORY_DAMAGED]: 'Hỏng khi kiểm kê',
+  [STATUS.INVENTORY_MISSING]: 'Thất lạc',
+  [STATUS.UNPAID]: 'Chưa thanh toán',
+  [STATUS.PAID]: 'Đã thanh toán'
+}[normalizeStatus(value)] || value || 'Chưa xác định')
 
 export const statusColor = (value) => ({
   [STATUS.AVAILABLE]: 'green',

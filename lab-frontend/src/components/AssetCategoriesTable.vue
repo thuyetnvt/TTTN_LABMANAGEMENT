@@ -4,7 +4,7 @@
       <a-button type="primary" @click="showAddModal">+ Thêm danh mục</a-button>
     </div>
 
-    <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 940 }">
+    <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'createdAt'">
           {{ new Date(record.createdAt).toLocaleDateString('vi-VN') }}
@@ -60,10 +60,10 @@ const currentEditId = ref(null)
 const formData = ref({ name: '', description: '' })
 
 const columns = [
-  { title: 'Tên danh mục', dataIndex: 'name', key: 'name', width: 260 },
-  { title: 'Mô tả', dataIndex: 'description', key: 'description', width: 360 },
+  { title: 'Tên danh mục', dataIndex: 'name', key: 'name' },
+  { title: 'Mô tả', dataIndex: 'description', key: 'description' },
   { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'createdAt', width: 140 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 180 }
+  { title: 'Hành động', key: 'action', align: 'center', width: 160 }
 ]
 
 onMounted(() => fetchData())

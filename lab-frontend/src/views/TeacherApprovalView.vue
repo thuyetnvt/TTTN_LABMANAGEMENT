@@ -6,7 +6,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1280 }">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
@@ -18,7 +18,7 @@
             </div>
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" type="borrow" />
+            <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
@@ -61,13 +61,13 @@ const decisionNote = ref('')
 const selectedRecord = ref(null)
 
 const columns = [
-  { title: 'Sinh viên', dataIndex: 'student', key: 'student', width: 180 },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 240 },
-  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 140 },
-  { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', width: 140 },
-  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 250 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 150, align: 'center' },
-  { title: 'Hành động', key: 'action', fixed: 'right', width: 180, align: 'center' }
+  { title: 'Sinh viên', dataIndex: 'student', key: 'student' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device' },
+  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate' },
+  { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate' },
+  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose' },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center' },
+  { title: 'Hành động', key: 'action', align: 'center' }
 ]
 
 onMounted(() => fetchRequests())

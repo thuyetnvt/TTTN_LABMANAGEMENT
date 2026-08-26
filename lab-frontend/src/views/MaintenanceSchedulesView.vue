@@ -9,7 +9,7 @@
     </div>
 
     <a-card :bordered="false">
-      <a-table :data-source="schedules" :columns="columns" :loading="loading" row-key="id" bordered :scroll="{ x: 1080 }">
+      <a-table :data-source="schedules" :columns="columns" :loading="loading" row-key="id" bordered>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'nextDueAt'">
             <a-tag :color="record.isDue ? 'red' : 'blue'">{{ formatDate(record.nextDueAt) }}</a-tag>
@@ -120,12 +120,12 @@ const modalOpen = ref(false)
 const editing = ref(null)
 const form = ref({ equipmentId: null, name: '', intervalDays: 90, intervalUnit: 'DAY', nextDueAt: '', notes: '', checklist: '', isActive: true })
 const columns = [
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 220 },
-  { title: 'Kế hoạch', dataIndex: 'name', key: 'name', width: 250 },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device' },
+  { title: 'Kế hoạch', dataIndex: 'name', key: 'name' },
   { title: 'Chu kỳ', dataIndex: 'intervalDays', key: 'intervalDays', customRender: ({ record }) => `${record.intervalDays} ${({ DAY: 'ngày', WEEK: 'tuần', MONTH: 'tháng', QUARTER: 'quý', YEAR: 'năm' })[record.intervalUnit] || 'ngày'}` },
-  { title: 'Hạn kế tiếp', dataIndex: 'nextDueAt', key: 'nextDueAt', width: 150 },
-  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 150 },
-  { title: 'Hành động', key: 'action', fixed: 'right', width: 180, align: 'center' }
+  { title: 'Hạn kế tiếp', dataIndex: 'nextDueAt', key: 'nextDueAt' },
+  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive' },
+  { title: 'Hành động', key: 'action', width: 150, align: 'center' }
 ]
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'

@@ -16,7 +16,7 @@
             <a-tag v-else color="green">Trong hạn</a-tag>
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" type="borrow" />
+            <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'details'">
             <div v-for="detail in record.details" :key="detail.id">
@@ -240,7 +240,7 @@ const columns = [
   { title: 'Hạn trả', key: 'dueStatus', align: 'center', width: 130 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 180 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 120 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 180 }
+  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 190 }
 ]
 
 onMounted(() => fetchRequests())

@@ -38,28 +38,6 @@ body.dark-mode .ant-table-cell-fix-right-first::after {
   box-shadow: inset 10px 0 8px -8px rgba(0,0,0,0.5) !important;
 }
 
-/* Fixed right action columns must remain an opaque, readable layer while the table scrolls. */
-.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-right,
-.ant-table-wrapper .ant-table-tbody > tr > td.ant-table-cell-fix-right {
-  background: #ffffff !important;
-}
-
-.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-right {
-  z-index: 3;
-  box-shadow: -6px 0 10px -9px rgba(17, 24, 39, 0.55);
-}
-
-.ant-table-wrapper .ant-table-tbody > tr > td.ant-table-cell-fix-right {
-  position: relative;
-  z-index: 2;
-  box-shadow: -6px 0 10px -9px rgba(17, 24, 39, 0.4);
-}
-
-.ant-table-tbody > tr:hover > td,
-.ant-table-tbody > tr:hover > td.ant-table-cell-fix-right {
-  background: #fff7f3 !important;
-}
-
 @media (max-width: 800px) {
   .responsive-modal .ant-modal {
     width: 95% !important;

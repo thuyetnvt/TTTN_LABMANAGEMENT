@@ -9,7 +9,7 @@
       <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <StatusBadge :status="record.status" type="consumableRequest" />
+            <StatusBadge :status="record.status" />
           </template>
           <template v-else-if="column.key === 'requestDate'">
             {{ new Date(record.requestDate).toLocaleString('vi-VN') }}
