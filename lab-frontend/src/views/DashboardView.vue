@@ -273,7 +273,7 @@
                     <a-avatar style="background-color: var(--color-primary);"><desktop-outlined style="color: white;"/></a-avatar>
                   </template>
                 </a-list-item-meta>
-                <div>{{ item.status }}</div>
+                <div>{{ getEquipmentStatusLabel(item.status) }}</div>
               </a-list-item>
             </template>
           </a-list>
@@ -342,6 +342,7 @@ import * as signalR from '@microsoft/signalr'
 import { equipmentApi } from '../api/equipmentApi'
 import { userApi } from '../api/userApi'
 import { isAdminRole, isBorrowerRole, isManagerRole, isTeacherRole, roleLabel } from '../constants/business'
+import { getEquipmentStatusLabel } from '../utils/statusLabels'
 import NotificationBell from '../components/NotificationBell.vue'
 import AccountMenu from '../components/AccountMenu.vue'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -581,7 +582,7 @@ const submitChangePassword = async () => {
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .ladi-sider :deep(.ant-layout-sider-trigger) {
@@ -668,6 +669,7 @@ const submitChangePassword = async () => {
   padding: 12px 14px 16px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   background: var(--color-canvas-cream);
+  overflow: visible;
 }
 .sidebar-account-footer :deep(.account-menu-trigger) {
   display: block;
@@ -677,12 +679,21 @@ const submitChangePassword = async () => {
   display: flex;
   align-items: center;
   width: 100%;
+  min-height: 64px;
   gap: 10px;
-  padding: 8px;
-  border-radius: 10px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 14px;
   cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
-.sidebar-account-trigger:hover { background: rgba(0, 0, 0, 0.04); }
+.sidebar-account-trigger:hover,
+.sidebar-account-trigger:focus-visible {
+  background: rgba(217, 119, 87, 0.08);
+  border-color: var(--color-primary);
+  outline: none;
+}
 .sidebar-account-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
 .sidebar-account-copy strong,
 .sidebar-account-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

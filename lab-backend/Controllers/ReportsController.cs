@@ -25,29 +25,51 @@ public class ReportsController : ControllerBase
         DateTime? to,
         int? categoryId,
         int? locationNodeId,
+        string? status,
         CancellationToken cancellationToken)
     {
-        var equipmentQuery = FilterEquipment(from, to, categoryId, locationNodeId);
+        if (!TryNormalizeStatus(status, out status))
+            return BadRequest(new { message = "Trạng thái tài sản không hợp lệ." });
+        var equipmentQuery = FilterEquipment(from, to, categoryId, locationNodeId, status);
         var equipments = await equipmentQuery.AsNoTracking()
             .Include(equipment => equipment.AssetCategory)
             .Include(equipment => equipment.LocationNode)
             .ToListAsync(cancellationToken);
+        var equipmentIds = equipments.Select(equipment => equipment.Id).ToArray();
+        var equipmentFilterApplied = from.HasValue
+            || to.HasValue
+            || categoryId.HasValue
+            || locationNodeId.HasValue
+            || !string.IsNullOrWhiteSpace(status);
         var now = DateTime.UtcNow;
+        var fromUtc = ToUtcDateStart(from);
+        var toUtcExclusive = ToUtcDateEndExclusive(to);
         var maintenanceQuery = _context.MaintenanceRecords.AsNoTracking();
-        if (from.HasValue) maintenanceQuery = maintenanceQuery.Where(record => record.MaintenanceDate >= from.Value);
-        if (to.HasValue) maintenanceQuery = maintenanceQuery.Where(record => record.MaintenanceDate <= to.Value);
-        var maintenanceCost = await maintenanceQuery.SumAsync(record => (decimal?)record.Cost, cancellationToken) ?? 0;
+        if (fromUtc.HasValue) maintenanceQuery = maintenanceQuery.Where(record => record.MaintenanceDate >= fromUtc.Value);
+        if (toUtcExclusive.HasValue) maintenanceQuery = maintenanceQuery.Where(record => record.MaintenanceDate < toUtcExclusive.Value);
+        if (equipmentFilterApplied) maintenanceQuery = maintenanceQuery.Where(record => equipmentIds.Contains(record.EquipmentId));
+        var maintenance = await maintenanceQuery
+            .Include(record => record.Equipment)
+            .OrderByDescending(record => record.MaintenanceDate)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+        var maintenanceCost = maintenance.Sum(record => record.Cost);
 
-        var borrowed = await _context.BorrowRequestDetails.AsNoTracking()
+        var borrowedQuery = _context.BorrowRequestDetails.AsNoTracking()
             .Include(detail => detail.BorrowRecord)
                 .ThenInclude(record => record!.User)
             .Include(detail => detail.Equipment)
-            .Where(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed)
+            .Where(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed);
+        if (equipmentFilterApplied) borrowedQuery = borrowedQuery.Where(detail => equipmentIds.Contains(detail.EquipmentId));
+        if (fromUtc.HasValue) borrowedQuery = borrowedQuery.Where(detail => detail.BorrowRecord!.BorrowDate >= fromUtc.Value);
+        if (toUtcExclusive.HasValue) borrowedQuery = borrowedQuery.Where(detail => detail.BorrowRecord!.BorrowDate < toUtcExclusive.Value);
+        var borrowed = await borrowedQuery
             .OrderBy(detail => detail.BorrowRecord!.ExpectedReturnDate)
             .Take(100)
             .Select(detail => new
             {
-                id = detail.BorrowRecordId,
+                id = detail.Id,
+                borrowRecordId = detail.BorrowRecordId,
                 user = detail.BorrowRecord!.User!.Username,
                 equipment = detail.Equipment!.Name,
                 serial = detail.Equipment.Serial,
@@ -56,11 +78,16 @@ public class ReportsController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        var lowStock = await _context.Consumables.AsNoTracking()
+        var consumablesQuery = _context.Consumables.AsNoTracking();
+        if (categoryId.HasValue) consumablesQuery = consumablesQuery.Where(item => item.AssetCategoryId == categoryId.Value);
+        var consumables = await consumablesQuery
+            .OrderBy(item => item.Name)
+            .Select(item => new { item.Id, item.Code, item.Name, item.Unit, item.Quantity, item.MinQuantity })
+            .ToListAsync(cancellationToken);
+        var lowStock = consumables
             .Where(item => item.Quantity <= item.MinQuantity)
             .OrderBy(item => item.Quantity - item.MinQuantity)
-            .Select(item => new { item.Id, item.Name, item.Unit, item.Quantity, item.MinQuantity })
-            .ToListAsync(cancellationToken);
+            .ToList();
         var warrantySoon = equipments
             .Where(equipment => equipment.WarrantyExpiry.HasValue
                 && equipment.WarrantyExpiry.Value >= now
@@ -77,7 +104,7 @@ public class ReportsController : ControllerBase
 
         return Ok(new
         {
-            filters = new { from, to, categoryId, locationNodeId },
+            filters = new { from, to, categoryId, locationNodeId, status },
             totals = new
             {
                 assets = equipments.Count,
@@ -98,7 +125,17 @@ public class ReportsController : ControllerBase
                 .OrderByDescending(item => item.count),
             borrowed,
             lowStock,
-            warrantySoon
+            warrantySoon,
+            maintenance = maintenance.Select(item => new
+            {
+                item.Id,
+                equipment = item.Equipment?.Name ?? string.Empty,
+                item.MaintenanceDate,
+                item.PerformedBy,
+                item.Cost,
+                item.Status
+            }),
+            consumables
         });
     }
 
@@ -108,19 +145,31 @@ public class ReportsController : ControllerBase
         DateTime? to,
         int? categoryId,
         int? locationNodeId,
+        string? status,
         CancellationToken cancellationToken)
     {
+        if (!TryNormalizeStatus(status, out status))
+            return BadRequest(new { message = "Trạng thái tài sản không hợp lệ." });
         ExcelPackage.License.SetNonCommercialOrganization("LabManagement Educational Project");
-        var equipments = await FilterEquipment(from, to, categoryId, locationNodeId)
+        var equipments = await FilterEquipment(from, to, categoryId, locationNodeId, status)
             .AsNoTracking()
             .Include(equipment => equipment.AssetCategory)
             .Include(equipment => equipment.LocationNode)
             .OrderBy(equipment => equipment.Name)
             .ToListAsync(cancellationToken);
+        var equipmentIds = equipments.Select(equipment => equipment.Id).ToArray();
+        var fromUtc = ToUtcDateStart(from);
+        var toUtcExclusive = ToUtcDateEndExclusive(to);
+        var equipmentFilterApplied = from.HasValue
+            || to.HasValue
+            || categoryId.HasValue
+            || locationNodeId.HasValue
+            || !string.IsNullOrWhiteSpace(status);
         var maintenance = await _context.MaintenanceRecords.AsNoTracking()
             .Include(record => record.Equipment)
-            .Where(record => (!from.HasValue || record.MaintenanceDate >= from.Value)
-                && (!to.HasValue || record.MaintenanceDate <= to.Value))
+            .Where(record => (!fromUtc.HasValue || record.MaintenanceDate >= fromUtc.Value)
+                && (!toUtcExclusive.HasValue || record.MaintenanceDate < toUtcExclusive.Value))
+            .Where(record => !equipmentFilterApplied || equipmentIds.Contains(record.EquipmentId))
             .OrderByDescending(record => record.MaintenanceDate)
             .Take(2000)
             .ToListAsync(cancellationToken);
@@ -128,13 +177,18 @@ public class ReportsController : ControllerBase
             .Include(detail => detail.BorrowRecord).ThenInclude(record => record!.User)
             .Include(detail => detail.Equipment)
             .Where(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed)
+            .Where(detail => !equipmentFilterApplied || equipmentIds.Contains(detail.EquipmentId))
+            .Where(detail => !fromUtc.HasValue || detail.BorrowRecord!.BorrowDate >= fromUtc.Value)
+            .Where(detail => !toUtcExclusive.HasValue || detail.BorrowRecord!.BorrowDate < toUtcExclusive.Value)
             .OrderBy(detail => detail.BorrowRecord!.ExpectedReturnDate)
             .ToListAsync(cancellationToken);
-        var consumables = await _context.Consumables.AsNoTracking()
+        var consumablesQuery = _context.Consumables.AsNoTracking();
+        if (categoryId.HasValue) consumablesQuery = consumablesQuery.Where(item => item.AssetCategoryId == categoryId.Value);
+        var consumables = await consumablesQuery
             .OrderBy(item => item.Name).ToListAsync(cancellationToken);
 
         using var package = new ExcelPackage();
-        var assetsSheet = package.Workbook.Worksheets.Add("TaiSan");
+        var assetsSheet = package.Workbook.Worksheets.Add("Tài sản");
         WriteHeaders(assetsSheet, ["Mã tài sản", "Tên", "Model", "Số seri", "Danh mục", "Vị trí", "Trạng thái", "Hạn bảo hành"]);
         for (var index = 0; index < equipments.Count; index++)
         {
@@ -146,11 +200,12 @@ public class ReportsController : ControllerBase
             WriteCell(assetsSheet, row, 4, item.Serial);
             WriteCell(assetsSheet, row, 5, item.AssetCategory?.Name);
             WriteCell(assetsSheet, row, 6, item.LocationNode?.Name ?? item.Location);
-            WriteCell(assetsSheet, row, 7, item.Status);
+            WriteCell(assetsSheet, row, 7, EquipmentStatusLabel(item.Status));
             WriteCell(assetsSheet, row, 8, item.WarrantyExpiry?.ToString("dd/MM/yyyy"));
         }
+        WriteNoDataRow(assetsSheet, equipments.Count, 8);
 
-        var maintenanceSheet = package.Workbook.Worksheets.Add("BaoTri");
+        var maintenanceSheet = package.Workbook.Worksheets.Add("Bảo trì");
         WriteHeaders(maintenanceSheet, ["Thiết bị", "Ngày", "Nội dung", "Người thực hiện", "Chi phí", "Trạng thái", "Kết quả"]);
         for (var index = 0; index < maintenance.Count; index++)
         {
@@ -161,24 +216,26 @@ public class ReportsController : ControllerBase
             WriteCell(maintenanceSheet, row, 3, item.Description);
             WriteCell(maintenanceSheet, row, 4, item.PerformedBy);
             WriteCell(maintenanceSheet, row, 5, item.Cost);
-            WriteCell(maintenanceSheet, row, 6, item.Status);
+            WriteCell(maintenanceSheet, row, 6, MaintenanceStatusLabel(item.Status));
             WriteCell(maintenanceSheet, row, 7, item.Result);
         }
+        WriteNoDataRow(maintenanceSheet, maintenance.Count, 7);
 
-        var borrowedSheet = package.Workbook.Worksheets.Add("DangMuon");
+        var borrowedSheet = package.Workbook.Worksheets.Add("Đang mượn");
         WriteHeaders(borrowedSheet, ["Người mượn", "Thiết bị", "Số seri", "Ngày trả dự kiến", "Quá hạn"]);
         for (var index = 0; index < borrowed.Count; index++)
         {
             var item = borrowed[index];
             var row = index + 2;
-            WriteCell(borrowedSheet, row, 1, item.BorrowRecord?.User?.Username);
-            WriteCell(borrowedSheet, row, 2, item.Equipment?.Name);
-            WriteCell(borrowedSheet, row, 3, item.Equipment?.Serial);
-            WriteCell(borrowedSheet, row, 4, item.BorrowRecord?.ExpectedReturnDate.ToString("dd/MM/yyyy"));
-            WriteCell(borrowedSheet, row, 5, item.BorrowRecord?.ExpectedReturnDate < DateTime.UtcNow ? "Có" : "Không");
+            WriteCell(borrowedSheet, row, 1, item.BorrowRecord?.User?.Username ?? "Không xác định");
+            WriteCell(borrowedSheet, row, 2, item.Equipment?.Name ?? "Không xác định");
+            WriteCell(borrowedSheet, row, 3, item.Equipment?.Serial ?? string.Empty);
+            WriteCell(borrowedSheet, row, 4, item.BorrowRecord?.ExpectedReturnDate.ToString("dd/MM/yyyy") ?? string.Empty);
+            WriteCell(borrowedSheet, row, 5, item.BorrowRecord is not null && item.BorrowRecord.ExpectedReturnDate < DateTime.UtcNow ? "Có" : "Không");
         }
+        WriteNoDataRow(borrowedSheet, borrowed.Count, 5);
 
-        var consumableSheet = package.Workbook.Worksheets.Add("VatTu");
+        var consumableSheet = package.Workbook.Worksheets.Add("Vật tư");
         WriteHeaders(consumableSheet, ["Tên vật tư", "Đơn vị", "Số lượng", "Mức tối thiểu", "Trạng thái"]);
         for (var index = 0; index < consumables.Count; index++)
         {
@@ -190,16 +247,15 @@ public class ReportsController : ControllerBase
             WriteCell(consumableSheet, row, 4, item.MinQuantity);
             WriteCell(consumableSheet, row, 5, item.Quantity <= item.MinQuantity ? "Sắp hết" : "Đủ");
         }
+        WriteNoDataRow(consumableSheet, consumables.Count, 5);
 
         foreach (var worksheet in package.Workbook.Worksheets)
         {
             worksheet.Cells[worksheet.Dimension?.Address ?? "A1"].AutoFitColumns();
         }
-        await using var stream = new MemoryStream();
-        await package.SaveAsAsync(stream, cancellationToken);
-        stream.Position = 0;
-        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            $"BaoCaoTaiSan_{DateTime.UtcNow:yyyyMMddHHmm}.xlsx");
+        var bytes = await package.GetAsByteArrayAsync(cancellationToken);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"Báo cáo tài sản Phòng Lab IoT_{VietnamNow():yyyyMMddHHmm}.xlsx");
     }
 
     [HttpGet("export.pdf")]
@@ -208,25 +264,47 @@ public class ReportsController : ControllerBase
         DateTime? to,
         int? categoryId,
         int? locationNodeId,
+        string? status,
         CancellationToken cancellationToken)
     {
+        if (!TryNormalizeStatus(status, out status))
+            return BadRequest(new { message = "Trạng thái tài sản không hợp lệ." });
         QuestPDF.Settings.License = LicenseType.Community;
-        var equipments = await FilterEquipment(from, to, categoryId, locationNodeId)
+        var equipments = await FilterEquipment(from, to, categoryId, locationNodeId, status)
             .AsNoTracking()
             .Include(equipment => equipment.AssetCategory)
             .Include(equipment => equipment.LocationNode)
             .OrderBy(equipment => equipment.Name)
             .ToListAsync(cancellationToken);
+        var equipmentIds = equipments.Select(equipment => equipment.Id).ToArray();
+        var fromUtc = ToUtcDateStart(from);
+        var toUtcExclusive = ToUtcDateEndExclusive(to);
+        var equipmentFilterApplied = from.HasValue
+            || to.HasValue
+            || categoryId.HasValue
+            || locationNodeId.HasValue
+            || !string.IsNullOrWhiteSpace(status);
         var maintenanceCost = await _context.MaintenanceRecords.AsNoTracking()
-            .Where(record => (!from.HasValue || record.MaintenanceDate >= from.Value)
-                && (!to.HasValue || record.MaintenanceDate <= to.Value))
+            .Where(record => (!fromUtc.HasValue || record.MaintenanceDate >= fromUtc.Value)
+                && (!toUtcExclusive.HasValue || record.MaintenanceDate < toUtcExclusive.Value))
+            .Where(record => !equipmentFilterApplied || equipmentIds.Contains(record.EquipmentId))
             .SumAsync(record => (decimal?)record.Cost, cancellationToken) ?? 0;
         var borrowedCount = await _context.BorrowRequestDetails.AsNoTracking()
-            .CountAsync(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed, cancellationToken);
+            .CountAsync(detail => detail.BorrowRecord != null
+                && detail.BorrowRecord.Status == BorrowStatuses.Borrowed
+                && (!equipmentFilterApplied || equipmentIds.Contains(detail.EquipmentId))
+                && (!fromUtc.HasValue || detail.BorrowRecord.BorrowDate >= fromUtc.Value)
+                && (!toUtcExclusive.HasValue || detail.BorrowRecord.BorrowDate < toUtcExclusive.Value), cancellationToken);
         var overdueCount = await _context.BorrowRequestDetails.AsNoTracking()
-            .CountAsync(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed
+            .CountAsync(detail => detail.BorrowRecord != null
+                && detail.BorrowRecord.Status == BorrowStatuses.Borrowed
+                && (!equipmentFilterApplied || equipmentIds.Contains(detail.EquipmentId))
+                && (!fromUtc.HasValue || detail.BorrowRecord.BorrowDate >= fromUtc.Value)
+                && (!toUtcExclusive.HasValue || detail.BorrowRecord.BorrowDate < toUtcExclusive.Value)
                 && detail.BorrowRecord.ExpectedReturnDate < DateTime.UtcNow, cancellationToken);
-        var lowStockCount = await _context.Consumables.AsNoTracking()
+        var consumablesQuery = _context.Consumables.AsNoTracking();
+        if (categoryId.HasValue) consumablesQuery = consumablesQuery.Where(item => item.AssetCategoryId == categoryId.Value);
+        var lowStockCount = await consumablesQuery
             .CountAsync(item => item.Quantity <= item.MinQuantity, cancellationToken);
 
         var document = Document.Create(container => container.Page(page =>
@@ -236,8 +314,9 @@ public class ReportsController : ControllerBase
             page.DefaultTextStyle(style => style.FontSize(10));
             page.Header().Column(column =>
             {
-                column.Item().Text("BÁO CÁO TÀI SẢN LAB IOT").Bold().FontSize(18).FontColor(Colors.Blue.Darken2);
-                column.Item().Text($"Ngày xuất: {DateTime.Now:dd/MM/yyyy HH:mm}").FontColor(Colors.Grey.Darken1);
+                column.Item().Text("Báo cáo tài sản Phòng Lab IoT").Bold().FontSize(18).FontColor(Colors.Blue.Darken2);
+                var vietnamNow = VietnamNow();
+                column.Item().Text($"Ngày xuất: {vietnamNow:dd/MM/yyyy HH:mm}").FontColor(Colors.Grey.Darken1);
             });
             page.Content().Column(column =>
             {
@@ -267,10 +346,18 @@ public class ReportsController : ControllerBase
                     foreach (var (item, index) in equipments.Take(80).Select((item, index) => (item, index)))
                     {
                         table.Cell().Element(BodyCell).Text((index + 1).ToString());
-                        table.Cell().Element(BodyCell).Text(item.Name);
-                        table.Cell().Element(BodyCell).Text(item.Serial);
-                        table.Cell().Element(BodyCell).Text(item.LocationNode?.Name ?? item.Location);
-                        table.Cell().Element(BodyCell).Text(item.Status);
+                        table.Cell().Element(BodyCell).Text(PdfText(item.Name));
+                        table.Cell().Element(BodyCell).Text(PdfText(item.Serial));
+                        table.Cell().Element(BodyCell).Text(PdfText(item.LocationNode?.Name ?? item.Location));
+                        table.Cell().Element(BodyCell).Text(PdfText(EquipmentStatusLabel(item.Status)));
+                    }
+                    if (equipments.Count == 0)
+                    {
+                        table.Cell().Element(BodyCell).Text("Không có dữ liệu");
+                        table.Cell().Element(BodyCell).Text(string.Empty);
+                        table.Cell().Element(BodyCell).Text(string.Empty);
+                        table.Cell().Element(BodyCell).Text(string.Empty);
+                        table.Cell().Element(BodyCell).Text(string.Empty);
                     }
                 });
             });
@@ -282,8 +369,7 @@ public class ReportsController : ControllerBase
         }));
         using var stream = new MemoryStream();
         document.GeneratePdf(stream);
-        stream.Position = 0;
-        return File(stream, "application/pdf", $"BaoCaoTaiSan_{DateTime.UtcNow:yyyyMMddHHmm}.pdf");
+        return File(stream.ToArray(), "application/pdf", $"Báo cáo tài sản Phòng Lab IoT_{VietnamNow():yyyyMMddHHmm}.pdf");
 
         static QuestPDF.Infrastructure.IContainer HeaderCell(QuestPDF.Infrastructure.IContainer container)
             => container.Background(Colors.Blue.Darken2).Padding(4).DefaultTextStyle(style => style.FontColor(Colors.White).Bold());
@@ -291,15 +377,64 @@ public class ReportsController : ControllerBase
             => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(4);
     }
 
-    private IQueryable<Equipment> FilterEquipment(DateTime? from, DateTime? to, int? categoryId, int? locationNodeId)
+    private IQueryable<Equipment> FilterEquipment(
+        DateTime? from,
+        DateTime? to,
+        int? categoryId,
+        int? locationNodeId,
+        string? status)
     {
         var query = _context.Equipments.AsQueryable();
-        if (from.HasValue) query = query.Where(item => item.CreatedAt >= from.Value);
-        if (to.HasValue) query = query.Where(item => item.CreatedAt <= to.Value);
+        var fromUtc = ToUtcDateStart(from);
+        var toUtcExclusive = ToUtcDateEndExclusive(to);
+        if (fromUtc.HasValue) query = query.Where(item => item.CreatedAt >= fromUtc.Value);
+        if (toUtcExclusive.HasValue) query = query.Where(item => item.CreatedAt < toUtcExclusive.Value);
         if (categoryId.HasValue) query = query.Where(item => item.AssetCategoryId == categoryId.Value);
         if (locationNodeId.HasValue) query = query.Where(item => item.LocationNodeId == locationNodeId.Value);
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(item => item.Status == status);
+        }
         return query;
     }
+
+    private static bool TryNormalizeStatus(string? value, out string? normalized)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            normalized = null;
+            return true;
+        }
+
+        normalized = EquipmentStatuses.LegacyMap.TryGetValue(value.Trim(), out var mappedStatus)
+            ? mappedStatus
+            : value.Trim().ToUpperInvariant();
+        return EquipmentStatuses.All.Contains(normalized);
+    }
+
+    private static string EquipmentStatusLabel(string? value)
+        => value?.Trim().ToUpperInvariant() switch
+        {
+            "AVAILABLE" => "Rảnh",
+            "BORROW_PENDING" => "Chờ mượn",
+            "BORROWED" => "Đang mượn",
+            "RETURNED" => "Đã trả",
+            "RETURNED_DAMAGED" => "Đã trả (hỏng)",
+            "BROKEN" => "Hỏng",
+            "UNDER_WARRANTY" or "WARRANTY" => "Bảo hành",
+            "MAINTENANCE_IN_PROGRESS" => "Đang bảo trì",
+            "MAINTENANCE_COMPLETED" => "Đã bảo trì",
+            _ => "Không xác định"
+        };
+
+    private static string MaintenanceStatusLabel(string? value)
+        => value?.Trim().ToUpperInvariant() switch
+        {
+            "IN_PROGRESS" or "MAINTENANCE_IN_PROGRESS" => "Đang thực hiện",
+            "COMPLETING" or "MAINTENANCE_COMPLETING" => "Đang nghiệm thu",
+            "COMPLETED" or "MAINTENANCE_COMPLETED" => "Đã hoàn tất",
+            _ => "Không xác định"
+        };
 
     private static void WriteHeaders(ExcelWorksheet worksheet, string[] headers)
     {
@@ -314,6 +449,61 @@ public class ReportsController : ControllerBase
     {
         worksheet.Cells[row, column].Value = value is string text ? SafeExcelText(text) : value;
     }
+
+    private static void WriteNoDataRow(ExcelWorksheet worksheet, int itemCount, int columnCount)
+    {
+        if (itemCount > 0) return;
+        worksheet.Cells[2, 1].Value = "Không có dữ liệu";
+        worksheet.Cells[2, 1].Style.Font.Italic = true;
+        if (columnCount > 1)
+        {
+            worksheet.Cells[2, 1, 2, columnCount].Merge = true;
+        }
+    }
+
+    private static DateTime? ToUtcDateStart(DateTime? value)
+    {
+        if (!value.HasValue) return null;
+        var vietnamDate = DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(vietnamDate, VietnamTimeZone());
+    }
+
+    private static DateTime? ToUtcDateEndExclusive(DateTime? value)
+    {
+        if (!value.HasValue) return null;
+        var vietnamDate = DateTime.SpecifyKind(value.Value.Date.AddDays(1), DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(vietnamDate, VietnamTimeZone());
+    }
+
+    private static TimeZoneInfo VietnamTimeZone()
+    {
+        foreach (var id in new[] { "Asia/Ho_Chi_Minh", "SE Asia Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                // Try the identifier used by the other operating system.
+            }
+            catch (InvalidTimeZoneException)
+            {
+                // Try the identifier used by the other operating system.
+            }
+        }
+
+        return TimeZoneInfo.CreateCustomTimeZone(
+            "Vietnam Standard Time",
+            TimeSpan.FromHours(7),
+            "Vietnam Standard Time",
+            "Vietnam Standard Time");
+    }
+
+    private static DateTime VietnamNow() =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VietnamTimeZone());
+
+    private static string PdfText(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
 
     private static string SafeExcelText(string? value)
     {

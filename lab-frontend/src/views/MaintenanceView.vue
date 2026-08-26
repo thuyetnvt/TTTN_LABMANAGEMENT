@@ -16,7 +16,7 @@
              {{ Number(record.cost || 0).toLocaleString('vi-VN') }} VNĐ
           </template>
           <template v-if="column.key === 'status'">
-             <StatusBadge :status="record.status" />
+             <StatusBadge :status="record.status" type="maintenance" />
           </template>
           <template v-if="column.key === 'action'">
               <a-space>
@@ -59,7 +59,7 @@
           <div class="maintenance-mobile-card">
             <div class="maintenance-mobile-card-header">
               <strong>{{ item.device || 'Thiết bị chưa xác định' }}</strong>
-              <StatusBadge :status="item.status" />
+              <StatusBadge :status="item.status" type="maintenance" />
             </div>
             <div class="maintenance-mobile-details">
               <div><span>Ngày thực hiện</span><strong>{{ formatDate(item.maintenanceDate) }}</strong></div>
@@ -237,7 +237,7 @@ const columns = [
   { title: 'Chi phí', dataIndex: 'cost', key: 'cost', width: 120 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160 },
   { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 280 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 80 }
+  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 180 }
 ]
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'

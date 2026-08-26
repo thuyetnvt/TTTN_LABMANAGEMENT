@@ -1,5 +1,5 @@
 <template>
-  <a-table :dataSource="dataSource" :columns="columns" bordered rowKey="id" :scroll="{ x: 'max-content' }">
+  <a-table :dataSource="dataSource" :columns="columns" bordered rowKey="id" :scroll="{ x: 1140 }">
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'role'">
         <a-tag :color="isAdminRole(record.role) ? 'gold' : 'blue'">{{ roleLabel(record.role) }}</a-tag>
@@ -45,11 +45,11 @@ const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 
 const columns = [
-  { title: 'Tài khoản', dataIndex: 'username', key: 'username' },
-  { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName' },
-  { title: 'Mã định danh', dataIndex: 'universityCode', key: 'universityCode' },
-  { title: 'Email', dataIndex: 'email', key: 'email' },
-  { title: 'Vai trò', dataIndex: 'role', key: 'role' },
-  { title: 'Hành động', key: 'action', width: 150, align: 'center' }
+  { title: 'Tài khoản', dataIndex: 'username', key: 'username', width: 140 },
+  { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName', width: 240 },
+  { title: 'Mã định danh', dataIndex: 'universityCode', key: 'universityCode', width: 160 },
+  { title: 'Email', dataIndex: 'email', key: 'email', width: 260 },
+  { title: 'Vai trò', dataIndex: 'role', key: 'role', width: 160 },
+  { title: 'Hành động', key: 'action', fixed: 'right', width: 180, align: 'center' }
 ]
 </script>
