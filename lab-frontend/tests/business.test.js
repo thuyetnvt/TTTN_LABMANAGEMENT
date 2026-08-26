@@ -5,6 +5,7 @@ import { ROLE_LABELS, STATUS, normalizeStatus, roleLabel, statusLabel, statusMat
 import { useNotificationStore } from '../src/stores/notificationStore.js'
 import { getApiErrorMessage, getApiSuccessMessage } from '../src/utils/apiError.js'
 import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
+import { getExportErrorMessage } from '../src/utils/reportsExport.js'
 
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
@@ -58,6 +59,22 @@ test('không hiển thị [object Object] khi response lỗi là object', () => 
   assert.equal(
     getApiErrorMessage({ response: { data: { errors: { Password: ['Mật khẩu phải có ít nhất 8 ký tự.'] } } } }, 'Dữ liệu không hợp lệ.'),
     'Mật khẩu phải có ít nhất 8 ký tự.'
+  )
+})
+
+test('đọc được message thật khi API export trả lỗi dạng blob JSON', async () => {
+  const error = {
+    message: 'Máy chủ đang gặp sự cố.',
+    response: {
+      data: new Blob([JSON.stringify({ message: 'Không thể tạo file Excel do dữ liệu không hợp lệ.' })], {
+        type: 'application/problem+json'
+      })
+    }
+  }
+
+  assert.equal(
+    await getExportErrorMessage(error),
+    'Không thể tạo file Excel do dữ liệu không hợp lệ.'
   )
 })
 

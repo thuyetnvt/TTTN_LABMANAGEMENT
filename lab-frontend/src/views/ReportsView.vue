@@ -424,7 +424,14 @@ const resetFilters = () => {
 }
 
 const downloadBlob = (blob, filename, type) => {
-  const url = URL.createObjectURL(new Blob([blob], { type }))
+  if (typeof Blob === 'undefined' || !(blob instanceof Blob) || blob.size === 0) {
+    throw new Error('Tệp báo cáo rỗng hoặc không hợp lệ.')
+  }
+  const responseType = (blob.type || '').split(';')[0]
+  if (responseType && responseType !== type) {
+    throw new Error('Máy chủ trả về tệp báo cáo không đúng định dạng.')
+  }
+  const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
   link.download = filename
