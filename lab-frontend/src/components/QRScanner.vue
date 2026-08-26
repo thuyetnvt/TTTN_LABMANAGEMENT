@@ -1,22 +1,9 @@
 <template>
   <div class="qr-scanner-wrapper">
-    <div v-if="loadingCameras" class="loading-state">
-      <a-spin tip="Đang tìm kiếm máy ảnh..." />
-    </div>
-
-    <div v-else-if="cameraError" class="error-state">
-      <a-alert type="error" show-icon>
-        <template #message>Không thể truy cập máy ảnh</template>
-        <template #description>{{ cameraError }}</template>
-      </a-alert>
-      <a-button class="retry-btn" type="primary" @click="initCameras">
-        Thử lại
-      </a-button>
-    </div>
-
-    <div v-else class="scanner-container">
+    <div class="scanner-container">
       <div class="controls-row">
         <a-select
+          v-if="cameras.length > 0"
           v-model:value="selectedCameraId"
           :options="cameraOptions"
           class="camera-select"
@@ -43,6 +30,10 @@
           <p>Nhấn "Bắt đầu quét" để bật máy ảnh</p>
         </div>
       </div>
+      <a-alert v-if="cameraError" type="error" show-icon style="margin-top: 16px">
+        <template #message>Không thể truy cập máy ảnh</template>
+        <template #description>{{ cameraError }}</template>
+      </a-alert>
     </div>
   </div>
 </template>
@@ -66,7 +57,6 @@ const props = defineProps({
 
 const emit = defineEmits(['scan-success', 'scan-error'])
 
-const loadingCameras = ref(true)
 const cameraError = ref('')
 const cameras = ref([])
 const selectedCameraId = ref(null)
@@ -81,57 +71,54 @@ const cameraOptions = computed(() => {
 })
 
 const initCameras = async () => {
-  loadingCameras.value = true
-  cameraError.value = ''
   try {
     const devices = await Html5Qrcode.getCameras()
     if (devices && devices.length > 0) {
       cameras.value = devices
-      // Prefer back camera if available, otherwise first camera
       const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('sau'))
       selectedCameraId.value = backCamera ? backCamera.id : devices[0].id
-    } else {
-      cameraError.value = 'Không tìm thấy máy ảnh nào trên thiết bị của bạn.'
     }
   } catch (err) {
-    cameraError.value = 'Vui lòng cấp quyền truy cập máy ảnh cho trình duyệt để sử dụng tính năng này.'
-    console.error('Error getting cameras', err)
-  } finally {
-    loadingCameras.value = false
+    console.warn('Could not get cameras on mount:', err)
   }
 }
 
 const startScanning = async () => {
-  if (!selectedCameraId.value) {
-    message.warning('Vui lòng chọn một máy ảnh trước khi quét.')
-    return
-  }
-  
   if (!html5QrCode) {
     html5QrCode = new Html5Qrcode('html5-qrcode-reader')
   }
 
+  const cameraConfig = selectedCameraId.value 
+    ? selectedCameraId.value 
+    : { facingMode: "environment" }
+
+  cameraError.value = ''
+
   try {
     await html5QrCode.start(
-      selectedCameraId.value,
+      cameraConfig,
       {
         fps: props.fps,
         qrbox: { width: props.qrbox, height: props.qrbox },
         aspectRatio: 1.0
       },
       (decodedText) => {
-        // Stop scanning after successful scan to prevent multiple fires
         stopScanning()
         emit('scan-success', decodedText)
       },
-      (errorMessage) => {
-        // Only emit scan-error if needed, it triggers constantly on empty frames
-        // emit('scan-error', errorMessage)
-      }
+      (errorMessage) => {}
     )
     isScanning.value = true
+    
+    // Fetch cameras after successful permission
+    if (cameras.value.length === 0) {
+      const devices = await Html5Qrcode.getCameras()
+      if (devices && devices.length > 0) {
+        cameras.value = devices
+      }
+    }
   } catch (err) {
-    message.error('Không thể bật máy ảnh: ' + (err?.message || err))
+    cameraError.value = 'Vui lòng cấp quyền truy cập máy ảnh cho trình duyệt để sử dụng.'
     isScanning.value = false
   }
 }
