@@ -221,7 +221,7 @@ const columns = [
   { title: 'Nhà cung cấp', dataIndex: 'supplier', key: 'supplier', width: 160 },
   { title: 'Hạn sử dụng', dataIndex: 'expiryDate', key: 'expiryDate', width: 120 },
   { title: 'Trạng thái', key: 'status', align: 'center', width: 120 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 140 }
+  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 150 }
 ]
 
 const historyColumns = [

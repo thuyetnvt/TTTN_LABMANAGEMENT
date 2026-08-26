@@ -124,11 +124,26 @@
     </a-space>
   </a-modal>
 
-  <a-modal v-model:open="isImportVisible" title="Nhập Excel tài sản" :footer="null" width="1100px">
-    <a-upload :before-upload="previewImport" :show-upload-list="false" accept=".xlsx">
-      <a-button :loading="importLoading">Chọn file Excel và xem trước</a-button>
-    </a-upload>
-    <a-alert v-if="importPreviewRows.length" class="import-summary" type="info" :message="`Tổng ${importPreviewRows.length} dòng — hợp lệ ${importValidCount}, lỗi ${importPreviewRows.length - importValidCount}`" />
+  <a-modal v-model:open="isImportVisible" title="Nhập Excel tài sản" :footer="null" width="800px">
+    <a-upload-dragger
+      v-if="!importPreviewRows.length"
+      :before-upload="previewImport"
+      :show-upload-list="false"
+      accept=".xlsx"
+    >
+      <p class="ant-upload-drag-icon" style="color: #ea580c">
+        <InboxOutlined />
+      </p>
+      <p class="ant-upload-text">Nhấp hoặc kéo thả file Excel vào khu vực này</p>
+      <p class="ant-upload-hint">Chỉ hỗ trợ file định dạng .xlsx. Đảm bảo dữ liệu chuẩn cấu trúc.</p>
+    </a-upload-dragger>
+
+    <div v-if="importPreviewRows.length" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <a-alert class="import-summary" type="info" style="margin: 0;" :message="`Tổng ${importPreviewRows.length} dòng — hợp lệ ${importValidCount}, lỗi ${importPreviewRows.length - importValidCount}`" />
+      <a-upload :before-upload="previewImport" :show-upload-list="false" accept=".xlsx">
+        <a-button :loading="importLoading">Chọn file khác</a-button>
+      </a-upload>
+    </div>
     <a-table v-if="importPreviewRows.length" :data-source="importPreviewRows" :columns="importColumns" row-key="rowNumber" size="small" bordered :pagination="{ pageSize: 10 }" :scroll="{ x: 900 }">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'name'">{{ record.row.name }}</template>
@@ -313,7 +328,7 @@ import { message, Modal, Upload } from 'ant-design-vue'
 import StatusBadge from './StatusBadge.vue'
 import LocationTreeSelect from './LocationTreeSelect.vue'
 import { STATUS, isAdminRole, isBorrowerRole, isManagerRole, isStudentRole, statusLabel, statusMatches } from '../constants/business'
-import { EditOutlined, DeleteOutlined, EyeOutlined, ScanOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, DeleteOutlined, EyeOutlined, ScanOutlined, ShoppingCartOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { equipmentApi } from '../api/equipmentApi'
 import { borrowApi } from '../api/borrowApi'
@@ -348,7 +363,7 @@ const columns = [
   { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130 },
   { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
-  { title: 'Hành động', key: 'action', fixed: 'right', width: 140 }
+  { title: 'Hành động', key: 'action', fixed: 'right', width: 180 }
 ]
 
 const searchQuery = ref('')
