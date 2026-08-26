@@ -6,7 +6,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1400 }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <StatusBadge :status="record.status" />
@@ -15,8 +15,8 @@
             {{ new Date(record.requestDate).toLocaleString('vi-VN') }}
           </template>
           <template v-else-if="column.key === 'action'">
-            <div v-if="statusMatches(record.status, STATUS.CONSUMABLE_PENDING) && isManagerRole(role)">
-              <a-button type="primary" size="small" style="margin-right: 8px;" @click="handleApprove(record.id)">Duyệt & cấp</a-button>
+            <div v-if="statusMatches(record.status, STATUS.CONSUMABLE_PENDING) && isManagerRole(role)" class="action-cell">
+              <a-button type="primary" size="small" @click="handleApprove(record.id)">Duyệt & cấp</a-button>
               <a-button danger size="small" @click="handleReject(record.id)">Từ chối</a-button>
             </div>
             <span v-else class="muted">Không có hành động</span>
@@ -44,14 +44,14 @@ const dataSource = ref([])
 const loading = ref(false)
 
 const columns = [
-  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName' },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName' },
-  { title: 'Người yêu cầu', dataIndex: 'username', key: 'username' },
-  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', align: 'center' },
-  { title: 'Lý do', dataIndex: 'reason', key: 'reason' },
-  { title: 'Trạng thái', key: 'status', align: 'center' },
-  { title: 'Ngày gửi', dataIndex: 'requestDate', key: 'requestDate' },
-  { title: 'Hành động', key: 'action', align: 'center' }
+  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', width: 220 },
+  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
+  { title: 'Người yêu cầu', dataIndex: 'username', key: 'username', width: 150 },
+  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', width: 90, align: 'center' },
+  { title: 'Lý do', dataIndex: 'reason', key: 'reason', width: 280 },
+  { title: 'Trạng thái', key: 'status', width: 150, align: 'center' },
+  { title: 'Ngày gửi', dataIndex: 'requestDate', key: 'requestDate', width: 170 },
+  { title: 'Hành động', key: 'action', fixed: 'right', width: 190, align: 'center' }
 ]
 
 onMounted(() => fetchData())
@@ -91,6 +91,31 @@ const handleReject = async (id) => {
 <style scoped>
 .asset-requests-container {
   padding: 0;
+}
+
+.action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.asset-requests-container :deep(.ant-table-cell-fix-right) {
+  z-index: 2;
+  background: #fff !important;
+  box-shadow: -6px 0 12px -10px rgba(16, 35, 63, 0.55);
+}
+
+.asset-requests-container :deep(.ant-table-thead > tr > th.ant-table-cell-fix-right) {
+  z-index: 3;
+  background: #fafafa !important;
+}
+
+.asset-requests-container :deep(.ant-table-tbody > tr:hover > td),
+.asset-requests-container :deep(.ant-table-tbody > tr:hover > td.ant-table-cell-fix-right) {
+  background: #fff7f3 !important;
 }
 
 .toolbar h2 {
