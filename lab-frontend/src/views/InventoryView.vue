@@ -64,14 +64,14 @@
           <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedSession.status" /></a-descriptions-item>
         </a-descriptions>
         <a-divider />
-        <a-space direction="vertical" style="width: 100%">
+        <a-space direction="vertical" size="middle" style="width: 100%">
           <a-space wrap>
             <a-button @click="toggleCamera">{{ cameraOpen ? 'Đóng camera' : 'Mở camera quét QR' }}</a-button>
             <a-button @click="downloadReport('excel')">Xuất Excel chênh lệch</a-button>
             <a-button @click="downloadReport('pdf')">Xuất PDF chênh lệch</a-button>
           </a-space>
           <QRScanner v-if="cameraOpen" @scan-success="onScanSuccessInventory" class="qr-reader" />
-          <a-input-search v-model:value="scanToken" placeholder="Nhập QR token để ghi nhận nhanh" enter-button="Ghi nhận" :loading="scanning" @search="scanByToken" />
+          <a-input-search v-model:value="scanToken" placeholder="Nhập QR token để ghi nhận nhanh" enter-button="Ghi nhận" :loading="scanning" @search="scanByToken" class="inventory-search-input" />
           <a-alert v-if="scanMessage" :type="scanMessageType" :message="scanMessage" show-icon />
         </a-space>
         <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="{ pageSize: 8 }">
@@ -250,4 +250,12 @@ onMounted(fetchAll)
 .toolbar h2 { margin: 0; font-weight: 600; }
 .toolbar p { color: #64748b; margin: 6px 0 0; }
 .qr-reader { max-width: 360px; margin: 12px 0; }
+.inventory-search-input :deep(.ant-input) {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.inventory-search-input :deep(.ant-btn) {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
 </style>
