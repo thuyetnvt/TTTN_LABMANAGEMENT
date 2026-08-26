@@ -68,12 +68,7 @@
       <template v-else-if="column.key === 'action'">
         <a-space>
           <a-tooltip title="Xem chi tiết">
-            <a-button
-              type="link"
-              class="table-detail-action"
-              aria-label="Xem chi tiết thiết bị"
-              @click="showViewModal(record)"
-            >
+            <a-button type="link" size="small" class="table-detail-action" aria-label="Xem chi tiết thiết bị" @click="showViewModal(record)">
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -83,7 +78,7 @@
             </a-button>
           </a-tooltip>
           <a-tooltip v-if="isAdminRole(role)" title="Xóa thiết bị">
-            <a-button type="link" danger size="small" aria-label="Xóa thiết bị" @click="handleDelete(record.id)">
+            <a-button danger type="link" size="small" aria-label="Xóa thiết bị" @click="handleDelete(record.id)">
               <template #icon><DeleteOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -93,7 +88,7 @@
             </a-button>
           </a-tooltip>
           <a-tooltip v-if="isBorrowerRole(role) && statusMatches(record.status, STATUS.AVAILABLE)" title="Mượn thiết bị">
-            <a-button type="link" size="small" @click="handleBorrowClick(record)">
+            <a-button type="link" size="small" aria-label="Mượn thiết bị" @click="handleBorrowClick(record)">
               <template #icon><ShoppingCartOutlined /></template>
             </a-button>
           </a-tooltip>

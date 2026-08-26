@@ -25,7 +25,11 @@
         </template>
         <template v-else-if="column.key === 'action'">
           <a-space>
-            <a-button v-if="isBorrowerRole(role)" type="link" size="small" @click="showRequestModal(record)">Yêu cầu cấp phát</a-button>
+            <a-tooltip v-if="isBorrowerRole(role)" title="Yêu cầu cấp phát">
+              <a-button type="link" size="small" aria-label="Yêu cầu cấp phát" @click="showRequestModal(record)">
+                <template #icon><ShoppingCartOutlined /></template>
+              </a-button>
+            </a-tooltip>
             <a-tooltip v-if="isManagerRole(role)" title="Xem lịch sử vật tư">
               <a-button type="link" size="small" aria-label="Xem lịch sử vật tư" @click="showHistoryModal(record)">
                 <template #icon><HistoryOutlined /></template>
@@ -198,7 +202,7 @@ import { consumableRequestApi } from '../api/consumableRequestApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole, isBorrowerRole, isManagerRole } from '../constants/business'
-import { EditOutlined, DeleteOutlined, EyeOutlined, HistoryOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, DeleteOutlined, EyeOutlined, HistoryOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
