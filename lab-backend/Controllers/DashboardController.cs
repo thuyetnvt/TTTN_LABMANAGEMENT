@@ -127,6 +127,11 @@ public class DashboardController : ControllerBase
         var pendingRequests = 0;
         var lowStockConsumables = new List<object>();
         var borrowTrends = new List<object>();
+        var pendingBorrowRequests = 0;
+        var overdueBorrowRecords = isManager ? overdueRecords.Count : 0;
+        var lowStockConsumableCount = 0;
+        var warrantyExpiringSoon = 0;
+        var maintenanceInProgress = isManager ? equipmentCounts?.Maintenance ?? 0 : 0;
 
         if (isManager)
         {
@@ -136,14 +141,14 @@ public class DashboardController : ControllerBase
             totalPenalties = await _context.Penalties
                 .Where(penalty => penalty.Status == PenaltyStatuses.Paid)
                 .SumAsync(penalty => penalty.Amount, cancellationToken);
-            var pendingBorrows = await _context.BorrowRecords
+            pendingBorrowRequests = await _context.BorrowRecords
                 .CountAsync(record =>
                     record.Status == BorrowStatuses.Pending
                     || record.Status == BorrowStatuses.TeacherPending,
                     cancellationToken);
             var pendingConsumables = await _context.ConsumableRequests
                 .CountAsync(request => request.Status == ConsumableRequestStatuses.Pending, cancellationToken);
-            pendingRequests = pendingBorrows + pendingConsumables;
+            pendingRequests = pendingBorrowRequests + pendingConsumables;
 
             var lowStockItems = await _context.Consumables
                 .AsNoTracking()
@@ -157,6 +162,7 @@ public class DashboardController : ControllerBase
                 })
                 .ToListAsync(cancellationToken);
             lowStockConsumables = lowStockItems.Cast<object>().ToList();
+            lowStockConsumableCount = lowStockItems.Count;
 
             foreach (var item in lowStockItems.Take(5))
             {
@@ -169,13 +175,13 @@ public class DashboardController : ControllerBase
                 });
             }
 
-            if (pendingBorrows > 0)
+            if (pendingBorrowRequests > 0)
             {
                 alerts.Add(new
                 {
                     Type = "pending-borrow-requests",
                     Title = "Yêu cầu mượn chờ duyệt",
-                    Message = $"Có {pendingBorrows} yêu cầu mượn cần xử lý.",
+                    Message = $"Có {pendingBorrowRequests} yêu cầu mượn cần xử lý.",
                     Level = "info"
                 });
             }
@@ -191,11 +197,13 @@ public class DashboardController : ControllerBase
                 });
             }
 
-            var warrantySoon = await _context.Equipments
+            var warrantySoonQuery = _context.Equipments
                 .AsNoTracking()
                 .Where(equipment => equipment.WarrantyExpiry.HasValue
                     && equipment.WarrantyExpiry.Value >= DateTime.UtcNow
-                    && equipment.WarrantyExpiry.Value <= DateTime.UtcNow.AddDays(30))
+                    && equipment.WarrantyExpiry.Value <= DateTime.UtcNow.AddDays(30));
+            warrantyExpiringSoon = await warrantySoonQuery.CountAsync(cancellationToken);
+            var warrantySoon = await warrantySoonQuery
                 .OrderBy(equipment => equipment.WarrantyExpiry)
                 .Take(5)
                 .Select(equipment => new
@@ -255,6 +263,12 @@ public class DashboardController : ControllerBase
 
         return Ok(new
         {
+            UpdatedAt = DateTime.UtcNow,
+            PendingBorrowRequests = pendingBorrowRequests,
+            OverdueBorrowRecords = overdueBorrowRecords,
+            LowStockConsumables = lowStockConsumableCount,
+            WarrantyExpiringSoon = warrantyExpiringSoon,
+            MaintenanceInProgress = maintenanceInProgress,
             Counts = new
             {
                 Total = equipmentCounts?.Total ?? 0,
