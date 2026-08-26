@@ -348,7 +348,7 @@ const columns = [
   { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130 },
   { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
-  { title: 'Hành động', key: 'action', fixed: 'right', width: 110 }
+  { title: 'Hành động', key: 'action', fixed: 'right', width: 140 }
 ]
 
 const searchQuery = ref('')
