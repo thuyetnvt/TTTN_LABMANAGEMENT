@@ -59,6 +59,7 @@ public static class DbInitializer
         await SeedSampleInventoryAsync(context);
         await SeedSampleOperationsAsync(context);
         await SeedSampleAuditLogsAsync(context);
+        await FullSampleDataSeeder.SeedAsync(context, configuration);
     }
 
     private static async Task SeedSampleInventoryAsync(AppDbContext context)
