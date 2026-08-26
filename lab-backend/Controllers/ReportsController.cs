@@ -25,29 +25,49 @@ public class ReportsController : ControllerBase
         DateTime? to,
         int? categoryId,
         int? locationNodeId,
+        string? status,
         CancellationToken cancellationToken)
     {
-        var equipmentQuery = FilterEquipment(from, to, categoryId, locationNodeId);
+        if (!TryNormalizeStatus(status, out status))
+            return BadRequest(new { message = "Trạng thái tài sản không hợp lệ." });
+        var equipmentQuery = FilterEquipment(from, to, categoryId, locationNodeId, status);
         var equipments = await equipmentQuery.AsNoTracking()
             .Include(equipment => equipment.AssetCategory)
             .Include(equipment => equipment.LocationNode)
             .ToListAsync(cancellationToken);
+        var equipmentIds = equipments.Select(equipment => equipment.Id).ToArray();
+        var equipmentFilterApplied = from.HasValue
+            || to.HasValue
+            || categoryId.HasValue
+            || locationNodeId.HasValue
+            || !string.IsNullOrWhiteSpace(status);
         var now = DateTime.UtcNow;
         var maintenanceQuery = _context.MaintenanceRecords.AsNoTracking();
-        if (from.HasValue) maintenanceQuery = maintenanceQuery.Where(record => record.MaintenanceDate >= from.Value);
-        if (to.HasValue) maintenanceQuery = maintenanceQuery.Where(record => record.MaintenanceDate <= to.Value);
-        var maintenanceCost = await maintenanceQuery.SumAsync(record => (decimal?)record.Cost, cancellationToken) ?? 0;
+        if (from.HasValue) maintenanceQuery = maintenanceQuery.Where(record => record.MaintenanceDate >= from.Value.Date);
+        if (to.HasValue) maintenanceQuery = maintenanceQuery.Where(record => record.MaintenanceDate < to.Value.Date.AddDays(1));
+        if (equipmentFilterApplied) maintenanceQuery = maintenanceQuery.Where(record => equipmentIds.Contains(record.EquipmentId));
+        var maintenance = await maintenanceQuery
+            .Include(record => record.Equipment)
+            .OrderByDescending(record => record.MaintenanceDate)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+        var maintenanceCost = maintenance.Sum(record => record.Cost);
 
-        var borrowed = await _context.BorrowRequestDetails.AsNoTracking()
+        var borrowedQuery = _context.BorrowRequestDetails.AsNoTracking()
             .Include(detail => detail.BorrowRecord)
                 .ThenInclude(record => record!.User)
             .Include(detail => detail.Equipment)
-            .Where(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed)
+            .Where(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed);
+        if (equipmentFilterApplied) borrowedQuery = borrowedQuery.Where(detail => equipmentIds.Contains(detail.EquipmentId));
+        if (from.HasValue) borrowedQuery = borrowedQuery.Where(detail => detail.BorrowRecord!.BorrowDate >= from.Value.Date);
+        if (to.HasValue) borrowedQuery = borrowedQuery.Where(detail => detail.BorrowRecord!.BorrowDate < to.Value.Date.AddDays(1));
+        var borrowed = await borrowedQuery
             .OrderBy(detail => detail.BorrowRecord!.ExpectedReturnDate)
             .Take(100)
             .Select(detail => new
             {
-                id = detail.BorrowRecordId,
+                id = detail.Id,
+                borrowRecordId = detail.BorrowRecordId,
                 user = detail.BorrowRecord!.User!.Username,
                 equipment = detail.Equipment!.Name,
                 serial = detail.Equipment.Serial,
@@ -56,11 +76,16 @@ public class ReportsController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        var lowStock = await _context.Consumables.AsNoTracking()
+        var consumablesQuery = _context.Consumables.AsNoTracking();
+        if (categoryId.HasValue) consumablesQuery = consumablesQuery.Where(item => item.AssetCategoryId == categoryId.Value);
+        var consumables = await consumablesQuery
+            .OrderBy(item => item.Name)
+            .Select(item => new { item.Id, item.Code, item.Name, item.Unit, item.Quantity, item.MinQuantity })
+            .ToListAsync(cancellationToken);
+        var lowStock = consumables
             .Where(item => item.Quantity <= item.MinQuantity)
             .OrderBy(item => item.Quantity - item.MinQuantity)
-            .Select(item => new { item.Id, item.Name, item.Unit, item.Quantity, item.MinQuantity })
-            .ToListAsync(cancellationToken);
+            .ToList();
         var warrantySoon = equipments
             .Where(equipment => equipment.WarrantyExpiry.HasValue
                 && equipment.WarrantyExpiry.Value >= now
@@ -77,7 +102,7 @@ public class ReportsController : ControllerBase
 
         return Ok(new
         {
-            filters = new { from, to, categoryId, locationNodeId },
+            filters = new { from, to, categoryId, locationNodeId, status },
             totals = new
             {
                 assets = equipments.Count,
@@ -98,7 +123,17 @@ public class ReportsController : ControllerBase
                 .OrderByDescending(item => item.count),
             borrowed,
             lowStock,
-            warrantySoon
+            warrantySoon,
+            maintenance = maintenance.Select(item => new
+            {
+                item.Id,
+                equipment = item.Equipment?.Name ?? string.Empty,
+                item.MaintenanceDate,
+                item.PerformedBy,
+                item.Cost,
+                item.Status
+            }),
+            consumables
         });
     }
 
@@ -108,19 +143,29 @@ public class ReportsController : ControllerBase
         DateTime? to,
         int? categoryId,
         int? locationNodeId,
+        string? status,
         CancellationToken cancellationToken)
     {
+        if (!TryNormalizeStatus(status, out status))
+            return BadRequest(new { message = "Trạng thái tài sản không hợp lệ." });
         ExcelPackage.License.SetNonCommercialOrganization("LabManagement Educational Project");
-        var equipments = await FilterEquipment(from, to, categoryId, locationNodeId)
+        var equipments = await FilterEquipment(from, to, categoryId, locationNodeId, status)
             .AsNoTracking()
             .Include(equipment => equipment.AssetCategory)
             .Include(equipment => equipment.LocationNode)
             .OrderBy(equipment => equipment.Name)
             .ToListAsync(cancellationToken);
+        var equipmentIds = equipments.Select(equipment => equipment.Id).ToArray();
+        var equipmentFilterApplied = from.HasValue
+            || to.HasValue
+            || categoryId.HasValue
+            || locationNodeId.HasValue
+            || !string.IsNullOrWhiteSpace(status);
         var maintenance = await _context.MaintenanceRecords.AsNoTracking()
             .Include(record => record.Equipment)
-            .Where(record => (!from.HasValue || record.MaintenanceDate >= from.Value)
-                && (!to.HasValue || record.MaintenanceDate <= to.Value))
+            .Where(record => (!from.HasValue || record.MaintenanceDate >= from.Value.Date)
+                && (!to.HasValue || record.MaintenanceDate < to.Value.Date.AddDays(1)))
+            .Where(record => !equipmentFilterApplied || equipmentIds.Contains(record.EquipmentId))
             .OrderByDescending(record => record.MaintenanceDate)
             .Take(2000)
             .ToListAsync(cancellationToken);
@@ -128,9 +173,14 @@ public class ReportsController : ControllerBase
             .Include(detail => detail.BorrowRecord).ThenInclude(record => record!.User)
             .Include(detail => detail.Equipment)
             .Where(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed)
+            .Where(detail => !equipmentFilterApplied || equipmentIds.Contains(detail.EquipmentId))
+            .Where(detail => !from.HasValue || detail.BorrowRecord!.BorrowDate >= from.Value.Date)
+            .Where(detail => !to.HasValue || detail.BorrowRecord!.BorrowDate < to.Value.Date.AddDays(1))
             .OrderBy(detail => detail.BorrowRecord!.ExpectedReturnDate)
             .ToListAsync(cancellationToken);
-        var consumables = await _context.Consumables.AsNoTracking()
+        var consumablesQuery = _context.Consumables.AsNoTracking();
+        if (categoryId.HasValue) consumablesQuery = consumablesQuery.Where(item => item.AssetCategoryId == categoryId.Value);
+        var consumables = await consumablesQuery
             .OrderBy(item => item.Name).ToListAsync(cancellationToken);
 
         using var package = new ExcelPackage();
@@ -208,25 +258,43 @@ public class ReportsController : ControllerBase
         DateTime? to,
         int? categoryId,
         int? locationNodeId,
+        string? status,
         CancellationToken cancellationToken)
     {
+        if (!TryNormalizeStatus(status, out status))
+            return BadRequest(new { message = "Trạng thái tài sản không hợp lệ." });
         QuestPDF.Settings.License = LicenseType.Community;
-        var equipments = await FilterEquipment(from, to, categoryId, locationNodeId)
+        var equipments = await FilterEquipment(from, to, categoryId, locationNodeId, status)
             .AsNoTracking()
             .Include(equipment => equipment.AssetCategory)
             .Include(equipment => equipment.LocationNode)
             .OrderBy(equipment => equipment.Name)
             .ToListAsync(cancellationToken);
+        var equipmentIds = equipments.Select(equipment => equipment.Id).ToArray();
+        var equipmentFilterApplied = from.HasValue
+            || to.HasValue
+            || categoryId.HasValue
+            || locationNodeId.HasValue
+            || !string.IsNullOrWhiteSpace(status);
         var maintenanceCost = await _context.MaintenanceRecords.AsNoTracking()
-            .Where(record => (!from.HasValue || record.MaintenanceDate >= from.Value)
-                && (!to.HasValue || record.MaintenanceDate <= to.Value))
+            .Where(record => (!from.HasValue || record.MaintenanceDate >= from.Value.Date)
+                && (!to.HasValue || record.MaintenanceDate < to.Value.Date.AddDays(1)))
+            .Where(record => !equipmentFilterApplied || equipmentIds.Contains(record.EquipmentId))
             .SumAsync(record => (decimal?)record.Cost, cancellationToken) ?? 0;
         var borrowedCount = await _context.BorrowRequestDetails.AsNoTracking()
-            .CountAsync(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed, cancellationToken);
+            .CountAsync(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed
+                && (!equipmentFilterApplied || equipmentIds.Contains(detail.EquipmentId))
+                && (!from.HasValue || detail.BorrowRecord.BorrowDate >= from.Value.Date)
+                && (!to.HasValue || detail.BorrowRecord.BorrowDate < to.Value.Date.AddDays(1)), cancellationToken);
         var overdueCount = await _context.BorrowRequestDetails.AsNoTracking()
             .CountAsync(detail => detail.BorrowRecord!.Status == BorrowStatuses.Borrowed
+                && (!equipmentFilterApplied || equipmentIds.Contains(detail.EquipmentId))
+                && (!from.HasValue || detail.BorrowRecord.BorrowDate >= from.Value.Date)
+                && (!to.HasValue || detail.BorrowRecord.BorrowDate < to.Value.Date.AddDays(1))
                 && detail.BorrowRecord.ExpectedReturnDate < DateTime.UtcNow, cancellationToken);
-        var lowStockCount = await _context.Consumables.AsNoTracking()
+        var consumablesQuery = _context.Consumables.AsNoTracking();
+        if (categoryId.HasValue) consumablesQuery = consumablesQuery.Where(item => item.AssetCategoryId == categoryId.Value);
+        var lowStockCount = await consumablesQuery
             .CountAsync(item => item.Quantity <= item.MinQuantity, cancellationToken);
 
         var document = Document.Create(container => container.Page(page =>
@@ -237,7 +305,10 @@ public class ReportsController : ControllerBase
             page.Header().Column(column =>
             {
                 column.Item().Text("BÁO CÁO TÀI SẢN LAB IOT").Bold().FontSize(18).FontColor(Colors.Blue.Darken2);
-                column.Item().Text($"Ngày xuất: {DateTime.Now:dd/MM/yyyy HH:mm}").FontColor(Colors.Grey.Darken1);
+                var vietnamNow = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(
+                    DateTime.UtcNow,
+                    "Asia/Ho_Chi_Minh");
+                column.Item().Text($"Ngày xuất: {vietnamNow:dd/MM/yyyy HH:mm}").FontColor(Colors.Grey.Darken1);
             });
             page.Content().Column(column =>
             {
@@ -291,14 +362,37 @@ public class ReportsController : ControllerBase
             => container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(4);
     }
 
-    private IQueryable<Equipment> FilterEquipment(DateTime? from, DateTime? to, int? categoryId, int? locationNodeId)
+    private IQueryable<Equipment> FilterEquipment(
+        DateTime? from,
+        DateTime? to,
+        int? categoryId,
+        int? locationNodeId,
+        string? status)
     {
         var query = _context.Equipments.AsQueryable();
-        if (from.HasValue) query = query.Where(item => item.CreatedAt >= from.Value);
-        if (to.HasValue) query = query.Where(item => item.CreatedAt <= to.Value);
+        if (from.HasValue) query = query.Where(item => item.CreatedAt >= from.Value.Date);
+        if (to.HasValue) query = query.Where(item => item.CreatedAt < to.Value.Date.AddDays(1));
         if (categoryId.HasValue) query = query.Where(item => item.AssetCategoryId == categoryId.Value);
         if (locationNodeId.HasValue) query = query.Where(item => item.LocationNodeId == locationNodeId.Value);
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(item => item.Status == status);
+        }
         return query;
+    }
+
+    private static bool TryNormalizeStatus(string? value, out string? normalized)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            normalized = null;
+            return true;
+        }
+
+        normalized = EquipmentStatuses.LegacyMap.TryGetValue(value.Trim(), out var mappedStatus)
+            ? mappedStatus
+            : value.Trim().ToUpperInvariant();
+        return EquipmentStatuses.All.Contains(normalized);
     }
 
     private static void WriteHeaders(ExcelWorksheet worksheet, string[] headers)
