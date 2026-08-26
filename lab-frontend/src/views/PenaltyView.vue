@@ -15,7 +15,7 @@
             {{ new Date(record.createdAt).toLocaleDateString('vi-VN') }}
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" />
+            <StatusBadge :status="record.status" type="penalty" />
           </template>
           <template v-else-if="column.key === 'action'">
             <a-button v-if="statusMatches(record.status, STATUS.UNPAID) && isManagerRole(role)"

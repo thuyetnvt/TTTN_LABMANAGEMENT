@@ -16,7 +16,7 @@
             <a-tag v-else color="green">Trong hạn</a-tag>
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" />
+            <StatusBadge :status="record.status" type="borrow" />
           </template>
           <template v-else-if="column.key === 'details'">
             <div v-for="detail in record.details" :key="detail.id">

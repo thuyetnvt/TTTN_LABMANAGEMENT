@@ -200,7 +200,7 @@ public class ReportsController : ControllerBase
             WriteCell(assetsSheet, row, 4, item.Serial);
             WriteCell(assetsSheet, row, 5, item.AssetCategory?.Name);
             WriteCell(assetsSheet, row, 6, item.LocationNode?.Name ?? item.Location);
-            WriteCell(assetsSheet, row, 7, item.Status);
+            WriteCell(assetsSheet, row, 7, EquipmentStatusLabel(item.Status));
             WriteCell(assetsSheet, row, 8, item.WarrantyExpiry?.ToString("dd/MM/yyyy"));
         }
         WriteNoDataRow(assetsSheet, equipments.Count, 8);
@@ -216,7 +216,7 @@ public class ReportsController : ControllerBase
             WriteCell(maintenanceSheet, row, 3, item.Description);
             WriteCell(maintenanceSheet, row, 4, item.PerformedBy);
             WriteCell(maintenanceSheet, row, 5, item.Cost);
-            WriteCell(maintenanceSheet, row, 6, item.Status);
+            WriteCell(maintenanceSheet, row, 6, MaintenanceStatusLabel(item.Status));
             WriteCell(maintenanceSheet, row, 7, item.Result);
         }
         WriteNoDataRow(maintenanceSheet, maintenance.Count, 7);
@@ -349,7 +349,7 @@ public class ReportsController : ControllerBase
                         table.Cell().Element(BodyCell).Text(PdfText(item.Name));
                         table.Cell().Element(BodyCell).Text(PdfText(item.Serial));
                         table.Cell().Element(BodyCell).Text(PdfText(item.LocationNode?.Name ?? item.Location));
-                        table.Cell().Element(BodyCell).Text(PdfText(item.Status));
+                        table.Cell().Element(BodyCell).Text(PdfText(EquipmentStatusLabel(item.Status)));
                     }
                     if (equipments.Count == 0)
                     {
@@ -411,6 +411,30 @@ public class ReportsController : ControllerBase
             : value.Trim().ToUpperInvariant();
         return EquipmentStatuses.All.Contains(normalized);
     }
+
+    private static string EquipmentStatusLabel(string? value)
+        => value?.Trim().ToUpperInvariant() switch
+        {
+            "AVAILABLE" => "Rảnh",
+            "BORROW_PENDING" => "Chờ mượn",
+            "BORROWED" => "Đang mượn",
+            "RETURNED" => "Đã trả",
+            "RETURNED_DAMAGED" => "Đã trả (hỏng)",
+            "BROKEN" => "Hỏng",
+            "UNDER_WARRANTY" or "WARRANTY" => "Bảo hành",
+            "MAINTENANCE_IN_PROGRESS" => "Đang bảo trì",
+            "MAINTENANCE_COMPLETED" => "Đã bảo trì",
+            _ => "Không xác định"
+        };
+
+    private static string MaintenanceStatusLabel(string? value)
+        => value?.Trim().ToUpperInvariant() switch
+        {
+            "IN_PROGRESS" or "MAINTENANCE_IN_PROGRESS" => "Đang thực hiện",
+            "COMPLETING" or "MAINTENANCE_COMPLETING" => "Đang nghiệm thu",
+            "COMPLETED" or "MAINTENANCE_COMPLETED" => "Đã hoàn tất",
+            _ => "Không xác định"
+        };
 
     private static void WriteHeaders(ExcelWorksheet worksheet, string[] headers)
     {

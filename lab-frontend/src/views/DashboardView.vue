@@ -273,7 +273,7 @@
                     <a-avatar style="background-color: var(--color-primary);"><desktop-outlined style="color: white;"/></a-avatar>
                   </template>
                 </a-list-item-meta>
-                <div>{{ item.status }}</div>
+                <div>{{ getEquipmentStatusLabel(item.status) }}</div>
               </a-list-item>
             </template>
           </a-list>
@@ -342,6 +342,7 @@ import * as signalR from '@microsoft/signalr'
 import { equipmentApi } from '../api/equipmentApi'
 import { userApi } from '../api/userApi'
 import { isAdminRole, isBorrowerRole, isManagerRole, isTeacherRole, roleLabel } from '../constants/business'
+import { getEquipmentStatusLabel } from '../utils/statusLabels'
 import NotificationBell from '../components/NotificationBell.vue'
 import AccountMenu from '../components/AccountMenu.vue'
 import UserAvatar from '../components/UserAvatar.vue'

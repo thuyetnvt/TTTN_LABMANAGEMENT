@@ -6,11 +6,28 @@ import { useNotificationStore } from '../src/stores/notificationStore.js'
 import { getApiErrorMessage, getApiSuccessMessage } from '../src/utils/apiError.js'
 import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
 import { getExportErrorMessage } from '../src/utils/reportsExport.js'
+import {
+  getBorrowStatusLabel,
+  getConsumableRequestStatusLabel,
+  getEquipmentStatusLabel,
+  getInventoryStatusLabel,
+  getMaintenanceStatusLabel,
+  getPenaltyStatusLabel,
+  getReturnConditionLabel
+} from '../src/utils/statusLabels.js'
 
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
+  assert.equal(getEquipmentStatusLabel(STATUS.AVAILABLE), 'Rảnh')
+  assert.equal(getEquipmentStatusLabel(STATUS.BORROW_PENDING), 'Chờ mượn')
+  assert.equal(getBorrowStatusLabel(STATUS.BORROW_PENDING), 'Chờ duyệt')
+  assert.equal(getMaintenanceStatusLabel('COMPLETING'), 'Đang nghiệm thu')
+  assert.equal(getInventoryStatusLabel('MISSING'), 'Thất lạc')
+  assert.equal(getConsumableRequestStatusLabel('ISSUED'), 'Đã cấp phát')
+  assert.equal(getPenaltyStatusLabel('PAID'), 'Đã thanh toán')
+  assert.equal(getReturnConditionLabel('SCRATCHED'), 'Trầy xước')
+  assert.equal(getEquipmentStatusLabel('UNKNOWN_ENUM'), 'Không xác định')
   assert.equal(statusLabel(STATUS.BORROWED), 'Đang mượn')
-  assert.equal(statusLabel('Hoàn tất'), 'Đã hoàn thành bảo trì')
   assert.equal(ROLE_LABELS.STUDENT, 'Sinh viên')
 })
 

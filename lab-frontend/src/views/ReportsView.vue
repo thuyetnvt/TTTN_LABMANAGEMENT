@@ -81,13 +81,13 @@
           <div v-if="statusRows.length" class="status-list">
             <div v-for="item in statusRows" :key="item.value" class="status-row">
               <div class="status-heading">
-                <span class="status-name">{{ statusLabel(item.value) }}</span>
+                <span class="status-name">{{ getEquipmentStatusLabel(item.value) }}</span>
                 <strong>{{ formatNumber(item.count) }}</strong>
               </div>
               <div class="status-track" aria-hidden="true">
                 <span
                   class="status-fill"
-                  :class="`status-fill--${statusColor(item.value)}`"
+                  :class="`status-fill--${getStatusColor(item.value)}`"
                   :style="{ width: `${statusPercent(item.count)}%` }"
                 />
               </div>
@@ -168,7 +168,7 @@
                   {{ formatCurrency(record.cost) }}
                 </template>
                 <template v-else-if="column.key === 'status'">
-                  <StatusBadge :status="record.status" />
+                  <StatusBadge :status="record.status" type="maintenance" />
                 </template>
                 <template v-else>
                   <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
@@ -232,7 +232,8 @@ import PageHeader from '../components/PageHeader.vue'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { locationApi } from '../api/locationApi'
 import { reportsApi } from '../api/reportsApi'
-import { STATUS, normalizeStatus, statusColor, statusLabel } from '../constants/business'
+import { STATUS, normalizeStatus } from '../constants/business'
+import { getEquipmentStatusLabel, getStatusColor } from '../utils/statusLabels'
 import { getApiErrorMessage } from '../utils/apiError'
 import router from '../router'
 
@@ -515,6 +516,7 @@ onMounted(async () => {
 .status-fill--blue { background: #3b82f6; }
 .status-fill--red { background: #ef4444; }
 .status-fill--orange { background: #f59e0b; }
+.status-fill--gold { background: #eab308; }
 .status-fill--purple { background: #8b5cf6; }
 .status-fill--default { background: var(--color-primary); }
 .attention-list { display: flex; flex-direction: column; gap: 10px; }
