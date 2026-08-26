@@ -9,7 +9,7 @@
     </div>
 
     <a-card :bordered="false">
-      <a-table :data-source="locations" :columns="columns" :loading="loading" row-key="id" :scroll="{ x: 900 }">
+      <a-table bordered :data-source="locations" :columns="columns" :loading="loading" row-key="id" :scroll="{ x: 900 }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'parent'">
             {{ parentName(record.parentId) }}
