@@ -23,11 +23,15 @@
           mode="inline"
           class="ladi-menu"
         >
-          <a-menu-item key="0" data-testid="menu-overview" @click="$router.push({ name: 'Overview' })">
+          <a-menu-item key="0" data-testid="menu-overview" class="menu-root-item" @click="$router.push({ name: 'Overview' })">
             <appstore-filled /><span>{{ $t('menu.overview') }}</span>
           </a-menu-item>
 
-          <a-menu-item-group title="Quản lý tài sản">
+          <a-sub-menu key="sub_assets">
+            <template #title>
+              <database-outlined />
+              <span>Quản lý tài sản</span>
+            </template>
             <a-menu-item key="1" data-testid="menu-devices" @click="$router.push({ name: 'Devices' })">
               <desktop-outlined /><span>{{ $t('menu.devices') }}</span>
             </a-menu-item>
@@ -37,9 +41,13 @@
             <a-menu-item v-if="isManagerRole(role)" key="m_inventory" @click="$router.push({ name: 'Inventory' })">
               <scan-outlined /><span>Kiểm kê</span>
             </a-menu-item>
-          </a-menu-item-group>
+          </a-sub-menu>
 
-          <a-menu-item-group title="Mượn và trả">
+          <a-sub-menu key="sub_borrow">
+            <template #title>
+              <retweet-outlined />
+              <span>Mượn và trả</span>
+            </template>
             <a-menu-item key="3" @click="$router.push({ name: 'BorrowHistory' })">
               <history-outlined /><span>{{ $t('menu.borrowHistory') }}</span>
             </a-menu-item>
@@ -49,9 +57,13 @@
             <a-menu-item v-if="isBorrowerRole(role)" key="g2_2" @click="$router.push({ name: 'ConsumableRequests' })">
               <history-outlined /><span>{{ $t('menu.studentConsumableHistory') }}</span>
             </a-menu-item>
-          </a-menu-item-group>
+          </a-sub-menu>
 
-          <a-menu-item-group title="Vận hành">
+          <a-sub-menu key="sub_operations">
+            <template #title>
+              <control-outlined />
+              <span>Vận hành</span>
+            </template>
             <a-menu-item v-if="isManagerRole(role)" key="m3" @click="$router.push({ name: 'Maintenance' })">
               <tool-outlined /><span>{{ $t('menu.maintenanceHistory') }}</span>
             </a-menu-item>
@@ -70,16 +82,20 @@
             <a-menu-item v-if="isTeacherRole(role)" key="m_teacher" @click="$router.push({ name: 'TeacherApproval' })">
               <solution-outlined /><span>{{ $t('menu.teacherApproval') }}</span>
             </a-menu-item>
-          </a-menu-item-group>
+          </a-sub-menu>
 
-          <a-menu-item-group v-if="isAdminRole(role)" title="Quản trị hệ thống">
+          <a-sub-menu v-if="isAdminRole(role)" key="sub_admin">
+            <template #title>
+              <safety-certificate-outlined />
+              <span>Quản trị hệ thống</span>
+            </template>
             <a-menu-item key="g1_3" data-testid="menu-admin-users" @click="$router.push({ name: 'AdminUsers' })">
               <team-outlined /><span>{{ $t('menu.userManagement') }}</span>
             </a-menu-item>
             <a-menu-item key="g1_4" @click="$router.push({ name: 'AuditLogs' })">
               <history-outlined /><span>{{ $t('menu.auditLogs') }}</span>
             </a-menu-item>
-          </a-menu-item-group>
+          </a-sub-menu>
         </a-menu>
       </div>
 
@@ -202,7 +218,7 @@
             @logout="handleLogout"
           >
             <template #trigger>
-              <div class="user-profile" title="Tài khoản" data-testid="account-menu-trigger">
+              <div class="user-profile" data-testid="account-menu-trigger">
                 <UserAvatar
                   :name="accountDisplayName"
                   :avatar-url="accountAvatarUrl"
@@ -335,6 +351,10 @@ import {
   ScanOutlined,
   CalendarOutlined,
   BarChartOutlined,
+  DatabaseOutlined,
+  RetweetOutlined,
+  ControlOutlined,
+  SafetyCertificateOutlined
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { notification } from 'ant-design-vue'
@@ -628,14 +648,14 @@ const submitChangePassword = async () => {
   padding: 14px 10px;
   background: var(--color-canvas-cream);
 }
-.ladi-menu :deep(.ant-menu-item-group-title) {
-  padding: 14px 12px 7px;
-  color: #8a94a6;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  line-height: 18px;
-  text-transform: uppercase;
+.ladi-menu :deep(.ant-menu-submenu-title) {
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 10px;
+  color: var(--color-ink);
+}
+.ladi-menu :deep(.ant-menu-submenu-title:hover) {
+  background-color: rgba(0,0,0,0.03);
 }
 .ladi-menu :deep(.ant-menu-item) {
   border-radius: 10px;
@@ -644,6 +664,13 @@ const submitChangePassword = async () => {
   line-height: 48px;
   color: var(--color-ink);
   font-weight: 500;
+}
+.ladi-menu :deep(.ant-menu-sub .ant-menu-item) {
+  font-weight: 400; /* Normal weight for child items */
+}
+.ladi-menu :deep(.menu-root-item) {
+  font-weight: 700;
+  font-size: 15px;
 }
 .ladi-menu :deep(.ant-menu-item:hover:not(.ant-menu-item-selected)) {
   background-color: rgba(0,0,0,0.03);
