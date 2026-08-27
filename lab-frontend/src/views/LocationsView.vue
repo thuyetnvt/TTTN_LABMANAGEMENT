@@ -14,11 +14,14 @@
           <template v-if="column.key === 'parent'">
             {{ parentName(record.parentId) }}
           </template>
+          <template v-else-if="column.key === 'type'">
+            {{ locationTypeLabels[record.type] || 'Không xác định' }}
+          </template>
           <template v-else-if="column.key === 'status'">
             <a-tag :color="record.isActive ? 'green' : 'default'">{{ record.isActive ? 'Đang sử dụng' : 'Ngừng sử dụng' }}</a-tag>
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-space>
+            <a-space class="table-action-buttons">
               <a-tooltip title="Sửa vị trí">
                 <a-button type="link" size="small" aria-label="Sửa vị trí" @click="openEdit(record)">
                   <template #icon><EditOutlined /></template>
@@ -80,14 +83,23 @@ const typeOptions = [
   { value: 'CABINET', label: 'Tủ/Kệ/Bàn' },
   { value: 'SHELF', label: 'Ngăn' }
 ]
+const locationTypeLabels = {
+  ROOM: 'Phòng lab',
+  AREA: 'Khu vực',
+  CABINET: 'Tủ/Kệ/Bàn',
+  SHELF: 'Ngăn',
+  BUILDING: 'Tòa nhà',
+  STORE: 'Kho vật tư',
+  LEGACY: 'Chưa phân loại'
+}
 const columns = [
   { title: 'Mã', dataIndex: 'code', key: 'code' },
   { title: 'Tên vị trí', dataIndex: 'name', key: 'name' },
-  { title: 'Loại', dataIndex: 'type', key: 'type' },
+  { title: 'Loại', key: 'type' },
   { title: 'Vị trí cha', key: 'parent' },
   { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount' },
   { title: 'Trạng thái', key: 'status' },
-  { title: 'Thao tác', key: 'action' }
+  { title: 'Thao tác', key: 'action', width: 120, align: 'center' }
 ]
 
 const parentOptions = computed(() => locations.value.filter(item => item.id !== editing.value?.id && item.isActive))

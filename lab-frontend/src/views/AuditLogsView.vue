@@ -83,6 +83,7 @@ import { auditApi } from '../api/auditApi'
 import AuditActionLabel from '../components/AuditActionLabel.vue'
 import FilterBar from '../components/FilterBar.vue'
 import DataTable from '../components/DataTable.vue'
+import { formatVietnamDateTime } from '../utils/dateTime.js'
 
 const logs = ref([])
 const loading = ref(false)
@@ -163,10 +164,14 @@ const entityLabel = (entityType) => ({
   ConsumableRequest: 'Yêu cầu vật tư',
   AssetCategory: 'Danh mục',
   Penalty: 'Bồi thường',
-  Database: 'Cơ sở dữ liệu'
-}[entityType] || entityType)
+  Database: 'Cơ sở dữ liệu',
+  LocationNode: 'Vị trí',
+  InventorySession: 'Đợt kiểm kê',
+  ReturnEvidence: 'Minh chứng trả',
+  MaintenanceSchedule: 'Kế hoạch bảo trì'
+}[entityType] || 'Đối tượng khác')
 
-const formatDateTime = (value) => value ? new Date(value).toLocaleString('vi-VN') : ''
+const formatDateTime = value => formatVietnamDateTime(value, '')
 
 watch(
   () => [filters.action, filters.entityType],
