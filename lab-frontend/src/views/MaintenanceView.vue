@@ -16,10 +16,10 @@
              {{ Number(record.cost || 0).toLocaleString('vi-VN') }} VNĐ
           </template>
           <template v-if="column.key === 'status'">
-             <StatusBadge :status="record.status" />
+             <StatusBadge :status="record.status" type="maintenance" />
           </template>
           <template v-if="column.key === 'action'">
-              <a-space>
+              <a-space class="table-action-buttons">
                 <a-tooltip v-if="statusMatches(record.status, STATUS.MAINTENANCE_IN_PROGRESS)" title="Hoàn tất bảo trì">
                   <a-button
                     type="link"
@@ -59,7 +59,7 @@
           <div class="maintenance-mobile-card">
             <div class="maintenance-mobile-card-header">
               <strong>{{ item.device || 'Thiết bị chưa xác định' }}</strong>
-              <StatusBadge :status="item.status" />
+              <StatusBadge :status="item.status" type="maintenance" />
             </div>
             <div class="maintenance-mobile-details">
               <div><span>Ngày thực hiện</span><strong>{{ formatDate(item.maintenanceDate) }}</strong></div>
