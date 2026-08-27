@@ -45,7 +45,6 @@ const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 
 const columns = [
-  { title: 'Tài khoản', dataIndex: 'username', key: 'username' },
   { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName' },
   { title: 'Mã định danh', dataIndex: 'universityCode', key: 'universityCode' },
   { title: 'Email', dataIndex: 'email', key: 'email' },
