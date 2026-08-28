@@ -10,8 +10,11 @@
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
           </template>
+          <template v-else-if="column.key === 'returnCondition'">
+            <StatusBadge v-if="record.returnCondition" :status="record.returnCondition" type="returnCondition" />
+          </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" />
+            <StatusBadge :status="record.status" type="borrow" />
           </template>
           <template v-else-if="column.key === 'compensationAmount'">
             {{ record.compensationAmount ? record.compensationAmount.toLocaleString('vi-VN') + ' VNĐ' : '' }}

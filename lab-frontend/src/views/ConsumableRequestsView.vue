@@ -44,7 +44,7 @@ const dataSource = ref([])
 const loading = ref(false)
 
 const columns = [
-  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', width: 220 },
+  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', fixed: 'left', width: 220 },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Người yêu cầu', dataIndex: 'username', key: 'username', width: 150 },
   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', width: 90, align: 'center' },
@@ -113,10 +113,7 @@ const handleReject = async (id) => {
   background: #fafafa !important;
 }
 
-.asset-requests-container :deep(.ant-table-tbody > tr:hover > td),
-.asset-requests-container :deep(.ant-table-tbody > tr:hover > td.ant-table-cell-fix-right) {
-  background: #fff7f3 !important;
-}
+
 
 .toolbar h2 {
   margin: 0 0 8px 0;
