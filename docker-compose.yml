@@ -65,7 +65,7 @@ services:
       - equipment_uploads:/app/uploads
       - backend_data_protection:/app/data-protection-keys
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      - "${BACKEND_PORT:-8081}:8080"
     depends_on:
       db:
         condition: service_healthy

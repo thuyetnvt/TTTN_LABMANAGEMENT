@@ -50,6 +50,7 @@ Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có
 
 ### Quản trị và báo cáo
 
+- Quản lý hồ sơ cá nhân và ảnh đại diện có tích hợp công cụ cắt ảnh (Image Cropper).
 - Quản lý người dùng và khóa/mở khóa tài khoản.
 - Phân quyền ở cả frontend và backend.
 - Thông báo lưu trong database và cập nhật realtime bằng SignalR.
@@ -148,6 +149,8 @@ Nếu `.env` sử dụng `APP_PORT=8080`, truy cập:
 ```text
 http://localhost:8080
 ```
+
+*(Lưu ý: Nếu cần gọi trực tiếp API Backend trong môi trường dev, Backend sẽ tự động chạy ở cổng `8081` để tránh xung đột với Frontend).*
 
 EF Core sẽ tự áp dụng migration khi `Database__ApplyMigrations=true`.
 
