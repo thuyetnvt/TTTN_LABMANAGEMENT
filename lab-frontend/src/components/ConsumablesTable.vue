@@ -24,7 +24,7 @@
           </a-tag>
         </template>
         <template v-else-if="column.key === 'action'">
-          <a-space>
+          <div style="display: flex; width: 100%; justify-content: space-between;">
             <a-tooltip v-if="isBorrowerRole(role)" title="Yêu cầu cấp phát">
               <a-button type="link" size="small" aria-label="Yêu cầu cấp phát" @click="showRequestModal(record)">
                 <template #icon><ShoppingCartOutlined /></template>
@@ -45,7 +45,7 @@
                 <template #icon><DeleteOutlined /></template>
               </a-button>
             </a-tooltip>
-          </a-space>
+          </div>
         </template>
       </template>
       </a-table>
@@ -212,7 +212,7 @@ const categories = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 
-const columns = [
+const columns = computed(() => [
   { title: 'Mã vật tư', dataIndex: 'code', key: 'code', fixed: 'left', width: 150 },
   { title: 'Tên vật tư', dataIndex: 'name', key: 'name', fixed: 'left', width: 240 },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
@@ -225,8 +225,14 @@ const columns = [
   { title: 'Nhà cung cấp', dataIndex: 'supplier', key: 'supplier', width: 160 },
   { title: 'Hạn sử dụng', dataIndex: 'expiryDate', key: 'expiryDate', width: 120 },
   { title: 'Trạng thái', key: 'status', align: 'center', width: 120 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 150 }
-]
+  { 
+    title: 'Hành động', 
+    key: 'action', 
+    align: 'center', 
+    fixed: 'right', 
+    width: isAdminRole(role.value) ? 140 : (isManagerRole(role.value) ? 100 : 70) 
+  }
+])
 
 const historyColumns = [
   { title: 'Thời gian', dataIndex: 'createdAt', key: 'createdAt', width: 150 },
