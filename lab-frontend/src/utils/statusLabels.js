@@ -33,6 +33,7 @@ const maintenanceLabels = Object.freeze({
   COMPLETING: 'Đang nghiệm thu',
   COMPLETED: 'Đã hoàn tất',
   MAINTENANCE_IN_PROGRESS: 'Đang thực hiện',
+  MAINTENANCE_COMPLETING: 'Đang nghiệm thu',
   MAINTENANCE_COMPLETED: 'Đã hoàn tất'
 })
 
@@ -69,7 +70,7 @@ const penaltyLabels = Object.freeze({
 })
 
 const returnConditionLabels = Object.freeze({
-  AVAILABLE: 'Rảnh',
+  AVAILABLE: 'Bình thường',
   GOOD: 'Tốt',
   SCRATCHED: 'Trầy xước',
   MISSING_ACCESSORIES: 'Thiếu phụ kiện',

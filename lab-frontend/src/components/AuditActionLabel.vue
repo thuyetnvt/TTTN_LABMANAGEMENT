@@ -10,8 +10,9 @@ const labels = {
   SendReturnReminder: 'Nhắc trả', LoginSucceeded: 'Đăng nhập thành công', LoginFailed: 'Đăng nhập thất bại',
   MarkPaid: 'Xác nhận thanh toán', SeedSampleData: 'Tạo dữ liệu khởi tạo', UploadEvidence: 'Tải minh chứng',
   ChangePassword: 'Đổi mật khẩu', SeedFullSampleDataV1: 'Tạo dữ liệu mẫu',
-  SeedFullSampleDataV2: 'Tạo dữ liệu mẫu', Logout: 'Đăng xuất', Login: 'Đăng nhập'
+  SeedFullSampleDataV2: 'Tạo dữ liệu mẫu', Logout: 'Đăng xuất', Login: 'Đăng nhập',
+  UpdateAvatar: 'Đổi ảnh đại diện', DeleteAvatar: 'Xóa ảnh đại diện'
 }
 const label = computed(() => labels[props.action] || 'Thao tác khác')
-const color = computed(() => ({ Create: 'green', Approve: 'green', TeacherApprove: 'green', Update: 'blue', Return: 'purple', SendReturnReminder: 'orange', Delete: 'red', Reject: 'red', TeacherReject: 'red', LoginFailed: 'red' }[props.action] || 'default'))
+const color = computed(() => ({ Create: 'green', Approve: 'green', TeacherApprove: 'green', Update: 'blue', UpdateAvatar: 'blue', Return: 'purple', SendReturnReminder: 'orange', Delete: 'red', Reject: 'red', TeacherReject: 'red', LoginFailed: 'red', DeleteAvatar: 'red' }[props.action] || 'default'))
 </script>

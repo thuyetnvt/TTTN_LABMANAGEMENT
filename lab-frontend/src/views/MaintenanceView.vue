@@ -230,7 +230,7 @@ const formData = ref({
 })
 
 const columns = [
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 180 },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', fixed: 'left', width: 180 },
   { title: 'Ngày thực hiện', dataIndex: 'maintenanceDate', key: 'maintenanceDate', width: 140 },
   { title: 'Nội dung', dataIndex: 'description', key: 'description', width: 320 },
   { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', width: 170 },

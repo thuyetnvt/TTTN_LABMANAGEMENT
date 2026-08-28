@@ -7,12 +7,9 @@
     <a-card :bordered="false" class="asset-card">
       <a-tabs v-model:activeKey="activeTab" :tabBarGutter="32" class="asset-tabs">
         <template #rightExtra>
-          <a-button
-            v-if="isManagerRole(role)"
-            @click="categoryModalVisible = true"
-          >
+          <a-button v-if="isManagerRole(role)" @click="categoryModalVisible = true">
             <template #icon><setting-outlined /></template>
-            Quản lý danh mục
+            <span>Quản lý danh mục</span>
           </a-button>
         </template>
 

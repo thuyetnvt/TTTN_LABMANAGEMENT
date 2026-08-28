@@ -13,17 +13,20 @@
           <a-tag color="orange">{{ roleLabel(profile.role) }}</a-tag>
           <div class="avatar-actions">
             <a-upload accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" :show-upload-list="false" :before-upload="handleAvatarBeforeUpload">
-              <a-button :loading="avatarUploading">Đổi ảnh</a-button>
+              <a-button type="primary" shape="round" class="btn-change-avatar" :loading="avatarUploading">
+                <template #icon><CameraOutlined /></template>
+                Đổi ảnh
+              </a-button>
             </a-upload>
-            <a-button v-if="profile.hasAvatar" type="text" danger :disabled="avatarUploading" @click="deleteAvatarDialogOpen = true">Xóa ảnh</a-button>
+            <a-button v-if="profile.hasAvatar" type="default" danger shape="round" class="btn-delete-avatar" :disabled="avatarUploading" @click="deleteAvatarDialogOpen = true">
+              <template #icon><DeleteOutlined /></template>
+              Xóa ảnh
+            </a-button>
           </div>
           <span class="avatar-hint">JPG, PNG hoặc WebP · tối đa 2 MB</span>
         </section>
         <section class="profile-details">
-          <div class="identity-grid">
-            <div><span>Tài khoản</span><strong>{{ profile.username || '—' }}</strong></div>
-            <div><span>Vai trò</span><strong>{{ roleLabel(profile.role) }}</strong></div>
-          </div>
+
           <a-form layout="vertical" class="profile-form" @submit.prevent="save">
             <a-row :gutter="[18, 0]">
               <a-col :xs="24" :md="12"><a-form-item label="Họ và tên"><a-input v-model:value="profile.fullName" /></a-form-item></a-col>
@@ -39,17 +42,20 @@
       </div>
     </a-card>
     <ConfirmDialog v-model:open="deleteAvatarDialogOpen" title="Xóa ảnh đại diện" message="Bạn có chắc muốn xóa ảnh đại diện hiện tại không?" ok-text="Xóa ảnh" ok-type="danger" :loading="deletingAvatar" @confirm="deleteAvatar" />
+    <ImageCropperModal v-model:open="cropperOpen" :image-url="rawImageUrl" :saving="avatarUploading" @crop="handleCrop" />
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
+import { CameraOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { userApi } from '../api/userApi'
 import { isStudentRole, roleLabel } from '../constants/business'
 import { useAuthStore } from '../stores/authStore'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+import ImageCropperModal from '../components/ImageCropperModal.vue'
 
 const authStore = useAuthStore()
 const loading = ref(false)
@@ -59,6 +65,9 @@ const deletingAvatar = ref(false)
 const deleteAvatarDialogOpen = ref(false)
 const avatarPreviewUrl = ref('')
 const previewVersion = ref('preview')
+const cropperOpen = ref(false)
+const rawImageUrl = ref('')
+const rawImageFile = ref(null)
 const profile = reactive({ username: '', role: '', email: '', fullName: '', universityCode: '', phone: '', department: '', className: '', hasAvatar: false, avatarUpdatedAt: '' })
 const isStudent = computed(() => isStudentRole(profile.role))
 const universityCodeLabel = computed(() => isStudent.value ? 'Mã sinh viên' : 'Mã cán bộ')
@@ -86,39 +95,31 @@ const save = async () => {
   finally { saving.value = false }
 }
 
-const cropSquare = (file) => new Promise((resolve, reject) => {
-  const sourceUrl = URL.createObjectURL(file)
-  const image = new Image()
-  image.onload = () => {
-    const edge = Math.min(image.naturalWidth, image.naturalHeight)
-    const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512
-    canvas.getContext('2d').drawImage(image, (image.naturalWidth - edge) / 2, (image.naturalHeight - edge) / 2, edge, edge, 0, 0, 512, 512)
-    canvas.toBlob((blob) => {
-      URL.revokeObjectURL(sourceUrl)
-      if (!blob) return reject(new Error('Không thể xử lý ảnh.'))
-      resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
-    }, 'image/jpeg', 0.9)
-  }
-  image.onerror = () => { URL.revokeObjectURL(sourceUrl); reject(new Error('Ảnh không hợp lệ.')) }
-  image.src = sourceUrl
-})
-const handleAvatarBeforeUpload = async (file) => {
+const handleAvatarBeforeUpload = (file) => {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
     message.error('Chỉ nhận ảnh JPG, PNG hoặc WebP tối đa 2 MB.'); return false
   }
+  if (rawImageUrl.value) URL.revokeObjectURL(rawImageUrl.value)
+  rawImageFile.value = file
+  rawImageUrl.value = URL.createObjectURL(file)
+  cropperOpen.value = true
+  return false
+}
+
+const handleCrop = async (croppedBlob) => {
+  avatarUploading.value = true
   try {
-    const croppedFile = await cropSquare(file)
+    const croppedFile = new File([croppedBlob], 'avatar.jpg', { type: 'image/jpeg' })
     if (avatarPreviewUrl.value) URL.revokeObjectURL(avatarPreviewUrl.value)
-    avatarPreviewUrl.value = URL.createObjectURL(croppedFile); previewVersion.value = `${Date.now()}`; avatarUploading.value = true
+    avatarPreviewUrl.value = URL.createObjectURL(croppedFile); previewVersion.value = `${Date.now()}`
     const state = await userApi.uploadAvatar(croppedFile)
     profile.hasAvatar = state?.hasAvatar ?? true; profile.avatarUpdatedAt = state?.avatarUpdatedAt || new Date().toISOString(); authStore.setUser(profile)
     URL.revokeObjectURL(avatarPreviewUrl.value); avatarPreviewUrl.value = ''
     message.success('Đã cập nhật ảnh đại diện.')
+    cropperOpen.value = false
   } catch (error) {
     message.error(error?.message || 'Không thể cập nhật ảnh đại diện.')
-    if (avatarPreviewUrl.value) URL.revokeObjectURL(avatarPreviewUrl.value); avatarPreviewUrl.value = ''
   } finally { avatarUploading.value = false }
-  return false
 }
 const deleteAvatar = async () => {
   deletingAvatar.value = true
@@ -130,7 +131,10 @@ const deleteAvatar = async () => {
   finally { deletingAvatar.value = false }
 }
 onMounted(load)
-onBeforeUnmount(() => { if (avatarPreviewUrl.value) URL.revokeObjectURL(avatarPreviewUrl.value) })
+onBeforeUnmount(() => { 
+  if (avatarPreviewUrl.value) URL.revokeObjectURL(avatarPreviewUrl.value)
+  if (rawImageUrl.value) URL.revokeObjectURL(rawImageUrl.value)
+})
 </script>
 
 <style scoped>
@@ -144,18 +148,18 @@ onBeforeUnmount(() => { if (avatarPreviewUrl.value) URL.revokeObjectURL(avatarPr
 .profile-avatar { margin: 8px 0 16px; box-shadow: 0 8px 24px rgba(217, 119, 87, .2); }
 .profile-summary h3 { margin: 0; font-size: 19px; }
 .profile-username { margin: 4px 0 10px; color: var(--color-text-secondary); }
-.avatar-actions { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
+.avatar-actions { display: flex; align-items: center; gap: 12px; margin-top: 24px; }
+.btn-change-avatar { background: linear-gradient(135deg, var(--color-primary), #5a9ce2); border: none; box-shadow: 0 4px 10px rgba(35, 118, 197, 0.25); font-weight: 500; transition: all 0.2s ease; }
+.btn-change-avatar:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(35, 118, 197, 0.35); }
+.btn-delete-avatar { border-color: #fca5a5; color: #dc2626; font-weight: 500; transition: all 0.2s ease; }
+.btn-delete-avatar:hover { background: #fef2f2; border-color: #ef4444; transform: translateY(-1px); color: #dc2626; }
 .avatar-hint { margin-top: 10px; color: var(--color-text-secondary); font-size: 12px; }
 .profile-details { min-width: 0; }
-.identity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
-.identity-grid > div { display: flex; flex-direction: column; gap: 5px; padding: 13px 16px; background: #fafafa; }
-.identity-grid > div + div { border-left: 1px solid var(--color-border, #e5e7eb); }
-.identity-grid span { color: var(--color-text-secondary); font-size: 13px; }
+
 .profile-form { margin-top: 6px; }
 @media (max-width: 767px) {
   .profile-layout { grid-template-columns: 1fr; gap: 24px; }
   .profile-summary { border-right: 0; border-bottom: 1px solid var(--color-border, #e5e7eb); padding-bottom: 24px; }
-  .identity-grid { grid-template-columns: 1fr; }
-  .identity-grid > div + div { border-left: 0; border-top: 1px solid var(--color-border, #e5e7eb); }
+
 }
 </style>

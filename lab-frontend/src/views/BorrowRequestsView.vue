@@ -117,7 +117,8 @@
             <span>{{ completedHandoverItems }}/{{ handoverForm.items.length }}</span>
           </div>
 
-          <section v-for="(item, index) in handoverForm.items" :key="item.equipmentId" class="handover-asset-card">
+          <a-form layout="vertical">
+            <section v-for="(item, index) in handoverForm.items" :key="item.equipmentId" class="handover-asset-card">
             <div class="handover-asset-heading">
               <div class="handover-asset-index">{{ index + 1 }}</div>
               <div>
@@ -128,7 +129,7 @@
                 </div>
               </div>
             </div>
-            <a-row :gutter="[16, 0]">
+            <a-row :gutter="[16, 16]">
               <a-col :xs="24" :md="12">
                 <a-form-item label="Tình trạng" required :validate-status="item.condition ? '' : 'error'">
                   <a-select v-model:value="item.condition" placeholder="Chọn tình trạng">
@@ -182,7 +183,8 @@
             <a-form-item v-if="handoverEvidenceFile" label="Loại minh chứng">
               <a-select v-model:value="handoverEvidenceType"><a-select-option value="PHOTO">Ảnh</a-select-option><a-select-option value="DOCUMENT">Tài liệu</a-select-option><a-select-option value="SIGNATURE">Xác nhận điện tử</a-select-option></a-select>
             </a-form-item>
-          </section>
+            </section>
+          </a-form>
         </div>
 
         <footer class="handover-modal-footer">
@@ -240,7 +242,7 @@ const columns = [
   { title: 'Hạn trả', key: 'dueStatus', align: 'center', width: 130 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 180 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 120 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 190 }
+  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 280 }
 ]
 
 onMounted(() => fetchRequests())
