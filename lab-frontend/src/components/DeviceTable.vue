@@ -66,9 +66,9 @@
         <span v-else class="muted">Chưa có</span>
       </template>
       <template v-else-if="column.key === 'action'">
-        <a-space>
+        <div style="display: flex; width: 100%; justify-content: space-between;">
           <a-tooltip title="Xem chi tiết">
-            <a-button type="link" size="small" class="table-detail-action" aria-label="Xem chi tiết thiết bị" @click="showViewModal(record)">
+            <a-button type="link" size="small" aria-label="Xem chi tiết thiết bị" @click="showViewModal(record)">
               <template #icon><EyeOutlined /></template>
             </a-button>
           </a-tooltip>
@@ -92,7 +92,7 @@
               <template #icon><ShoppingCartOutlined /></template>
             </a-button>
           </a-tooltip>
-        </a-space>
+        </div>
       </template>
     </template>
   </a-table>
@@ -344,9 +344,9 @@ const loading = ref(false)
 const submitting = ref(false)
 const borrowSubmitting = ref(false)
 
-const columns = [
-  { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', fixed: 'left', width: 180 },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 130 },
+const columns = computed(() => [
+  { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', fixed: 'left', width: 200 },
+  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Model', dataIndex: 'model', key: 'model', width: 130 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 140 },
   { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', width: 140 },
@@ -358,8 +358,14 @@ const columns = [
   { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130 },
   { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
-  { title: 'Hành động', key: 'action', fixed: 'right', width: 180 }
-]
+  { 
+    title: 'Hành động', 
+    key: 'action', 
+    align: 'center',
+    fixed: 'right', 
+    width: isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90) 
+  }
+])
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
