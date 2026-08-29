@@ -40,6 +40,7 @@
     :loading="loading"
     rowKey="id"
     bordered
+    :pagination="tablePagination"
     :scroll="{ x: 1500 }"
     :row-selection="isManager ? rowSelection : undefined"
   >
@@ -139,7 +140,7 @@
         <a-button :loading="importLoading">Chọn file khác</a-button>
       </a-upload>
     </div>
-    <a-table v-if="importPreviewRows.length" :data-source="importPreviewRows" :columns="importColumns" row-key="rowNumber" size="small" bordered :pagination="{ pageSize: 10 }" :scroll="{ x: 900 }">
+    <a-table v-if="importPreviewRows.length" :data-source="importPreviewRows" :columns="importColumns" row-key="rowNumber" size="small" bordered :pagination="importPagination" :scroll="{ x: 900 }">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'name'">{{ record.row.name }}</template>
         <template v-else-if="column.key === 'model'">{{ record.row.model }}</template>
@@ -330,6 +331,10 @@ import { borrowApi } from '../api/borrowApi'
 import { userApi } from '../api/userApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { locationApi } from '../api/locationApi'
+import { createTablePagination } from '../utils/tablePagination'
+
+const tablePagination = createTablePagination()
+const importPagination = createTablePagination()
 
 const authStore = useAuthStore()
 const route = useRoute()

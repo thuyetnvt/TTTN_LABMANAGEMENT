@@ -84,6 +84,7 @@ import AuditActionLabel from '../components/AuditActionLabel.vue'
 import FilterBar from '../components/FilterBar.vue'
 import DataTable from '../components/DataTable.vue'
 import { formatVietnamDateTime } from '../utils/dateTime.js'
+import { TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePagination'
 
 const logs = ref([])
 const loading = ref(false)
@@ -95,9 +96,12 @@ const filters = reactive({
 })
 const pagination = reactive({
   current: 1,
-  pageSize: 20,
+  pageSize: TABLE_PAGE_SIZE,
   total: 0,
-  showSizeChanger: true
+  showSizeChanger: true,
+  pageSizeOptions: TABLE_PAGE_SIZE_OPTIONS,
+  hideOnSinglePage: false,
+  position: ['bottomRight']
 })
 
 const columns = [
@@ -139,7 +143,7 @@ const resetFilters = () => {
 }
 
 const handleTableChange = (pager) => {
-  pagination.current = pager.current
+  pagination.current = pager.pageSize === pagination.pageSize ? pager.current : 1
   pagination.pageSize = pager.pageSize
   fetchLogs()
 }

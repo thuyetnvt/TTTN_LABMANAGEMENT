@@ -47,13 +47,14 @@
       </a-list>
       <EmptyState v-else description="Không có thông báo phù hợp." />
 
-      <div v-if="!notificationStore.error && notificationStore.total > notificationStore.pageSize" class="notification-pagination">
+      <div v-if="!notificationStore.error && notificationStore.total > 0" class="notification-pagination">
         <a-pagination
           :current="notificationStore.page"
           :page-size="notificationStore.pageSize"
           :total="notificationStore.total"
-          :show-size-changer="false"
-          show-less-items
+          :show-size-changer="true"
+          :page-size-options="TABLE_PAGE_SIZE_OPTIONS"
+          :hide-on-single-page="false"
           @change="changePage"
         />
       </div>
@@ -70,6 +71,7 @@ import EmptyState from '../components/EmptyState.vue'
 import ErrorState from '../components/ErrorState.vue'
 import { useNotificationStore } from '../stores/notificationStore'
 import { formatRelativeTime, notificationIcon, notificationTypeLabel } from '../utils/notificationUtils'
+import { TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePagination'
 
 const router = useRouter()
 const notificationStore = useNotificationStore()
@@ -78,7 +80,7 @@ const markingAll = ref(false)
 
 const load = (force = false) => notificationStore.fetchAll({
   page: 1,
-  pageSize: 20,
+  pageSize: TABLE_PAGE_SIZE,
   unreadOnly: activeFilter.value === 'unread',
   force
 }).catch(() => {})
@@ -87,9 +89,9 @@ const retry = () => load(true)
 
 const changeFilter = () => load(true)
 
-const changePage = page => notificationStore.fetchAll({
+const changePage = (page, pageSize) => notificationStore.fetchAll({
   page,
-  pageSize: notificationStore.pageSize,
+  pageSize,
   unreadOnly: activeFilter.value === 'unread'
 }).catch(() => {})
 

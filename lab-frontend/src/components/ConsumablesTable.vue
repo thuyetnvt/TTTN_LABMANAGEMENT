@@ -5,7 +5,7 @@
     </div>
 
     <div class="consumables-desktop-table">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1930 }">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1930 }" :pagination="tablePagination">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'quantity'">
           <span :style="{ color: record.quantity <= record.minQuantity ? '#dc2626' : '#16a34a', fontWeight: 700 }">
@@ -51,7 +51,7 @@
       </a-table>
     </div>
 
-    <a-list v-if="dataSource.length" class="consumables-mobile-list" :data-source="dataSource">
+    <a-list v-if="dataSource.length" class="consumables-mobile-list" :data-source="dataSource" :pagination="mobilePagination">
       <template #renderItem="{ item }">
         <a-list-item class="consumable-mobile-item">
           <div class="consumable-mobile-main">
@@ -168,7 +168,7 @@
         :loading="historyLoading"
         rowKey="id"
         size="small"
-        :pagination="{ pageSize: 8 }"
+        :pagination="historyPagination"
         :scroll="{ x: 780 }"
       >
         <template #bodyCell="{ column, record }">
@@ -203,6 +203,11 @@ import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole, isBorrowerRole, isManagerRole } from '../constants/business'
 import { EditOutlined, DeleteOutlined, EyeOutlined, HistoryOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
+import { createTablePagination } from '../utils/tablePagination'
+
+const tablePagination = createTablePagination()
+const mobilePagination = createTablePagination({ position: 'bottom' })
+const historyPagination = createTablePagination()
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

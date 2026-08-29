@@ -4,7 +4,7 @@
       <a-button type="primary" @click="showAddModal">+ Thêm danh mục</a-button>
     </div>
 
-    <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
+    <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'createdAt'">
           {{ new Date(record.createdAt).toLocaleDateString('vi-VN') }}
@@ -47,6 +47,9 @@ import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole, isManagerRole } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
+import { createTablePagination } from '../utils/tablePagination'
+
+const tablePagination = createTablePagination()
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
