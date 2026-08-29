@@ -24,7 +24,7 @@
           </a-tag>
         </template>
         <template v-else-if="column.key === 'action'">
-          <div style="display: flex; width: 100%; justify-content: space-between;">
+          <a-space class="table-action-buttons">
             <a-tooltip v-if="isBorrowerRole(role)" title="Yêu cầu cấp phát">
               <a-button type="link" size="small" aria-label="Yêu cầu cấp phát" @click="showRequestModal(record)">
                 <template #icon><ShoppingCartOutlined /></template>
@@ -45,7 +45,7 @@
                 <template #icon><DeleteOutlined /></template>
               </a-button>
             </a-tooltip>
-          </div>
+          </a-space>
         </template>
       </template>
       </a-table>

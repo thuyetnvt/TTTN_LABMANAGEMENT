@@ -160,6 +160,27 @@ body.dark-mode .ant-table-cell-fix-right-first::after {
   background-color: rgba(220, 38, 38, 0.1) !important;
 }
 
+/* Căn giữa và giữ khoảng cách ổn định cho các nhóm nút thao tác trong bảng. */
+.table-action-buttons {
+  width: 100%;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.table-action-buttons.ant-space {
+  display: inline-flex;
+  gap: 10px !important;
+}
+
+.table-action-buttons.ant-space .ant-space-item + .ant-space-item {
+  margin-inline-start: 0 !important;
+  margin-right: 0 !important;
+}
+
 /* Áp dụng thiết kế Claude cho Tabs (Chuyển tab) */
 .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
   color: var(--color-primary) !important;

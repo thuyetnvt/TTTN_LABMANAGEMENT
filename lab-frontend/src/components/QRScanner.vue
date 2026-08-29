@@ -15,6 +15,8 @@
           :danger="isScanning"
           @click="toggleScanning"
           class="scan-btn"
+          :loading="isStarting"
+          :disabled="isStarting"
         >
           <template #icon>
             <component :is="isScanning ? 'StopOutlined' : 'ScanOutlined'" />
@@ -52,6 +54,10 @@ const props = defineProps({
   qrbox: {
     type: Number,
     default: 250
+  },
+  continuous: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -61,7 +67,11 @@ const cameraError = ref('')
 const cameras = ref([])
 const selectedCameraId = ref(null)
 const isScanning = ref(false)
+const isStarting = ref(false)
 let html5QrCode = null
+let lastDecodedText = ''
+let lastDecodedAt = 0
+const duplicateScanWindowMs = 1500
 
 const cameraOptions = computed(() => {
   return cameras.value.map(cam => ({
@@ -84,6 +94,8 @@ const initCameras = async () => {
 }
 
 const startScanning = async () => {
+  if (isStarting.value || isScanning.value) return
+
   if (!html5QrCode) {
     html5QrCode = new Html5Qrcode('html5-qrcode-reader')
   }
@@ -93,6 +105,9 @@ const startScanning = async () => {
     : { facingMode: "environment" }
 
   cameraError.value = ''
+  lastDecodedText = ''
+  lastDecodedAt = 0
+  isStarting.value = true
 
   try {
     await html5QrCode.start(
@@ -103,7 +118,16 @@ const startScanning = async () => {
         aspectRatio: 1.0
       },
       (decodedText) => {
-        stopScanning()
+        const now = Date.now()
+        if (decodedText === lastDecodedText && now - lastDecodedAt < duplicateScanWindowMs) {
+          return
+        }
+
+        lastDecodedText = decodedText
+        lastDecodedAt = now
+        if (!props.continuous) {
+          stopScanning()
+        }
         emit('scan-success', decodedText)
       },
       (errorMessage) => {}
@@ -120,6 +144,8 @@ const startScanning = async () => {
   } catch (err) {
     cameraError.value = 'Vui lòng cấp quyền truy cập máy ảnh cho trình duyệt để sử dụng.'
     isScanning.value = false
+  } finally {
+    isStarting.value = false
   }
 }
 

@@ -6,6 +6,7 @@ import {
   ToolOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
+import { formatVietnamDate, parseApiDate } from './dateTime.js'
 
 const TYPE_LABELS = {
   BORROW_PENDING: 'Mượn trả',
@@ -37,13 +38,14 @@ export const notificationIcon = type => {
 
 export const formatRelativeTime = value => {
   if (!value) return '—'
-  const timestamp = new Date(value).getTime()
-  if (Number.isNaN(timestamp)) return '—'
+  const date = parseApiDate(value)
+  if (!date) return '—'
+  const timestamp = date.getTime()
   const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000))
   if (seconds < 60) return 'Vừa xong'
   if (seconds < 3600) return `${Math.floor(seconds / 60)} phút trước`
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} giờ trước`
   if (seconds < 172800) return 'Hôm qua'
   if (seconds < 604800) return `${Math.floor(seconds / 86400)} ngày trước`
-  return new Date(value).toLocaleDateString('vi-VN')
+  return formatVietnamDate(date)
 }

@@ -8,7 +8,7 @@
       <div class="inventory-desktop-table">
         <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered>
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template>
+            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'progress'">
               {{ record.found + record.wrongLocation + record.damaged }}/{{ record.total }} đã quét
               <a-progress :percent="progress(record)" size="small" />
@@ -32,7 +32,7 @@
     </a-card>
     <ResponsiveDataList :items="sessions" :loading="loading" empty-description="Chưa có đợt kiểm kê">
       <template #default="{ item }">
-        <div class="mobile-session-header"><strong>{{ item.name }}</strong><StatusBadge :status="item.status" /></div>
+        <div class="mobile-session-header"><strong>{{ item.name }}</strong><StatusBadge :status="item.status" type="inventory" /></div>
         <div class="mobile-session-meta">{{ item.code }} · {{ item.found + item.wrongLocation + item.damaged }}/{{ item.total }} đã quét</div>
         <a-progress :percent="progress(item)" size="small" />
         <a-tooltip title="Xem chi tiết">
@@ -56,12 +56,12 @@
       </a-form>
     </a-modal>
 
-    <a-drawer v-model:open="detailOpen" title="Chi tiết đợt kiểm kê" width="720" @close="selectedSession = null">
+    <a-drawer v-model:open="detailOpen" title="Chi tiết đợt kiểm kê" width="720" @close="closeDetail">
       <template v-if="selectedSession">
         <a-descriptions bordered :column="1" size="small">
           <a-descriptions-item label="Mã đợt">{{ selectedSession.code }}</a-descriptions-item>
           <a-descriptions-item label="Tên đợt">{{ selectedSession.name }}</a-descriptions-item>
-          <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedSession.status" /></a-descriptions-item>
+          <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedSession.status" type="inventory" /></a-descriptions-item>
         </a-descriptions>
         <a-divider />
         <a-space direction="vertical" size="middle" style="width: 100%">
@@ -70,13 +70,21 @@
             <a-button @click="downloadReport('excel')">Xuất Excel chênh lệch</a-button>
             <a-button @click="downloadReport('pdf')">Xuất PDF chênh lệch</a-button>
           </a-space>
-          <QRScanner v-if="cameraOpen" @scan-success="onScanSuccessInventory" class="qr-reader" />
+          <div v-if="cameraOpen" class="continuous-scan-hint">
+            <span class="continuous-scan-dot" aria-hidden="true"></span>
+            <span>Quét liên tục: đưa lần lượt từng mã QR vào khung hình.</span>
+            <span v-if="scanQueueLength">Đang xử lý {{ scanQueueLength }} mã.</span>
+            <span v-if="continuousScanStats.success || continuousScanStats.failed">
+              Đã ghi nhận {{ continuousScanStats.success }} mã<span v-if="continuousScanStats.failed"> · Lỗi {{ continuousScanStats.failed }}</span>.
+            </span>
+          </div>
+          <QRScanner v-if="cameraOpen" :continuous="true" @scan-success="onScanSuccessInventory" class="qr-reader" />
           <a-input-search v-model:value="scanToken" placeholder="Nhập QR token để ghi nhận nhanh" enter-button="Ghi nhận" :loading="scanning" @search="scanByToken" class="inventory-search-input" />
           <a-alert v-if="scanMessage" :type="scanMessageType" :message="scanMessage" show-icon />
         </a-space>
         <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="{ pageSize: 8 }">
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" /></template>
+            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'scannedAt'">{{ record.scannedAt ? formatDate(record.scannedAt) : 'Chưa quét' }}</template>
             <template v-else-if="column.key === 'evidence'">
               <a-upload :before-upload="file => uploadEvidence(record, file)" :show-upload-list="false" accept=".jpg,.jpeg,.png,.webp,.pdf">
@@ -85,7 +93,7 @@
             </template>
           </template>
         </a-table>
-        <a-button v-if="selectedSession.status === 'INVENTORY_OPEN'" danger block @click="completeSession">Kết thúc đợt kiểm kê</a-button>
+        <a-button v-if="selectedSession.status === 'INVENTORY_OPEN'" danger block :disabled="scanning || scanQueueLength > 0" @click="completeSession">Kết thúc đợt kiểm kê</a-button>
       </template>
     </a-drawer>
   </div>
@@ -119,6 +127,13 @@ const scanning = ref(false)
 const scanMessage = ref('')
 const scanMessageType = ref('success')
 const cameraOpen = ref(false)
+const scanQueueLength = ref(0)
+const continuousScanStats = ref({ success: 0, failed: 0 })
+
+const scanQueue = []
+const recentCameraScans = new Map()
+let processingScanQueue = false
+const duplicateScanWindowMs = 2500
 
 const columns = [
   { title: 'Mã đợt', dataIndex: 'code', key: 'code' },
@@ -152,6 +167,26 @@ const fetchAll = async () => {
   } finally { loading.value = false }
 }
 
+const normalizeScanToken = value => String(value ?? '').trim().replace(/^DEVICE_TOKEN:/i, '')
+
+const updateScanQueueLength = () => {
+  scanQueueLength.value = scanQueue.length
+}
+
+const clearScanQueue = () => {
+  scanQueue.splice(0, scanQueue.length)
+  recentCameraScans.clear()
+  updateScanQueueLength()
+}
+
+const refreshSessions = async () => {
+  try {
+    sessions.value = await inventoryApi.getAll() || []
+  } catch {
+    // Giữ nguyên chi tiết đang mở nếu chỉ lỗi làm mới danh sách đợt kiểm kê.
+  }
+}
+
 const createSession = async () => {
   if (!createForm.value.name.trim()) { message.warning('Vui lòng nhập tên đợt kiểm kê!'); return }
   creating.value = true
@@ -171,33 +206,91 @@ const openDetail = async record => {
     detailOpen.value = true
     scanToken.value = ''
     scanMessage.value = ''
+    cameraOpen.value = false
+    continuousScanStats.value = { success: 0, failed: 0 }
+    clearScanQueue()
   } catch (error) { message.error(error.response?.data?.message || 'Không tải được chi tiết kiểm kê!') }
 }
 
-const scanByToken = async value => {
-  const token = value.trim().replace(/^DEVICE_TOKEN:/, '')
-  if (!token || !selectedSession.value) return
-  scanning.value = true
+const submitInventoryScan = async token => {
+  if (!selectedSession.value) return
+  const sessionId = selectedSession.value.id
+
   try {
-    await inventoryApi.scan(selectedSession.value.id, { qrToken: token, status: 'INVENTORY_FOUND' })
-    selectedSession.value = await inventoryApi.getById(selectedSession.value.id)
+    await inventoryApi.scan(sessionId, { qrToken: token, status: 'INVENTORY_FOUND' })
+    if (selectedSession.value?.id === sessionId) {
+      selectedSession.value = await inventoryApi.getById(sessionId)
+    }
     scanToken.value = ''
     scanMessageType.value = 'success'
     scanMessage.value = 'Đã ghi nhận tài sản.'
-    await fetchAll()
+    continuousScanStats.value.success += 1
+    return true
   } catch (error) {
     scanMessageType.value = 'error'
-    scanMessage.value = error.response?.data?.message || 'Không ghi nhận được QR.'
-  } finally { scanning.value = false }
+    scanMessage.value = error.response?.data?.message || error.message || 'Không ghi nhận được QR.'
+    continuousScanStats.value.failed += 1
+    return false
+  }
+}
+
+const processScanQueue = async () => {
+  if (processingScanQueue) return
+  processingScanQueue = true
+  scanning.value = true
+
+  try {
+    while (scanQueue.length > 0 && selectedSession.value) {
+      const token = scanQueue.shift()
+      updateScanQueueLength()
+      await submitInventoryScan(token)
+    }
+    await refreshSessions()
+  } finally {
+    processingScanQueue = false
+    scanning.value = false
+    updateScanQueueLength()
+  }
+}
+
+const enqueueScan = (value, fromCamera = false) => {
+  const token = normalizeScanToken(value)
+  if (!token || !selectedSession.value || scanQueue.includes(token)) return
+
+  if (fromCamera) {
+    const now = Date.now()
+    const previousScanAt = recentCameraScans.get(token)
+    if (previousScanAt && now - previousScanAt < duplicateScanWindowMs) return
+    recentCameraScans.set(token, now)
+  }
+
+  scanQueue.push(token)
+  updateScanQueueLength()
+  void processScanQueue()
+}
+
+const scanByToken = value => {
+  enqueueScan(value)
 }
 
 const toggleCamera = () => {
   cameraOpen.value = !cameraOpen.value
+  if (!cameraOpen.value) {
+    clearScanQueue()
+  }
 }
 
 const onScanSuccessInventory = (decoded) => {
-  scanByToken(decoded)
+  enqueueScan(decoded, true)
+}
+
+const closeDetail = () => {
   cameraOpen.value = false
+  clearScanQueue()
+  scanToken.value = ''
+  scanMessage.value = ''
+  continuousScanStats.value = { success: 0, failed: 0 }
+  selectedSession.value = null
 }
 
 const uploadEvidence = async (record, file) => {
@@ -226,6 +319,8 @@ const downloadReport = async type => {
 }
 
 const completeSession = async () => {
+  cameraOpen.value = false
+  clearScanQueue()
   try {
     await inventoryApi.complete(selectedSession.value.id)
     message.success('Đã kết thúc đợt kiểm kê; tài sản chưa quét được đánh dấu thiếu.')
@@ -250,6 +345,24 @@ onMounted(fetchAll)
 .toolbar h2 { margin: 0; font-weight: 600; }
 .toolbar p { color: #64748b; margin: 6px 0 0; }
 .qr-reader { max-width: 360px; margin: 12px 0; }
+.continuous-scan-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  color: var(--color-secondary, #64748b);
+  background: #f7f8fa;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.continuous-scan-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--color-primary, #d97757);
+}
 .inventory-search-input :deep(.ant-input) {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;

@@ -66,7 +66,7 @@
         <span v-else class="muted">Chưa có</span>
       </template>
       <template v-else-if="column.key === 'action'">
-        <div style="display: flex; width: 100%; justify-content: space-between;">
+        <a-space class="table-action-buttons">
           <a-tooltip title="Xem chi tiết">
             <a-button type="link" size="small" aria-label="Xem chi tiết thiết bị" @click="showViewModal(record)">
               <template #icon><EyeOutlined /></template>
@@ -92,7 +92,7 @@
               <template #icon><ShoppingCartOutlined /></template>
             </a-button>
           </a-tooltip>
-        </div>
+        </a-space>
       </template>
     </template>
   </a-table>
@@ -358,12 +358,12 @@ const columns = computed(() => [
   { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130 },
   { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
-  { 
-    title: 'Hành động', 
-    key: 'action', 
+  {
+    title: 'Hành động',
+    key: 'action',
     align: 'center',
-    fixed: 'right', 
-    width: isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90) 
+    fixed: 'right',
+    width: isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
   }
 ])
 

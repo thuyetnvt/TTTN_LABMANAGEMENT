@@ -197,8 +197,8 @@ public class ReportsController : ControllerBase
         }
         await using var stream = new MemoryStream();
         await package.SaveAsAsync(stream, cancellationToken);
-        stream.Position = 0;
-        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        var fileBytes = stream.ToArray();
+        return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             $"BaoCaoTaiSan_{DateTime.UtcNow:yyyyMMddHHmm}.xlsx");
     }
 
@@ -282,8 +282,8 @@ public class ReportsController : ControllerBase
         }));
         using var stream = new MemoryStream();
         document.GeneratePdf(stream);
-        stream.Position = 0;
-        return File(stream, "application/pdf", $"BaoCaoTaiSan_{DateTime.UtcNow:yyyyMMddHHmm}.pdf");
+        var fileBytes = stream.ToArray();
+        return File(fileBytes, "application/pdf", $"BaoCaoTaiSan_{DateTime.UtcNow:yyyyMMddHHmm}.pdf");
 
         static QuestPDF.Infrastructure.IContainer HeaderCell(QuestPDF.Infrastructure.IContainer container)
             => container.Background(Colors.Blue.Darken2).Padding(4).DefaultTextStyle(style => style.FontColor(Colors.White).Bold());

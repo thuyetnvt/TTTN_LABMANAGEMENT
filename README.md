@@ -1,4 +1,3 @@
-# LabManagement — Hệ thống quản lý tài sản Phòng Lab IoT
 
 LabManagement là hệ thống full-stack hỗ trợ quản lý tài sản, mượn trả, bàn giao, kiểm kê, bảo trì và vật tư tiêu hao cho Phòng Lab IoT thuộc Khoa Công nghệ Thông tin.
 

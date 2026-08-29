@@ -11,13 +11,15 @@ export default defineConfig({
     })
   ],
   server: {
+    port: 5173,
+    strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:5248',
+        target: 'http://localhost:8080',
         changeOrigin: true
       },
       '/notificationHub': {
-        target: 'http://localhost:5248',
+        target: 'http://localhost:8080',
         ws: true,
         changeOrigin: true
       }

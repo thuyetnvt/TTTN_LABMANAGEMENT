@@ -8,7 +8,7 @@
         <span>{{ record.fullName || '—' }}</span>
       </template>
       <template v-else-if="column.key === 'action'">
-        <div v-if="isAdminRole(role)" style="display: flex; gap: 8px; align-items: center;">
+        <div v-if="isAdminRole(role)" class="table-action-buttons">
           <a-tooltip title="Sửa người dùng">
             <a-button type="link" size="small" aria-label="Sửa người dùng" @click="$emit('edit', record)">
               <template #icon><EditOutlined /></template>

@@ -44,6 +44,8 @@ public sealed class DashboardControllerTests
         var result = await controller.GetStats(CancellationToken.None);
 
         var response = Assert.IsType<OkObjectResult>(result);
+        var updatedAt = response.Value?.GetType().GetProperty("UpdatedAt")?.GetValue(response.Value);
+        Assert.IsType<DateTime>(updatedAt);
         var payload = JsonSerializer.Serialize(response.Value, new JsonSerializerOptions
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping

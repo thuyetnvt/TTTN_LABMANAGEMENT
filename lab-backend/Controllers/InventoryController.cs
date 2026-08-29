@@ -417,10 +417,8 @@ public class InventoryController : ControllerBase
             WriteExcelText(sheet, row, 7, item.Note);
         }
         sheet.Cells[sheet.Dimension?.Address ?? "A1"].AutoFitColumns();
-        await using var stream = new MemoryStream();
-        await package.SaveAsAsync(stream, cancellationToken);
-        stream.Position = 0;
-        return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        var fileContents = await package.GetAsByteArrayAsync(cancellationToken);
+        return File(fileContents, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             $"KiemKe_{session.Code}.xlsx");
     }
 
@@ -466,8 +464,7 @@ public class InventoryController : ControllerBase
         }));
         using var stream = new MemoryStream();
         document.GeneratePdf(stream);
-        stream.Position = 0;
-        return File(stream, "application/pdf", $"KiemKe_{session.Code}.pdf");
+        return File(stream.ToArray(), "application/pdf", $"KiemKe_{session.Code}.pdf");
 
         static IContainer HeaderCell(IContainer container) => container.Background(Colors.Blue.Darken2)
             .Padding(4).DefaultTextStyle(style => style.FontColor(Colors.White).Bold());

@@ -5,12 +5,27 @@ import { ROLE_LABELS, STATUS, normalizeStatus, roleLabel, statusLabel, statusMat
 import { useNotificationStore } from '../src/stores/notificationStore.js'
 import { getApiErrorMessage, getApiSuccessMessage } from '../src/utils/apiError.js'
 import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
+import { getReturnConditionLabel } from '../src/utils/statusLabels.js'
+import { formatVietnamDateTime } from '../src/utils/dateTime.js'
 
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
   assert.equal(statusLabel(STATUS.BORROWED), 'Đang mượn')
   assert.equal(statusLabel('Hoàn tất'), 'Đã hoàn thành bảo trì')
+  assert.equal(getReturnConditionLabel(STATUS.AVAILABLE), 'Bình thường')
+  assert.equal(getReturnConditionLabel(STATUS.BROKEN), 'Hỏng')
   assert.equal(ROLE_LABELS.STUDENT, 'Sinh viên')
+})
+
+test('hiển thị timestamp hoạt động theo múi giờ Việt Nam', () => {
+  assert.equal(
+    formatVietnamDateTime('2026-08-27T03:47:57'),
+    '10:47:57 27/8/2026'
+  )
+  assert.equal(
+    formatVietnamDateTime('2026-08-27T03:47:57Z'),
+    '10:47:57 27/8/2026'
+  )
 })
 
 test('chuẩn hóa trạng thái cũ nhưng giữ mã ổn định', () => {

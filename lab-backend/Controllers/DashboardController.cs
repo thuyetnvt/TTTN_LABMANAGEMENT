@@ -255,6 +255,7 @@ public class DashboardController : ControllerBase
 
         return Ok(new
         {
+            UpdatedAt = DateTime.UtcNow,
             Counts = new
             {
                 Total = equipmentCounts?.Total ?? 0,

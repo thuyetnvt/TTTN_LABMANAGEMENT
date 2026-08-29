@@ -18,7 +18,7 @@
             <a-tag :color="record.isActive ? 'green' : 'default'">{{ record.isActive ? 'Đang bật' : 'Tạm tắt' }}</a-tag>
           </template>
           <template v-if="column.key === 'action'">
-            <a-space>
+            <a-space class="table-action-buttons">
               <a-tooltip v-if="record.isActive" title="Tạo phiếu bảo trì">
                 <a-button
                   size="small"

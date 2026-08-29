@@ -16,7 +16,7 @@
             <a-tag v-else color="green">Trong hạn</a-tag>
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" />
+            <StatusBadge :status="record.status" type="borrow" />
           </template>
           <template v-else-if="column.key === 'details'">
             <div v-for="detail in record.details" :key="detail.id">
@@ -25,23 +25,52 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <template v-if="isManagerRole(role)">
-              <a-space>
+              <div class="request-actions">
                 <template v-if="statusMatches(record.status, STATUS.BORROW_PENDING)">
                   <a-button type="primary" size="small" @click="handleApprove(record)">Duyệt</a-button>
-                  <a-button type="primary" danger size="small" @click="handleReject(record)">Từ chối</a-button>
+                  <a-dropdown trigger="click">
+                    <a-tooltip title="Thêm thao tác">
+                      <a-button
+                        type="text"
+                        size="small"
+                        class="request-more-button"
+                        aria-label="Mở thêm thao tác phiếu mượn"
+                      >
+                        <template #icon><MoreOutlined /></template>
+                      </a-button>
+                    </a-tooltip>
+                    <template #overlay>
+                      <a-menu @click="event => handleActionMenuClick(event, record)">
+                        <a-menu-item key="reject">Từ chối</a-menu-item>
+                      </a-menu>
+                    </template>
+                  </a-dropdown>
                 </template>
                 <template v-else-if="statusMatches(record.status, STATUS.BORROWED)">
-                  <a-button type="primary" ghost size="small" @click="showHandoverModal(record)">Bàn giao</a-button>
                   <a-button type="default" size="small" @click="showReturnModal(record)">Kiểm tra trả</a-button>
-                  <a-button
-                    type="primary"
-                    size="small"
-                    :loading="isReminding(record.id)"
-                    :disabled="isReminding(record.id)"
-                    @click="handleRemind(record)"
-                  >Nhắc trả</a-button>
+                  <a-dropdown trigger="click">
+                    <a-tooltip title="Thêm thao tác">
+                      <a-button
+                        type="text"
+                        size="small"
+                        class="request-more-button"
+                        aria-label="Mở thêm thao tác phiếu mượn"
+                      >
+                        <template #icon><MoreOutlined /></template>
+                      </a-button>
+                    </a-tooltip>
+                    <template #overlay>
+                      <a-menu @click="event => handleActionMenuClick(event, record)">
+                        <a-menu-item key="handover">Bàn giao</a-menu-item>
+                        <a-menu-item key="remind" :disabled="isReminding(record.id)">
+                          <LoadingOutlined v-if="isReminding(record.id)" />
+                          Nhắc trả
+                        </a-menu-item>
+                      </a-menu>
+                    </template>
+                  </a-dropdown>
                 </template>
-              </a-space>
+              </div>
             </template>
             <span v-else class="muted">Chỉ xem</span>
           </template>
@@ -199,7 +228,7 @@
 <script setup>
 import { ref, onBeforeUnmount, onMounted, computed } from 'vue'
 import { message, Upload } from 'ant-design-vue'
-import { CloseOutlined, DeleteOutlined, FileOutlined, InboxOutlined } from '@ant-design/icons-vue'
+import { CloseOutlined, DeleteOutlined, FileOutlined, InboxOutlined, LoadingOutlined, MoreOutlined } from '@ant-design/icons-vue'
 import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -287,6 +316,12 @@ const handleReject = async (record) => {
   } catch {
     message.error('Lỗi từ chối yêu cầu!')
   }
+}
+
+const handleActionMenuClick = ({ key }, record) => {
+  if (key === 'reject') handleReject(record)
+  if (key === 'handover') showHandoverModal(record)
+  if (key === 'remind') handleRemind(record)
 }
 
 const showReturnModal = (record) => {
@@ -465,6 +500,30 @@ const handleRemind = async (record) => {
 <style scoped>
 .borrow-requests-container {
   padding: 0;
+}
+
+.request-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.request-more-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--color-ink, #111827);
+}
+
+.request-more-button:hover,
+.request-more-button:focus {
+  background: #fff7f3;
+  color: var(--color-primary, #d97757);
 }
 
 .toolbar {

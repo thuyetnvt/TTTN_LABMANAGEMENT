@@ -194,6 +194,7 @@ import { useAuthStore } from '../stores/authStore'
 import { isAdminRole, isManagerRole } from '../constants/business'
 import { getDashboardAlertTarget } from '../utils/dashboardAlerts'
 import { getApiErrorMessage } from '../utils/apiError'
+import { formatVietnamDateTime } from '../utils/dateTime.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -217,8 +218,8 @@ const stats = ref({
 })
 
 const formatNumber = value => Number(value || 0).toLocaleString('vi-VN')
-const formatDateTime = value => value ? new Date(value).toLocaleString('vi-VN') : '—'
-const formatUpdatedAt = value => value ? new Date(value).toLocaleString('vi-VN') : 'Chưa cập nhật'
+const formatDateTime = value => formatVietnamDateTime(value)
+const formatUpdatedAt = value => formatVietnamDateTime(value, 'Chưa cập nhật')
 
 const managerKpis = computed(() => [
   {

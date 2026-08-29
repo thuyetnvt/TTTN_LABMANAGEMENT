@@ -10,7 +10,7 @@
           {{ new Date(record.createdAt).toLocaleDateString('vi-VN') }}
         </template>
         <template v-else-if="column.key === 'action'">
-          <div style="display: flex; gap: 8px; align-items: center; justify-content: center;">
+          <a-space class="table-action-buttons">
             <a-tooltip v-if="isManagerRole(role)" title="Sửa danh mục">
               <a-button type="link" size="small" aria-label="Sửa danh mục" @click="showEditModal(record)">
                 <template #icon><EditOutlined /></template>
@@ -21,7 +21,7 @@
                 <template #icon><DeleteOutlined /></template>
               </a-button>
             </a-tooltip>
-          </div>
+          </a-space>
         </template>
       </template>
     </a-table>

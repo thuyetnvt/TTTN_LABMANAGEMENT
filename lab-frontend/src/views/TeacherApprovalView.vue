@@ -18,7 +18,7 @@
             </div>
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" />
+            <StatusBadge :status="record.status" type="borrow" />
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
