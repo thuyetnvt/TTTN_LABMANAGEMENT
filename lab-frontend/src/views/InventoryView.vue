@@ -6,7 +6,7 @@
 
     <a-card :bordered="false">
       <div class="inventory-desktop-table">
-        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered>
+        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered :pagination="tablePagination">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'progress'">
@@ -82,7 +82,7 @@
           <a-input-search v-model:value="scanToken" placeholder="Nhập QR token để ghi nhận nhanh" enter-button="Ghi nhận" :loading="scanning" @search="scanByToken" class="inventory-search-input" />
           <a-alert v-if="scanMessage" :type="scanMessageType" :message="scanMessage" show-icon />
         </a-space>
-        <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="{ pageSize: 8 }">
+        <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="itemPagination">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'scannedAt'">{{ record.scannedAt ? formatDate(record.scannedAt) : 'Chưa quét' }}</template>
@@ -112,6 +112,10 @@ import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { inventoryApi } from '../api/inventoryApi'
 import { locationApi } from '../api/locationApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
+import { createTablePagination } from '../utils/tablePagination'
+
+const tablePagination = createTablePagination()
+const itemPagination = createTablePagination()
 
 const sessions = ref([])
 const locations = ref([])

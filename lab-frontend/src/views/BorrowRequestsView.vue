@@ -5,7 +5,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1200 }">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1200 }" :pagination="tablePagination">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
@@ -235,6 +235,9 @@ import StatusBadge from '../components/StatusBadge.vue'
 import { HANDOVER_CONDITIONS, STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { handoverApi } from '../api/handoverApi'
 import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
+import { createTablePagination } from '../utils/tablePagination'
+
+const tablePagination = createTablePagination()
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

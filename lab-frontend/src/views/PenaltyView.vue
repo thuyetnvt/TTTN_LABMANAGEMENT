@@ -6,7 +6,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'amount'">
             <span style="color: #ef4444; font-weight: 600;">{{ record.amount.toLocaleString('vi-VN') }} ₫</span>
@@ -37,6 +37,9 @@ import { penaltyApi } from '../api/penaltyApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import { STATUS, isManagerRole, statusMatches } from '../constants/business'
+import { createTablePagination } from '../utils/tablePagination'
+
+const tablePagination = createTablePagination()
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

@@ -126,7 +126,7 @@
               v-if="report.borrowed.length"
               :data-source="report.borrowed"
               :columns="borrowColumns"
-              :pagination="{ pageSize: 8, hideOnSinglePage: true }"
+              :pagination="borrowPagination"
               :scroll="{ x: 680 }"
               row-key="id"
               size="small"
@@ -155,7 +155,7 @@
               v-if="report.maintenance.length"
               :data-source="report.maintenance"
               :columns="maintenanceColumns"
-              :pagination="{ pageSize: 8, hideOnSinglePage: true }"
+              :pagination="maintenancePagination"
               :scroll="{ x: 680 }"
               row-key="id"
               size="small"
@@ -185,7 +185,7 @@
               v-if="report.consumables.length"
               :data-source="report.consumables"
               :columns="consumableColumns"
-              :pagination="{ pageSize: 8, hideOnSinglePage: true }"
+              :pagination="consumablePagination"
               :scroll="{ x: 600 }"
               row-key="id"
               size="small"
@@ -238,6 +238,11 @@ import { STATUS, normalizeStatus } from '../constants/business'
 import { getEquipmentStatusLabel, getStatusColor } from '../utils/statusLabels'
 import { getApiErrorMessage } from '../utils/apiError'
 import router from '../router'
+import { createTablePagination } from '../utils/tablePagination'
+
+const borrowPagination = createTablePagination()
+const maintenancePagination = createTablePagination()
+const consumablePagination = createTablePagination()
 
 const filters = () => ({ from: '', to: '', categoryId: null, locationNodeId: null })
 const filterForm = ref(filters())

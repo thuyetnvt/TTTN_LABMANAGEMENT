@@ -171,27 +171,27 @@
       </div>
       
       <div class="bento-grid">
-        <!-- Feature 1 (Spans 2 columns) -->
-        <div class="bento-card bento-wide premium-glass reveal fade-up">
+        <!-- Feature 1 -->
+        <div class="bento-card bento-lead premium-glass reveal fade-up">
           <div class="bento-glow"></div>
           <div class="bento-content">
             <div class="feature-icon-wrapper">
               <cluster-outlined class="feature-icon" />
             </div>
             <h3>Cấu trúc không gian vô cực</h3>
-            <p>Tổ chức lưu trữ tài sản theo hình cây trực quan: Tòa nhà ➔ Phòng ➔ Tủ kệ ➔ Ngăn. Giúp bạn định vị chính xác mọi tài sản trong tích tắc và chống sai sót vị trí tuyệt đối.</p>
+            <p>Tổ chức tài sản theo cây: Tòa nhà → Phòng → Tủ/kệ → Ngăn, giúp định vị nhanh và hạn chế sai lệch vị trí.</p>
           </div>
         </div>
         
         <!-- Feature 2 -->
-        <div class="bento-card premium-glass reveal fade-up reveal-delay-1">
+        <div class="bento-card bento-side premium-glass reveal fade-up reveal-delay-1">
           <div class="bento-glow"></div>
           <div class="bento-content">
             <div class="feature-icon-wrapper">
               <desktop-outlined class="feature-icon" />
             </div>
             <h3>Định danh IoT</h3>
-            <p>Quản lý vòng đời thiết bị, Firmware, MAC, IMEI, cảnh báo bảo hành và theo dõi lịch sử.</p>
+            <p>Theo dõi vòng đời thiết bị, firmware, MAC, IMEI, bảo hành và toàn bộ lịch sử sử dụng.</p>
           </div>
         </div>
         
@@ -203,7 +203,7 @@
               <qrcode-outlined class="feature-icon" />
             </div>
             <h3>Mã QR Động</h3>
-            <p>Tự động tạo token QR ngẫu nhiên an toàn. In hàng loạt và dùng camera thiết bị di động để kiểm kê tức thì.</p>
+            <p>Tạo QR bảo mật, in hàng loạt và quét liên tục bằng camera để kiểm kê nhanh.</p>
           </div>
         </div>
 
@@ -215,19 +215,19 @@
               <apartment-outlined class="feature-icon" />
             </div>
             <h3>Phân quyền Đa tầng</h3>
-            <p>Hệ thống chia quyền (RBAC) vô cùng chặt chẽ giữa Admin, Trưởng Lab, Phó Lab, Giảng viên và Sinh viên.</p>
+            <p>Phân quyền RBAC rõ ràng cho Admin, Trưởng Lab, Phó Lab, Giảng viên và Sinh viên.</p>
           </div>
         </div>
         
-        <!-- Feature 5 (Spans 2 columns) -->
-        <div class="bento-card bento-wide premium-glass reveal fade-up reveal-delay-1">
+        <!-- Feature 5 -->
+        <div class="bento-card premium-glass reveal fade-up reveal-delay-1">
           <div class="bento-glow"></div>
           <div class="bento-content">
             <div class="feature-icon-wrapper">
               <bell-outlined class="feature-icon" />
             </div>
             <h3>Realtime & Báo cáo nâng cao</h3>
-            <p>Sử dụng SignalR để đẩy thông báo theo thời gian thực (Push Notifications) giống hệt các ứng dụng Mạng xã hội. Tích hợp công cụ trích xuất báo cáo chênh lệch ra Excel và PDF.</p>
+            <p>Nhận thông báo thời gian thực qua SignalR và xuất báo cáo chênh lệch ra Excel hoặc PDF.</p>
           </div>
         </div>
       </div>
@@ -885,19 +885,23 @@ onUnmounted(() => {
    ========================================= */
 .features-section {
   padding: 80px 24px 120px;
-  max-width: 1200px; margin: 0 auto;
+  max-width: 1320px; margin: 0 auto;
   position: relative; z-index: 2;
 }
 .bento-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 20px;
 }
 .bento-card {
-  padding: 40px;
+  grid-column: span 4;
+  min-width: 0;
+  min-height: 230px;
+  padding: 30px 32px;
   display: flex; flex-direction: column;
 }
-.bento-wide { grid-column: span 2; }
+.bento-lead { grid-column: span 7; }
+.bento-side { grid-column: span 5; }
 
 /* Glowing Border Effect for Bento (Light Theme Variant) */
 .bento-glow {
@@ -910,24 +914,25 @@ onUnmounted(() => {
 }
 .bento-card:hover .bento-glow { opacity: 1; }
 
-.bento-content { position: relative; z-index: 2; }
+.bento-content { position: relative; z-index: 2; height: 100%; }
 .feature-icon-wrapper {
-  width: 56px; height: 56px;
+  width: 52px; height: 52px;
   background: rgba(217,119,87,0.1);
   border: 1px solid rgba(217,119,87,0.2);
   border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 24px; color: var(--color-primary); font-size: 24px;
+  margin-bottom: 20px; color: var(--color-primary); font-size: 22px;
   transition: all 0.3s ease;
 }
 .bento-card:hover .feature-icon-wrapper {
   background: var(--color-primary); color: white; transform: scale(1.1) rotate(5deg);
 }
 .bento-card h3 {
-  font-size: 22px; font-weight: 700; color: var(--color-ink); margin-bottom: 12px;
+  font-size: 20px; font-weight: 700; color: var(--color-ink); margin: 0 0 10px;
 }
 .bento-card p {
-  font-size: 15px; color: #4b5563; line-height: 1.7; margin: 0;
+  max-width: 68ch;
+  font-size: 15px; color: #4b5563; line-height: 1.6; margin: 0;
 }
 
 /* =========================================
@@ -1014,8 +1019,9 @@ onUnmounted(() => {
   .hero-title { font-size: 46px; min-height: auto; }
   .hero-subtitle { margin: 0 auto 40px; }
   .hero-cta { justify-content: center; }
-  .bento-grid { grid-template-columns: repeat(2, 1fr); }
-  .bento-wide { grid-column: span 2; }
+  .bento-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bento-card, .bento-side { grid-column: span 1; }
+  .bento-lead { grid-column: span 2; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .carousel-container { flex-direction: column; }
   .carousel-nav { width: 100%; flex-direction: row; border-right: none; border-bottom: 1px solid rgba(0,0,0,0.05); padding: 0; }
@@ -1031,7 +1037,7 @@ onUnmounted(() => {
 }
 @media (max-width: 768px) {
   .bento-grid { grid-template-columns: 1fr; }
-  .bento-wide { grid-column: span 1; }
+  .bento-card, .bento-lead, .bento-side { grid-column: span 1; }
   .hero-cta { flex-direction: column; }
   .premium-btn, .premium-btn-outline { width: 100%; }
   .footer-content { flex-direction: column; text-align: center; }

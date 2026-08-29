@@ -7,6 +7,18 @@ import { getApiErrorMessage, getApiSuccessMessage } from '../src/utils/apiError.
 import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
 import { getReturnConditionLabel } from '../src/utils/statusLabels.js'
 import { formatVietnamDateTime } from '../src/utils/dateTime.js'
+import { createTablePagination, TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../src/utils/tablePagination.js'
+
+test('dùng chung phân trang 20 dòng và cho phép đổi số dòng', () => {
+  const pagination = createTablePagination()
+
+  assert.equal(TABLE_PAGE_SIZE, 20)
+  assert.deepEqual(TABLE_PAGE_SIZE_OPTIONS, ['10', '20', '50', '100'])
+  assert.equal(pagination.defaultPageSize, 20)
+  assert.equal(pagination.showSizeChanger, true)
+  assert.equal(pagination.hideOnSinglePage, false)
+  assert.deepEqual(pagination.position, ['bottomRight'])
+})
 
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')

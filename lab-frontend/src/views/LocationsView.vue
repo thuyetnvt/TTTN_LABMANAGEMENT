@@ -9,7 +9,7 @@
     </div>
 
     <a-card :bordered="false">
-      <a-table bordered :data-source="locations" :columns="columns" :loading="loading" row-key="id" :scroll="{ x: 900 }">
+      <a-table bordered :data-source="locations" :columns="columns" :loading="loading" row-key="id" :scroll="{ x: 900 }" :pagination="tablePagination">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'parent'">
             {{ parentName(record.parentId) }}
@@ -70,6 +70,9 @@ import { message, Modal } from 'ant-design-vue'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { locationApi } from '../api/locationApi'
 import { getApiErrorMessage } from '../utils/apiError'
+import { createTablePagination } from '../utils/tablePagination'
+
+const tablePagination = createTablePagination()
 
 const locations = ref([])
 const loading = ref(false)

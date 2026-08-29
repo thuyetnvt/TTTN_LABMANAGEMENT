@@ -9,7 +9,7 @@
     </div>
 
     <a-card :bordered="false">
-      <a-table :data-source="schedules" :columns="columns" :loading="loading" row-key="id" bordered>
+      <a-table :data-source="schedules" :columns="columns" :loading="loading" row-key="id" bordered :pagination="tablePagination">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'nextDueAt'">
             <a-tag :color="record.isDue ? 'red' : 'blue'">{{ formatDate(record.nextDueAt) }}</a-tag>
@@ -109,6 +109,9 @@ import { useAuthStore } from '../stores/authStore'
 import { isAdminRole } from '../constants/business'
 import { equipmentApi } from '../api/equipmentApi'
 import { maintenanceScheduleApi } from '../api/maintenanceScheduleApi'
+import { createTablePagination } from '../utils/tablePagination'
+
+const tablePagination = createTablePagination()
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

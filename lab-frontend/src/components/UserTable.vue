@@ -1,5 +1,5 @@
 <template>
-  <a-table :dataSource="dataSource" :columns="columns" bordered rowKey="id" :scroll="{ x: 'max-content' }">
+  <a-table :dataSource="dataSource" :columns="columns" bordered rowKey="id" :scroll="{ x: 'max-content' }" :pagination="tablePagination">
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'role'">
         <a-tag :color="isAdminRole(record.role) ? 'gold' : 'blue'">{{ roleLabel(record.role) }}</a-tag>
@@ -31,6 +31,9 @@ import { computed } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { isAdminRole, roleLabel } from '../constants/business'
+import { createTablePagination } from '../utils/tablePagination'
+
+const tablePagination = createTablePagination()
 
 defineProps({
   dataSource: {
