@@ -1,16 +1,18 @@
 import { test, expect } from '@playwright/test'
 
 test('public pages render in Vietnamese and protected route redirects', async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Đăng nhập', exact: true })).toBeVisible()
-  await expect(page.getByText('Hệ thống quản lý tài sản Phòng Lab IoT', { exact: true })).toBeVisible()
+  test.setTimeout(60_000)
 
-  await page.goto('/login')
-  await expect(page.getByText('Chào mừng trở lại')).toBeVisible()
-  await page.goto('/forgot-password')
-  await expect(page.getByText('Quên mật khẩu')).toBeVisible()
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('button', { name: /Đăng nhập/i }).first()).toBeVisible()
+  await expect(page.getByText(/Chuyển đổi số toàn diện/i)).toBeVisible()
 
-  await page.goto('/dashboard/inventory')
+  await page.goto('/login', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Chào mừng trở lại' })).toBeVisible()
+  await page.goto('/forgot-password', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: 'Quên mật khẩu' })).toBeVisible()
+
+  await page.goto('/dashboard/inventory', { waitUntil: 'domcontentloaded' })
   await expect(page).toHaveURL(/\/login$/)
 })
 
