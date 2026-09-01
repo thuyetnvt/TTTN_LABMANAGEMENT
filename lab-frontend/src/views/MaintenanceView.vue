@@ -14,7 +14,7 @@
     
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <div class="maintenance-desktop-table">
-        <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1450 }" :pagination="tablePagination" @change="handleTableChange">
+        <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'maintenanceDate'">
              {{ formatDate(record[column.key]) }}
@@ -251,14 +251,14 @@ const formData = ref({
 })
 
 const columns = [
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', fixed: 'left', width: 180 },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 180 },
   { title: 'Ngày thực hiện', dataIndex: 'maintenanceDate', key: 'maintenanceDate', width: 140 },
   { title: 'Nội dung', dataIndex: 'description', key: 'description', width: 320 },
   { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', width: 170 },
   { title: 'Chi phí', dataIndex: 'cost', key: 'cost', width: 120 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160 },
   { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 280 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 80 }
+  { title: 'Hành động', key: 'action', align: 'center', width: 80 }
 ]
 
 

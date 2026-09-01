@@ -41,7 +41,7 @@
     rowKey="id"
     bordered
     :pagination="tablePagination"
-    :scroll="{ x: 1500 }"
+    :scroll="{ x: 'max-content' }"
     :row-selection="isManager ? rowSelection : undefined"
     @change="handleTableChange"
   >
@@ -357,7 +357,7 @@ const submitting = ref(false)
 const borrowSubmitting = ref(false)
 
 const columns = computed(() => [
-  { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', fixed: 'left', width: 200 },
+  { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 200 },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Model', dataIndex: 'model', key: 'model', width: 130 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 140 },
@@ -374,7 +374,6 @@ const columns = computed(() => [
     title: 'Hành động',
     key: 'action',
     align: 'center',
-    fixed: 'right',
     width: isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
   }
 ])

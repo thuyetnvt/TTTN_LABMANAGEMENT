@@ -14,7 +14,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1200 }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
@@ -131,8 +131,8 @@ const selectedRecord = ref(null)
 const selectedHandover = ref(null)
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'student', key: 'student', fixed: 'left', width: 130 },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', fixed: 'left', width: 160 },
+  { title: 'Người mượn', dataIndex: 'student', key: 'student', width: 130 },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },
   { title: 'Ngày trả/hạn trả', dataIndex: 'returnDate', key: 'returnDate', width: 130 },
@@ -141,7 +141,7 @@ const columns = [
   { title: 'Xử lý bảo hành', dataIndex: 'warrantyAction', key: 'warrantyAction', width: 180 },
   { title: 'Bồi thường', dataIndex: 'compensationAmount', key: 'compensationAmount', width: 130 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 140 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 190 }
+  { title: 'Hành động', key: 'action', align: 'center', width: 190 }
 ]
 
 onMounted(() => fetchHistory())

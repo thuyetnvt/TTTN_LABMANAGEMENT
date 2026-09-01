@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { createPinia, setActivePinia } from 'pinia'
 import { ROLE_LABELS, STATUS, normalizeStatus, roleLabel, statusLabel, statusMatches } from '../src/constants/business.js'
 import { useNotificationStore } from '../src/stores/notificationStore.js'
@@ -8,6 +9,23 @@ import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
 import { getReturnConditionLabel } from '../src/utils/statusLabels.js'
 import { formatVietnamDateInput, formatVietnamDateTime, vietnamDateInputToUtc } from '../src/utils/dateTime.js'
 import { createTablePagination, TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../src/utils/tablePagination.js'
+
+const TABLE_FILES_WITH_HORIZONTAL_SCROLL = [
+  '../src/views/BorrowRequestsView.vue',
+  '../src/views/BorrowHistoryView.vue',
+  '../src/views/ConsumableRequestsView.vue',
+  '../src/components/DeviceTable.vue',
+  '../src/components/ConsumablesTable.vue',
+  '../src/views/MaintenanceView.vue'
+]
+
+test('không ghim cột trong các bảng cuộn ngang để tránh lệch header và dữ liệu', () => {
+  for (const relativePath of TABLE_FILES_WITH_HORIZONTAL_SCROLL) {
+    const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+
+    assert.doesNotMatch(source, /fixed\s*:\s*['"](?:left|right)['"]/, relativePath)
+  }
+})
 
 test('dùng chung phân trang 20 dòng và cho phép đổi số dòng', () => {
   const pagination = createTablePagination()

@@ -12,7 +12,7 @@
     </div>
 
     <div class="consumables-desktop-table">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1930 }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'quantity'">
           <span :style="{ color: record.quantity <= record.minQuantity ? '#dc2626' : '#16a34a', fontWeight: 700 }">
@@ -246,7 +246,7 @@
         size="small"
         bordered
         :pagination="lotPagination"
-        :scroll="{ x: 900 }"
+        :scroll="{ x: 'max-content' }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'entryDate'">{{ formatDate(record.entryDate) }}</template>
@@ -324,8 +324,8 @@ const stockFilter = ref(undefined)
 
 const columns = computed(() => {
   const commonColumns = [
-  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', fixed: 'left', width: 150 },
-  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', fixed: 'left', width: 240 },
+  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150 },
+  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240 },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100 },
   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 110 },
@@ -342,14 +342,13 @@ const columns = computed(() => {
     title: 'Hành động', 
     key: 'action', 
     align: 'center', 
-    fixed: 'right', 
     width: isAdminRole(role.value) ? 170 : (isManagerRole(role.value) ? 140 : 70)
   }
   ]
 })
 
 const lotColumns = [
-  { title: 'Số lô', dataIndex: 'lotNumber', key: 'lotNumber', fixed: 'left', width: 150 },
+  { title: 'Số lô', dataIndex: 'lotNumber', key: 'lotNumber', width: 150 },
   { title: 'Ban đầu', dataIndex: 'initialQuantity', key: 'initialQuantity', align: 'center', width: 90 },
   { title: 'Còn lại', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 90 },
   { title: 'Ngày nhập', key: 'entryDate', width: 115 },
@@ -357,7 +356,7 @@ const lotColumns = [
   { title: 'Nhà cung cấp', dataIndex: 'supplier', key: 'supplier', width: 160 },
   { title: 'Đơn giá', key: 'unitCost', width: 120 },
   { title: 'Vị trí', dataIndex: 'storageLocation', key: 'storageLocation', width: 140 },
-  { title: 'Hành động', key: 'action', fixed: 'right', align: 'center', width: 110 }
+  { title: 'Hành động', key: 'action', align: 'center', width: 110 }
 ]
 
 const historyColumns = [
