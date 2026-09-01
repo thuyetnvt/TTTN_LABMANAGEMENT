@@ -58,7 +58,28 @@ jobs:
           cache-dependency-path: lab-frontend/package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: Start isolated E2E stack
+        run: docker compose -p labmanagement-e2e -f ../docker-compose.e2e.yml up -d --build --wait
+      - name: Run E2E for all five roles
+        run: npm run test:e2e
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8081
+          E2E_TEST_DATABASE: "1"
+          E2E_BUSINESS_FLOW: "1"
+          E2E_ADMIN_USERNAME: admin
+          E2E_MANAGER_USERNAME: truonglab
+          E2E_DEPUTY_USERNAME: pholab
+          E2E_TEACHER_USERNAME: giangvien1
+          E2E_STUDENT_USERNAME: sv1
+          E2E_ADMIN_PASSWORD: E2e-Test-Password-2026!
+          E2E_BUSINESS_PASSWORD: E2e-Test-Password-2026!
+          E2E_ROLE_PASSWORD: E2e-Test-Password-2026!
+      - name: Show E2E service logs on failure
+        if: failure()
+        run: docker compose -p labmanagement-e2e -f ../docker-compose.e2e.yml logs --no-color --tail=300
+      - name: Stop isolated E2E stack
+        if: always()
+        run: docker compose -p labmanagement-e2e -f ../docker-compose.e2e.yml down --volumes --remove-orphans
 
   docker:
     runs-on: ubuntu-latest

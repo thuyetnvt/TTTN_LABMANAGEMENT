@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using LabManagementAPI.Data;
 using LabManagementAPI.Models;
+using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,9 @@ public class DashboardController : ControllerBase
         var role = User.FindFirstValue(ClaimTypes.Role);
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var isManager = role is Roles.Admin or Roles.LabHead or Roles.DeputyLabHead;
+        var now = DateTime.UtcNow;
+        var today = VietnamTime.Today(now);
+        var todayStartUtc = VietnamTime.StartOfDayUtc(today);
 
         var equipmentCounts = await _context.Equipments
             .AsNoTracking()
@@ -33,8 +37,10 @@ public class DashboardController : ControllerBase
             {
                 Total = group.Count(),
                 Available = group.Count(item => item.Status == EquipmentStatuses.Available),
+                BorrowPending = group.Count(item => item.Status == EquipmentStatuses.BorrowPending),
                 Borrowed = group.Count(item => item.Status == EquipmentStatuses.Borrowed),
                 Broken = group.Count(item => item.Status == EquipmentStatuses.Broken),
+                Missing = group.Count(item => item.Status == EquipmentStatuses.Missing),
                 Warranty = group.Count(item => item.Status == EquipmentStatuses.Warranty),
                 Maintenance = group.Count(item => item.Status == EquipmentStatuses.MaintenanceInProgress)
             })
@@ -63,8 +69,8 @@ public class DashboardController : ControllerBase
             return new DashboardActivity(
                 "borrow",
                 isManager
-                    ? $"{userName} đã yêu cầu mượn {equipmentName} ({record.Status})"
-                    : $"Bạn đã yêu cầu mượn {equipmentName} ({record.Status})",
+                    ? $"{userName} đã yêu cầu mượn {equipmentName} ({StatusCodeMap.Label(record.Status)})"
+                    : $"Bạn đã yêu cầu mượn {equipmentName} ({StatusCodeMap.Label(record.Status)})",
                 record.BorrowDate,
                 record.Status == BorrowStatuses.Returned
                     ? "blue"
@@ -83,7 +89,7 @@ public class DashboardController : ControllerBase
                 .Take(5)
                 .Select(record => new DashboardActivity(
                     "maintenance",
-                    $"{record.Equipment!.Name} được bảo trì ({record.Status})",
+                    $"{record.Equipment!.Name} được bảo trì ({StatusCodeMap.Label(record.Status)})",
                     record.MaintenanceDate,
                     "red"))
                 .ToListAsync(cancellationToken);
@@ -102,7 +108,7 @@ public class DashboardController : ControllerBase
             .Include(record => record.Details)
                 .ThenInclude(detail => detail.Equipment)
             .Where(record => record.Status == BorrowStatuses.Borrowed
-                && record.ExpectedReturnDate < DateTime.UtcNow);
+                && record.ExpectedReturnDate < todayStartUtc);
         if (!isManager)
         {
             overdueQuery = overdueQuery.Where(record => record.UserId == userId);
@@ -111,7 +117,7 @@ public class DashboardController : ControllerBase
         var overdueRecords = await overdueQuery.ToListAsync(cancellationToken);
         var alerts = overdueRecords.Select(record =>
         {
-            var days = Math.Max(1, (DateTime.UtcNow.Date - record.ExpectedReturnDate.Date).Days);
+            var days = Math.Max(1, (today - VietnamTime.Date(record.ExpectedReturnDate)).Days);
             var personName = isManager ? record.User?.Username ?? "Người dùng" : "Bạn";
             return new
             {
@@ -127,6 +133,8 @@ public class DashboardController : ControllerBase
         var pendingRequests = 0;
         var pendingBorrowRequests = 0;
         var pendingConsumableRequests = 0;
+        var borrowRequestsToProcess = 0;
+        var consumableRequestsToProcess = 0;
         var overdueBorrowRecords = overdueRecords.Count;
         var lowStockConsumableCount = 0;
         var warrantyExpiringSoon = 0;
@@ -139,22 +147,33 @@ public class DashboardController : ControllerBase
                 user => user.IsActive,
                 cancellationToken);
             totalPenalties = await _context.Penalties
-                .Where(penalty => penalty.Status == PenaltyStatuses.Paid)
+                .Where(penalty => penalty.Status == PenaltyStatuses.Unpaid)
                 .SumAsync(penalty => penalty.Amount, cancellationToken);
             pendingBorrowRequests = await _context.BorrowRecords
                 .CountAsync(record => record.Status == BorrowStatuses.Pending, cancellationToken);
             pendingConsumableRequests = await _context.ConsumableRequests
                 .CountAsync(request => request.Status == ConsumableRequestStatuses.Pending, cancellationToken);
-            pendingRequests = pendingBorrowRequests + pendingConsumableRequests;
+            borrowRequestsToProcess = await _context.BorrowRecords.CountAsync(
+                record => record.Status == BorrowStatuses.Pending
+                    || record.Status == BorrowStatuses.Approved
+                    || record.Status == BorrowStatuses.ReturnProcessing,
+                cancellationToken);
+            consumableRequestsToProcess = await _context.ConsumableRequests.CountAsync(
+                request => request.Status == ConsumableRequestStatuses.Pending
+                    || request.Status == ConsumableRequestStatuses.Approved,
+                cancellationToken);
+            pendingRequests = borrowRequestsToProcess + consumableRequestsToProcess;
 
             var lowStockItems = await _context.Consumables
                 .AsNoTracking()
-                .Where(consumable => consumable.Quantity <= consumable.MinQuantity)
-                .OrderBy(consumable => consumable.Quantity - consumable.MinQuantity)
+                .Where(consumable => consumable.Quantity - consumable.ReservedQuantity <= consumable.MinQuantity)
+                .OrderBy(consumable => consumable.Quantity - consumable.ReservedQuantity - consumable.MinQuantity)
                 .Select(consumable => new
                 {
                     consumable.Name,
                     consumable.Quantity,
+                    consumable.ReservedQuantity,
+                    AvailableQuantity = consumable.Quantity - consumable.ReservedQuantity,
                     consumable.MinQuantity
                 })
                 .ToListAsync(cancellationToken);
@@ -167,7 +186,7 @@ public class DashboardController : ControllerBase
                 {
                     Type = "low-stock",
                     Title = "Vật tư sắp hết",
-                    Message = $"{item.Name} chỉ còn {item.Quantity}/{item.MinQuantity}.",
+                    Message = $"{item.Name} còn khả dụng {item.AvailableQuantity}/{item.MinQuantity}.",
                     Level = "warning"
                 });
             }
@@ -197,8 +216,8 @@ public class DashboardController : ControllerBase
             var warrantySoonQuery = _context.Equipments
                 .AsNoTracking()
                 .Where(equipment => equipment.WarrantyExpiry.HasValue
-                    && equipment.WarrantyExpiry.Value >= DateTime.UtcNow
-                    && equipment.WarrantyExpiry.Value <= DateTime.UtcNow.AddDays(30));
+                    && equipment.WarrantyExpiry.Value >= now
+                    && equipment.WarrantyExpiry.Value <= now.AddDays(30));
             warrantyExpiringSoon = await warrantySoonQuery.CountAsync(cancellationToken);
             var warrantySoon = await warrantySoonQuery
                 .OrderBy(equipment => equipment.WarrantyExpiry)
@@ -222,8 +241,8 @@ public class DashboardController : ControllerBase
             }
 
             var firstMonth = new DateTime(
-                DateTime.UtcNow.Year,
-                DateTime.UtcNow.Month,
+                now.Year,
+                now.Month,
                 1,
                 0,
                 0,
@@ -260,14 +279,16 @@ public class DashboardController : ControllerBase
 
         return Ok(new
         {
-            UpdatedAt = DateTime.UtcNow,
+            UpdatedAt = now,
             Counts = new
             {
                 Total = equipmentCounts?.Total ?? 0,
                 Available = equipmentCounts?.Available ?? 0,
+                BorrowPending = equipmentCounts?.BorrowPending ?? 0,
                 Maintenance = equipmentCounts?.Maintenance ?? 0,
                 Borrowed = equipmentCounts?.Borrowed ?? 0,
                 Broken = equipmentCounts?.Broken ?? 0,
+                Missing = equipmentCounts?.Missing ?? 0,
                 Warranty = equipmentCounts?.Warranty ?? 0
             },
             Activities = recentActivities,
@@ -282,6 +303,8 @@ public class DashboardController : ControllerBase
             },
             PendingBorrowRequests = pendingBorrowRequests,
             PendingConsumableRequests = pendingConsumableRequests,
+            BorrowRequestsToProcess = borrowRequestsToProcess,
+            ConsumableRequestsToProcess = consumableRequestsToProcess,
             OverdueBorrowRecords = overdueBorrowRecords,
             LowStockConsumables = lowStockConsumableCount,
             WarrantyExpiringSoon = warrantyExpiringSoon,

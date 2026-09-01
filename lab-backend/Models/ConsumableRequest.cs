@@ -23,5 +23,13 @@ namespace LabManagementAPI.Models
         public DateTime RequestDate { get; set; } = DateTime.UtcNow;
 
         public DateTime? ApprovalDate { get; set; }
+
+        public DateTime? HandedOverAt { get; set; }
+        public int? HandedOverByUserId { get; set; }
+        public User? HandedOverByUser { get; set; }
+        public DateTime? ReceivedAt { get; set; }
+        public int? ReceivedByUserId { get; set; }
+        public User? ReceivedByUser { get; set; }
+        public ICollection<ConsumableRequestLotAllocation> LotAllocations { get; set; } = new List<ConsumableRequestLotAllocation>();
     }
 }

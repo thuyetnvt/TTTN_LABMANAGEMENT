@@ -8,6 +8,7 @@ public static class EquipmentStatuses
     public const string Returned = "RETURNED";
     public const string ReturnedDamaged = "RETURNED_DAMAGED";
     public const string Broken = "BROKEN";
+    public const string Missing = "MISSING";
     public const string UnderWarranty = "UNDER_WARRANTY";
     public const string Warranty = UnderWarranty;
     public const string MaintenanceInProgress = "MAINTENANCE_IN_PROGRESS";
@@ -21,6 +22,7 @@ public static class EquipmentStatuses
         Returned,
         ReturnedDamaged,
         Broken,
+        Missing,
         UnderWarranty,
         MaintenanceInProgress,
         MaintenanceCompleted
@@ -36,4 +38,12 @@ public static class EquipmentStatuses
             ["Bảo hành"] = UnderWarranty,
             ["Bảo trì"] = MaintenanceInProgress
         };
+
+    public static string Normalize(string? value)
+    {
+        var candidate = value?.Trim() ?? string.Empty;
+        if (LegacyMap.TryGetValue(candidate, out var mapped)) return mapped;
+        return All.FirstOrDefault(status => status.Equals(candidate, StringComparison.OrdinalIgnoreCase))
+            ?? candidate;
+    }
 }

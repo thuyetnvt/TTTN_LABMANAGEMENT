@@ -317,6 +317,33 @@ public static class FullSampleDataSeeder
         }
 
         await context.SaveChangesAsync();
+
+        var consumableIds = existing.Values.Select(item => item.Id).ToArray();
+        var consumablesWithLots = await context.ConsumableLots
+            .Where(item => consumableIds.Contains(item.ConsumableId))
+            .Select(item => item.ConsumableId)
+            .Distinct()
+            .ToListAsync();
+        var lotConsumableIds = consumablesWithLots.ToHashSet();
+        foreach (var item in existing.Values.Where(item => item.Quantity > 0 && !lotConsumableIds.Contains(item.Id)))
+        {
+            context.ConsumableLots.Add(new ConsumableLot
+            {
+                ConsumableId = item.Id,
+                LotNumber = string.IsNullOrWhiteSpace(item.LotNumber) ? $"SEED-{item.Code}" : item.LotNumber,
+                InitialQuantity = item.Quantity,
+                Quantity = item.Quantity,
+                EntryDate = item.EntryDate ?? item.CreatedAt,
+                ExpiryDate = item.ExpiryDate,
+                Supplier = item.Supplier,
+                InvoiceNumber = item.InvoiceNumber,
+                UnitCost = item.UnitCost,
+                StorageLocation = item.StorageLocation,
+                CreatedAt = item.CreatedAt
+            });
+        }
+
+        await context.SaveChangesAsync();
         return existing.ToDictionary(item => item.Key, item => item.Value.Id);
     }
 
@@ -632,8 +659,33 @@ public static class FullSampleDataSeeder
         var index = 1;
         foreach (var record in activeRecords)
         {
-            if (await context.HandoverRecords.AnyAsync(item => item.BorrowRecordId == record.Id)) continue;
+            var existingHandover = await context.HandoverRecords
+                .FirstOrDefaultAsync(item => item.BorrowRecordId == record.Id);
+            if (existingHandover is not null)
+            {
+                if (existingHandover.ConfirmedAt is null && record.Purpose.StartsWith(Prefix, StringComparison.Ordinal))
+                {
+                    record.Status = BorrowStatuses.Approved;
+                    foreach (var detail in record.Details) detail.Status = BorrowStatuses.Approved;
+                    if (record.EquipmentId.HasValue)
+                    {
+                        var reservedEquipment = equipment.Values.FirstOrDefault(item => item.Id == record.EquipmentId.Value);
+                        if (reservedEquipment is not null) reservedEquipment.Status = EquipmentStatuses.BorrowPending;
+                    }
+                }
+                index++;
+                continue;
+            }
             if (!record.EquipmentId.HasValue || !equipment.Values.Any(item => item.Id == record.EquipmentId.Value)) continue;
+
+            var isAwaitingReceipt = index != 1;
+            if (isAwaitingReceipt)
+            {
+                record.Status = BorrowStatuses.Approved;
+                foreach (var detail in record.Details) detail.Status = BorrowStatuses.Approved;
+                var reservedEquipment = equipment.Values.First(item => item.Id == record.EquipmentId.Value);
+                reservedEquipment.Status = EquipmentStatuses.BorrowPending;
+            }
 
             var handover = new HandoverRecord
             {
@@ -642,7 +694,7 @@ public static class FullSampleDataSeeder
                 HandedOverByUserId = managerId,
                 ReceivedByUserId = record.UserId,
                 HandoverAt = now.AddDays(-4),
-                ConfirmedAt = index == 1 ? now.AddDays(-4) : null,
+                ConfirmedAt = isAwaitingReceipt ? null : now.AddDays(-4),
                 Notes = $"{Prefix} Biên bản bàn giao dùng để kiểm thử.",
                 Items =
                 [

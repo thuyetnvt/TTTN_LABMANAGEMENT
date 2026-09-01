@@ -16,6 +16,8 @@ namespace LabManagementAPI.Models
 
         public int Quantity { get; set; }
 
+        public int ReservedQuantity { get; set; }
+
         public int MinQuantity { get; set; } = 5;
 
         public string ResponsiblePerson { get; set; } = string.Empty;
@@ -34,5 +36,7 @@ namespace LabManagementAPI.Models
         public DateTime? ExpiryDate { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public ICollection<ConsumableLot> Lots { get; set; } = new List<ConsumableLot>();
     }
 }

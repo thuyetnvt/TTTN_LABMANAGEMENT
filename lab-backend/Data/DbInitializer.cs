@@ -172,6 +172,7 @@ public static class DbInitializer
         {
             if (!await context.Equipments.AnyAsync(existing => existing.Serial == equipment.Serial))
             {
+                equipment.AssetCode = $"TS-SEED-{equipment.Serial}";
                 context.Equipments.Add(equipment);
             }
         }

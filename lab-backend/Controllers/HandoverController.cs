@@ -51,17 +51,22 @@ public class HandoverController : ControllerBase
     }
 
     [HttpGet("{borrowRecordId:int}")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<ActionResult<object>> Get(int borrowRecordId, CancellationToken cancellationToken)
     {
         var handover = await _context.HandoverRecords.AsNoTracking()
+            .Include(item => item.BorrowRecord)
             .Include(item => item.Items).ThenInclude(item => item.Equipment)
             .Include(item => item.Evidence)
             .SingleOrDefaultAsync(item => item.BorrowRecordId == borrowRecordId, cancellationToken);
         if (handover is null) return NotFound(new { message = "Phiếu chưa có biên bản bàn giao." });
+        var userId = GetCurrentUserId();
+        if (!IsManager() && handover.BorrowRecord?.UserId != userId) return Forbid();
         return Ok(new
         {
             handover.Id, handover.Code, handover.BorrowRecordId, handover.HandoverAt, handover.Notes, handover.ConfirmedAt,
+            canConfirm = handover.BorrowRecord?.UserId == userId
+                && handover.BorrowRecord.Status == BorrowStatuses.Approved
+                && handover.ConfirmedAt is null,
             items = handover.Items.Select(item => new
             {
                 item.EquipmentId, equipmentName = item.Equipment!.Name, serial = item.Equipment.Serial,
@@ -90,12 +95,17 @@ public class HandoverController : ControllerBase
                 return BadRequest(new { message = "Tình trạng bàn giao không hợp lệ." });
         }
 
-        var record = await _context.BorrowRecords.Include(item => item.Details)
+        var record = await _context.BorrowRecords
+            .Include(item => item.Details)
+                .ThenInclude(item => item.Equipment)
             .SingleOrDefaultAsync(item => item.Id == dto.BorrowRecordId, cancellationToken);
         if (record is null) return NotFound(new { message = "Không tìm thấy phiếu mượn." });
-        if (record.Status != BorrowStatuses.Borrowed) return Conflict(new { message = "Chỉ được lập biên bản cho phiếu đang mượn." });
+        if (record.Status != BorrowStatuses.Approved) return Conflict(new { message = "Chỉ được lập biên bản cho phiếu đã duyệt và đang chờ bàn giao." });
         if (await _context.HandoverRecords.AnyAsync(item => item.BorrowRecordId == record.Id, cancellationToken))
             return Conflict(new { message = "Phiếu đã có biên bản bàn giao." });
+
+        if (record.Details.Any(item => item.Equipment?.Status != EquipmentStatuses.BorrowPending))
+            return Conflict(new { message = "Một hoặc nhiều tài sản không còn ở trạng thái giữ chỗ để bàn giao." });
 
         var detailIds = record.Details.Select(item => item.EquipmentId).Distinct().ToHashSet();
         var submittedIds = dto.Items.Select(item => item.EquipmentId).Distinct().ToHashSet();
@@ -105,7 +115,7 @@ public class HandoverController : ControllerBase
         {
             Code = $"BH-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..28],
             BorrowRecordId = record.Id, HandedOverByUserId = GetCurrentUserId(), ReceivedByUserId = record.UserId,
-            Notes = dto.Notes, ConfirmedAt = DateTime.UtcNow,
+            Notes = dto.Notes, ConfirmedAt = null,
             Items = dto.Items.Select(item => new HandoverItem
             {
                 EquipmentId = item.EquipmentId, Condition = item.Condition, Accessories = item.Accessories, Note = item.Note
@@ -114,8 +124,107 @@ public class HandoverController : ControllerBase
         _context.HandoverRecords.Add(handover);
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.WriteAsync(HttpContext, "Create", nameof(HandoverRecord), handover.Id, new { handover.Code, handover.BorrowRecordId }, cancellationToken);
-        await _notificationService.NotifyUserAsync(record.UserId, "HANDOVER_CREATED", "Đã lập biên bản bàn giao", $"Biên bản {handover.Code} đã được lập cho phiếu mượn.", "/dashboard/borrow-history", cancellationToken);
-        return Ok(new { handover.Id, handover.Code, message = "Đã lập biên bản bàn giao." });
+        await _notificationService.NotifyUserAsync(record.UserId, "HANDOVER_CREATED", "Cần xác nhận nhận tài sản", $"Biên bản {handover.Code} đã được lập. Vui lòng kiểm tra và xác nhận đã nhận tài sản.", "/dashboard/borrow-history", cancellationToken);
+        return Ok(new { handover.Id, handover.Code, message = "Đã lập biên bản. Đang chờ người nhận xác nhận." });
+    }
+
+    [HttpPost("{borrowRecordId:int}/confirm-receipt")]
+    [Authorize(Roles = Roles.Borrowers)]
+    public async Task<IActionResult> ConfirmReceipt(
+        int borrowRecordId,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        var handover = await _context.HandoverRecords
+            .AsNoTracking()
+            .Include(item => item.BorrowRecord)
+                .ThenInclude(item => item!.Details)
+            .SingleOrDefaultAsync(item => item.BorrowRecordId == borrowRecordId, cancellationToken);
+        if (handover?.BorrowRecord is null)
+            return NotFound(new { message = "Không tìm thấy biên bản bàn giao." });
+        if (handover.BorrowRecord.UserId != userId) return Forbid();
+        if (handover.ConfirmedAt.HasValue)
+            return Conflict(new { message = "Biên bản đã được xác nhận trước đó." });
+        if (handover.BorrowRecord.Status is not (BorrowStatuses.Approved or BorrowStatuses.Borrowed))
+            return Conflict(new { message = "Phiếu không ở trạng thái chờ xác nhận nhận tài sản." });
+
+        var isLegacyBorrowedRecord = handover.BorrowRecord.Status == BorrowStatuses.Borrowed;
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        var confirmed = await _context.HandoverRecords
+            .Where(item => item.Id == handover.Id && item.ConfirmedAt == null)
+            .ExecuteUpdateAsync(
+                updates => updates
+                    .SetProperty(item => item.ConfirmedAt, DateTime.UtcNow)
+                    .SetProperty(item => item.ReceivedByUserId, userId),
+                cancellationToken);
+        if (confirmed == 0)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return Conflict(new { message = "Biên bản đã được xác nhận bởi một phiên khác." });
+        }
+
+        var equipmentIds = handover.BorrowRecord.Details
+            .Select(item => item.EquipmentId)
+            .Distinct()
+            .ToArray();
+        if (!isLegacyBorrowedRecord)
+        {
+            var movedEquipment = await _context.Equipments
+                .Where(item => equipmentIds.Contains(item.Id)
+                    && item.Status == EquipmentStatuses.BorrowPending)
+                .ExecuteUpdateAsync(
+                    updates => updates
+                        .SetProperty(item => item.Status, EquipmentStatuses.Borrowed)
+                        .SetProperty(item => item.BorrowCount, item => item.BorrowCount + 1),
+                    cancellationToken);
+            if (movedEquipment != equipmentIds.Length)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return Conflict(new { message = "Trạng thái tài sản đã thay đổi; chưa thể xác nhận nhận." });
+            }
+
+            await _context.BorrowRequestDetails
+                .Where(item => item.BorrowRecordId == borrowRecordId && item.Status == BorrowStatuses.Approved)
+                .ExecuteUpdateAsync(
+                    updates => updates.SetProperty(item => item.Status, BorrowStatuses.Borrowed),
+                    cancellationToken);
+            var movedRecord = await _context.BorrowRecords
+                .Where(item => item.Id == borrowRecordId && item.Status == BorrowStatuses.Approved)
+                .ExecuteUpdateAsync(
+                    updates => updates.SetProperty(item => item.Status, BorrowStatuses.Borrowed),
+                    cancellationToken);
+            if (movedRecord == 0)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return Conflict(new { message = "Phiếu đã được xử lý bởi một phiên khác." });
+            }
+
+            _context.BorrowStatusHistories.Add(new BorrowStatusHistory
+            {
+                BorrowRecordId = borrowRecordId,
+                FromStatus = BorrowStatuses.Approved,
+                ToStatus = BorrowStatuses.Borrowed,
+                Note = "Người mượn xác nhận đã nhận đủ tài sản theo biên bản bàn giao.",
+                ChangedByUserId = userId
+            });
+        }
+
+        await _auditService.WriteAsync(
+            HttpContext,
+            "ConfirmReceipt",
+            nameof(HandoverRecord),
+            handover.Id,
+            new { handover.Code, BorrowRecordId = borrowRecordId, EquipmentIds = equipmentIds },
+            cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        await _notificationService.NotifyManagersAsync(
+            "HANDOVER_CONFIRMED",
+            "Người mượn đã xác nhận nhận tài sản",
+            $"Biên bản {handover.Code} đã được người nhận xác nhận.",
+            "/dashboard/borrow-requests",
+            cancellationToken);
+        return Ok(new { message = "Đã xác nhận nhận tài sản. Phiếu chuyển sang trạng thái đang mượn." });
     }
 
     public sealed class UploadEvidenceDto
@@ -180,15 +289,17 @@ public class HandoverController : ControllerBase
     }
 
     [HttpGet("{borrowRecordId:int}/evidence/{evidenceId:long}")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> DownloadEvidence(
         int borrowRecordId,
         long evidenceId,
         CancellationToken cancellationToken)
     {
         var evidence = await _context.HandoverEvidence.AsNoTracking()
+            .Include(item => item.HandoverRecord)
+                .ThenInclude(item => item!.BorrowRecord)
             .SingleOrDefaultAsync(item => item.Id == evidenceId && item.HandoverRecord!.BorrowRecordId == borrowRecordId, cancellationToken);
         if (evidence is null) return NotFound();
+        if (!IsManager() && evidence.HandoverRecord?.BorrowRecord?.UserId != GetCurrentUserId()) return Forbid();
         var stream = await _fileStorage.OpenReadAsync(evidence.StoredPath, cancellationToken);
         if (stream is null) return NotFound();
         return File(stream, evidence.ContentType, evidence.OriginalFileName, enableRangeProcessing: true);
@@ -212,4 +323,8 @@ public class HandoverController : ControllerBase
     }
 
     private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private bool IsManager() => User.IsInRole(Roles.Admin)
+        || User.IsInRole(Roles.LabHead)
+        || User.IsInRole(Roles.DeputyLabHead);
 }

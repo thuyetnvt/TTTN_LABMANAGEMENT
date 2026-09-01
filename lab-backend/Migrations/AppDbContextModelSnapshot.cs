@@ -150,6 +150,65 @@ namespace LabManagementAPI.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("LabManagementAPI.Models.AutomationDispatch", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("EmailSentAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("EntityId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("JobType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("LastAttemptAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LastError")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("WindowKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailSentAt", "Attempts", "LastAttemptAt");
+
+                    b.HasIndex("JobType", "EntityId", "WindowKey")
+                        .IsUnique();
+
+                    b.ToTable("AutomationDispatches");
+                });
+
             modelBuilder.Entity("LabManagementAPI.Models.BorrowRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -378,6 +437,9 @@ namespace LabManagementAPI.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<int>("ReservedQuantity")
+                        .HasColumnType("int");
+
                     b.Property<string>("ResponsiblePerson")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -414,6 +476,73 @@ namespace LabManagementAPI.Migrations
                             t.HasCheckConstraint("CK_Consumables_MinQuantity", "MinQuantity >= 0");
 
                             t.HasCheckConstraint("CK_Consumables_Quantity", "Quantity >= 0");
+
+                            t.HasCheckConstraint("CK_Consumables_ReservedQuantity", "ReservedQuantity >= 0 AND ReservedQuantity <= Quantity");
+                        });
+                });
+
+            modelBuilder.Entity("LabManagementAPI.Models.ConsumableLot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ConsumableId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("EntryDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("InitialQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("LotNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StorageLocation")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Supplier")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<decimal?>("UnitCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumableId", "ExpiryDate");
+
+                    b.HasIndex("ConsumableId", "LotNumber")
+                        .IsUnique();
+
+                    b.ToTable("ConsumableLots", t =>
+                        {
+                            t.HasCheckConstraint("CK_ConsumableLots_InitialQuantity", "InitialQuantity >= 0");
+
+                            t.HasCheckConstraint("CK_ConsumableLots_Quantity", "Quantity >= 0");
                         });
                 });
 
@@ -431,6 +560,12 @@ namespace LabManagementAPI.Migrations
                     b.Property<int>("ConsumableId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("HandedOverAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("HandedOverByUserId")
+                        .HasColumnType("int");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
@@ -438,6 +573,12 @@ namespace LabManagementAPI.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
+
+                    b.Property<DateTime?>("ReceivedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("ReceivedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("RequestDate")
                         .HasColumnType("datetime(6)");
@@ -454,11 +595,45 @@ namespace LabManagementAPI.Migrations
 
                     b.HasIndex("ConsumableId");
 
+                    b.HasIndex("HandedOverByUserId");
+
+                    b.HasIndex("ReceivedByUserId");
+
                     b.HasIndex("Status");
 
                     b.HasIndex("UserId");
 
                     b.ToTable("ConsumableRequests");
+                });
+
+            modelBuilder.Entity("LabManagementAPI.Models.ConsumableRequestLotAllocation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ConsumableLotId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ConsumableRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumableLotId");
+
+                    b.HasIndex("ConsumableRequestId", "ConsumableLotId")
+                        .IsUnique();
+
+                    b.ToTable("ConsumableRequestLotAllocations", t =>
+                        {
+                            t.HasCheckConstraint("CK_ConsumableRequestLotAllocations_Quantity", "Quantity > 0");
+                        });
                 });
 
             modelBuilder.Entity("LabManagementAPI.Models.ConsumableTransaction", b =>
@@ -928,6 +1103,9 @@ namespace LabManagementAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("ActualLocationNodeId")
+                        .HasColumnType("int");
+
                     b.Property<int>("EquipmentId")
                         .HasColumnType("int");
 
@@ -947,6 +1125,22 @@ namespace LabManagementAPI.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
 
+                    b.Property<string>("ReviewNote")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<string>("ReviewResolution")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("ReviewedByUserId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("ScannedAt")
                         .HasColumnType("datetime(6)");
 
@@ -960,7 +1154,11 @@ namespace LabManagementAPI.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ActualLocationNodeId");
+
                     b.HasIndex("EquipmentId");
+
+                    b.HasIndex("ReviewedByUserId");
 
                     b.HasIndex("ScannedByUserId");
 
@@ -1611,6 +1809,17 @@ namespace LabManagementAPI.Migrations
                     b.Navigation("AssetCategory");
                 });
 
+            modelBuilder.Entity("LabManagementAPI.Models.ConsumableLot", b =>
+                {
+                    b.HasOne("LabManagementAPI.Models.Consumable", "Consumable")
+                        .WithMany("Lots")
+                        .HasForeignKey("ConsumableId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Consumable");
+                });
+
             modelBuilder.Entity("LabManagementAPI.Models.ConsumableRequest", b =>
                 {
                     b.HasOne("LabManagementAPI.Models.Consumable", "Consumable")
@@ -1618,6 +1827,16 @@ namespace LabManagementAPI.Migrations
                         .HasForeignKey("ConsumableId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("LabManagementAPI.Models.User", "HandedOverByUser")
+                        .WithMany()
+                        .HasForeignKey("HandedOverByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("LabManagementAPI.Models.User", "ReceivedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReceivedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("LabManagementAPI.Models.User", "User")
                         .WithMany()
@@ -1627,7 +1846,30 @@ namespace LabManagementAPI.Migrations
 
                     b.Navigation("Consumable");
 
+                    b.Navigation("HandedOverByUser");
+
+                    b.Navigation("ReceivedByUser");
+
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LabManagementAPI.Models.ConsumableRequestLotAllocation", b =>
+                {
+                    b.HasOne("LabManagementAPI.Models.ConsumableLot", "ConsumableLot")
+                        .WithMany("RequestAllocations")
+                        .HasForeignKey("ConsumableLotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LabManagementAPI.Models.ConsumableRequest", "ConsumableRequest")
+                        .WithMany("LotAllocations")
+                        .HasForeignKey("ConsumableRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ConsumableLot");
+
+                    b.Navigation("ConsumableRequest");
                 });
 
             modelBuilder.Entity("LabManagementAPI.Models.ConsumableTransaction", b =>
@@ -1804,6 +2046,11 @@ namespace LabManagementAPI.Migrations
 
             modelBuilder.Entity("LabManagementAPI.Models.InventoryItem", b =>
                 {
+                    b.HasOne("LabManagementAPI.Models.LocationNode", "ActualLocationNode")
+                        .WithMany()
+                        .HasForeignKey("ActualLocationNodeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("LabManagementAPI.Models.Equipment", "Equipment")
                         .WithMany()
                         .HasForeignKey("EquipmentId")
@@ -1816,14 +2063,23 @@ namespace LabManagementAPI.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("LabManagementAPI.Models.User", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("LabManagementAPI.Models.User", "ScannedByUser")
                         .WithMany()
                         .HasForeignKey("ScannedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.Navigation("ActualLocationNode");
+
                     b.Navigation("Equipment");
 
                     b.Navigation("InventorySession");
+
+                    b.Navigation("ReviewedByUser");
 
                     b.Navigation("ScannedByUser");
                 });
@@ -2000,6 +2256,21 @@ namespace LabManagementAPI.Migrations
                     b.Navigation("Details");
 
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("LabManagementAPI.Models.Consumable", b =>
+                {
+                    b.Navigation("Lots");
+                });
+
+            modelBuilder.Entity("LabManagementAPI.Models.ConsumableLot", b =>
+                {
+                    b.Navigation("RequestAllocations");
+                });
+
+            modelBuilder.Entity("LabManagementAPI.Models.ConsumableRequest", b =>
+                {
+                    b.Navigation("LotAllocations");
                 });
 
             modelBuilder.Entity("LabManagementAPI.Models.HandoverRecord", b =>

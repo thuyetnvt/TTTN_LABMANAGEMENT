@@ -4,9 +4,18 @@
       <template #actions><a-button type="primary" @click="showCreate = true">Tạo đợt kiểm kê</a-button></template>
     </PageHeader>
 
+    <div class="inventory-filters">
+      <a-input-search v-model:value="searchQuery" allow-clear placeholder="Mã hoặc tên đợt kiểm kê..." style="width: 280px" @search="applyFilters" />
+      <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 180px" @change="applyFilters">
+        <a-select-option :value="STATUS.INVENTORY_OPEN">Đang kiểm kê</a-select-option>
+        <a-select-option :value="STATUS.INVENTORY_REVIEWING">Đang đối soát</a-select-option>
+        <a-select-option :value="STATUS.INVENTORY_COMPLETED">Đã kết thúc</a-select-option>
+      </a-select>
+    </div>
+
     <a-card :bordered="false">
       <div class="inventory-desktop-table">
-        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered :pagination="tablePagination">
+        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered :pagination="tablePagination" @change="handleTableChange">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'progress'">
@@ -30,7 +39,7 @@
         </a-table>
       </div>
     </a-card>
-    <ResponsiveDataList :items="sessions" :loading="loading" empty-description="Chưa có đợt kiểm kê">
+    <ResponsiveDataList :items="sessions" :loading="loading" :pagination="tablePagination" empty-description="Chưa có đợt kiểm kê" @change="handleTableChange">
       <template #default="{ item }">
         <div class="mobile-session-header"><strong>{{ item.name }}</strong><StatusBadge :status="item.status" type="inventory" /></div>
         <div class="mobile-session-meta">{{ item.code }} · {{ item.found + item.wrongLocation + item.damaged }}/{{ item.total }} đã quét</div>
@@ -66,11 +75,31 @@
         <a-divider />
         <a-space direction="vertical" size="middle" style="width: 100%">
           <a-space wrap>
-            <a-button @click="toggleCamera">{{ cameraOpen ? 'Đóng camera' : 'Mở camera quét QR' }}</a-button>
+            <a-button v-if="selectedSession.status === STATUS.INVENTORY_OPEN" @click="toggleCamera">{{ cameraOpen ? 'Đóng camera' : 'Mở camera quét QR' }}</a-button>
             <a-button @click="downloadReport('excel')">Xuất Excel chênh lệch</a-button>
             <a-button @click="downloadReport('pdf')">Xuất PDF chênh lệch</a-button>
           </a-space>
-          <div v-if="cameraOpen" class="continuous-scan-hint">
+          <a-alert
+            v-if="selectedSession.status === STATUS.INVENTORY_REVIEWING"
+            type="warning"
+            show-icon
+            :message="`Đang đối soát: còn ${selectedSession.unreviewedCount || 0} chênh lệch chưa xử lý`"
+            description="Duyệt từng tài sản sai vị trí, hư hỏng hoặc thất lạc trước khi kết thúc đợt kiểm kê."
+          />
+          <a-row v-if="selectedSession.status === STATUS.INVENTORY_OPEN" :gutter="[10, 10]">
+            <a-col :xs="24" :md="14">
+              <a-select v-model:value="actualLocationNodeId" allow-clear placeholder="Vị trí thực tế đang quét" style="width: 100%">
+                <a-select-option v-for="location in locations" :key="location.id" :value="location.id">{{ location.code }} — {{ location.name }}</a-select-option>
+              </a-select>
+            </a-col>
+            <a-col :xs="24" :md="10">
+              <a-select v-model:value="scanResultStatus" style="width: 100%">
+                <a-select-option :value="STATUS.INVENTORY_FOUND">Tìm thấy, bình thường</a-select-option>
+                <a-select-option :value="STATUS.INVENTORY_DAMAGED">Tìm thấy nhưng hư hỏng</a-select-option>
+              </a-select>
+            </a-col>
+          </a-row>
+          <div v-if="cameraOpen && selectedSession.status === STATUS.INVENTORY_OPEN" class="continuous-scan-hint">
             <span class="continuous-scan-dot" aria-hidden="true"></span>
             <span>Quét liên tục: đưa lần lượt từng mã QR vào khung hình.</span>
             <span v-if="scanQueueLength">Đang xử lý {{ scanQueueLength }} mã.</span>
@@ -78,11 +107,21 @@
               Đã ghi nhận {{ continuousScanStats.success }} mã<span v-if="continuousScanStats.failed"> · Lỗi {{ continuousScanStats.failed }}</span>.
             </span>
           </div>
-          <QRScanner v-if="cameraOpen" :continuous="true" @scan-success="onScanSuccessInventory" class="qr-reader" />
-          <a-input-search v-model:value="scanToken" placeholder="Nhập QR token để ghi nhận nhanh" enter-button="Ghi nhận" :loading="scanning" @search="scanByToken" class="inventory-search-input" />
+          <QRScanner v-if="cameraOpen && selectedSession.status === STATUS.INVENTORY_OPEN" :continuous="true" @scan-success="onScanSuccessInventory" class="qr-reader" />
+          <a-input-search v-if="selectedSession.status === STATUS.INVENTORY_OPEN" v-model:value="scanToken" placeholder="Nhập QR token để ghi nhận nhanh" enter-button="Ghi nhận" :loading="scanning" @search="scanByToken" class="inventory-search-input" />
           <a-alert v-if="scanMessage" :type="scanMessageType" :message="scanMessage" show-icon />
         </a-space>
-        <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="itemPagination">
+        <div class="inventory-item-filters">
+          <a-input-search v-model:value="itemSearchQuery" allow-clear placeholder="Tìm tài sản trong đợt..." @search="applyItemFilters" />
+          <a-select v-model:value="itemStatusFilter" allow-clear placeholder="Kết quả" @change="applyItemFilters">
+            <a-select-option :value="STATUS.INVENTORY_PENDING">Chưa quét</a-select-option>
+            <a-select-option :value="STATUS.INVENTORY_FOUND">Đã tìm thấy</a-select-option>
+            <a-select-option :value="STATUS.INVENTORY_WRONG_LOCATION">Sai vị trí</a-select-option>
+            <a-select-option :value="STATUS.INVENTORY_DAMAGED">Hư hỏng</a-select-option>
+            <a-select-option :value="STATUS.INVENTORY_MISSING">Thất lạc</a-select-option>
+          </a-select>
+        </div>
+        <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="itemPagination" @change="handleItemTableChange">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'scannedAt'">{{ record.scannedAt ? formatDate(record.scannedAt) : 'Chưa quét' }}</template>
@@ -91,16 +130,48 @@
                 <a-button size="small">Ảnh/file</a-button>
               </a-upload>
             </template>
+            <template v-else-if="column.key === 'review'">
+              <a-button
+                v-if="selectedSession.status === STATUS.INVENTORY_REVIEWING && record.status !== STATUS.INVENTORY_FOUND && !record.reviewedAt"
+                type="primary"
+                size="small"
+                @click="openReview(record)"
+              >Xử lý</a-button>
+              <a-tag v-else-if="record.reviewedAt" color="success">Đã duyệt</a-tag>
+              <span v-else>—</span>
+            </template>
           </template>
         </a-table>
-        <a-button v-if="selectedSession.status === 'INVENTORY_OPEN'" danger block :disabled="scanning || scanQueueLength > 0" @click="completeSession">Kết thúc đợt kiểm kê</a-button>
+        <a-button v-if="selectedSession.status === STATUS.INVENTORY_OPEN" type="primary" block :disabled="scanning || scanQueueLength > 0" @click="startReview">Khóa quét & đối soát chênh lệch</a-button>
+        <a-tooltip v-else-if="selectedSession.status === STATUS.INVENTORY_REVIEWING" :title="selectedSession.canComplete ? '' : `Còn ${selectedSession.unreviewedCount || 0} chênh lệch chưa xử lý`">
+          <a-button danger block :disabled="!selectedSession.canComplete" @click="completeSession">Kết thúc đợt kiểm kê</a-button>
+        </a-tooltip>
       </template>
     </a-drawer>
+
+    <a-modal v-model:open="reviewOpen" title="Xử lý chênh lệch kiểm kê" ok-text="Lưu xử lý" cancel-text="Hủy" :confirm-loading="reviewing" @ok="submitReview">
+      <a-form v-if="reviewItem" layout="vertical">
+        <a-alert type="info" show-icon :message="`${reviewItem.equipmentName} — ${reviewItem.assetCode}`" style="margin-bottom: 16px" />
+        <a-descriptions bordered size="small" :column="1" style="margin-bottom: 16px">
+          <a-descriptions-item label="Kết quả"><StatusBadge :status="reviewItem.status" type="inventory" /></a-descriptions-item>
+          <a-descriptions-item label="Vị trí dự kiến">{{ reviewItem.expectedLocation || '—' }}</a-descriptions-item>
+          <a-descriptions-item label="Vị trí thực tế">{{ reviewItem.actualLocation || 'Chưa ghi nhận' }}</a-descriptions-item>
+        </a-descriptions>
+        <a-form-item label="Cách xử lý" required>
+          <a-select v-model:value="reviewForm.resolution">
+            <a-select-option v-for="option in reviewOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="Ghi chú đối soát" :required="reviewForm.resolution === 'KEEP_RECORDED_LOCATION'">
+          <a-textarea v-model:value="reviewForm.note" :rows="3" placeholder="Mô tả quyết định xử lý..." />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { Upload } from 'ant-design-vue'
@@ -112,15 +183,31 @@ import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { inventoryApi } from '../api/inventoryApi'
 import { locationApi } from '../api/locationApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
-import { createTablePagination } from '../utils/tablePagination'
+import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import { STATUS } from '../constants/business'
+import { formatVietnamDateTime } from '../utils/dateTime'
 
-const tablePagination = createTablePagination()
-const itemPagination = createTablePagination()
+const tablePagination = reactive({
+  ...createTablePagination(),
+  current: 1,
+  pageSize: TABLE_PAGE_SIZE,
+  total: 0
+})
+const itemPagination = reactive({
+  ...createTablePagination(),
+  current: 1,
+  pageSize: TABLE_PAGE_SIZE,
+  total: 0
+})
 
 const sessions = ref([])
 const locations = ref([])
 const categories = ref([])
 const loading = ref(false)
+const searchQuery = ref('')
+const statusFilter = ref(undefined)
+const itemSearchQuery = ref('')
+const itemStatusFilter = ref(undefined)
 const creating = ref(false)
 const showCreate = ref(false)
 const createForm = ref({ name: '', locationNodeId: null, assetCategoryId: null })
@@ -133,6 +220,12 @@ const scanMessageType = ref('success')
 const cameraOpen = ref(false)
 const scanQueueLength = ref(0)
 const continuousScanStats = ref({ success: 0, failed: 0 })
+const actualLocationNodeId = ref(null)
+const scanResultStatus = ref(STATUS.INVENTORY_FOUND)
+const reviewOpen = ref(false)
+const reviewing = ref(false)
+const reviewItem = ref(null)
+const reviewForm = ref({ resolution: '', note: '' })
 
 const scanQueue = []
 const recentCameraScans = new Map()
@@ -154,21 +247,54 @@ const itemColumns = [
   { title: 'Vị trí dự kiến', dataIndex: 'expectedLocation', key: 'expectedLocation' },
   { title: 'Kết quả', key: 'status' },
   { title: 'Thời gian quét', key: 'scannedAt' },
-  { title: 'Minh chứng', key: 'evidence' }
+  { title: 'Minh chứng', key: 'evidence' },
+  { title: 'Đối soát', key: 'review', align: 'center', width: 110 }
 ]
 
-const formatDate = value => value ? new Date(value).toLocaleString('vi-VN') : '—'
+const reviewOptions = computed(() => {
+  if (reviewItem.value?.status === STATUS.INVENTORY_WRONG_LOCATION) return [
+    { value: 'UPDATE_LOCATION', label: 'Cập nhật tài sản sang vị trí thực tế' },
+    { value: 'KEEP_RECORDED_LOCATION', label: 'Giữ vị trí trên hệ thống và ghi lý do' }
+  ]
+  if (reviewItem.value?.status === STATUS.INVENTORY_DAMAGED) return [
+    { value: 'MARK_DAMAGED', label: 'Đánh dấu tài sản hỏng' }
+  ]
+  if (reviewItem.value?.status === STATUS.INVENTORY_MISSING) return [
+    { value: 'MARK_MISSING', label: 'Đánh dấu tài sản thất lạc' }
+  ]
+  return []
+})
+
+const formatDate = value => formatVietnamDateTime(value)
 const progress = record => record.total ? Math.round(((record.found + record.wrongLocation + record.damaged) / record.total) * 100) : 0
 
 const fetchAll = async () => {
   loading.value = true
   try {
-    sessions.value = await inventoryApi.getAll() || []
+    const response = await inventoryApi.getPaged({
+      page: tablePagination.current,
+      pageSize: tablePagination.pageSize,
+      search: searchQuery.value.trim() || undefined,
+      status: statusFilter.value
+    })
+    sessions.value = response.items || []
+    tablePagination.total = response.total || 0
     locations.value = await locationApi.getAll() || []
     categories.value = await assetCategoryApi.getAll() || []
   } catch (error) {
     message.error(error.response?.data?.message || 'Không tải được dữ liệu kiểm kê!')
   } finally { loading.value = false }
+}
+
+const applyFilters = () => {
+  tablePagination.current = 1
+  fetchAll()
+}
+
+const handleTableChange = pager => {
+  tablePagination.current = pager.pageSize === tablePagination.pageSize ? pager.current : 1
+  tablePagination.pageSize = pager.pageSize
+  fetchAll()
 }
 
 const normalizeScanToken = value => String(value ?? '').trim().replace(/^DEVICE_TOKEN:/i, '')
@@ -185,7 +311,14 @@ const clearScanQueue = () => {
 
 const refreshSessions = async () => {
   try {
-    sessions.value = await inventoryApi.getAll() || []
+    const response = await inventoryApi.getPaged({
+      page: tablePagination.current,
+      pageSize: tablePagination.pageSize,
+      search: searchQuery.value.trim() || undefined,
+      status: statusFilter.value
+    })
+    sessions.value = response.items || []
+    tablePagination.total = response.total || 0
   } catch {
     // Giữ nguyên chi tiết đang mở nếu chỉ lỗi làm mới danh sách đợt kiểm kê.
   }
@@ -204,9 +337,39 @@ const createSession = async () => {
   finally { creating.value = false }
 }
 
+const loadSessionDetail = async (sessionId, resetItems = false) => {
+  if (resetItems) itemPagination.current = 1
+  const [metadata, itemResponse] = await Promise.all([
+    inventoryApi.getById(sessionId),
+    inventoryApi.getItemsPaged(sessionId, {
+      page: itemPagination.current,
+      pageSize: itemPagination.pageSize,
+      search: itemSearchQuery.value.trim() || undefined,
+      status: itemStatusFilter.value
+    })
+  ])
+  selectedSession.value = { ...metadata, items: itemResponse.items || [] }
+  itemPagination.total = itemResponse.total || 0
+}
+
+const applyItemFilters = async () => {
+  if (!selectedSession.value) return
+  await loadSessionDetail(selectedSession.value.id, true)
+}
+
+const handleItemTableChange = async pager => {
+  itemPagination.current = pager.pageSize === itemPagination.pageSize ? pager.current : 1
+  itemPagination.pageSize = pager.pageSize
+  if (selectedSession.value) await loadSessionDetail(selectedSession.value.id)
+}
+
 const openDetail = async record => {
   try {
-    selectedSession.value = await inventoryApi.getById(record.id)
+    itemSearchQuery.value = ''
+    itemStatusFilter.value = undefined
+    await loadSessionDetail(record.id, true)
+    actualLocationNodeId.value = selectedSession.value.locationNodeId || null
+    scanResultStatus.value = STATUS.INVENTORY_FOUND
     detailOpen.value = true
     scanToken.value = ''
     scanMessage.value = ''
@@ -221,9 +384,13 @@ const submitInventoryScan = async token => {
   const sessionId = selectedSession.value.id
 
   try {
-    await inventoryApi.scan(sessionId, { qrToken: token, status: 'INVENTORY_FOUND' })
+    await inventoryApi.scan(sessionId, {
+      qrToken: token,
+      status: scanResultStatus.value,
+      locationNodeId: actualLocationNodeId.value
+    })
     if (selectedSession.value?.id === sessionId) {
-      selectedSession.value = await inventoryApi.getById(sessionId)
+      await loadSessionDetail(sessionId)
     }
     scanToken.value = ''
     scanMessageType.value = 'success'
@@ -301,7 +468,7 @@ const uploadEvidence = async (record, file) => {
   try {
     await inventoryApi.uploadEvidence(selectedSession.value.id, record.id, file)
     message.success('Đã lưu minh chứng kiểm kê.')
-    selectedSession.value = await inventoryApi.getById(selectedSession.value.id)
+    await loadSessionDetail(selectedSession.value.id)
   } catch (error) {
     message.error(error.response?.data?.message || error.message || 'Không tải được minh chứng.')
   }
@@ -322,13 +489,53 @@ const downloadReport = async type => {
   } catch (error) { message.error(error.response?.data?.message || error.message || 'Không xuất được báo cáo.') }
 }
 
+const startReview = async () => {
+  cameraOpen.value = false
+  clearScanQueue()
+  try {
+    const result = await inventoryApi.startReview(selectedSession.value.id)
+    message.success(result?.message || 'Đã chuyển sang bước đối soát.')
+    await loadSessionDetail(selectedSession.value.id)
+    await refreshSessions()
+  } catch (error) {
+    message.error(error.response?.data?.message || 'Không thể bắt đầu đối soát!')
+  }
+}
+
+const openReview = record => {
+  reviewItem.value = record
+  const defaultResolution = record.status === STATUS.INVENTORY_WRONG_LOCATION
+    ? 'UPDATE_LOCATION'
+    : record.status === STATUS.INVENTORY_DAMAGED
+      ? 'MARK_DAMAGED'
+      : 'MARK_MISSING'
+  reviewForm.value = { resolution: defaultResolution, note: '' }
+  reviewOpen.value = true
+}
+
+const submitReview = async () => {
+  if (!reviewItem.value || !reviewForm.value.resolution) return
+  reviewing.value = true
+  try {
+    await inventoryApi.reviewItem(selectedSession.value.id, reviewItem.value.id, reviewForm.value)
+    message.success('Đã xử lý chênh lệch và đồng bộ tài sản.')
+    reviewOpen.value = false
+    await loadSessionDetail(selectedSession.value.id)
+    await refreshSessions()
+  } catch (error) {
+    message.error(error.response?.data?.message || 'Không thể xử lý chênh lệch!')
+  } finally {
+    reviewing.value = false
+  }
+}
+
 const completeSession = async () => {
   cameraOpen.value = false
   clearScanQueue()
   try {
     await inventoryApi.complete(selectedSession.value.id)
-    message.success('Đã kết thúc đợt kiểm kê; tài sản chưa quét được đánh dấu thiếu.')
-    selectedSession.value = await inventoryApi.getById(selectedSession.value.id)
+    message.success('Đã kết thúc đợt kiểm kê sau khi đối soát đầy đủ.')
+    await loadSessionDetail(selectedSession.value.id)
     await fetchAll()
   } catch (error) { message.error(error.response?.data?.message || 'Không thể kết thúc đợt kiểm kê!') }
 }
@@ -345,6 +552,8 @@ onMounted(fetchAll)
 
 <style scoped>
 .inventory-container { padding: 0; }
+.inventory-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; }
+.inventory-item-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 180px; gap: 10px; margin-top: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
 .toolbar h2 { margin: 0; font-weight: 600; }
 .toolbar p { color: #64748b; margin: 6px 0 0; }
@@ -374,5 +583,9 @@ onMounted(fetchAll)
 .inventory-search-input :deep(.ant-btn) {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
+}
+@media (max-width: 767px) {
+  .inventory-filters > * { width: 100% !important; }
+  .inventory-item-filters { grid-template-columns: 1fr; }
 }
 </style>

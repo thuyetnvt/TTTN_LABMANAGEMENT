@@ -7,6 +7,10 @@ uploads
 logs
 appsettings.Development.json
 .env
+*.pfx
+*.p12
+data-protection-keys
+secrets
 *.user
 *.suo
 README.md

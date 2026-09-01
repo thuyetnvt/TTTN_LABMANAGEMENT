@@ -1,11 +1,18 @@
 <template>
   <div>
-    <div class="table-actions" v-if="isManagerRole(role)">
-      <a-button type="primary" @click="showAddModal">+ Thêm vật tư</a-button>
+    <div class="table-actions">
+      <div class="left-actions">
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm mã, tên vật tư..." style="width: 260px" @search="applyFilters" />
+        <a-select v-model:value="stockFilter" allow-clear placeholder="Tình trạng tồn" style="width: 170px" @change="applyFilters">
+          <a-select-option value="AVAILABLE">Đủ dùng</a-select-option>
+          <a-select-option value="LOW_STOCK">Cần nhập thêm</a-select-option>
+        </a-select>
+      </div>
+      <a-button v-if="isManagerRole(role)" type="primary" @click="showAddModal">+ Thêm vật tư</a-button>
     </div>
 
     <div class="consumables-desktop-table">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1930 }" :pagination="tablePagination">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1930 }" :pagination="tablePagination" @change="handleTableChange">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'quantity'">
           <span :style="{ color: record.quantity <= record.minQuantity ? '#dc2626' : '#16a34a', fontWeight: 700 }">
@@ -13,10 +20,10 @@
           </span>
         </template>
         <template v-else-if="column.key === 'entryDate'">
-          {{ record.entryDate ? new Date(record.entryDate).toLocaleDateString('vi-VN') : '' }}
+          {{ formatVietnamDate(record.entryDate, '') }}
         </template>
         <template v-else-if="column.key === 'expiryDate'">
-          {{ record.expiryDate ? new Date(record.expiryDate).toLocaleDateString('vi-VN') : 'Không áp dụng' }}
+          {{ formatVietnamDate(record.expiryDate, 'Không áp dụng') }}
         </template>
         <template v-else-if="column.key === 'status'">
           <a-tag :color="record.quantity <= record.minQuantity ? 'red' : 'green'">
@@ -35,6 +42,11 @@
                 <template #icon><HistoryOutlined /></template>
               </a-button>
             </a-tooltip>
+            <a-tooltip v-if="isManagerRole(role)" title="Quản lý lô vật tư">
+              <a-button type="link" size="small" aria-label="Quản lý lô vật tư" @click="showLotsModal(record)">
+                <template #icon><DatabaseOutlined /></template>
+              </a-button>
+            </a-tooltip>
             <a-tooltip v-if="isManagerRole(role)" title="Sửa vật tư">
               <a-button type="link" size="small" aria-label="Sửa vật tư" @click="showEditModal(record)">
                 <template #icon><EditOutlined /></template>
@@ -51,7 +63,7 @@
       </a-table>
     </div>
 
-    <a-list v-if="dataSource.length" class="consumables-mobile-list" :data-source="dataSource" :pagination="mobilePagination">
+    <a-list v-if="dataSource.length" class="consumables-mobile-list" :data-source="dataSource" :pagination="false">
       <template #renderItem="{ item }">
         <a-list-item class="consumable-mobile-item">
           <div class="consumable-mobile-main">
@@ -73,6 +85,7 @@
             <a-button v-if="isBorrowerRole(role)" type="primary" ghost size="small" @click="showRequestModal(item)">Yêu cầu cấp phát</a-button>
             <template v-if="isManagerRole(role)">
               <a-button type="link" size="small" @click="showHistoryModal(item)">Lịch sử</a-button>
+              <a-button type="link" size="small" @click="showLotsModal(item)">Quản lý lô</a-button>
               <a-button type="link" size="small" @click="showEditModal(item)">Sửa</a-button>
             </template>
             <a-button v-if="isAdminRole(role)" type="link" danger size="small" @click="handleDelete(item.id)">Xóa</a-button>
@@ -80,10 +93,28 @@
         </a-list-item>
       </template>
     </a-list>
+    <a-pagination
+      v-if="tablePagination.total > 0"
+      class="consumables-mobile-pagination"
+      :current="tablePagination.current"
+      :page-size="tablePagination.pageSize"
+      :total="tablePagination.total"
+      :show-size-changer="true"
+      :page-size-options="tablePagination.pageSizeOptions"
+      @change="handleMobilePageChange"
+      @showSizeChange="handleMobilePageChange"
+    />
     <a-empty v-else-if="!loading" class="consumables-mobile-empty" description="Chưa có vật tư" />
 
     <a-modal v-model:open="isFormVisible" :title="isEditMode ? 'Sửa vật tư' : 'Thêm vật tư'" @ok="submitForm" @cancel="isFormVisible = false" okText="Lưu" cancelText="Hủy" :confirmLoading="submitting" width="800px" wrapClassName="responsive-modal">
       <a-form layout="vertical">
+        <a-alert
+          v-if="isEditMode"
+          type="info"
+          show-icon
+          message="Số lượng tồn và thông tin nhập kho được điều chỉnh trong chức năng Quản lý lô."
+          style="margin-bottom: 16px"
+        />
         <a-row :gutter="16">
           <a-col :xs="24" :sm="12">
             <a-form-item label="Mã vật tư">
@@ -108,8 +139,8 @@
             </a-form-item>
           </a-col>
           <a-col :xs="24" :sm="12">
-            <a-form-item label="Số lượng hiện có" required>
-              <a-input-number v-model:value="formData.quantity" style="width: 100%" :min="0" />
+            <a-form-item :label="isEditMode ? 'Tổng tồn kho' : 'Số lượng nhập ban đầu'" required>
+              <a-input-number v-model:value="formData.quantity" style="width: 100%" :min="0" :disabled="isEditMode" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :sm="12">
@@ -122,21 +153,21 @@
               <a-input v-model:value="formData.responsiblePerson" />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :sm="12">
+          <a-col v-if="!isEditMode" :xs="24" :sm="12">
             <a-form-item label="Ngày nhập">
               <a-date-picker v-model:value="formData.entryDate" style="width: 100%" />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :sm="12">
+          <a-col v-if="!isEditMode" :xs="24" :sm="12">
             <a-form-item label="Số hóa đơn">
               <a-input v-model:value="formData.invoiceNumber" />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :sm="12"><a-form-item label="Nhà cung cấp"><a-input v-model:value="formData.supplier" /></a-form-item></a-col>
-          <a-col :xs="24" :sm="12"><a-form-item label="Giá nhập mỗi đơn vị"><a-input-number v-model:value="formData.unitCost" :min="0" style="width: 100%" /></a-form-item></a-col>
-          <a-col :xs="24" :sm="12"><a-form-item label="Vị trí lưu"><a-input v-model:value="formData.storageLocation" /></a-form-item></a-col>
-          <a-col :xs="24" :sm="12"><a-form-item label="Số lô"><a-input v-model:value="formData.lotNumber" /></a-form-item></a-col>
-          <a-col :xs="24" :sm="12"><a-form-item label="Hạn sử dụng"><a-date-picker v-model:value="formData.expiryDate" style="width: 100%" /></a-form-item></a-col>
+          <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Nhà cung cấp"><a-input v-model:value="formData.supplier" /></a-form-item></a-col>
+          <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Giá nhập mỗi đơn vị"><a-input-number v-model:value="formData.unitCost" :min="0" style="width: 100%" /></a-form-item></a-col>
+          <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Vị trí lưu"><a-input v-model:value="formData.storageLocation" /></a-form-item></a-col>
+          <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Số lô"><a-input v-model:value="formData.lotNumber" placeholder="Bắt buộc khi có số lượng" /></a-form-item></a-col>
+          <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Hạn sử dụng"><a-date-picker v-model:value="formData.expiryDate" style="width: 100%" /></a-form-item></a-col>
         </a-row>
       </a-form>
     </a-modal>
@@ -190,11 +221,76 @@
         </template>
       </a-table>
     </a-modal>
+
+    <a-modal
+      v-model:open="isLotsVisible"
+      :title="`Quản lý lô: ${currentLotConsumable?.name || ''}`"
+      width="980px"
+      :footer="null"
+      @cancel="isLotsVisible = false"
+    >
+      <div class="lot-toolbar">
+        <div>
+          Tổng tồn: <strong>{{ currentLotConsumable?.quantity || 0 }}</strong>
+          <span v-if="currentLotConsumable?.reservedQuantity" class="reserved-stock">
+            · Đang giữ: {{ currentLotConsumable.reservedQuantity }}
+          </span>
+        </div>
+        <a-button type="primary" @click="showAddLotModal">+ Nhập lô mới</a-button>
+      </div>
+      <a-table
+        :dataSource="lotData"
+        :columns="lotColumns"
+        :loading="lotsLoading"
+        rowKey="id"
+        size="small"
+        bordered
+        :pagination="lotPagination"
+        :scroll="{ x: 900 }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'entryDate'">{{ formatDate(record.entryDate) }}</template>
+          <template v-else-if="column.key === 'expiryDate'">
+            <a-tag :color="record.isExpired ? 'red' : 'default'">
+              {{ record.expiryDate ? formatDate(record.expiryDate) : 'Không áp dụng' }}
+            </a-tag>
+          </template>
+          <template v-else-if="column.key === 'unitCost'">{{ formatCurrency(record.unitCost) }}</template>
+          <template v-else-if="column.key === 'action'">
+            <a-button type="link" size="small" @click="showEditLotModal(record)">Điều chỉnh</a-button>
+          </template>
+        </template>
+      </a-table>
+    </a-modal>
+
+    <a-modal
+      v-model:open="isLotFormVisible"
+      :title="isLotEditMode ? 'Điều chỉnh lô vật tư' : 'Nhập lô vật tư mới'"
+      okText="Lưu"
+      cancelText="Hủy"
+      :confirmLoading="lotSubmitting"
+      @ok="submitLotForm"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="Số lô" required><a-input v-model:value="lotForm.lotNumber" /></a-form-item>
+        <a-form-item :label="isLotEditMode ? 'Số lượng còn lại' : 'Số lượng nhập'" required>
+          <a-input-number v-model:value="lotForm.quantity" :min="isLotEditMode ? 0 : 1" :precision="0" style="width: 100%" />
+        </a-form-item>
+        <a-row :gutter="12">
+          <a-col :span="12"><a-form-item label="Ngày nhập"><a-date-picker v-model:value="lotForm.entryDate" style="width: 100%" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="Hạn sử dụng"><a-date-picker v-model:value="lotForm.expiryDate" style="width: 100%" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="Nhà cung cấp"><a-input v-model:value="lotForm.supplier" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="Số hóa đơn"><a-input v-model:value="lotForm.invoiceNumber" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="Đơn giá"><a-input-number v-model:value="lotForm.unitCost" :min="0" style="width: 100%" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="Vị trí lưu"><a-input v-model:value="lotForm.storageLocation" /></a-form-item></a-col>
+        </a-row>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import { consumableApi } from '../api/consumableApi'
@@ -202,12 +298,19 @@ import { consumableRequestApi } from '../api/consumableRequestApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole, isBorrowerRole, isManagerRole } from '../constants/business'
-import { EditOutlined, DeleteOutlined, EyeOutlined, HistoryOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
-import { createTablePagination } from '../utils/tablePagination'
+import { DatabaseOutlined, DeleteOutlined, EditOutlined, HistoryOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
+import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import { getApiErrorMessage } from '../utils/apiError'
+import { formatVietnamDate, formatVietnamDateTime as formatVietnamDateTimeValue } from '../utils/dateTime'
 
-const tablePagination = createTablePagination()
-const mobilePagination = createTablePagination({ position: 'bottom' })
+const tablePagination = reactive({
+  ...createTablePagination(),
+  current: 1,
+  pageSize: TABLE_PAGE_SIZE,
+  total: 0
+})
 const historyPagination = createTablePagination()
+const lotPagination = createTablePagination()
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -216,28 +319,46 @@ const dataSource = ref([])
 const categories = ref([])
 const loading = ref(false)
 const submitting = ref(false)
+const searchQuery = ref('')
+const stockFilter = ref(undefined)
 
-const columns = computed(() => [
+const columns = computed(() => {
+  const commonColumns = [
   { title: 'Mã vật tư', dataIndex: 'code', key: 'code', fixed: 'left', width: 150 },
   { title: 'Tên vật tư', dataIndex: 'name', key: 'name', fixed: 'left', width: 240 },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100 },
   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 110 },
-  { title: 'Tồn tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', align: 'center', width: 120 },
-  { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 },
-  { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', width: 120 },
-  { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 },
-  { title: 'Nhà cung cấp', dataIndex: 'supplier', key: 'supplier', width: 160 },
-  { title: 'Hạn sử dụng', dataIndex: 'expiryDate', key: 'expiryDate', width: 120 },
+  { title: 'Tồn tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', align: 'center', width: 120 }
+  ]
+  const managerColumns = isManagerRole(role.value) ? [
+    { title: 'Đang giữ', dataIndex: 'reservedQuantity', key: 'reservedQuantity', align: 'center', width: 100 },
+    { title: 'Số lô', dataIndex: 'lotCount', key: 'lotCount', align: 'center', width: 90 },
+    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 }
+  ] : []
+  return [...commonColumns, ...managerColumns,
   { title: 'Trạng thái', key: 'status', align: 'center', width: 120 },
   { 
     title: 'Hành động', 
     key: 'action', 
     align: 'center', 
     fixed: 'right', 
-    width: isAdminRole(role.value) ? 140 : (isManagerRole(role.value) ? 100 : 70) 
+    width: isAdminRole(role.value) ? 170 : (isManagerRole(role.value) ? 140 : 70)
   }
-])
+  ]
+})
+
+const lotColumns = [
+  { title: 'Số lô', dataIndex: 'lotNumber', key: 'lotNumber', fixed: 'left', width: 150 },
+  { title: 'Ban đầu', dataIndex: 'initialQuantity', key: 'initialQuantity', align: 'center', width: 90 },
+  { title: 'Còn lại', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 90 },
+  { title: 'Ngày nhập', key: 'entryDate', width: 115 },
+  { title: 'Hạn sử dụng', key: 'expiryDate', width: 135 },
+  { title: 'Nhà cung cấp', dataIndex: 'supplier', key: 'supplier', width: 160 },
+  { title: 'Đơn giá', key: 'unitCost', width: 120 },
+  { title: 'Vị trí', dataIndex: 'storageLocation', key: 'storageLocation', width: 140 },
+  { title: 'Hành động', key: 'action', fixed: 'right', align: 'center', width: 110 }
+]
 
 const historyColumns = [
   { title: 'Thời gian', dataIndex: 'createdAt', key: 'createdAt', width: 150 },
@@ -278,6 +399,26 @@ const isHistoryVisible = ref(false)
 const historyLoading = ref(false)
 const historyData = ref([])
 const currentHistoryConsumable = ref(null)
+const isLotsVisible = ref(false)
+const lotsLoading = ref(false)
+const lotData = ref([])
+const currentLotConsumable = ref(null)
+const isLotFormVisible = ref(false)
+const isLotEditMode = ref(false)
+const currentLotId = ref(null)
+const lotSubmitting = ref(false)
+
+const emptyLotForm = () => ({
+  lotNumber: '',
+  quantity: 1,
+  entryDate: dayjs(),
+  expiryDate: null,
+  supplier: '',
+  invoiceNumber: '',
+  unitCost: null,
+  storageLocation: ''
+})
+const lotForm = ref(emptyLotForm())
 
 onMounted(() => {
   fetchData()
@@ -295,7 +436,14 @@ const fetchCategories = async () => {
 const fetchData = async () => {
   loading.value = true
   try {
-    dataSource.value = await consumableApi.getAll() || []
+    const response = await consumableApi.getPaged({
+      page: tablePagination.current,
+      pageSize: tablePagination.pageSize,
+      search: searchQuery.value.trim() || undefined,
+      status: stockFilter.value
+    })
+    dataSource.value = response.items || []
+    tablePagination.total = response.total || 0
   } catch {
     message.error('Lỗi khi tải danh sách vật tư!')
   } finally {
@@ -340,9 +488,112 @@ const showHistoryModal = async (record) => {
   }
 }
 
-const formatDateTime = (value) => {
-  return value ? new Date(value).toLocaleString('vi-VN') : ''
+const fetchLots = async () => {
+  if (!currentLotConsumable.value) return
+  lotsLoading.value = true
+  try {
+    lotData.value = await consumableApi.getLots(currentLotConsumable.value.id) || []
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không tải được danh sách lô vật tư.'))
+  } finally {
+    lotsLoading.value = false
+  }
 }
+
+const applyFilters = () => {
+  tablePagination.current = 1
+  fetchData()
+}
+
+const handleTableChange = (pager) => {
+  tablePagination.current = pager.pageSize === tablePagination.pageSize ? pager.current : 1
+  tablePagination.pageSize = pager.pageSize
+  fetchData()
+}
+
+const handleMobilePageChange = (page, pageSize) => {
+  tablePagination.current = pageSize === tablePagination.pageSize ? page : 1
+  tablePagination.pageSize = pageSize
+  fetchData()
+}
+
+const showLotsModal = async record => {
+  currentLotConsumable.value = record
+  isLotsVisible.value = true
+  await fetchLots()
+}
+
+const showAddLotModal = () => {
+  isLotEditMode.value = false
+  currentLotId.value = null
+  lotForm.value = {
+    ...emptyLotForm(),
+    supplier: currentLotConsumable.value?.supplier || '',
+    storageLocation: currentLotConsumable.value?.storageLocation || ''
+  }
+  isLotFormVisible.value = true
+}
+
+const showEditLotModal = record => {
+  isLotEditMode.value = true
+  currentLotId.value = record.id
+  lotForm.value = {
+    lotNumber: record.lotNumber,
+    quantity: record.quantity,
+    entryDate: record.entryDate ? dayjs(record.entryDate) : dayjs(),
+    expiryDate: record.expiryDate ? dayjs(record.expiryDate) : null,
+    supplier: record.supplier || '',
+    invoiceNumber: record.invoiceNumber || '',
+    unitCost: record.unitCost,
+    storageLocation: record.storageLocation || ''
+  }
+  isLotFormVisible.value = true
+}
+
+const submitLotForm = async () => {
+  if (!lotForm.value.lotNumber?.trim() || lotForm.value.quantity === null || lotForm.value.quantity === undefined) {
+    message.warning('Vui lòng nhập số lô và số lượng hợp lệ.')
+    return
+  }
+  if (!isLotEditMode.value && lotForm.value.quantity <= 0) {
+    message.warning('Số lượng nhập phải lớn hơn 0.')
+    return
+  }
+
+  const payload = {
+    ...lotForm.value,
+    lotNumber: lotForm.value.lotNumber.trim(),
+    entryDate: lotForm.value.entryDate ? lotForm.value.entryDate.toISOString() : null,
+    expiryDate: lotForm.value.expiryDate ? lotForm.value.expiryDate.toISOString() : null
+  }
+  lotSubmitting.value = true
+  try {
+    if (isLotEditMode.value) {
+      await consumableApi.updateLot(currentLotConsumable.value.id, currentLotId.value, payload)
+      message.success('Đã điều chỉnh lô và đồng bộ tổng tồn kho.')
+    } else {
+      await consumableApi.addLot(currentLotConsumable.value.id, payload)
+      message.success('Đã nhập lô mới và cộng tồn kho.')
+    }
+    isLotFormVisible.value = false
+    await fetchData()
+    currentLotConsumable.value = dataSource.value.find(item => item.id === currentLotConsumable.value.id) || currentLotConsumable.value
+    await fetchLots()
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể lưu thông tin lô vật tư.'))
+  } finally {
+    lotSubmitting.value = false
+  }
+}
+
+const formatDateTime = (value) => {
+  return formatVietnamDateTimeValue(value, '')
+}
+
+const formatDate = value => formatVietnamDate(value)
+const formatCurrency = value => value === null || value === undefined
+  ? '—'
+  : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
 
 const getTransactionColor = (type) => {
   if (type === 'Nhập kho') return 'green'
@@ -426,14 +677,29 @@ const handleDelete = (id) => {
 <style scoped>
 .table-actions {
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
+.left-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
 .consumables-mobile-list,
-.consumables-mobile-empty {
+.consumables-mobile-empty,
+.consumables-mobile-pagination {
   display: none;
 }
+
+.lot-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.reserved-stock { color: #b45309; }
 
 .consumables-desktop-table :deep(.ant-table-cell) {
   white-space: normal;
@@ -501,6 +767,15 @@ const handleDelete = (id) => {
   .consumables-mobile-empty {
     display: block;
   }
+
+  .consumables-mobile-pagination {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+  }
+
+  .table-actions { align-items: stretch; flex-direction: column; }
+  .left-actions > * { width: 100% !important; }
 }
 
 @media (max-width: 420px) {

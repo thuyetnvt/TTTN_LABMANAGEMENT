@@ -1,0 +1,135 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env.production}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lab_management}
+      MYSQL_USER: ${MYSQL_USER:-lab_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env.production}
+      TZ: Asia/Ho_Chi_Minh
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    expose:
+      - "3306"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -u root -p"$${MYSQL_ROOT_PASSWORD}" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      lab_internal:
+        ipv4_address: 172.30.1.30
+
+  backend:
+    build:
+      context: ./lab-backend
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Server=db;Port=3306;Database=${MYSQL_DATABASE:-lab_management};Uid=${MYSQL_USER:-lab_app};Pwd=${MYSQL_PASSWORD};CharSet=utf8mb4;
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env.production}
+      Jwt__Issuer: LabManagementAPI
+      Jwt__Audience: LabManagementApp
+      Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-30}
+      App__FrontendBaseUrl: https://${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
+      Cors__AllowedOrigins__0: https://${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
+      AllowedHosts: ${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
+      Email__Host: ${SMTP_HOST:-}
+      Email__Port: ${SMTP_PORT:-587}
+      Email__UseStartTls: ${SMTP_USE_STARTTLS:-true}
+      Email__Username: ${SMTP_USERNAME:-}
+      Email__Password: ${SMTP_PASSWORD:-}
+      Email__FromEmail: ${SMTP_FROM_EMAIL:-}
+      Email__FromName: ${SMTP_FROM_NAME:-Lab Management}
+      Automation__Enabled: ${AUTOMATION_ENABLED:-true}
+      Automation__PollMinutes: ${AUTOMATION_POLL_MINUTES:-5}
+      Automation__ReturnReminderDaysBefore: ${RETURN_REMINDER_DAYS_BEFORE:-3}
+      Automation__SendEmailReminders: ${AUTOMATION_SEND_EMAIL_REMINDERS:-false}
+      Automation__EmailMaxAttempts: ${AUTOMATION_EMAIL_MAX_ATTEMPTS:-3}
+      Automation__EmailRetryMinutes: ${AUTOMATION_EMAIL_RETRY_MINUTES:-60}
+      Database__ApplyMigrations: ${APPLY_MIGRATIONS:-true}
+      Seed__Enabled: "false"
+      Seed__DefaultPassword: ${SEED_DEFAULT_PASSWORD:?Set SEED_DEFAULT_PASSWORD in .env.production}
+      ForwardedHeaders__TrustAll: "false"
+      ForwardedHeaders__KnownProxies__0: "172.30.1.40"
+      Security__UseHttpsRedirection: "true"
+      Security__RequireEncryptedDataProtectionKeys: "true"
+      Security__DataProtectionCertificatePath: /run/secrets/data-protection.pfx
+      Security__DataProtectionCertificatePassword: ${DATA_PROTECTION_CERTIFICATE_PASSWORD:?Set DATA_PROTECTION_CERTIFICATE_PASSWORD in .env.production}
+      Storage__Provider: ${STORAGE_PROVIDER:-Local}
+      Storage__S3__ServiceUrl: ${STORAGE_S3_SERVICE_URL:-}
+      Storage__S3__BucketName: ${STORAGE_S3_BUCKET_NAME:-}
+      Storage__S3__Region: ${STORAGE_S3_REGION:-us-east-1}
+      Storage__S3__AccessKey: ${STORAGE_S3_ACCESS_KEY:-}
+      Storage__S3__SecretKey: ${STORAGE_S3_SECRET_KEY:-}
+      Storage__S3__ForcePathStyle: ${STORAGE_S3_FORCE_PATH_STYLE:-true}
+      Storage__S3__KeyPrefix: ${STORAGE_S3_KEY_PREFIX:-labmanagement}
+    volumes:
+      - equipment_uploads:/app/uploads
+      - backend_data_protection_v2:/app/data-protection-keys
+      - ${DATA_PROTECTION_PFX_PATH:?Set DATA_PROTECTION_PFX_PATH in .env.production}:/run/secrets/data-protection.pfx:ro
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      lab_internal:
+        ipv4_address: 172.30.1.20
+
+  frontend:
+    build:
+      context: ./lab-frontend
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_SIGNALR_URL: /notificationHub
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      lab_internal:
+        ipv4_address: 172.30.1.10
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      lab_internal:
+        ipv4_address: 172.30.1.40
+
+volumes:
+  mysql_data:
+  equipment_uploads:
+  backend_data_protection_v2:
+  caddy_data:
+  caddy_config:
+
+networks:
+  lab_internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.1.0/24

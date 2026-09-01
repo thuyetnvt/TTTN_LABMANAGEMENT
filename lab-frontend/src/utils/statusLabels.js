@@ -9,6 +9,7 @@ const equipmentLabels = Object.freeze({
   RETURNED: 'Đã trả',
   RETURNED_DAMAGED: 'Đã trả (hỏng)',
   BROKEN: 'Hỏng',
+  MISSING: 'Thất lạc',
   UNDER_WARRANTY: 'Bảo hành',
   MAINTENANCE_IN_PROGRESS: 'Đang bảo trì',
   MAINTENANCE_COMPLETED: 'Đã bảo trì'
@@ -46,6 +47,7 @@ const inventoryLabels = Object.freeze({
   MISSING: 'Thất lạc',
   PENDING: 'Chưa kiểm kê',
   INVENTORY_OPEN: 'Đang kiểm kê',
+  INVENTORY_REVIEWING: 'Đang đối soát',
   INVENTORY_COMPLETED: 'Đã kết thúc',
   INVENTORY_FOUND: 'Đã tìm thấy',
   INVENTORY_WRONG_LOCATION: 'Sai vị trí',
@@ -57,10 +59,16 @@ const inventoryLabels = Object.freeze({
 const consumableRequestLabels = Object.freeze({
   PENDING: 'Chờ xử lý',
   PROCESSING: 'Đang xử lý',
+  APPROVED: 'Đã duyệt, chờ bàn giao',
+  HANDED_OVER: 'Đã bàn giao, chờ xác nhận',
+  RECEIVED: 'Đã nhận vật tư',
   ISSUED: 'Đã cấp phát',
   REJECTED: 'Từ chối',
   CONSUMABLE_PENDING: 'Chờ xử lý',
   CONSUMABLE_PROCESSING: 'Đang xử lý',
+  CONSUMABLE_APPROVED: 'Đã duyệt, chờ bàn giao',
+  CONSUMABLE_HANDED_OVER: 'Đã bàn giao, chờ xác nhận',
+  CONSUMABLE_RECEIVED: 'Đã nhận vật tư',
   CONSUMABLE_ISSUED: 'Đã cấp phát'
 })
 
@@ -89,9 +97,10 @@ export const getReturnConditionLabel = status => displayLabel(returnConditionLab
 
 export const getStatusColor = status => {
   const normalized = normalizeStatus(status)
-  if (normalized === 'AVAILABLE' || normalized === 'RETURNED' || normalized === 'MAINTENANCE_COMPLETED') return 'green'
+  if (normalized === 'AVAILABLE' || normalized === 'RETURNED' || normalized === 'MAINTENANCE_COMPLETED' || normalized === 'CONSUMABLE_RECEIVED') return 'green'
   if (normalized === 'BORROWED' || normalized === 'MAINTENANCE_IN_PROGRESS' || normalized === 'RETURN_PROCESSING') return 'blue'
-  if (normalized === 'COMPLETED' || normalized === 'APPROVED') return 'green'
+  if (normalized === 'COMPLETED' || normalized === 'APPROVED' || normalized === 'CONSUMABLE_APPROVED') return 'cyan'
+  if (normalized === 'CONSUMABLE_HANDED_OVER') return 'purple'
   if (normalized === 'UNDER_WARRANTY') return 'gold'
   if (normalized === 'BROKEN' || normalized === 'RETURNED_DAMAGED' || normalized === 'REJECTED') return 'red'
   if (normalized.includes('PENDING') || normalized === 'PENDING') return 'orange'

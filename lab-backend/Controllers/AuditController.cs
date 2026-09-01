@@ -24,12 +24,13 @@ public class AuditController : ControllerBase
         [FromQuery] int pageSize = 50,
         [FromQuery] string? action = null,
         [FromQuery] string? entityType = null,
+        [FromQuery] string? search = null,
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
         CancellationToken cancellationToken = default)
     {
         page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 200);
+        pageSize = Math.Clamp(pageSize, 1, 100);
 
         var query = _context.AuditLogs.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(action))
@@ -40,13 +41,23 @@ public class AuditController : ControllerBase
         {
             query = query.Where(log => log.EntityType == entityType.Trim());
         }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var keyword = search.Trim();
+            query = query.Where(log =>
+                log.Username.Contains(keyword)
+                || log.Action.Contains(keyword)
+                || log.EntityType.Contains(keyword)
+                || log.EntityId.Contains(keyword));
+        }
         if (from.HasValue)
         {
             query = query.Where(log => log.CreatedAt >= from.Value);
         }
         if (to.HasValue)
         {
-            query = query.Where(log => log.CreatedAt <= to.Value);
+            var exclusiveTo = to.Value.Date.AddDays(1);
+            query = query.Where(log => log.CreatedAt < exclusiveTo);
         }
 
         var total = await query.CountAsync(cancellationToken);
@@ -56,6 +67,7 @@ public class AuditController : ControllerBase
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        return Ok(new { page, pageSize, total, items });
+        var totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)pageSize);
+        return Ok(new { page, pageSize, total, totalPages, items });
     }
 }

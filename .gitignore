@@ -1,4 +1,10 @@
 .env
+.env.production
+.env.local
+*.pfx
+*.p12
+**/data-protection-keys/
+secrets/
 **/appsettings.Development.json
 **/bin/
 **/obj/

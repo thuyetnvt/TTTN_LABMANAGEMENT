@@ -35,9 +35,12 @@ if ($LASTEXITCODE -ne 0) { throw "Restore volume upload thất bại." }
 if (-not [string]::IsNullOrWhiteSpace($DataProtectionArchive)) {
     if (-not (Test-Path -LiteralPath $DataProtectionArchive)) { throw "Không tìm thấy archive Data Protection." }
     if ([string]::IsNullOrWhiteSpace($DataProtectionVolume)) {
-        $DataProtectionVolume = (& docker volume ls --format '{{.Name}}' | Where-Object { $_ -match 'backend_data_protection$' } | Select-Object -First 1)
+        $DataProtectionVolume = (& docker volume ls --format '{{.Name}}' |
+            Where-Object { $_ -match 'backend_data_protection(?:_v\d+)?$' } |
+            Sort-Object -Descending |
+            Select-Object -First 1)
     }
-    if ([string]::IsNullOrWhiteSpace($DataProtectionVolume)) { throw "Không tìm thấy volume backend_data_protection. Hãy truyền -DataProtectionVolume." }
+    if ([string]::IsNullOrWhiteSpace($DataProtectionVolume)) { throw "Không tìm thấy volume Data Protection. Hãy truyền -DataProtectionVolume." }
     $dataProtectionDirectory = (Resolve-Path (Split-Path -Parent $DataProtectionArchive)).Path.Replace('\', '/')
     $dataProtectionName = Split-Path $DataProtectionArchive -Leaf
     Write-Host "Restore volume Data Protection $DataProtectionVolume"

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using LabManagementAPI.Data;
+using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -58,6 +59,64 @@ public class PenaltyController : ControllerBase
             penalty.CreatedAt,
             penalty.PaidAt
         }));
+    }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPenaltiesPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var query = _context.Penalties
+            .AsNoTracking()
+            .Include(penalty => penalty.User)
+            .Include(penalty => penalty.Equipment)
+            .AsQueryable();
+        if (role is Roles.Student or Roles.Teacher)
+        {
+            query = query.Where(penalty => penalty.UserId == userId);
+        }
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(penalty =>
+                penalty.User!.Username.Contains(search)
+                || penalty.User.FullName.Contains(search)
+                || penalty.Equipment!.Name.Contains(search)
+                || penalty.Reason.Contains(search));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            query = query.Where(penalty => penalty.Status == status);
+        }
+        if (paging.From.HasValue) query = query.Where(penalty => penalty.CreatedAt >= paging.From.Value);
+        if (paging.To.HasValue)
+        {
+            var exclusiveTo = paging.To.Value.Date.AddDays(1);
+            query = query.Where(penalty => penalty.CreatedAt < exclusiveTo);
+        }
+
+        var page = await query
+            .OrderByDescending(penalty => penalty.CreatedAt)
+            .ThenByDescending(penalty => penalty.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+        var items = page.Items.Select(penalty => (object)new
+        {
+            penalty.Id,
+            penalty.UserId,
+            Username = penalty.User?.Username,
+            penalty.EquipmentId,
+            EquipmentName = penalty.Equipment?.Name,
+            penalty.BorrowRecordId,
+            penalty.Reason,
+            penalty.Amount,
+            penalty.Status,
+            penalty.CreatedAt,
+            penalty.PaidAt
+        }).ToList();
+        return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
     }
 
     [HttpPut("{id:int}/pay")]

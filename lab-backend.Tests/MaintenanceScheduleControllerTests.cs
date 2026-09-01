@@ -40,6 +40,7 @@ public sealed class MaintenanceScheduleControllerTests
     public async Task Generate_creates_maintenance_record_and_advances_next_due_date()
     {
         await using var context = CreateContext();
+        var originalDueAt = DateTime.UtcNow.AddDays(-1);
         context.Equipments.Add(new Equipment
         {
             Id = 1,
@@ -56,7 +57,7 @@ public sealed class MaintenanceScheduleControllerTests
             EquipmentId = 1,
             Name = "Kiểm tra định kỳ",
             IntervalDays = 30,
-            NextDueAt = DateTime.UtcNow.AddDays(-1),
+            NextDueAt = originalDueAt,
             CreatedByUserId = 7
         });
         await context.SaveChangesAsync();
@@ -71,7 +72,8 @@ public sealed class MaintenanceScheduleControllerTests
         Assert.Equal(MaintenanceStatuses.InProgress, record.Status);
         Assert.Equal(EquipmentStatuses.MaintenanceInProgress, equipment.Status);
         Assert.NotNull(schedule.LastGeneratedAt);
-        Assert.True(schedule.NextDueAt > DateTime.UtcNow.AddDays(29));
+        Assert.Equal(originalDueAt.AddDays(30), schedule.NextDueAt);
+        Assert.True(schedule.NextDueAt > DateTime.UtcNow);
     }
 
     [Fact]

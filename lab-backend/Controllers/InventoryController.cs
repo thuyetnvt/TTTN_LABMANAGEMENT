@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using LabManagementAPI.Data;
+using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -57,6 +58,15 @@ public class InventoryController : ControllerBase
         public string Note { get; set; } = string.Empty;
     }
 
+    public sealed class ReviewInventoryItemDto
+    {
+        [Required, MaxLength(50)]
+        public string Resolution { get; set; } = string.Empty;
+
+        [MaxLength(2000)]
+        public string Note { get; set; } = string.Empty;
+    }
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<object>>> GetSessions(CancellationToken cancellationToken)
     {
@@ -74,33 +84,59 @@ public class InventoryController : ControllerBase
             session.Status,
             session.StartedAt,
             session.CompletedAt,
+            session.LocationNodeId,
             total = session.Items.Count,
             found = session.Items.Count(item => item.Status == InventoryItemStatuses.Found),
             wrongLocation = session.Items.Count(item => item.Status == InventoryItemStatuses.WrongLocation),
             damaged = session.Items.Count(item => item.Status == InventoryItemStatuses.Damaged),
             missing = session.Items.Count(item => item.Status == InventoryItemStatuses.Missing),
-            pending = session.Items.Count(item => item.Status == InventoryItemStatuses.Pending)
+            pending = session.Items.Count(item => item.Status == InventoryItemStatuses.Pending),
+            unreviewed = session.Items.Count(item => item.Status != InventoryItemStatuses.Found && item.ReviewedAt == null)
         }));
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<object>> GetSession(int id, CancellationToken cancellationToken)
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetSessionsPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
     {
-        var session = await _context.InventorySessions
+        var query = _context.InventorySessions
             .AsNoTracking()
-            .Include(item => item.LocationNode)
-            .Include(item => item.AssetCategory)
-            .Include(item => item.Items)
-                .ThenInclude(item => item.Equipment)
-            .Include(item => item.Items)
-                .ThenInclude(item => item.InventoryItemEvidence)
-            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
-        if (session is null)
+            .Include(session => session.Items)
+            .AsQueryable();
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
         {
-            return NotFound(new { message = "Không tìm thấy đợt kiểm kê." });
+            query = query.Where(session => session.Code.Contains(search) || session.Name.Contains(search));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            query = query.Where(session => session.Status == status);
+        }
+        if (paging.LocationNodeId.HasValue)
+        {
+            query = query.Where(session => session.LocationNodeId == paging.LocationNodeId.Value);
+        }
+        if (paging.CategoryId.HasValue)
+        {
+            query = query.Where(session => session.AssetCategoryId == paging.CategoryId.Value);
+        }
+        if (paging.From.HasValue)
+        {
+            query = query.Where(session => session.StartedAt >= paging.From.Value);
+        }
+        if (paging.To.HasValue)
+        {
+            var exclusiveTo = paging.To.Value.Date.AddDays(1);
+            query = query.Where(session => session.StartedAt < exclusiveTo);
         }
 
-        return Ok(new
+        var page = await query
+            .OrderByDescending(session => session.StartedAt)
+            .ThenByDescending(session => session.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+        var items = page.Items.Select(session => (object)new
         {
             session.Id,
             session.Code,
@@ -108,31 +144,116 @@ public class InventoryController : ControllerBase
             session.Status,
             session.StartedAt,
             session.CompletedAt,
-            locationName = session.LocationNode?.Name,
-            categoryName = session.AssetCategory?.Name,
-            items = session.Items.OrderBy(item => item.Equipment!.Name).Select(item => new
+            session.LocationNodeId,
+            total = session.Items.Count,
+            found = session.Items.Count(item => item.Status == InventoryItemStatuses.Found),
+            wrongLocation = session.Items.Count(item => item.Status == InventoryItemStatuses.WrongLocation),
+            damaged = session.Items.Count(item => item.Status == InventoryItemStatuses.Damaged),
+            missing = session.Items.Count(item => item.Status == InventoryItemStatuses.Missing),
+            pending = session.Items.Count(item => item.Status == InventoryItemStatuses.Pending),
+            unreviewed = session.Items.Count(item => item.Status != InventoryItemStatuses.Found && item.ReviewedAt == null)
+        }).ToList();
+        return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<object>> GetSession(int id, CancellationToken cancellationToken)
+    {
+        var session = await _context.InventorySessions
+            .AsNoTracking()
+            .Where(item => item.Id == id)
+            .Select(item => new
             {
                 item.Id,
-                item.EquipmentId,
-                assetCode = item.Equipment!.AssetCode,
-                qrToken = item.Equipment.QrToken,
-                equipmentName = item.Equipment.Name,
-                serial = item.Equipment.Serial,
-                expectedLocation = item.ExpectedLocationName,
+                item.Code,
+                item.Name,
                 item.Status,
-                item.ScannedAt,
-                item.Note,
-                evidence = item.InventoryItemEvidence.OrderByDescending(evidence => evidence.UploadedAt).Select(evidence => new
-                {
-                    evidence.Id,
-                    evidence.EvidenceType,
-                    evidence.OriginalFileName,
-                    evidence.ContentType,
-                    evidence.FileSize,
-                    evidence.UploadedAt
-                })
+                item.StartedAt,
+                item.CompletedAt,
+                item.LocationNodeId,
+                item.AssetCategoryId,
+                locationName = item.LocationNode != null ? item.LocationNode.Name : null,
+                categoryName = item.AssetCategory != null ? item.AssetCategory.Name : null,
+                discrepancyCount = item.Items.Count(inventoryItem => inventoryItem.Status != InventoryItemStatuses.Found),
+                unreviewedCount = item.Items.Count(inventoryItem => inventoryItem.Status != InventoryItemStatuses.Found && inventoryItem.ReviewedAt == null),
+                canComplete = item.Status == InventoryStatuses.Reviewing
+                    && item.Items.All(inventoryItem => inventoryItem.Status == InventoryItemStatuses.Found || inventoryItem.ReviewedAt != null),
+                totalItems = item.Items.Count
             })
-        });
+            .SingleOrDefaultAsync(cancellationToken);
+        if (session is null)
+        {
+            return NotFound(new { message = "Không tìm thấy đợt kiểm kê." });
+        }
+
+        return Ok(session);
+    }
+
+    [HttpGet("{id:int}/items/paged")]
+    public async Task<IActionResult> GetSessionItemsPaged(
+        int id,
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        if (!await _context.InventorySessions.AsNoTracking().AnyAsync(item => item.Id == id, cancellationToken))
+        {
+            return NotFound(new { message = "Không tìm thấy đợt kiểm kê." });
+        }
+
+        var query = _context.InventoryItems
+            .AsNoTracking()
+            .Where(item => item.InventorySessionId == id)
+            .Include(item => item.Equipment)
+            .Include(item => item.ActualLocationNode)
+            .Include(item => item.InventoryItemEvidence)
+            .AsQueryable();
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(item =>
+                item.Equipment!.Name.Contains(search)
+                || item.Equipment.AssetCode.Contains(search)
+                || item.Equipment.Serial.Contains(search)
+                || item.ExpectedLocationName.Contains(search));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            query = query.Where(item => item.Status == status);
+        }
+
+        var page = await query
+            .OrderBy(item => item.Equipment!.Name)
+            .ThenBy(item => item.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+        var items = page.Items.Select(item => (object)new
+        {
+            item.Id,
+            item.EquipmentId,
+            assetCode = item.Equipment!.AssetCode,
+            qrToken = item.Equipment.QrToken,
+            equipmentName = item.Equipment.Name,
+            serial = item.Equipment.Serial,
+            expectedLocation = item.ExpectedLocationName,
+            item.ActualLocationNodeId,
+            actualLocation = item.ActualLocationNode?.Name,
+            item.Status,
+            item.ScannedAt,
+            item.Note,
+            item.ReviewResolution,
+            item.ReviewNote,
+            item.ReviewedAt,
+            evidence = item.InventoryItemEvidence.OrderByDescending(evidence => evidence.UploadedAt).Select(evidence => new
+            {
+                evidence.Id,
+                evidence.EvidenceType,
+                evidence.OriginalFileName,
+                evidence.ContentType,
+                evidence.FileSize,
+                evidence.UploadedAt
+            })
+        }).ToList();
+        return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
     }
 
     [HttpPost]
@@ -159,7 +280,14 @@ public class InventoryController : ControllerBase
             return BadRequest(new { message = "Danh mục kiểm kê không tồn tại." });
         }
 
-        var equipmentQuery = _context.Equipments.AsNoTracking().AsQueryable();
+        var equipmentQuery = _context.Equipments
+            .AsNoTracking()
+            .Where(item => item.Status != EquipmentStatuses.Borrowed
+                && item.Status != EquipmentStatuses.BorrowPending
+                && !_context.BorrowRecords.Any(record =>
+                    (record.Status == BorrowStatuses.Approved || record.Status == BorrowStatuses.Borrowed)
+                    && record.Details.Any(detail => detail.EquipmentId == item.Id)))
+            .AsQueryable();
         if (dto.LocationNodeId.HasValue)
         {
             equipmentQuery = equipmentQuery.Where(item => item.LocationNodeId == dto.LocationNodeId.Value);
@@ -254,15 +382,30 @@ public class InventoryController : ControllerBase
         {
             return BadRequest(new { message = "QR không thuộc phạm vi của đợt kiểm kê." });
         }
+        if (inventoryItem.Equipment!.Status is EquipmentStatuses.Borrowed or EquipmentStatuses.BorrowPending)
+        {
+            return Conflict(new { message = "Tài sản đang trong quy trình mượn và không được kiểm kê tại kho." });
+        }
 
         inventoryItem.Status = requestedStatus;
         if (dto.LocationNodeId.HasValue && dto.LocationNodeId.Value != inventoryItem.ExpectedLocationNodeId)
         {
             inventoryItem.Status = InventoryItemStatuses.WrongLocation;
         }
+        inventoryItem.ActualLocationNodeId = dto.LocationNodeId;
         inventoryItem.ScannedAt = DateTime.UtcNow;
         inventoryItem.ScannedByUserId = GetCurrentUserId();
         inventoryItem.Note = dto.Note;
+        inventoryItem.ReviewedAt = inventoryItem.Status == InventoryItemStatuses.Found
+            ? inventoryItem.ScannedAt
+            : null;
+        inventoryItem.ReviewedByUserId = inventoryItem.Status == InventoryItemStatuses.Found
+            ? inventoryItem.ScannedByUserId
+            : null;
+        inventoryItem.ReviewResolution = inventoryItem.Status == InventoryItemStatuses.Found
+            ? InventoryReviewResolutions.ConfirmedFound
+            : string.Empty;
+        inventoryItem.ReviewNote = string.Empty;
         inventoryItem.Equipment!.LastInventoryAt = inventoryItem.ScannedAt;
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.WriteAsync(
@@ -275,11 +418,12 @@ public class InventoryController : ControllerBase
         return Ok(new { message = "Đã ghi nhận kết quả quét QR.", inventoryItem.Status });
     }
 
-    [HttpPost("{id:int}/complete")]
-    public async Task<IActionResult> Complete(int id, CancellationToken cancellationToken)
+    [HttpPost("{id:int}/start-review")]
+    public async Task<IActionResult> StartReview(int id, CancellationToken cancellationToken)
     {
         var session = await _context.InventorySessions
             .Include(item => item.Items)
+                .ThenInclude(item => item.Equipment)
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (session is null)
         {
@@ -287,20 +431,182 @@ public class InventoryController : ControllerBase
         }
         if (session.Status != InventoryStatuses.Open)
         {
-            return Conflict(new { message = "Đợt kiểm kê đã kết thúc." });
+            return Conflict(new { message = "Chỉ đợt đang kiểm kê mới được chuyển sang đối soát." });
         }
 
-        foreach (var item in session.Items.Where(item => item.Status == InventoryItemStatuses.Pending))
+        var activeBorrowedEquipmentIds = await _context.BorrowRecords
+            .AsNoTracking()
+            .Where(record => record.Status == BorrowStatuses.Approved || record.Status == BorrowStatuses.Borrowed)
+            .SelectMany(record => record.Details.Select(detail => detail.EquipmentId))
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var excludedItems = session.Items
+            .Where(item => item.Equipment?.Status is EquipmentStatuses.Borrowed or EquipmentStatuses.BorrowPending
+                || activeBorrowedEquipmentIds.Contains(item.EquipmentId))
+            .ToList();
+        _context.InventoryItems.RemoveRange(excludedItems);
+
+        var activeItems = session.Items.Except(excludedItems).ToList();
+        var now = DateTime.UtcNow;
+        var reviewerId = GetCurrentUserId();
+        foreach (var item in activeItems)
         {
-            item.Status = InventoryItemStatuses.Missing;
+            if (item.Status == InventoryItemStatuses.Pending)
+            {
+                item.Status = InventoryItemStatuses.Missing;
+                item.ReviewedAt = null;
+                item.ReviewedByUserId = null;
+                item.ReviewResolution = string.Empty;
+            }
+            else if (item.Status == InventoryItemStatuses.Found)
+            {
+                item.ReviewedAt ??= now;
+                item.ReviewedByUserId ??= reviewerId;
+                item.ReviewResolution = InventoryReviewResolutions.ConfirmedFound;
+            }
         }
+        session.Status = InventoryStatuses.Reviewing;
+        await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.NotifyManagersAsync(
+            "INVENTORY_REVIEWING",
+            "Đợt kiểm kê chờ đối soát",
+            $"Đợt kiểm kê #{id} có {activeItems.Count(item => item.Status != InventoryItemStatuses.Found)} chênh lệch cần duyệt; đã loại {excludedItems.Count} tài sản đang mượn.",
+            $"/dashboard/inventory?session={id}",
+            cancellationToken);
+        await _auditService.WriteAsync(
+            HttpContext,
+            "StartReview",
+            nameof(InventorySession),
+            id,
+            new
+            {
+                Missing = activeItems.Count(item => item.Status == InventoryItemStatuses.Missing),
+                Discrepancies = activeItems.Count(item => item.Status != InventoryItemStatuses.Found),
+                ExcludedBorrowed = excludedItems.Count
+            },
+            cancellationToken);
+        return Ok(new
+        {
+            message = "Đã khóa quét và chuyển sang đối soát chênh lệch.",
+            excludedBorrowed = excludedItems.Count
+        });
+    }
+
+    [HttpPut("{sessionId:int}/items/{itemId:int}/review")]
+    public async Task<IActionResult> ReviewItem(
+        int sessionId,
+        int itemId,
+        [FromBody] ReviewInventoryItemDto dto,
+        CancellationToken cancellationToken)
+    {
+        dto.Resolution = dto.Resolution.Trim().ToUpperInvariant();
+        dto.Note = dto.Note.Trim();
+        var item = await _context.InventoryItems
+            .Include(value => value.InventorySession)
+            .Include(value => value.Equipment)
+            .Include(value => value.ActualLocationNode)
+            .SingleOrDefaultAsync(value => value.Id == itemId
+                && value.InventorySessionId == sessionId, cancellationToken);
+        if (item?.InventorySession is null)
+            return NotFound(new { message = "Không tìm thấy tài sản trong đợt kiểm kê." });
+        if (item.InventorySession.Status != InventoryStatuses.Reviewing)
+            return Conflict(new { message = "Đợt kiểm kê chưa ở bước đối soát." });
+        if (item.Equipment is null)
+            return Conflict(new { message = "Tài sản không còn tồn tại." });
+
+        var isInActiveBorrow = item.Equipment.Status is EquipmentStatuses.Borrowed or EquipmentStatuses.BorrowPending
+            || await _context.BorrowRecords.AsNoTracking().AnyAsync(record =>
+                (record.Status == BorrowStatuses.Approved || record.Status == BorrowStatuses.Borrowed)
+                && record.Details.Any(detail => detail.EquipmentId == item.EquipmentId),
+                cancellationToken);
+        if (isInActiveBorrow)
+        {
+            _context.InventoryItems.Remove(item);
+            await _context.SaveChangesAsync(cancellationToken);
+            return Ok(new { message = "Tài sản đã chuyển sang quy trình mượn nên được loại khỏi đợt kiểm kê." });
+        }
+
+        var validResolution = item.Status switch
+        {
+            InventoryItemStatuses.Found => dto.Resolution == InventoryReviewResolutions.ConfirmedFound,
+            InventoryItemStatuses.WrongLocation => dto.Resolution is InventoryReviewResolutions.UpdateLocation
+                or InventoryReviewResolutions.KeepRecordedLocation,
+            InventoryItemStatuses.Damaged => dto.Resolution == InventoryReviewResolutions.MarkDamaged,
+            InventoryItemStatuses.Missing => dto.Resolution == InventoryReviewResolutions.MarkMissing,
+            _ => false
+        };
+        if (!validResolution)
+            return BadRequest(new { message = "Cách xử lý không phù hợp với chênh lệch kiểm kê." });
+        if (dto.Resolution == InventoryReviewResolutions.UpdateLocation && item.ActualLocationNodeId is null)
+            return BadRequest(new { message = "Chưa có vị trí thực tế để cập nhật tài sản." });
+        if (dto.Resolution == InventoryReviewResolutions.KeepRecordedLocation && string.IsNullOrWhiteSpace(dto.Note))
+            return BadRequest(new { message = "Cần ghi rõ lý do giữ nguyên vị trí trên hệ thống." });
+
+        switch (dto.Resolution)
+        {
+            case InventoryReviewResolutions.UpdateLocation:
+                _context.EquipmentLocationHistories.Add(new EquipmentLocationHistory
+                {
+                    EquipmentId = item.Equipment.Id,
+                    FromLocationNodeId = item.Equipment.LocationNodeId,
+                    ToLocationNodeId = item.ActualLocationNodeId,
+                    FromLocationName = item.Equipment.Location,
+                    ToLocationName = item.ActualLocationNode?.Name ?? item.Equipment.Location,
+                    Reason = string.IsNullOrWhiteSpace(dto.Note)
+                        ? $"Điều chỉnh theo đợt kiểm kê {item.InventorySession.Code}."
+                        : dto.Note,
+                    ChangedByUserId = GetCurrentUserId(),
+                    ChangedAt = DateTime.UtcNow
+                });
+                item.Equipment.LocationNodeId = item.ActualLocationNodeId;
+                item.Equipment.Location = item.ActualLocationNode?.Name ?? item.Equipment.Location;
+                break;
+            case InventoryReviewResolutions.MarkDamaged:
+                item.Equipment.Status = EquipmentStatuses.Broken;
+                break;
+            case InventoryReviewResolutions.MarkMissing:
+                item.Equipment.Status = EquipmentStatuses.Missing;
+                break;
+        }
+
+        item.ReviewResolution = dto.Resolution;
+        item.ReviewNote = dto.Note;
+        item.ReviewedAt = DateTime.UtcNow;
+        item.ReviewedByUserId = GetCurrentUserId();
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(
+            HttpContext,
+            "Review",
+            nameof(InventoryItem),
+            item.Id,
+            new { item.InventorySessionId, item.EquipmentId, item.Status, item.ReviewResolution },
+            cancellationToken);
+        return Ok(new { message = "Đã duyệt chênh lệch và đồng bộ trạng thái tài sản." });
+    }
+
+    [HttpPost("{id:int}/complete")]
+    public async Task<IActionResult> Complete(int id, CancellationToken cancellationToken)
+    {
+        var session = await _context.InventorySessions
+            .Include(item => item.Items)
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (session is null)
+            return NotFound(new { message = "Không tìm thấy đợt kiểm kê." });
+        if (session.Status != InventoryStatuses.Reviewing)
+            return Conflict(new { message = "Phải khóa quét và đối soát chênh lệch trước khi kết thúc." });
+
+        var unreviewed = session.Items.Count(item =>
+            item.Status != InventoryItemStatuses.Found && item.ReviewedAt == null);
+        if (unreviewed > 0)
+            return Conflict(new { message = $"Còn {unreviewed} chênh lệch chưa được xử lý." });
+
         session.Status = InventoryStatuses.Completed;
         session.CompletedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         await _notificationService.NotifyManagersAsync(
             "INVENTORY_COMPLETED",
             "Đợt kiểm kê đã kết thúc",
-            $"Đợt kiểm kê #{id} đã kết thúc; có {session.Items.Count(item => item.Status == InventoryItemStatuses.Missing)} tài sản chưa tìm thấy.",
+            $"Đợt kiểm kê #{id} đã hoàn tất đối soát.",
             $"/dashboard/inventory?session={id}",
             cancellationToken);
         await _auditService.WriteAsync(
@@ -308,9 +614,9 @@ public class InventoryController : ControllerBase
             "Complete",
             nameof(InventorySession),
             id,
-            new { Missing = session.Items.Count(item => item.Status == InventoryItemStatuses.Missing) },
+            new { Discrepancies = session.Items.Count(item => item.Status != InventoryItemStatuses.Found) },
             cancellationToken);
-        return Ok(new { message = "Đã kết thúc đợt kiểm kê." });
+        return Ok(new { message = "Đã kết thúc đợt kiểm kê sau khi đối soát đầy đủ." });
     }
 
     public sealed class UploadEvidenceDto
@@ -488,6 +794,7 @@ public class InventoryController : ControllerBase
     private static string InventoryStatusLabel(string status) => status switch
     {
         InventoryStatuses.Open => "Đang kiểm kê",
+        InventoryStatuses.Reviewing => "Đang đối soát",
         InventoryStatuses.Completed => "Đã kết thúc",
         InventoryItemStatuses.Found => "Đã tìm thấy",
         InventoryItemStatuses.WrongLocation => "Sai vị trí",

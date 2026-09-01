@@ -170,7 +170,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import {
@@ -187,13 +187,14 @@ import {
   ToolOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
-import VueApexCharts from 'vue3-apexcharts'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole, isManagerRole } from '../constants/business'
 import { getDashboardAlertTarget } from '../utils/dashboardAlerts'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatVietnamDateTime } from '../utils/dateTime.js'
+
+const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'))
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -206,11 +207,14 @@ const refreshing = ref(false)
 const stats = ref({
   updatedAt: null,
   pendingBorrowRequests: 0,
+  pendingConsumableRequests: 0,
+  borrowRequestsToProcess: 0,
+  consumableRequestsToProcess: 0,
   overdueBorrowRecords: 0,
   lowStockConsumables: 0,
   warrantyExpiringSoon: 0,
   maintenanceInProgress: 0,
-  counts: { total: 0, available: 0, maintenance: 0, borrowed: 0, broken: 0, warranty: 0 },
+  counts: { total: 0, available: 0, borrowPending: 0, maintenance: 0, borrowed: 0, broken: 0, missing: 0, warranty: 0 },
   activities: [],
   alerts: [],
   advanced: { pendingRequests: 0, lowStockConsumables: [], borrowTrends: [] }
@@ -252,9 +256,12 @@ const managerKpis = computed(() => [
 
 const managerStatusRows = computed(() => [
   { key: 'available', label: 'Rảnh', value: Number(stats.value.counts.available || 0), tone: 'success' },
+  { key: 'borrow-pending', label: 'Chờ bàn giao', value: Number(stats.value.counts.borrowPending || 0), tone: 'warning' },
   { key: 'borrowed', label: 'Đang mượn', value: Number(stats.value.counts.borrowed || 0), tone: 'info' },
+  { key: 'maintenance', label: 'Bảo trì', value: Number(stats.value.counts.maintenance || 0), tone: 'purple' },
   { key: 'warranty', label: 'Bảo hành', value: Number(stats.value.counts.warranty || 0), tone: 'warning' },
-  { key: 'broken', label: 'Hỏng', value: Number(stats.value.counts.broken || 0), tone: 'danger' }
+  { key: 'broken', label: 'Hỏng', value: Number(stats.value.counts.broken || 0), tone: 'danger' },
+  { key: 'missing', label: 'Thất lạc', value: Number(stats.value.counts.missing || 0), tone: 'danger' }
 ])
 
 const hasManagerStatusData = computed(() => managerStatusRows.value.some(item => item.value > 0))
@@ -262,7 +269,7 @@ const managerDonutSeries = computed(() => managerStatusRows.value.map(item => it
 const managerDonutOptions = computed(() => ({
   chart: { type: 'donut', toolbar: { show: false }, fontFamily: 'inherit' },
   labels: managerStatusRows.value.map(item => item.label),
-  colors: ['#7FBD68', '#4D91D8', '#F2B24B', '#E35F4E'],
+  colors: ['#7FBD68', '#F2B24B', '#4D91D8', '#8B5CF6', '#EAB308', '#E35F4E', '#991B1B'],
   stroke: { width: 3, colors: ['#fff'] },
   legend: { show: false },
   dataLabels: { enabled: false },
@@ -298,9 +305,14 @@ const getActivityIcon = action => ({
 
 const managerAttentionItems = computed(() => [
   {
-    key: 'pending-borrow-requests', label: 'Phiếu chờ duyệt',
-    value: formatNumber(stats.value.pendingBorrowRequests),
+    key: 'pending-borrow-requests', label: 'Phiếu mượn cần xử lý',
+    value: formatNumber(stats.value.borrowRequestsToProcess),
     icon: FileSearchOutlined, tone: 'warning', route: { name: 'BorrowRequests' }
+  },
+  {
+    key: 'pending-consumable-requests', label: 'Cấp phát cần xử lý',
+    value: formatNumber(stats.value.consumableRequestsToProcess),
+    icon: AppstoreOutlined, tone: 'warning', route: { name: 'ConsumableRequests' }
   },
   {
     key: 'overdue-borrow-records', label: 'Mượn quá hạn',
@@ -310,7 +322,7 @@ const managerAttentionItems = computed(() => [
   {
     key: 'low-stock-consumables', label: 'Vật tư sắp hết',
     value: formatNumber(stats.value.lowStockConsumables),
-    icon: AppstoreOutlined, tone: 'warning', route: { name: 'ConsumableRequests' }
+    icon: AppstoreOutlined, tone: 'warning', route: { name: 'Devices', query: { tab: 'consumables' } }
   },
   {
     key: 'warranty-expiring-soon', label: 'Bảo hành sắp hết',
@@ -392,6 +404,9 @@ const normalizeDashboardStats = result => {
     alerts,
     advanced: { ...stats.value.advanced, ...advanced },
     pendingBorrowRequests: Number(payload.pendingBorrowRequests ?? countFromAlert(alerts, 'pending-borrow-requests')),
+    pendingConsumableRequests: Number(payload.pendingConsumableRequests ?? countFromAlert(alerts, 'pending-consumable-requests')),
+    borrowRequestsToProcess: Number(payload.borrowRequestsToProcess ?? payload.pendingBorrowRequests ?? 0),
+    consumableRequestsToProcess: Number(payload.consumableRequestsToProcess ?? payload.pendingConsumableRequests ?? 0),
     overdueBorrowRecords: Number(payload.overdueBorrowRecords ?? alerts.filter(alert => alert?.type === 'overdue').length),
     lowStockConsumables: Number(payload.lowStockConsumables ?? lowStockItems.length),
     warrantyExpiringSoon: Number(payload.warrantyExpiringSoon ?? alerts.filter(alert => alert?.type === 'warranty-soon').length),
@@ -459,6 +474,7 @@ onMounted(refreshStats)
 .status-dot--info { background: #4d91d8; }
 .status-dot--warning { background: #f2b24b; }
 .status-dot--danger { background: #e35f4e; }
+.status-dot--purple { background: #8b5cf6; }
 .manager-attention-list { display: flex; flex-direction: column; gap: 12px; }
 .manager-attention-item { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto 34px; align-items: center; gap: 12px; min-height: 58px; padding: 9px 10px; border: 1px solid #e9edf0; border-radius: 10px; }
 .manager-attention-icon { width: 42px; height: 42px; border-radius: 10px; font-size: 19px; }

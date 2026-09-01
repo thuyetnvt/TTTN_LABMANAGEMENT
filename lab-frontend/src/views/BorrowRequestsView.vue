@@ -2,10 +2,19 @@
   <div class="borrow-requests-container">
     <div class="toolbar">
       <h2>Duyệt yêu cầu mượn/trả</h2>
+      <div class="toolbar-filters">
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người mượn, thiết bị..." style="width: 260px" @search="applyFilters" />
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 190px" @change="applyFilters">
+          <a-select-option :value="STATUS.BORROW_PENDING">Chờ duyệt</a-select-option>
+          <a-select-option :value="STATUS.APPROVED">Chờ bàn giao</a-select-option>
+          <a-select-option :value="STATUS.BORROWED">Đang mượn</a-select-option>
+          <a-select-option :value="STATUS.RETURN_PROCESSING">Đang xử lý trả</a-select-option>
+        </a-select>
+      </div>
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1200 }" :pagination="tablePagination">
+      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1200 }" :pagination="tablePagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
@@ -46,6 +55,12 @@
                     </template>
                   </a-dropdown>
                 </template>
+                <template v-else-if="statusMatches(record.status, STATUS.APPROVED)">
+                  <a-button v-if="!record.hasHandover" type="primary" size="small" @click="showHandoverModal(record)">
+                    Lập bàn giao
+                  </a-button>
+                  <a-tag v-else color="processing">Chờ người nhận xác nhận</a-tag>
+                </template>
                 <template v-else-if="statusMatches(record.status, STATUS.BORROWED)">
                   <a-button type="default" size="small" @click="showReturnModal(record)">Kiểm tra trả</a-button>
                   <a-dropdown trigger="click">
@@ -61,7 +76,6 @@
                     </a-tooltip>
                     <template #overlay>
                       <a-menu @click="event => handleActionMenuClick(event, record)">
-                        <a-menu-item key="handover">Bàn giao</a-menu-item>
                         <a-menu-item key="remind" :disabled="isReminding(record.id)">
                           <LoadingOutlined v-if="isReminding(record.id)" />
                           Nhắc trả
@@ -76,6 +90,35 @@
           </template>
         </template>
       </a-table>
+      <ResponsiveDataList :items="dataSource" :loading="loading" :pagination="tablePagination" empty-description="Không có phiếu cần xử lý" @change="handleTableChange">
+        <template #default="{ item }">
+          <div class="mobile-request-heading">
+            <div><strong>{{ item.device }}</strong><span>{{ item.student }} · {{ item.serial || 'Không có số seri' }}</span></div>
+            <StatusBadge :status="item.status" type="borrow" />
+          </div>
+          <div class="mobile-request-dates">
+            <span>Đăng ký <strong>{{ formatDate(item.requestDate) }}</strong></span>
+            <span>Hạn trả <strong>{{ formatDate(item.returnDate) }}</strong></span>
+          </div>
+          <div v-if="item.details?.length" class="mobile-request-items">
+            <span v-for="detail in item.details" :key="detail.id">{{ detail.equipmentName }} ×{{ detail.quantity }}</span>
+          </div>
+          <div class="mobile-request-actions">
+            <template v-if="statusMatches(item.status, STATUS.BORROW_PENDING)">
+              <a-button type="primary" @click="handleApprove(item)">Duyệt</a-button>
+              <a-button danger @click="handleReject(item)">Từ chối</a-button>
+            </template>
+            <template v-else-if="statusMatches(item.status, STATUS.APPROVED)">
+              <a-button v-if="!item.hasHandover" type="primary" block @click="showHandoverModal(item)">Lập bàn giao</a-button>
+              <a-tag v-else color="processing">Chờ người nhận xác nhận</a-tag>
+            </template>
+            <template v-else-if="statusMatches(item.status, STATUS.BORROWED)">
+              <a-button @click="showReturnModal(item)">Kiểm tra trả</a-button>
+              <a-button :loading="isReminding(item.id)" @click="handleRemind(item)">Nhắc trả</a-button>
+            </template>
+          </div>
+        </template>
+      </ResponsiveDataList>
     </a-card>
 
     <a-modal v-model:open="isReturnModalVisible" title="Kiểm tra tài sản khi trả" @ok="submitReturnInspection" @cancel="isReturnModalVisible = false" okText="Lưu kiểm tra" cancelText="Hủy" :confirmLoading="returnSubmitting">
@@ -226,24 +269,33 @@
 </template>
 
 <script setup>
-import { ref, onBeforeUnmount, onMounted, computed } from 'vue'
+import { ref, reactive, onBeforeUnmount, onMounted, computed } from 'vue'
 import { message, Upload } from 'ant-design-vue'
 import { CloseOutlined, DeleteOutlined, FileOutlined, InboxOutlined, LoadingOutlined, MoreOutlined } from '@ant-design/icons-vue'
 import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
+import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { HANDOVER_CONDITIONS, STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { handoverApi } from '../api/handoverApi'
 import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
-import { createTablePagination } from '../utils/tablePagination'
+import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import { formatVietnamDate, formatVietnamDateTime } from '../utils/dateTime'
 
-const tablePagination = createTablePagination()
+const tablePagination = reactive({
+  ...createTablePagination(),
+  current: 1,
+  pageSize: TABLE_PAGE_SIZE,
+  total: 0
+})
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 
 const dataSource = ref([])
 const loading = ref(false)
+const searchQuery = ref('')
+const statusFilter = ref(undefined)
 const returnSubmitting = ref(false)
 const isReturnModalVisible = ref(false)
 const isHandoverModalVisible = ref(false)
@@ -279,8 +331,6 @@ const columns = [
 
 onMounted(() => fetchRequests())
 
-const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'
-const formatDateTime = (value) => value ? new Date(value).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : '—'
 const formatFileSize = (bytes) => {
   if (!bytes) return '0 B'
   if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`
@@ -293,12 +343,30 @@ const isReminding = id => remindingRecordIds.value.has(id)
 const fetchRequests = async () => {
   loading.value = true
   try {
-    dataSource.value = await borrowApi.getPendingRequests() || []
+    const response = await borrowApi.getPendingRequestsPaged({
+      page: tablePagination.current,
+      pageSize: tablePagination.pageSize,
+      search: searchQuery.value.trim() || undefined,
+      status: statusFilter.value
+    })
+    dataSource.value = response.items || []
+    tablePagination.total = response.total || 0
   } catch {
     message.error('Lỗi khi tải danh sách yêu cầu!')
   } finally {
     loading.value = false
   }
+}
+
+const applyFilters = () => {
+  tablePagination.current = 1
+  fetchRequests()
+}
+
+const handleTableChange = (pager) => {
+  tablePagination.current = pager.pageSize === tablePagination.pageSize ? pager.current : 1
+  tablePagination.pageSize = pager.pageSize
+  fetchRequests()
 }
 
 const handleApprove = async (record) => {
@@ -471,9 +539,10 @@ const submitHandover = async () => {
         handoverEvidenceType.value
       )
     }
-    message.success('Đã lập biên bản bàn giao.')
+    message.success('Đã lập biên bản. Đang chờ người nhận xác nhận.')
     isHandoverModalVisible.value = false
     clearHandoverEvidence()
+    await fetchRequests()
   } catch (error) {
     message.error(getApiErrorMessage(error, 'Không thể lập biên bản bàn giao!'))
   } finally { handoverSubmitting.value = false }
@@ -530,8 +599,14 @@ const handleRemind = async (record) => {
 }
 
 .toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 24px;
 }
+
+.toolbar-filters { display: flex; flex-wrap: wrap; gap: 10px; }
 
 h2 {
   margin: 0;
@@ -590,7 +665,20 @@ h2 {
 .handover-file-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .handover-file-copy span { color: var(--color-text-secondary, #6b7280); font-size: 12px; }
 .handover-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 26px 18px; border-top: 1px solid var(--color-border, #e5e7eb); flex: 0 0 auto; }
+.mobile-request-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.mobile-request-heading > div { display: grid; gap: 4px; }
+.mobile-request-heading strong { color: var(--color-ink); font-size: 15px; }
+.mobile-request-heading span, .mobile-request-items { color: var(--color-text-secondary); font-size: 12px; }
+.mobile-request-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+.mobile-request-dates span { display: grid; gap: 3px; color: var(--color-text-secondary); font-size: 12px; }
+.mobile-request-dates strong { color: var(--color-ink); font-size: 13px; }
+.mobile-request-items { display: grid; gap: 3px; margin-bottom: 12px; }
+.mobile-request-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mobile-request-actions :deep(.ant-btn) { flex: 1; }
 @media (max-width: 767px) {
+  .desktop-table { display: none; }
+  .toolbar { align-items: stretch; flex-direction: column; }
+  .toolbar-filters > * { width: 100% !important; }
   :deep(.handover-modal-wrap .ant-modal) { width: calc(100vw - 12px) !important; max-width: calc(100vw - 12px); margin: 6px auto; }
   .handover-modal-shell { max-height: calc(100vh - 12px); }
   .handover-modal-header, .handover-modal-content, .handover-modal-footer { padding-left: 16px; padding-right: 16px; }

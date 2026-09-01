@@ -8,6 +8,7 @@
     "build": "vite build",
     "test": "node --test tests/business.test.js",
     "test:e2e": "playwright test",
+    "test:e2e:full": "playwright test --reporter=list",
     "preview": "vite preview"
   },
   "devDependencies": {

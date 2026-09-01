@@ -2,6 +2,10 @@ import axiosClient from './axiosClient';
 
 export const equipmentApi = {
   getAll: () => axiosClient.get('/equipment'),
+  getPaged: (params = {}) => axiosClient.get('/equipment/paged', { params }),
+  lookup: (params = {}) => axiosClient.get('/equipment/lookup', { params }),
+
+  resolveQr: (qrToken) => axiosClient.post('/equipment/resolve-qr', { qrToken }),
   
   create: (data) => axiosClient.post('/equipment', data, {
     headers: { 'Content-Type': 'multipart/form-data' }

@@ -4,6 +4,10 @@ import Components from 'unplugin-vue-components/vite'
 import { AntDesignVueResolver } from 'unplugin-vue-components/resolvers'
 
 export default defineConfig({
+  build: {
+    // ApexCharts được tách thành chunk tải lười; kích thước gzip thực tế khoảng 230 KB.
+    chunkSizeWarningLimit: 850
+  },
   plugins: [
     vue(),
     Components({

@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Security.Claims;
 using LabManagementAPI.Data;
+using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -18,6 +19,7 @@ public class BorrowController : ControllerBase
 {
     private const string Pending = BorrowStatuses.Pending;
     private const string TeacherPending = BorrowStatuses.TeacherPending;
+    private const string Approved = BorrowStatuses.Approved;
     private const string Borrowed = BorrowStatuses.Borrowed;
     private const string Rejected = BorrowStatuses.Rejected;
     private const string ProcessingApproval = BorrowStatuses.ProcessingApproval;
@@ -115,7 +117,7 @@ public class BorrowController : ControllerBase
             return BadRequest(new { message = "Phiếu mượn phải có ít nhất một tài sản hợp lệ." });
         }
 
-        if (request.ExpectedReturnDate <= DateTime.UtcNow)
+        if (VietnamTime.Date(request.ExpectedReturnDate) <= VietnamTime.Today())
         {
             return BadRequest(new { message = "Hạn trả dự kiến phải ở tương lai." });
         }
@@ -162,6 +164,8 @@ public class BorrowController : ControllerBase
             item => item.UserId == userId
                 && (item.Status == Pending
                     || item.Status == TeacherPending
+                    || item.Status == Approved
+                    || item.Status == ProcessingApproval
                     || item.Status == Borrowed
                     || item.Status == ProcessingReturn)
                 && item.Details.Any(detail => equipmentIds.Contains(detail.EquipmentId)),
@@ -247,9 +251,18 @@ public class BorrowController : ControllerBase
                 .ThenInclude(item => item!.AssetCategory)
             .Include(item => item.Details)
                 .ThenInclude(item => item.Equipment)
-        .Where(item => item.Status == Pending || item.Status == Borrowed || item.Status == ProcessingReturn)
+        .Where(item => item.Status == Pending
+            || item.Status == Approved
+            || item.Status == Borrowed
+            || item.Status == ProcessingReturn)
             .OrderByDescending(item => item.BorrowDate)
             .ToListAsync(cancellationToken);
+
+        var requestIds = requests.Select(item => item.Id).ToArray();
+        var handovers = await _context.HandoverRecords
+            .AsNoTracking()
+            .Where(item => requestIds.Contains(item.BorrowRecordId))
+            .ToDictionaryAsync(item => item.BorrowRecordId, cancellationToken);
 
         return Ok(requests.Select(item => new
         {
@@ -265,9 +278,12 @@ public class BorrowController : ControllerBase
             returnDate = item.ExpectedReturnDate,
             purpose = item.Purpose,
             status = item.Status,
+            hasHandover = handovers.ContainsKey(item.Id),
+            handoverCode = handovers.GetValueOrDefault(item.Id)?.Code,
+            handoverConfirmedAt = handovers.GetValueOrDefault(item.Id)?.ConfirmedAt,
             isOverdue = item.Status == Borrowed
-                && item.ExpectedReturnDate.Date < DateTime.UtcNow.Date,
-            daysUntilDue = (item.ExpectedReturnDate.Date - DateTime.UtcNow.Date).Days,
+                && VietnamTime.Date(item.ExpectedReturnDate) < VietnamTime.Today(),
+            daysUntilDue = (VietnamTime.Date(item.ExpectedReturnDate) - VietnamTime.Today()).Days,
             details = item.Details.Select(detail => new
             {
                 detail.Id,
@@ -285,6 +301,103 @@ public class BorrowController : ControllerBase
         }));
     }
 
+    [HttpGet("pending/paged")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> GetPendingRequestsPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.BorrowRecords
+            .AsNoTracking()
+            .Include(item => item.User)
+            .Include(item => item.Equipment)
+                .ThenInclude(item => item!.AssetCategory)
+            .Include(item => item.Details)
+                .ThenInclude(item => item.Equipment)
+            .Where(item => item.Status == Pending
+                || item.Status == Approved
+                || item.Status == Borrowed
+                || item.Status == ProcessingReturn)
+            .AsQueryable();
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(item =>
+                item.User!.Username.Contains(search)
+                || item.User.FullName.Contains(search)
+                || item.Purpose.Contains(search)
+                || (item.Equipment != null
+                    && (item.Equipment.Name.Contains(search)
+                        || item.Equipment.Serial.Contains(search)
+                        || item.Equipment.AssetCode.Contains(search)))
+                || item.Details.Any(detail => detail.Equipment != null
+                    && (detail.Equipment.Name.Contains(search)
+                        || detail.Equipment.Serial.Contains(search)
+                        || detail.Equipment.AssetCode.Contains(search))));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            query = query.Where(item => item.Status == status);
+        }
+        if (paging.From.HasValue)
+        {
+            query = query.Where(item => item.BorrowDate >= paging.From.Value);
+        }
+        if (paging.To.HasValue)
+        {
+            var exclusiveTo = paging.To.Value.Date.AddDays(1);
+            query = query.Where(item => item.BorrowDate < exclusiveTo);
+        }
+
+        var page = await query
+            .OrderByDescending(item => item.BorrowDate)
+            .ThenByDescending(item => item.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+        var requestIds = page.Items.Select(item => item.Id).ToArray();
+        var handovers = await _context.HandoverRecords
+            .AsNoTracking()
+            .Where(item => requestIds.Contains(item.BorrowRecordId))
+            .ToDictionaryAsync(item => item.BorrowRecordId, cancellationToken);
+        var today = VietnamTime.Today();
+        var items = page.Items.Select(item => (object)new
+        {
+            id = item.Id,
+            student = item.User!.Username,
+            device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
+            equipmentId = item.EquipmentId,
+            category = item.Equipment?.AssetCategory?.Name ?? string.Empty,
+            serial = item.Equipment?.Serial ?? string.Empty,
+            assetCode = item.Equipment?.AssetCode ?? string.Empty,
+            borrowerName = item.User.FullName,
+            requestDate = item.BorrowDate,
+            returnDate = item.ExpectedReturnDate,
+            purpose = item.Purpose,
+            status = item.Status,
+            hasHandover = handovers.ContainsKey(item.Id),
+            handoverCode = handovers.GetValueOrDefault(item.Id)?.Code,
+            handoverConfirmedAt = handovers.GetValueOrDefault(item.Id)?.ConfirmedAt,
+            isOverdue = item.Status == Borrowed && VietnamTime.Date(item.ExpectedReturnDate) < today,
+            daysUntilDue = (VietnamTime.Date(item.ExpectedReturnDate) - today).Days,
+            details = item.Details.Select(detail => new
+            {
+                detail.Id,
+                detail.EquipmentId,
+                equipmentName = detail.Equipment?.Name ?? string.Empty,
+                serial = detail.Equipment?.Serial ?? string.Empty,
+                assetCode = detail.Equipment?.AssetCode ?? string.Empty,
+                detail.Quantity,
+                detail.Note,
+                detail.Status,
+                detail.ReturnCondition,
+                detail.ReturnNote,
+                detail.ReturnedAt
+            })
+        }).ToList();
+
+        return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
     [HttpGet("history")]
     public async Task<ActionResult<IEnumerable<object>>> GetHistory(
         CancellationToken cancellationToken)
@@ -298,6 +411,7 @@ public class BorrowController : ControllerBase
             .Include(item => item.Equipment)
             .Include(item => item.Details)
                 .ThenInclude(detail => detail.Equipment)
+            .Include(item => item.StatusHistory)
             .Where(item => item.Status != Pending && item.Status != TeacherPending);
 
         if (role is Roles.Student or Roles.Teacher)
@@ -305,9 +419,21 @@ public class BorrowController : ControllerBase
             query = query.Where(item => item.UserId == userId);
         }
 
-        var history = await query
+        var records = await query
             .OrderByDescending(item => item.BorrowDate)
-            .Select(item => new
+            .ToListAsync(cancellationToken);
+        var recordIds = records.Select(item => item.Id).ToArray();
+        var handovers = await _context.HandoverRecords
+            .AsNoTracking()
+            .Where(item => recordIds.Contains(item.BorrowRecordId))
+            .Include(item => item.Items)
+                .ThenInclude(item => item.Equipment)
+            .ToDictionaryAsync(item => item.BorrowRecordId, cancellationToken);
+
+        var history = records.Select(item =>
+        {
+            handovers.TryGetValue(item.Id, out var handover);
+            return new
             {
                 id = item.Id,
                 student = item.User!.Username,
@@ -320,6 +446,27 @@ public class BorrowController : ControllerBase
                 returnInspectionNote = item.ReturnInspectionNote,
                 warrantyAction = item.WarrantyAction,
                 compensationAmount = item.CompensationAmount,
+                handover = handover is null ? null : new
+                {
+                    handover.Id,
+                    handover.Code,
+                    handover.HandoverAt,
+                    handover.Notes,
+                    handover.ConfirmedAt,
+                    items = handover.Items.Select(handoverItem => new
+                    {
+                        handoverItem.EquipmentId,
+                        equipmentName = handoverItem.Equipment?.Name ?? string.Empty,
+                        serial = handoverItem.Equipment?.Serial ?? string.Empty,
+                        handoverItem.Condition,
+                        handoverItem.Accessories,
+                        handoverItem.Note
+                    })
+                },
+                canConfirmHandover = item.UserId == userId
+                    && item.Status == Approved
+                    && handover is not null
+                    && handover.ConfirmedAt is null,
                 details = item.Details.Select(detail => new
                 {
                     detail.Id,
@@ -342,10 +489,134 @@ public class BorrowController : ControllerBase
                         history.Note,
                         history.CreatedAt
                     })
-            })
-            .ToListAsync(cancellationToken);
+            };
+        }).ToList();
 
         return Ok(history);
+    }
+
+    [HttpGet("history/paged")]
+    public async Task<IActionResult> GetHistoryPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        var query = _context.BorrowRecords
+            .AsNoTracking()
+            .Include(item => item.User)
+            .Include(item => item.Equipment)
+            .Include(item => item.Details)
+                .ThenInclude(detail => detail.Equipment)
+            .Include(item => item.StatusHistory)
+            .Where(item => item.Status != Pending && item.Status != TeacherPending)
+            .AsQueryable();
+        if (role is Roles.Student or Roles.Teacher)
+        {
+            query = query.Where(item => item.UserId == userId);
+        }
+
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(item =>
+                item.User!.Username.Contains(search)
+                || item.User.FullName.Contains(search)
+                || item.Purpose.Contains(search)
+                || (item.Equipment != null
+                    && (item.Equipment.Name.Contains(search) || item.Equipment.Serial.Contains(search)))
+                || item.Details.Any(detail => detail.Equipment != null
+                    && (detail.Equipment.Name.Contains(search) || detail.Equipment.Serial.Contains(search))));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            query = query.Where(item => item.Status == status);
+        }
+        if (paging.From.HasValue)
+        {
+            query = query.Where(item => item.BorrowDate >= paging.From.Value);
+        }
+        if (paging.To.HasValue)
+        {
+            var exclusiveTo = paging.To.Value.Date.AddDays(1);
+            query = query.Where(item => item.BorrowDate < exclusiveTo);
+        }
+
+        var page = await query
+            .OrderByDescending(item => item.BorrowDate)
+            .ThenByDescending(item => item.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+        var recordIds = page.Items.Select(item => item.Id).ToArray();
+        var handovers = await _context.HandoverRecords
+            .AsNoTracking()
+            .Where(item => recordIds.Contains(item.BorrowRecordId))
+            .Include(item => item.Items)
+                .ThenInclude(item => item.Equipment)
+            .ToDictionaryAsync(item => item.BorrowRecordId, cancellationToken);
+        var items = page.Items.Select(item =>
+        {
+            handovers.TryGetValue(item.Id, out var handover);
+            return (object)new
+            {
+                id = item.Id,
+                student = item.User!.Username,
+                device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
+                serial = item.Equipment?.Serial ?? string.Empty,
+                requestDate = item.BorrowDate,
+                returnDate = item.ActualReturnDate ?? item.ExpectedReturnDate,
+                status = item.Status,
+                returnCondition = item.ReturnCondition,
+                returnInspectionNote = item.ReturnInspectionNote,
+                warrantyAction = item.WarrantyAction,
+                compensationAmount = item.CompensationAmount,
+                handover = handover is null ? null : new
+                {
+                    handover.Id,
+                    handover.Code,
+                    handover.HandoverAt,
+                    handover.Notes,
+                    handover.ConfirmedAt,
+                    items = handover.Items.Select(handoverItem => new
+                    {
+                        handoverItem.EquipmentId,
+                        equipmentName = handoverItem.Equipment?.Name ?? string.Empty,
+                        serial = handoverItem.Equipment?.Serial ?? string.Empty,
+                        handoverItem.Condition,
+                        handoverItem.Accessories,
+                        handoverItem.Note
+                    })
+                },
+                canConfirmHandover = item.UserId == userId
+                    && item.Status == Approved
+                    && handover is not null
+                    && handover.ConfirmedAt is null,
+                details = item.Details.Select(detail => new
+                {
+                    detail.Id,
+                    detail.EquipmentId,
+                    equipmentName = detail.Equipment!.Name,
+                    serial = detail.Equipment.Serial,
+                    detail.Quantity,
+                    detail.Status,
+                    detail.ReturnCondition,
+                    detail.ReturnNote,
+                    detail.ReturnedAt,
+                    detail.CompensationAmount
+                }),
+                statusHistory = item.StatusHistory
+                    .OrderBy(history => history.CreatedAt)
+                    .Select(history => new
+                    {
+                        history.FromStatus,
+                        history.ToStatus,
+                        history.Note,
+                        history.CreatedAt
+                    })
+            };
+        }).ToList();
+
+        return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
     }
 
     [HttpGet("teacher-pending")]
@@ -382,6 +653,57 @@ public class BorrowController : ControllerBase
             .ToListAsync(cancellationToken);
 
         return Ok(requests);
+    }
+
+    [HttpGet("teacher-pending/paged")]
+    [Authorize(Roles = Roles.Teacher)]
+    public async Task<IActionResult> GetTeacherPendingRequestsPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        var teacherId = GetCurrentUserId();
+        var query = _context.BorrowRecords
+            .AsNoTracking()
+            .Include(item => item.User)
+            .Include(item => item.Equipment)
+            .Include(item => item.Details)
+                .ThenInclude(detail => detail.Equipment)
+            .Where(item => item.Status == TeacherPending && item.TeacherId == teacherId)
+            .AsQueryable();
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(item =>
+                item.User!.Username.Contains(search)
+                || item.User.FullName.Contains(search)
+                || item.Purpose.Contains(search)
+                || (item.Equipment != null && item.Equipment.Name.Contains(search))
+                || item.Details.Any(detail => detail.Equipment != null && detail.Equipment.Name.Contains(search)));
+        }
+
+        var page = await query
+            .OrderByDescending(item => item.BorrowDate)
+            .ThenByDescending(item => item.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+        var items = page.Items.Select(item => (object)new
+        {
+            id = item.Id,
+            student = item.User!.Username,
+            device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
+            requestDate = item.BorrowDate,
+            returnDate = item.ExpectedReturnDate,
+            purpose = item.Purpose,
+            status = item.Status,
+            details = item.Details.Select(detail => new
+            {
+                detail.EquipmentId,
+                equipmentName = detail.Equipment!.Name,
+                serial = detail.Equipment.Serial,
+                detail.Note,
+                detail.Status
+            })
+        }).ToList();
+        return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
     }
 
     [HttpPut("{id:int}/teacher-approve")]
@@ -545,8 +867,7 @@ public class BorrowController : ControllerBase
                 && item.Status == EquipmentStatuses.Available)
             .ExecuteUpdateAsync(
                 updates => updates
-                    .SetProperty(item => item.Status, EquipmentStatuses.Borrowed)
-                    .SetProperty(item => item.BorrowCount, item => item.BorrowCount + 1),
+                    .SetProperty(item => item.Status, EquipmentStatuses.BorrowPending),
                 cancellationToken);
         if (claimedEquipment != equipmentIds.Length)
         {
@@ -557,19 +878,19 @@ public class BorrowController : ControllerBase
         await _context.BorrowRequestDetails
             .Where(detail => detail.BorrowRecordId == id)
             .ExecuteUpdateAsync(
-                updates => updates.SetProperty(detail => detail.Status, BorrowStatuses.Borrowed),
+                updates => updates.SetProperty(detail => detail.Status, Approved),
                 cancellationToken);
         await _context.BorrowRecords
             .Where(item => item.Id == id && item.Status == ProcessingApproval)
             .ExecuteUpdateAsync(
-                updates => updates.SetProperty(item => item.Status, Borrowed),
+                updates => updates.SetProperty(item => item.Status, Approved),
                 cancellationToken);
         _context.BorrowStatusHistories.Add(new BorrowStatusHistory
         {
             BorrowRecordId = id,
             FromStatus = ProcessingApproval,
-            ToStatus = Borrowed,
-            Note = "Quản lý lab duyệt toàn bộ tài sản trong phiếu.",
+            ToStatus = Approved,
+            Note = "Quản lý lab đã duyệt; tài sản được giữ chỗ để lập biên bản bàn giao.",
             ChangedByUserId = GetCurrentUserId()
         });
         await _auditService.WriteAsync(
@@ -585,10 +906,10 @@ public class BorrowController : ControllerBase
             record.UserId,
             "BORROW_APPROVED",
             "Yêu cầu mượn đã được duyệt",
-            $"Yêu cầu mượn {record.Equipment?.Name} và {Math.Max(0, equipmentIds.Length - 1)} tài sản kèm theo đã được duyệt.",
+            $"Yêu cầu mượn {equipmentIds.Length} tài sản đã được duyệt. Vui lòng chờ quản lý lập biên bản bàn giao.",
             "/dashboard/borrow-history",
             cancellationToken);
-        return Ok(new { message = "Đã duyệt yêu cầu mượn." });
+        return Ok(new { message = "Đã duyệt và giữ chỗ tài sản. Bước tiếp theo là lập biên bản bàn giao." });
     }
 
     [HttpPut("{id:int}/reject")]
