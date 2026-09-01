@@ -10,22 +10,34 @@ import { getReturnConditionLabel } from '../src/utils/statusLabels.js'
 import { formatVietnamDateInput, formatVietnamDateTime, vietnamDateInputToUtc } from '../src/utils/dateTime.js'
 import { createTablePagination, TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../src/utils/tablePagination.js'
 
-const TABLE_FILES_WITH_HORIZONTAL_SCROLL = [
+const TABLE_FILES_WITH_STICKY_ACTION = [
   '../src/views/BorrowRequestsView.vue',
   '../src/views/BorrowHistoryView.vue',
   '../src/views/ConsumableRequestsView.vue',
+  '../src/views/InventoryView.vue',
+  '../src/views/LocationsView.vue',
   '../src/components/DeviceTable.vue',
   '../src/components/ConsumablesTable.vue',
-  '../src/views/MaintenanceView.vue'
+  '../src/components/AssetCategoriesTable.vue',
+  '../src/components/UserTable.vue',
+  '../src/views/MaintenanceView.vue',
+  '../src/views/MaintenanceSchedulesView.vue',
+  '../src/views/PenaltyView.vue',
+  '../src/views/TeacherApprovalView.vue'
 ]
 
-test('chỉ ghim cột hành động bên phải trong các bảng cuộn ngang', () => {
-  for (const relativePath of TABLE_FILES_WITH_HORIZONTAL_SCROLL) {
+test('ghim cùng một cột hành động cho cả header và body của mọi bảng thao tác', () => {
+  for (const relativePath of TABLE_FILES_WITH_STICKY_ACTION) {
     const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
-    assert.doesNotMatch(source, /fixed\s*:\s*['"]left['"]/, relativePath)
-    assert.match(source, /key\s*:\s*['"]action['"][\s\S]{0,100}?fixed\s*:\s*['"]right['"]/, relativePath)
+    assert.doesNotMatch(source, /fixed\s*:\s*['"](?:left|right)['"]/, relativePath)
+    assert.match(source, /className\s*:\s*['"]table-sticky-action-column['"]/, relativePath)
+    assert.match(source, /customCell\s*:\s*\(\)\s*=>\s*\(\{\s*class:\s*['"]table-sticky-action-column['"]\s*\}\)/, relativePath)
   }
+
+  const globalStyle = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8')
+  assert.match(globalStyle, /\.table-sticky-action-column\s*\{[\s\S]*?position:\s*sticky\s*!important;/)
+  assert.match(globalStyle, /\.table-sticky-action-column\s*\{[\s\S]*?right:\s*0\s*!important;/)
 })
 
 test('dùng chung phân trang 20 dòng và cho phép đổi số dòng', () => {

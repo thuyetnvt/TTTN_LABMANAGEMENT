@@ -111,7 +111,7 @@ import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { STATUS, statusMatches } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
-import { formatVietnamDate, formatVietnamDateTime } from '../utils/dateTime'
+import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 
 const tablePagination = reactive({
   ...createTablePagination(),
@@ -141,7 +141,7 @@ const columns = [
   { title: 'Xử lý bảo hành', dataIndex: 'warrantyAction', key: 'warrantyAction', width: 180 },
   { title: 'Bồi thường', dataIndex: 'compensationAmount', key: 'compensationAmount', width: 130 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 140 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 190 }
+  { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190 }
 ]
 
 onMounted(() => fetchHistory())

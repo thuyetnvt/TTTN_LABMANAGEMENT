@@ -212,7 +212,7 @@ import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
-import { formatVietnamDate, formatVietnamDateTime } from '../utils/dateTime'
+import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 
 const tablePagination = reactive({
   ...createTablePagination(),
@@ -248,7 +248,7 @@ const columns = [
   { title: 'Mục đích', dataIndex: 'reason', key: 'reason', width: 280 },
   { title: 'Trạng thái', key: 'status', width: 180, align: 'center' },
   { title: 'Ngày gửi', dataIndex: 'requestDate', key: 'requestDate', width: 170 },
-  { title: 'Hành động', key: 'action', fixed: 'right', width: 220, align: 'center' }
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220, align: 'center' }
 ]
 
 const allocationTotal = computed(() => Object.values(lotQuantities.value)
@@ -398,8 +398,6 @@ onMounted(fetchData)
 .handover-alert { margin-bottom: 16px; }
 .allocation-summary { margin-top: 14px; text-align: right; color: #15803d; }
 .allocation-summary.invalid { color: #dc2626; }
-.asset-requests-container :deep(.ant-table-cell-fix-right) { z-index: 2; background: #fff !important; box-shadow: -6px 0 12px -10px rgba(16, 35, 63, 0.55); }
-.asset-requests-container :deep(.ant-table-thead > tr > th.ant-table-cell-fix-right) { z-index: 3; background: #fafafa !important; }
 .toolbar h2 { margin: 0 0 8px; font-weight: 600; color: #1f1f1f; }
 .toolbar p { color: #6b7280; }
 .toolbar-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 18px; }

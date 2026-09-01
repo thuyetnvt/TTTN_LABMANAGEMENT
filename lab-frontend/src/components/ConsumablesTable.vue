@@ -342,7 +342,8 @@ const columns = computed(() => {
     title: 'Hành động', 
     key: 'action', 
     align: 'center', 
-    fixed: 'right',
+    className: 'table-sticky-action-column',
+    customCell: () => ({ class: 'table-sticky-action-column' }),
     width: isAdminRole(role.value) ? 170 : (isManagerRole(role.value) ? 140 : 70)
   }
   ]
@@ -365,7 +366,7 @@ const lotColumns = [
   { title: 'Nhà cung cấp', dataIndex: 'supplier', key: 'supplier', width: 160 },
   { title: 'Đơn giá', key: 'unitCost', width: 120 },
   { title: 'Vị trí', dataIndex: 'storageLocation', key: 'storageLocation', width: 140 },
-  { title: 'Hành động', key: 'action', fixed: 'right', align: 'center', width: 110 }
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), align: 'center', width: 110 }
 ]
 
 const historyColumns = [

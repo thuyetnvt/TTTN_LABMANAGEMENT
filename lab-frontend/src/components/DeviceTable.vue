@@ -374,7 +374,8 @@ const columns = computed(() => [
     title: 'Hành động',
     key: 'action',
     align: 'center',
-    fixed: 'right',
+    className: 'table-sticky-action-column',
+    customCell: () => ({ class: 'table-sticky-action-column' }),
     width: isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
   }
 ])

@@ -280,7 +280,7 @@ import { HANDOVER_CONDITIONS, STATUS, isManagerRole, statusMatches } from '../co
 import { handoverApi } from '../api/handoverApi'
 import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
-import { formatVietnamDate, formatVietnamDateTime } from '../utils/dateTime'
+import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 
 const tablePagination = reactive({
   ...createTablePagination(),
@@ -326,7 +326,7 @@ const columns = [
   { title: 'Hạn trả', key: 'dueStatus', align: 'center', width: 130 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 180 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 120 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 220 }
+  { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220 }
 ]
 
 onMounted(() => fetchRequests())

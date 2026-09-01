@@ -15,7 +15,7 @@
 
     <a-card :bordered="false">
       <div class="inventory-desktop-table">
-        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered :pagination="tablePagination" @change="handleTableChange">
+        <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered :scroll="{ x: 1100 }" :pagination="tablePagination" @change="handleTableChange">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'progress'">
@@ -233,13 +233,13 @@ let processingScanQueue = false
 const duplicateScanWindowMs = 2500
 
 const columns = [
-  { title: 'Mã đợt', dataIndex: 'code', key: 'code' },
-  { title: 'Tên đợt', dataIndex: 'name', key: 'name' },
+  { title: 'Mã đợt', dataIndex: 'code', key: 'code', width: 150 },
+  { title: 'Tên đợt', dataIndex: 'name', key: 'name', width: 230 },
   { title: 'Tiến độ', key: 'progress', width: 190 },
-  { title: 'Thiếu/chưa quét', key: 'missing', customRender: ({ record }) => `${record.missing}/${record.total}` },
-  { title: 'Trạng thái', key: 'status' },
-  { title: 'Bắt đầu', key: 'startedAt' },
-  { title: 'Thao tác', key: 'action', width: 96, align: 'center' }
+  { title: 'Thiếu/chưa quét', key: 'missing', width: 150, customRender: ({ record }) => `${record.missing}/${record.total}` },
+  { title: 'Trạng thái', key: 'status', width: 150 },
+  { title: 'Bắt đầu', key: 'startedAt', width: 150 },
+  { title: 'Thao tác', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 96, align: 'center' }
 ]
 const itemColumns = [
   { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName' },

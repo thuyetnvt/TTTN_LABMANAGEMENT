@@ -79,7 +79,7 @@ const columns = [
   { title: 'Số tiền phạt', dataIndex: 'amount', key: 'amount', align: 'right' },
   { title: 'Ngày lập', dataIndex: 'createdAt', key: 'createdAt', align: 'center' },
   { title: 'Trạng thái', key: 'status', align: 'center' },
-  { title: 'Hành động', key: 'action', align: 'center' }
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190, align: 'center' }
 ]
 
 onMounted(() => {

@@ -19,13 +19,13 @@
           <template v-if="column.key === 'maintenanceDate'">
              {{ formatDate(record[column.key]) }}
           </template>
-          <template v-if="column.key === 'cost'">
+          <template v-else-if="column.key === 'cost'">
              {{ Number(record.cost || 0).toLocaleString('vi-VN') }} VNĐ
           </template>
-          <template v-if="column.key === 'status'">
+          <template v-else-if="column.key === 'status'">
              <StatusBadge :status="record.status" type="maintenance" />
           </template>
-          <template v-if="column.key === 'action'">
+          <template v-else-if="column.key === 'action'">
               <a-space class="table-action-buttons">
                 <a-tooltip v-if="statusMatches(record.status, STATUS.MAINTENANCE_IN_PROGRESS)" title="Hoàn tất bảo trì">
                   <a-button
@@ -207,7 +207,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { STATUS, isAdminRole, isManagerRole, statusMatches } from '../constants/business'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
-import { formatVietnamDate } from '../utils/dateTime'
+import { formatVietnamDate as formatDate } from '../utils/dateTime'
 
 const tablePagination = reactive({
   ...createTablePagination(),
@@ -258,7 +258,7 @@ const columns = [
   { title: 'Chi phí', dataIndex: 'cost', key: 'cost', width: 120 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160 },
   { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 280 },
-  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 80 }
+  { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 120 }
 ]
 
 

@@ -67,7 +67,7 @@ const columns = [
   { title: 'Mã định danh', dataIndex: 'universityCode', key: 'universityCode' },
   { title: 'Email', dataIndex: 'email', key: 'email' },
   { title: 'Vai trò', dataIndex: 'role', key: 'role' },
-  { title: 'Hành động', key: 'action', width: 150, align: 'center' }
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 150, align: 'center' }
 ]
 </script>
 

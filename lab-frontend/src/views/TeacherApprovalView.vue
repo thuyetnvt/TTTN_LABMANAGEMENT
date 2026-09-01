@@ -95,7 +95,7 @@ const columns = [
   { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate' },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose' },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center' },
-  { title: 'Hành động', key: 'action', align: 'center' }
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190, align: 'center' }
 ]
 
 onMounted(() => fetchRequests())
