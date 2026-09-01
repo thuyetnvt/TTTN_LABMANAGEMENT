@@ -21,7 +21,7 @@ pwsh ./scripts/restore.ps1 `
   -ConfirmRestore
 ```
 
-Script backup cũng lưu volume Data Protection nếu volume `backend_data_protection` tồn tại. Restore dừng backend/frontend, nạp SQL, thay nội dung volume upload và tùy chọn khôi phục key Data Protection rồi khởi động lại service:
+Script backup cũng lưu volume Data Protection mới nhất nếu volume `backend_data_protection` hoặc `backend_data_protection_vN` tồn tại. Restore dừng backend/frontend, nạp SQL, thay nội dung volume upload và tùy chọn khôi phục key Data Protection rồi khởi động lại service:
 
 ```powershell
 pwsh ./scripts/restore.ps1 `

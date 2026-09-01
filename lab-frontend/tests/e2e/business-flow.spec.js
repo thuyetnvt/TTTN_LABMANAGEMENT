@@ -15,6 +15,7 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
   const studentUsername = process.env.E2E_STUDENT_USERNAME || 'sv1'
   const teacherUsername = process.env.E2E_TEACHER_USERNAME || 'giangvien1'
   const managerUsername = process.env.E2E_MANAGER_USERNAME || 'truonglab'
+  const deputyUsername = process.env.E2E_DEPUTY_USERNAME || 'pholab'
   if (!password) {
     throw new Error('Thiếu E2E_BUSINESS_PASSWORD hoặc E2E_ADMIN_PASSWORD.')
   }
@@ -38,7 +39,13 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
   const student = await loginApi(studentUsername)
   const teacher = await loginApi(teacherUsername)
   const manager = await loginApi(managerUsername)
+  const deputy = await loginApi(deputyUsername)
   const headers = token => ({ Authorization: `Bearer ${token}` })
+
+  const deputyMaintenanceAccess = await request.get(`${apiBaseUrl}/maintenance/paged?page=1&pageSize=1`, {
+    headers: headers(deputy.token)
+  })
+  expect(deputyMaintenanceAccess.ok(), await deputyMaintenanceAccess.text()).toBeTruthy()
 
   const usersResponse = await request.get(`${apiBaseUrl}/users`, { headers: headers(admin.token) })
   expect(usersResponse.ok(), await usersResponse.text()).toBeTruthy()
@@ -136,6 +143,11 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
   expect(handoverResponse.ok(), await handoverResponse.text()).toBeTruthy()
   await handoverResponse.json()
 
+  const confirmReceiptResponse = await request.post(`${apiBaseUrl}/handover/${borrow.id}/confirm-receipt`, {
+    headers: headers(student.token)
+  })
+  expect(confirmReceiptResponse.ok(), await confirmReceiptResponse.text()).toBeTruthy()
+
   const evidenceResponse = await request.post(`${apiBaseUrl}/handover/${borrow.id}/evidence`, {
     headers: headers(manager.token),
     multipart: {
@@ -216,6 +228,10 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
     })
     expect(scanResponse.ok(), await scanResponse.text()).toBeTruthy()
   }
+  const startInventoryReview = await request.post(`${apiBaseUrl}/inventory/${inventory.id}/start-review`, {
+    headers: headers(manager.token)
+  })
+  expect(startInventoryReview.ok(), await startInventoryReview.text()).toBeTruthy()
   const completeInventory = await request.post(`${apiBaseUrl}/inventory/${inventory.id}/complete`, {
     headers: headers(manager.token)
   })

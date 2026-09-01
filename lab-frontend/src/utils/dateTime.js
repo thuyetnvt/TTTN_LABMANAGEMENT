@@ -36,3 +36,22 @@ export const formatVietnamDate = (value, fallback = '—') => {
     ? date.toLocaleDateString('vi-VN', { timeZone: VIETNAM_TIME_ZONE })
     : fallback
 }
+
+export const formatVietnamDateInput = (value, fallback = '') => {
+  const date = parseApiDate(value)
+  if (!date) return fallback
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: VIETNAM_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date)
+  const part = type => parts.find(item => item.type === type)?.value
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+
+export const vietnamDateInputToUtc = (value, fallback = null) => {
+  if (!ISO_DATE_ONLY.test(String(value || '').trim())) return fallback
+  const date = new Date(`${String(value).trim()}T00:00:00+07:00`)
+  return Number.isNaN(date.getTime()) ? fallback : date.toISOString()
+}

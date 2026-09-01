@@ -1,0 +1,76 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: e2e-root-password
+      MYSQL_DATABASE: lab_management_e2e
+      MYSQL_USER: lab_e2e
+      MYSQL_PASSWORD: e2e-app-password
+      TZ: Asia/Ho_Chi_Minh
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -pe2e-root-password --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  backend:
+    build:
+      context: ./lab-backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: E2E
+      ConnectionStrings__DefaultConnection: Server=db;Port=3306;Database=lab_management_e2e;Uid=lab_e2e;Pwd=e2e-app-password;CharSet=utf8mb4;
+      Jwt__Key: e2e-only-jwt-key-never-use-in-production-2026
+      Jwt__Issuer: LabManagementAPI
+      Jwt__Audience: LabManagementApp
+      Jwt__AccessTokenMinutes: 60
+      App__FrontendBaseUrl: http://127.0.0.1:8081
+      Cors__AllowedOrigins__0: http://127.0.0.1:8081
+      AllowedHosts: "localhost;127.0.0.1"
+      Database__ApplyMigrations: "true"
+      Seed__Enabled: "true"
+      Seed__DefaultPassword: E2e-Test-Password-2026!
+      Automation__Enabled: "false"
+      Security__UseHttpsRedirection: "false"
+      Security__RequireEncryptedDataProtectionKeys: "false"
+      Security__LoginRateLimitPermit: 500
+      Security__SensitiveRateLimitPermit: 1000
+      Storage__Provider: Local
+    volumes:
+      - e2e_uploads:/app/uploads
+      - e2e_data_protection_keys:/app/data-protection-keys
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./lab-frontend
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_SIGNALR_URL: /notificationHub
+    ports:
+      - "8081:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  e2e_uploads:
+  e2e_data_protection_keys:

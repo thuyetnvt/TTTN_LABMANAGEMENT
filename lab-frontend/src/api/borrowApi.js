@@ -3,7 +3,9 @@ import axiosClient from './axiosClient';
 export const borrowApi = {
   createRequest: (data) => axiosClient.post('/borrow', data),
   getPendingRequests: () => axiosClient.get('/borrow/pending'),
+  getPendingRequestsPaged: (params = {}) => axiosClient.get('/borrow/pending/paged', { params }),
   getHistory: () => axiosClient.get('/borrow/history'),
+  getHistoryPaged: (params = {}) => axiosClient.get('/borrow/history/paged', { params }),
   approve: (id) => axiosClient.put(`/borrow/${id}/approve`),
   reject: (id) => axiosClient.put(`/borrow/${id}/reject`),
   returnEquipment: (id, data = null) => axiosClient.put(`/borrow/${id}/return`, data),
@@ -16,6 +18,7 @@ export const borrowApi = {
     return axiosClient.post(`/borrow/${id}/return-evidence`, form)
   },
   getTeacherPending: () => axiosClient.get('/borrow/teacher-pending'),
+  getTeacherPendingPaged: (params = {}) => axiosClient.get('/borrow/teacher-pending/paged', { params }),
   teacherApprove: (id, note) => axiosClient.put(`/borrow/${id}/teacher-approve`, { note }),
   teacherReject: (id, note) => axiosClient.put(`/borrow/${id}/teacher-reject`, { note }),
   remind: (id) => axiosClient.post(`/borrow/${id}/remind`)

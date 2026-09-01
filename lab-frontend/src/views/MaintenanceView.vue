@@ -2,12 +2,19 @@
   <div class="maintenance-container">
     <div class="toolbar">
       <h2>Lịch sử Bảo trì & Hiệu chuẩn</h2>
-      <a-button type="primary" v-if="isManagerRole(role)" @click="showAddModal">+ Tạo phiếu bảo trì</a-button>
+      <div class="toolbar-actions">
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Thiết bị, nội dung..." style="width: 240px" @search="applyFilters" />
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 180px" @change="applyFilters">
+          <a-select-option :value="STATUS.MAINTENANCE_IN_PROGRESS">Đang bảo trì</a-select-option>
+          <a-select-option :value="STATUS.MAINTENANCE_COMPLETED">Đã hoàn tất</a-select-option>
+        </a-select>
+        <a-button type="primary" v-if="isManagerRole(role)" @click="showAddModal">+ Tạo phiếu bảo trì</a-button>
+      </div>
     </div>
     
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <div class="maintenance-desktop-table">
-        <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1450 }" :pagination="tablePagination">
+        <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1450 }" :pagination="tablePagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'maintenanceDate'">
              {{ formatDate(record[column.key]) }}
@@ -53,6 +60,8 @@
         class="maintenance-mobile-list"
         :items="dataSource"
         :loading="loading"
+        :pagination="tablePagination"
+        @change="handleTableChange"
         empty-description="Chưa có lịch sử bảo trì"
       >
         <template #default="{ item }">
@@ -112,7 +121,7 @@
         <a-row :gutter="16">
           <a-col :xs="24" :sm="12">
             <a-form-item label="Chọn thiết bị" required>
-              <a-select v-model:value="formData.equipmentId" placeholder="-- Chọn thiết bị --">
+              <a-select v-model:value="formData.equipmentId" show-search :filter-option="false" :loading="lookupLoading" placeholder="Nhập tên, seri hoặc mã tài sản" @search="searchEquipmentOptions">
                  <a-select-option v-for="eq in equipments" :key="eq.id" :value="eq.id">{{ eq.name }} - {{ eq.serial }}</a-select-option>
               </a-select>
             </a-form-item>
@@ -170,7 +179,7 @@
         <a-form-item label="Kết quả checklist"><a-textarea v-model:value="completeChecklistResult" :rows="3" placeholder="Đạt/không đạt theo từng hạng mục" /></a-form-item>
         <a-form-item label="Linh kiện/vật tư đã sử dụng">
           <a-space v-for="(part, index) in completeParts" :key="index" style="display: flex; margin-bottom: 6px">
-            <a-select v-model:value="part.consumableId" show-search option-filter-prop="label" style="width: 230px"><a-select-option v-for="item in consumables" :key="item.id" :value="item.id" :label="item.name">{{ item.name }} (còn {{ item.quantity }})</a-select-option></a-select>
+            <a-select v-model:value="part.consumableId" show-search :filter-option="false" :loading="lookupLoading" style="width: 230px" @search="searchConsumableOptions"><a-select-option v-for="item in consumables" :key="item.id" :value="item.id" :label="item.name">{{ item.name }} (còn {{ item.quantity }})</a-select-option></a-select>
             <a-input-number v-model:value="part.quantity" :min="1" style="width: 90px" />
             <a-button danger @click="completeParts.splice(index, 1)">Xóa</a-button>
           </a-space>
@@ -186,7 +195,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import { message, Upload } from 'ant-design-vue'
 import { DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
@@ -197,9 +206,15 @@ import StatusBadge from '../components/StatusBadge.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { STATUS, isAdminRole, isManagerRole, statusMatches } from '../constants/business'
-import { createTablePagination } from '../utils/tablePagination'
+import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import { formatVietnamDate } from '../utils/dateTime'
 
-const tablePagination = createTablePagination()
+const tablePagination = reactive({
+  ...createTablePagination(),
+  current: 1,
+  pageSize: TABLE_PAGE_SIZE,
+  total: 0
+})
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -208,6 +223,9 @@ const dataSource = ref([])
 const equipments = ref([])
 const consumables = ref([])
 const loading = ref(false)
+const lookupLoading = ref(false)
+const searchQuery = ref('')
+const statusFilter = ref(undefined)
 const submitting = ref(false)
 const isFormVisible = ref(false)
 const isCompleteVisible = ref(false)
@@ -243,7 +261,6 @@ const columns = [
   { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 80 }
 ]
 
-const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'
 
 onMounted(() => {
   fetchData()
@@ -252,8 +269,14 @@ onMounted(() => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await maintenanceApi.getAll()
-    dataSource.value = res || []
+    const res = await maintenanceApi.getPaged({
+      page: tablePagination.current,
+      pageSize: tablePagination.pageSize,
+      search: searchQuery.value.trim() || undefined,
+      status: statusFilter.value
+    })
+    dataSource.value = res.items || []
+    tablePagination.total = res.total || 0
   } catch (error) {
     message.error('Lỗi tải lịch sử bảo trì!')
   } finally {
@@ -261,10 +284,32 @@ const fetchData = async () => {
   }
 }
 
+const applyFilters = () => {
+  tablePagination.current = 1
+  fetchData()
+}
+
+const handleTableChange = (pager) => {
+  tablePagination.current = pager.pageSize === tablePagination.pageSize ? pager.current : 1
+  tablePagination.pageSize = pager.pageSize
+  fetchData()
+}
+
+const searchEquipmentOptions = async value => {
+  lookupLoading.value = true
+  try { equipments.value = await equipmentApi.lookup({ search: value?.trim() || undefined, limit: 50 }) || [] }
+  finally { lookupLoading.value = false }
+}
+
+const searchConsumableOptions = async value => {
+  lookupLoading.value = true
+  try { consumables.value = await consumableApi.lookup({ search: value?.trim() || undefined, limit: 50 }) || [] }
+  finally { lookupLoading.value = false }
+}
+
 const showAddModal = async () => {
   try {
-    const res = await equipmentApi.getAll()
-    equipments.value = res || []
+    await searchEquipmentOptions('')
     formData.value = { equipmentId: null, maintenanceDate: null, description: '', performedBy: '', cost: 0, supplier: '', checklist: '' }
     isFormVisible.value = true
   } catch (err) {
@@ -325,14 +370,14 @@ const confirmDelete = async () => {
   }
 }
 
-const showCompleteModal = (record) => {
+const showCompleteModal = async (record) => {
   completingRecordId.value = record.id
   completeResult.value = ''
   completeStatus.value = STATUS.AVAILABLE
   completeChecklistResult.value = ''
   completeParts.value = []
   completeEvidenceFile.value = null
-  consumableApi.getAll().then((res) => { consumables.value = res || [] }).catch(() => { consumables.value = [] })
+  await searchConsumableOptions('').catch(() => { consumables.value = [] })
   isCompleteVisible.value = true
 }
 
@@ -382,6 +427,7 @@ const selectMaintenanceEvidence = (file) => {
   align-items: center;
   margin-bottom: 24px;
 }
+.toolbar-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
 h2 {
   margin: 0;
   font-weight: 600;
@@ -435,6 +481,8 @@ h2 {
     flex-direction: column;
     gap: 12px;
   }
+  .toolbar-actions { width: 100%; }
+  .toolbar-actions > * { width: 100% !important; }
 }
 </style>
 

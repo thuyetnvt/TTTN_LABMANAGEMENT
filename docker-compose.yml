@@ -21,10 +21,11 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+    expose:
+      - "3306"
     networks:
-      - lab_internal
-    ports:
-      - "3306:3306"
+      lab_internal:
+        ipv4_address: 172.30.0.30
 
   backend:
     build:
@@ -39,6 +40,7 @@ services:
       Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-30}
       App__FrontendBaseUrl: ${APP_ORIGIN:-http://localhost:8080}
       Cors__AllowedOrigins__0: ${APP_ORIGIN:-http://localhost:8080}
+      AllowedHosts: "${ALLOWED_HOSTS:-localhost;127.0.0.1}"
       Email__Host: ${SMTP_HOST:-}
       Email__Port: ${SMTP_PORT:-587}
       Email__UseStartTls: ${SMTP_USE_STARTTLS:-true}
@@ -46,11 +48,21 @@ services:
       Email__Password: ${SMTP_PASSWORD:-}
       Email__FromEmail: ${SMTP_FROM_EMAIL:-}
       Email__FromName: ${SMTP_FROM_NAME:-Lab Management}
+      Automation__Enabled: ${AUTOMATION_ENABLED:-true}
+      Automation__PollMinutes: ${AUTOMATION_POLL_MINUTES:-5}
+      Automation__ReturnReminderDaysBefore: ${RETURN_REMINDER_DAYS_BEFORE:-3}
+      Automation__SendEmailReminders: ${AUTOMATION_SEND_EMAIL_REMINDERS:-false}
+      Automation__EmailMaxAttempts: ${AUTOMATION_EMAIL_MAX_ATTEMPTS:-3}
+      Automation__EmailRetryMinutes: ${AUTOMATION_EMAIL_RETRY_MINUTES:-60}
       Database__ApplyMigrations: "true"
       Seed__Enabled: ${SEED_ENABLED:-false}
       Seed__DefaultPassword: ${SEED_DEFAULT_PASSWORD:?Set SEED_DEFAULT_PASSWORD in .env}
       ForwardedHeaders__TrustAll: "false"
+      ForwardedHeaders__KnownProxies__0: "172.30.0.10"
       Security__UseHttpsRedirection: "false"
+      Security__RequireEncryptedDataProtectionKeys: "false"
+      Security__LoginRateLimitPermit: ${LOGIN_RATE_LIMIT_PERMIT:-5}
+      Security__SensitiveRateLimitPermit: ${SENSITIVE_RATE_LIMIT_PERMIT:-30}
       Security__DataProtectionCertificatePath: ${DATA_PROTECTION_CERTIFICATE_PATH:-}
       Security__DataProtectionCertificatePassword: ${DATA_PROTECTION_CERTIFICATE_PASSWORD:-}
       Storage__Provider: ${STORAGE_PROVIDER:-Local}
@@ -63,14 +75,15 @@ services:
       Storage__S3__KeyPrefix: ${STORAGE_S3_KEY_PREFIX:-labmanagement}
     volumes:
       - equipment_uploads:/app/uploads
-      - backend_data_protection:/app/data-protection-keys
-    ports:
-      - "${BACKEND_PORT:-8081}:8080"
+      - backend_data_protection_v2:/app/data-protection-keys
+    expose:
+      - "8080"
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - lab_internal
+      lab_internal:
+        ipv4_address: 172.30.0.20
 
   frontend:
     build:
@@ -85,13 +98,17 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - lab_internal
+      lab_internal:
+        ipv4_address: 172.30.0.10
 
 volumes:
   mysql_data:
   equipment_uploads:
-  backend_data_protection:
+  backend_data_protection_v2:
 
 networks:
   lab_internal:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

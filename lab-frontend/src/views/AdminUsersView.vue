@@ -2,12 +2,22 @@
   <div class="users-container">
     <div class="toolbar">
       <h2>Quản lý người dùng</h2>
-      <a-button v-if="isAdminRole(role)" type="primary" @click="showAddModal">+ Thêm tài khoản</a-button>
+      <div class="toolbar-actions">
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm tên, mã, email..." style="width: 260px" @search="applyFilters" />
+        <a-select v-model:value="roleFilter" allow-clear placeholder="Vai trò" style="width: 160px" @change="applyFilters">
+          <a-select-option :value="ROLE.ADMIN">Quản trị viên</a-select-option>
+          <a-select-option :value="ROLE.LAB_HEAD">Trưởng lab</a-select-option>
+          <a-select-option :value="ROLE.DEPUTY_LAB_HEAD">Phó lab</a-select-option>
+          <a-select-option :value="ROLE.TEACHER">Giảng viên</a-select-option>
+          <a-select-option :value="ROLE.STUDENT">Sinh viên</a-select-option>
+        </a-select>
+        <a-button v-if="isAdminRole(role)" type="primary" @click="showAddModal">+ Thêm tài khoản</a-button>
+      </div>
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <a-spin :spinning="loading">
-        <UserTable :dataSource="users" @edit="showEditModal" @delete="handleDelete" />
+        <UserTable :dataSource="users" :pagination="pagination" @change="handleTableChange" @edit="showEditModal" @delete="handleDelete" />
       </a-spin>
     </a-card>
 
@@ -28,20 +38,29 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import UserTable from '../components/UserTable.vue'
 import UserForm from '../components/UserForm.vue'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../stores/authStore'
-import { isAdminRole } from '../constants/business'
+import { ROLE, isAdminRole } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
+import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 const users = ref([])
 const loading = ref(false)
 const submitting = ref(false)
+const searchQuery = ref('')
+const roleFilter = ref(undefined)
+const pagination = reactive({
+  ...createTablePagination(),
+  current: 1,
+  pageSize: TABLE_PAGE_SIZE,
+  total: 0
+})
 
 const isModalVisible = ref(false)
 const isEditing = ref(false)
@@ -55,13 +74,30 @@ onMounted(() => {
 const fetchUsers = async () => {
   loading.value = true
   try {
-    const res = await userApi.getAll()
-    users.value = res.data || res || []
+    const res = await userApi.getPaged({
+      page: pagination.current,
+      pageSize: pagination.pageSize,
+      search: searchQuery.value.trim() || undefined,
+      status: roleFilter.value
+    })
+    users.value = res.items || []
+    pagination.total = res.total || 0
   } catch {
     message.error('Lỗi khi lấy danh sách người dùng!')
   } finally {
     loading.value = false
   }
+}
+
+const applyFilters = () => {
+  pagination.current = 1
+  fetchUsers()
+}
+
+const handleTableChange = (pager) => {
+  pagination.current = pager.pageSize === pagination.pageSize ? pager.current : 1
+  pagination.pageSize = pager.pageSize
+  fetchUsers()
 }
 
 const showAddModal = () => {
@@ -137,6 +173,14 @@ const handleModalOk = async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+}
+
+.toolbar-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+
+@media (max-width: 767px) {
+  .toolbar { align-items: stretch; flex-direction: column; gap: 14px; }
+  .toolbar-actions { justify-content: stretch; }
+  .toolbar-actions > * { width: 100% !important; }
 }
 
 h2 {

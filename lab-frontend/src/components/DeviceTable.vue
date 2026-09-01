@@ -35,7 +35,7 @@
   </div>
 
   <a-table
-    :dataSource="filteredDataSource"
+    :dataSource="dataSource"
     :columns="columns"
     :loading="loading"
     rowKey="id"
@@ -43,6 +43,7 @@
     :pagination="tablePagination"
     :scroll="{ x: 1500 }"
     :row-selection="isManager ? rowSelection : undefined"
+    @change="handleTableChange"
   >
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'status'">
@@ -315,7 +316,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import QrcodeVue from 'qrcode.vue'
@@ -331,9 +332,15 @@ import { borrowApi } from '../api/borrowApi'
 import { userApi } from '../api/userApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { locationApi } from '../api/locationApi'
-import { createTablePagination } from '../utils/tablePagination'
+import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import { formatVietnamDate } from '../utils/dateTime'
 
-const tablePagination = createTablePagination()
+const tablePagination = reactive({
+  ...createTablePagination(),
+  current: 1,
+  pageSize: TABLE_PAGE_SIZE,
+  total: 0
+})
 const importPagination = createTablePagination()
 
 const authStore = useAuthStore()
@@ -380,34 +387,10 @@ const handleSearchChange = (e) => {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => {
     debouncedSearchQuery.value = e.target.value
+    tablePagination.current = 1
+    fetchData()
   }, 500)
 }
-
-const filteredDataSource = computed(() => {
-  let result = dataSource.value
-
-  const status = route.query.status
-  if (status && status !== 'all') {
-    if (status === 'problem') {
-      result = result.filter(item => [STATUS.BROKEN, STATUS.UNDER_WARRANTY].includes(item.status))
-    } else if (status === 'warranty') {
-      result = result.filter(item => statusMatches(item.status, STATUS.UNDER_WARRANTY))
-    } else {
-      result = result.filter(item => statusMatches(item.status, status))
-    }
-  }
-
-  const search = debouncedSearchQuery.value.trim().toLowerCase()
-  if (search) {
-    result = result.filter(item => 
-      (item.name && item.name.toLowerCase().includes(search)) ||
-      (item.serial && item.serial.toLowerCase().includes(search)) ||
-      (item.model && item.model.toLowerCase().includes(search))
-    )
-  }
-
-  return result
-})
 
 const emptyForm = () => ({
   name: '',
@@ -482,7 +465,7 @@ onMounted(() => {
   fetchLocations()
 })
 
-const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : ''
+const formatDate = value => formatVietnamDate(value, '')
 
 const normalizeDate = (value, endOfDay = false) => {
   if (!value) return null
@@ -515,13 +498,36 @@ const fetchTeachers = async () => {
 const fetchData = async () => {
   loading.value = true
   try {
-    dataSource.value = await equipmentApi.getAll() || []
+    const routeStatus = route.query.status
+    const status = routeStatus && routeStatus !== 'all'
+      ? (routeStatus === 'problem' ? 'PROBLEM' : (routeStatus === 'warranty' ? STATUS.UNDER_WARRANTY : routeStatus))
+      : undefined
+    const response = await equipmentApi.getPaged({
+      page: tablePagination.current,
+      pageSize: tablePagination.pageSize,
+      search: debouncedSearchQuery.value.trim() || undefined,
+      status
+    })
+    dataSource.value = response.items || []
+    tablePagination.total = response.total || 0
   } catch {
     message.error('Lỗi khi tải danh sách thiết bị!')
   } finally {
     loading.value = false
   }
 }
+
+const handleTableChange = (pager) => {
+  tablePagination.current = pager.pageSize === tablePagination.pageSize ? pager.current : 1
+  tablePagination.pageSize = pager.pageSize
+  selectedBatchKeys.value = []
+  fetchData()
+}
+
+watch(() => route.query.status, () => {
+  tablePagination.current = 1
+  fetchData()
+})
 
 const showAddModal = () => {
   isEditMode.value = false
@@ -554,7 +560,7 @@ const showViewModal = (record) => {
 }
 
 const hasDetailValue = (value) => value !== null && value !== undefined && String(value).trim() !== ''
-const detailDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : ''
+const detailDate = value => formatVietnamDate(value, '')
 const detailField = (key, label, value) => ({ key, label, value })
 
 const detailSections = computed(() => {
@@ -881,7 +887,7 @@ const stopScanner = () => {
 
 onUnmounted(stopScanner)
 
-const onScanSuccess = (decodedText) => {
+const onScanSuccess = async (decodedText) => {
   const isTokenQr = decodedText.startsWith('DEVICE_TOKEN:')
   const isLegacyQr = decodedText.startsWith('DEVICE:')
   if (!isTokenQr && !isLegacyQr) {
@@ -890,7 +896,15 @@ const onScanSuccess = (decodedText) => {
   }
 
   const value = decodedText.slice(decodedText.indexOf(':') + 1)
-  const device = dataSource.value.find(d => isTokenQr ? d.qrToken === value : d.serial === value)
+  let device = dataSource.value.find(d => isTokenQr ? d.qrToken === value : d.serial === value)
+  if (isTokenQr && !device) {
+    try {
+      device = await equipmentApi.resolveQr(value)
+    } catch (error) {
+      message.error(error?.response?.data?.message || 'Không tìm thấy thiết bị!')
+      return
+    }
+  }
   if (!device) {
     message.error('Không tìm thấy thiết bị!')
     return

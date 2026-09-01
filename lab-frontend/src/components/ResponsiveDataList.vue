@@ -7,9 +7,9 @@
     <a-spin v-if="loading" class="responsive-loading" />
     <a-pagination
       v-if="items.length && !loading"
-      :current="currentPage"
-      :page-size="pageSize"
-      :total="items.length"
+      :current="resolvedCurrentPage"
+      :page-size="resolvedPageSize"
+      :total="resolvedTotal"
       :page-size-options="TABLE_PAGE_SIZE_OPTIONS"
       :show-size-changer="true"
       :hide-on-single-page="false"
@@ -28,17 +28,27 @@ const props = defineProps({
   items: { type: Array, default: () => [] },
   itemKey: { type: [String, Function], default: 'id' },
   loading: { type: Boolean, default: false },
-  emptyDescription: { type: String, default: 'Chưa có dữ liệu' }
+  emptyDescription: { type: String, default: 'Chưa có dữ liệu' },
+  pagination: { type: Object, default: null }
 })
+const emit = defineEmits(['change'])
 
 const currentPage = ref(1)
 const pageSize = ref(TABLE_PAGE_SIZE)
+const resolvedCurrentPage = computed(() => props.pagination?.current || currentPage.value)
+const resolvedPageSize = computed(() => props.pagination?.pageSize || pageSize.value)
+const resolvedTotal = computed(() => props.pagination?.total ?? props.items.length)
 const pagedItems = computed(() => {
+  if (props.pagination) return props.items
   const start = (currentPage.value - 1) * pageSize.value
   return props.items.slice(start, start + pageSize.value)
 })
 
 const handlePageChange = (page, nextPageSize) => {
+  if (props.pagination) {
+    emit('change', { current: page, pageSize: nextPageSize })
+    return
+  }
   currentPage.value = nextPageSize === pageSize.value ? page : 1
   pageSize.value = nextPageSize
 }

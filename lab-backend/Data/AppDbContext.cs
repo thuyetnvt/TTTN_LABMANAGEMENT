@@ -11,6 +11,7 @@ namespace LabManagementAPI.Data
         public DbSet<Equipment> Equipments { get; set; }
         public DbSet<AssetCategory> AssetCategories { get; set; }
         public DbSet<Consumable> Consumables { get; set; }
+        public DbSet<ConsumableLot> ConsumableLots { get; set; }
         public DbSet<BorrowRecord> BorrowRecords { get; set; }
         public DbSet<BorrowRequestDetail> BorrowRequestDetails { get; set; }
         public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; }
@@ -18,6 +19,7 @@ namespace LabManagementAPI.Data
         public DbSet<MaintenancePartUsage> MaintenancePartUsages { get; set; }
         public DbSet<MaintenanceEvidence> MaintenanceEvidence { get; set; }
         public DbSet<ConsumableRequest> ConsumableRequests { get; set; }
+        public DbSet<ConsumableRequestLotAllocation> ConsumableRequestLotAllocations { get; set; }
         public DbSet<ConsumableTransaction> ConsumableTransactions { get; set; }
         public DbSet<Penalty> Penalties { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
@@ -33,6 +35,7 @@ namespace LabManagementAPI.Data
         public DbSet<HandoverItem> HandoverItems { get; set; }
         public DbSet<HandoverEvidence> HandoverEvidence { get; set; }
         public DbSet<EquipmentLocationHistory> EquipmentLocationHistories { get; set; }
+        public DbSet<AutomationDispatch> AutomationDispatches { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -127,6 +130,37 @@ namespace LabManagementAPI.Data
                 {
                     table.HasCheckConstraint("CK_Consumables_Quantity", "Quantity >= 0");
                     table.HasCheckConstraint("CK_Consumables_MinQuantity", "MinQuantity >= 0");
+                    table.HasCheckConstraint("CK_Consumables_ReservedQuantity", "ReservedQuantity >= 0 AND ReservedQuantity <= Quantity");
+                });
+            });
+
+            modelBuilder.Entity<AutomationDispatch>(entity =>
+            {
+                entity.Property(item => item.JobType).HasMaxLength(50);
+                entity.Property(item => item.EntityType).HasMaxLength(100);
+                entity.Property(item => item.WindowKey).HasMaxLength(100);
+                entity.Property(item => item.LastError).HasMaxLength(2000);
+                entity.HasIndex(item => new { item.JobType, item.EntityId, item.WindowKey }).IsUnique();
+                entity.HasIndex(item => new { item.EmailSentAt, item.Attempts, item.LastAttemptAt });
+            });
+
+            modelBuilder.Entity<ConsumableLot>(entity =>
+            {
+                entity.Property(item => item.LotNumber).HasMaxLength(100);
+                entity.Property(item => item.Supplier).HasMaxLength(255);
+                entity.Property(item => item.InvoiceNumber).HasMaxLength(100);
+                entity.Property(item => item.UnitCost).HasPrecision(18, 2);
+                entity.Property(item => item.StorageLocation).HasMaxLength(255);
+                entity.HasIndex(item => new { item.ConsumableId, item.LotNumber }).IsUnique();
+                entity.HasIndex(item => new { item.ConsumableId, item.ExpiryDate });
+                entity.HasOne(item => item.Consumable)
+                    .WithMany(item => item.Lots)
+                    .HasForeignKey(item => item.ConsumableId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.ToTable(table =>
+                {
+                    table.HasCheckConstraint("CK_ConsumableLots_InitialQuantity", "InitialQuantity >= 0");
+                    table.HasCheckConstraint("CK_ConsumableLots_Quantity", "Quantity >= 0");
                 });
             });
 
@@ -231,6 +265,8 @@ namespace LabManagementAPI.Data
                 entity.Property(item => item.ExpectedLocationName).HasMaxLength(255);
                 entity.Property(item => item.Status).HasMaxLength(50);
                 entity.Property(item => item.Note).HasMaxLength(2000);
+                entity.Property(item => item.ReviewResolution).HasMaxLength(50);
+                entity.Property(item => item.ReviewNote).HasMaxLength(2000);
                 entity.HasIndex(item => new { item.InventorySessionId, item.EquipmentId }).IsUnique();
                 entity.HasIndex(item => new { item.InventorySessionId, item.Status });
                 entity.HasOne(item => item.InventorySession)
@@ -244,6 +280,14 @@ namespace LabManagementAPI.Data
                 entity.HasOne(item => item.ScannedByUser)
                     .WithMany()
                     .HasForeignKey(item => item.ScannedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(item => item.ActualLocationNode)
+                    .WithMany()
+                    .HasForeignKey(item => item.ActualLocationNodeId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(item => item.ReviewedByUser)
+                    .WithMany()
+                    .HasForeignKey(item => item.ReviewedByUserId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
@@ -341,6 +385,29 @@ namespace LabManagementAPI.Data
                 entity.HasOne(request => request.Consumable)
                     .WithMany()
                     .HasForeignKey(request => request.ConsumableId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(request => request.HandedOverByUser)
+                    .WithMany()
+                    .HasForeignKey(request => request.HandedOverByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(request => request.ReceivedByUser)
+                    .WithMany()
+                    .HasForeignKey(request => request.ReceivedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<ConsumableRequestLotAllocation>(entity =>
+            {
+                entity.HasIndex(item => new { item.ConsumableRequestId, item.ConsumableLotId }).IsUnique();
+                entity.ToTable(table => table.HasCheckConstraint(
+                    "CK_ConsumableRequestLotAllocations_Quantity", "Quantity > 0"));
+                entity.HasOne(item => item.ConsumableRequest)
+                    .WithMany(item => item.LotAllocations)
+                    .HasForeignKey(item => item.ConsumableRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.ConsumableLot)
+                    .WithMany(item => item.RequestAllocations)
+                    .HasForeignKey(item => item.ConsumableLotId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 

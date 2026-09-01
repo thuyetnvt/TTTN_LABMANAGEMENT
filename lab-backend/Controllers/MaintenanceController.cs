@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using LabManagementAPI.Data;
+using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -135,6 +136,84 @@ public class MaintenanceController : ControllerBase
         return Ok(records);
     }
 
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetMaintenanceRecordsPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.MaintenanceRecords
+            .AsNoTracking()
+            .Include(record => record.Equipment)
+            .Include(record => record.Parts)
+                .ThenInclude(part => part.Consumable)
+            .Include(record => record.Evidence)
+            .AsQueryable();
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(record =>
+                record.Equipment!.Name.Contains(search)
+                || record.Equipment.Serial.Contains(search)
+                || record.Description.Contains(search)
+                || record.PerformedBy.Contains(search)
+                || record.Supplier.Contains(search));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            query = query.Where(record => record.Status == status);
+        }
+        if (paging.From.HasValue)
+        {
+            query = query.Where(record => record.MaintenanceDate >= paging.From.Value);
+        }
+        if (paging.To.HasValue)
+        {
+            var exclusiveTo = paging.To.Value.Date.AddDays(1);
+            query = query.Where(record => record.MaintenanceDate < exclusiveTo);
+        }
+
+        var page = await query
+            .OrderByDescending(record => record.MaintenanceDate)
+            .ThenByDescending(record => record.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+        var items = page.Items.Select(record => (object)new
+        {
+            id = record.Id,
+            equipmentId = record.EquipmentId,
+            device = record.Equipment!.Name,
+            maintenanceDate = record.MaintenanceDate,
+            description = record.Description,
+            cost = record.Cost,
+            performedBy = record.PerformedBy,
+            status = record.Status,
+            completedAt = record.CompletedAt,
+            result = record.Result,
+            resultStatus = record.ResultStatus,
+            record.Supplier,
+            record.Checklist,
+            record.ChecklistResult,
+            parts = record.Parts.Select(part => new
+            {
+                part.ConsumableId,
+                consumableName = part.Consumable!.Name,
+                part.Quantity,
+                part.UnitCost,
+                part.Note
+            }),
+            evidence = record.Evidence.Select(evidence => new
+            {
+                evidence.Id,
+                evidence.EvidenceType,
+                evidence.OriginalFileName,
+                evidence.ContentType,
+                evidence.FileSize,
+                evidence.UploadedAt
+            })
+        }).ToList();
+        return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
     [HttpPost]
     public async Task<ActionResult<MaintenanceRecord>> CreateMaintenance(
         [FromBody] CreateMaintenanceDto dto,
@@ -224,7 +303,7 @@ public class MaintenanceController : ControllerBase
         CancellationToken cancellationToken)
     {
         dto.Result = dto.Result.Trim();
-        dto.NextEquipmentStatus = dto.NextEquipmentStatus.Trim();
+        dto.NextEquipmentStatus = EquipmentStatuses.Normalize(dto.NextEquipmentStatus);
         dto.ChecklistResult = dto.ChecklistResult.Trim();
         if (string.IsNullOrWhiteSpace(dto.Result))
         {
@@ -270,15 +349,42 @@ public class MaintenanceController : ControllerBase
             await transaction.RollbackAsync(cancellationToken);
             return BadRequest(new { message = "Có vật tư không tồn tại." });
         }
+        var today = VietnamTime.Today();
+        var validLots = await _context.ConsumableLots
+            .Where(lot => partIds.Contains(lot.ConsumableId)
+                && lot.Quantity > 0
+                && (!lot.ExpiryDate.HasValue || lot.ExpiryDate.Value >= VietnamTime.StartOfDayUtc(today)))
+            .OrderBy(lot => lot.ExpiryDate == null)
+            .ThenBy(lot => lot.ExpiryDate)
+            .ThenBy(lot => lot.EntryDate)
+            .ToListAsync(cancellationToken);
         foreach (var part in requestedParts)
         {
             var stock = consumables[part.ConsumableId];
             var beforeQuantity = stock.Quantity;
-            if (beforeQuantity < part.Quantity)
+            if (beforeQuantity - stock.ReservedQuantity < part.Quantity)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return Conflict(new { message = $"Vật tư {stock.Name} không đủ tồn kho để sử dụng." });
+                return Conflict(new { message = $"Vật tư {stock.Name} không đủ tồn kho khả dụng; một phần đang được giữ cho phiếu cấp phát đã duyệt." });
             }
+
+            var remaining = part.Quantity;
+            var usedLots = new List<string>();
+            foreach (var lot in validLots.Where(lot => lot.ConsumableId == stock.Id))
+            {
+                if (remaining == 0) break;
+                var usedQuantity = Math.Min(remaining, lot.Quantity);
+                if (usedQuantity == 0) continue;
+                lot.Quantity -= usedQuantity;
+                remaining -= usedQuantity;
+                usedLots.Add($"{lot.LotNumber}:{usedQuantity}");
+            }
+            if (remaining > 0)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return Conflict(new { message = $"Các lô còn hạn của vật tư {stock.Name} không đủ số lượng để sử dụng." });
+            }
+
             stock.Quantity -= part.Quantity;
             _context.ConsumableTransactions.Add(new ConsumableTransaction
             {
@@ -287,7 +393,7 @@ public class MaintenanceController : ControllerBase
                 Quantity = part.Quantity,
                 BeforeQuantity = beforeQuantity,
                 AfterQuantity = stock.Quantity,
-                Reason = $"Sử dụng cho phiếu bảo trì #{id}",
+                Reason = $"Sử dụng cho phiếu bảo trì #{id}; lô {string.Join(", ", usedLots)}",
                 UserId = GetCurrentUserId(),
                 MaintenanceRecordId = id,
                 CreatedAt = DateTime.UtcNow

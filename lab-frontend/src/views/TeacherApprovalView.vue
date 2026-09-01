@@ -3,10 +3,11 @@
     <div class="toolbar">
       <h2>Duyệt bảo lãnh mượn thiết bị</h2>
       <p>Danh sách yêu cầu sinh viên nhờ giảng viên bảo lãnh trước khi gửi lên kho.</p>
+      <a-input-search v-model:value="searchQuery" allow-clear placeholder="Sinh viên, thiết bị..." style="width: 280px; margin-bottom: 16px" @search="applySearch" />
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination">
+      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
@@ -28,6 +29,22 @@
           </template>
         </template>
       </a-table>
+      <ResponsiveDataList :items="dataSource" :loading="loading" :pagination="tablePagination" empty-description="Không có yêu cầu chờ bảo lãnh" @change="handleTableChange">
+        <template #default="{ item }">
+          <div class="mobile-approval-heading"><strong>{{ item.student }}</strong><StatusBadge :status="item.status" type="borrow" /></div>
+          <div class="mobile-approval-device">{{ item.device }}</div>
+          <div v-for="detail in item.details || []" :key="detail.equipmentId" class="detail-line">{{ detail.equipmentName }} — {{ detail.serial }}</div>
+          <dl class="mobile-approval-details">
+            <div><dt>Ngày đăng ký</dt><dd>{{ formatDate(item.requestDate) }}</dd></div>
+            <div><dt>Dự kiến trả</dt><dd>{{ formatDate(item.returnDate) }}</dd></div>
+            <div><dt>Mục đích</dt><dd>{{ item.purpose || '—' }}</dd></div>
+          </dl>
+          <div class="mobile-approval-actions">
+            <a-button type="primary" @click="openDecision(item, 'approve')">Bảo lãnh</a-button>
+            <a-button danger @click="openDecision(item, 'reject')">Từ chối</a-button>
+          </div>
+        </template>
+      </ResponsiveDataList>
     </a-card>
   </div>
 
@@ -47,16 +64,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { borrowApi } from '../api/borrowApi'
 import StatusBadge from '../components/StatusBadge.vue'
-import { createTablePagination } from '../utils/tablePagination'
+import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import { formatVietnamDate } from '../utils/dateTime'
 
-const tablePagination = createTablePagination()
+const tablePagination = reactive({
+  ...createTablePagination(),
+  current: 1,
+  pageSize: TABLE_PAGE_SIZE,
+  total: 0
+})
 
 const dataSource = ref([])
 const loading = ref(false)
+const searchQuery = ref('')
 const decisionOpen = ref(false)
 const decisionLoading = ref(false)
 const decisionType = ref('approve')
@@ -75,17 +100,34 @@ const columns = [
 
 onMounted(() => fetchRequests())
 
-const formatDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—'
+const formatDate = value => formatVietnamDate(value)
 
 const fetchRequests = async () => {
   loading.value = true
   try {
-    dataSource.value = await borrowApi.getTeacherPending() || []
+    const response = await borrowApi.getTeacherPendingPaged({
+      page: tablePagination.current,
+      pageSize: tablePagination.pageSize,
+      search: searchQuery.value.trim() || undefined
+    })
+    dataSource.value = response.items || []
+    tablePagination.total = response.total || 0
   } catch {
     message.error('Lỗi khi tải danh sách yêu cầu bảo lãnh!')
   } finally {
     loading.value = false
   }
+}
+
+const applySearch = () => {
+  tablePagination.current = 1
+  fetchRequests()
+}
+
+const handleTableChange = pager => {
+  tablePagination.current = pager.pageSize === tablePagination.pageSize ? pager.current : 1
+  tablePagination.pageSize = pager.pageSize
+  fetchRequests()
 }
 
 const openDecision = (record, type) => {
@@ -141,5 +183,17 @@ const submitDecision = async () => {
 .detail-line {
   color: #6b7280;
   font-size: 12px;
+}
+.mobile-approval-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.mobile-approval-heading strong { color: var(--color-ink); font-size: 15px; }
+.mobile-approval-device { margin-top: 8px; font-weight: 600; }
+.mobile-approval-details { display: grid; gap: 7px; margin: 12px 0; }
+.mobile-approval-details div { display: flex; justify-content: space-between; gap: 12px; }
+.mobile-approval-details dt { color: var(--color-text-secondary); }
+.mobile-approval-details dd { margin: 0; max-width: 62%; text-align: right; }
+.mobile-approval-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 767px) {
+  .desktop-table { display: none; }
+  .toolbar :deep(.ant-input-search) { width: 100% !important; }
 }
 </style>

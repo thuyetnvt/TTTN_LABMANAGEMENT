@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using LabManagementAPI.Data;
+using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -138,8 +139,14 @@ public class EquipmentController : ControllerBase
         public List<ImportEquipmentRowDto> Rows { get; set; } = [];
     }
 
+    public sealed class ResolveEquipmentQrDto
+    {
+        [Required, MaxLength(200)]
+        public string QrToken { get; set; } = string.Empty;
+    }
+
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<object>>> GetEquipments(
+    public async Task<IActionResult> GetEquipments(
         CancellationToken cancellationToken)
     {
         var equipments = await _context.Equipments
@@ -149,41 +156,136 @@ public class EquipmentController : ControllerBase
             .OrderByDescending(equipment => equipment.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        return Ok(equipments.Select(equipment => new
+        if (User.IsInRole(Roles.Admin)
+            || User.IsInRole(Roles.LabHead)
+            || User.IsInRole(Roles.DeputyLabHead))
         {
-            equipment.Id,
-            equipment.AssetCode,
-            equipment.QrToken,
-            equipment.Name,
-            equipment.Model,
-            equipment.Serial,
-            equipment.SerialName,
-            equipment.DeviceType,
-            equipment.MacAddress,
-            equipment.Imei,
-            equipment.FirmwareVersion,
-            equipment.Manufacturer,
-            equipment.Supplier,
-            equipment.FundingSource,
-            equipment.PurchaseValue,
-            equipment.ImagePath,
-            equipment.LastInventoryAt,
-            equipment.Notes,
-            equipment.Location,
-            equipment.LocationNodeId,
-            locationName = equipment.LocationNode?.Name ?? equipment.Location,
-            equipment.ResponsiblePerson,
-            equipment.DecisionFileName,
-            HasDecisionFile = !string.IsNullOrEmpty(equipment.DecisionFilePath),
-            equipment.EntryDate,
-            equipment.WarrantyExpiry,
-            equipment.InvoiceNumber,
-            equipment.Status,
-            equipment.BorrowCount,
-            equipment.AssetCategoryId,
-            CategoryName = equipment.AssetCategory?.Name,
-            equipment.CreatedAt
-        }));
+            return Ok(equipments.Select(ToManagerDto));
+        }
+
+        return Ok(equipments.Select(ToBorrowerDto));
+    }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetEquipmentsPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.Equipments
+            .AsNoTracking()
+            .Include(equipment => equipment.AssetCategory)
+            .Include(equipment => equipment.LocationNode)
+            .AsQueryable();
+
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(equipment =>
+                equipment.Name.Contains(search)
+                || equipment.AssetCode.Contains(search)
+                || equipment.Serial.Contains(search)
+                || equipment.Model.Contains(search)
+                || equipment.Location.Contains(search)
+                || (equipment.AssetCategory != null && equipment.AssetCategory.Name.Contains(search))
+                || (equipment.LocationNode != null
+                    && (equipment.LocationNode.Name.Contains(search) || equipment.LocationNode.Code.Contains(search))));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            if (string.Equals(status, "PROBLEM", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(equipment => equipment.Status == EquipmentStatuses.Broken
+                    || equipment.Status == EquipmentStatuses.UnderWarranty
+                    || equipment.Status == EquipmentStatuses.Missing);
+            }
+            else
+            {
+                query = query.Where(equipment => equipment.Status == status);
+            }
+        }
+        if (paging.CategoryId.HasValue)
+        {
+            query = query.Where(equipment => equipment.AssetCategoryId == paging.CategoryId.Value);
+        }
+        if (paging.LocationNodeId.HasValue)
+        {
+            query = query.Where(equipment => equipment.LocationNodeId == paging.LocationNodeId.Value);
+        }
+
+        var page = await query
+            .OrderByDescending(equipment => equipment.CreatedAt)
+            .ThenBy(equipment => equipment.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+
+        var isManager = User.IsInRole(Roles.Admin)
+            || User.IsInRole(Roles.LabHead)
+            || User.IsInRole(Roles.DeputyLabHead);
+        if (isManager)
+        {
+            return Ok(page.Map(ToManagerDto));
+        }
+
+        return Ok(page.Map(ToBorrowerDto));
+    }
+
+    [HttpGet("lookup")]
+    public async Task<IActionResult> LookupEquipments(
+        [FromQuery, MaxLength(200)] string? search = null,
+        [FromQuery, Range(1, 50)] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Equipments.AsNoTracking().AsQueryable();
+        var keyword = search?.Trim() ?? string.Empty;
+        if (keyword.Length > 0)
+        {
+            query = query.Where(item =>
+                item.Name.Contains(keyword)
+                || item.Serial.Contains(keyword)
+                || item.AssetCode.Contains(keyword));
+        }
+
+        var items = await query
+            .OrderBy(item => item.Name)
+            .ThenBy(item => item.Id)
+            .Take(Math.Clamp(limit, 1, 50))
+            .Select(item => new
+            {
+                item.Id,
+                item.Name,
+                item.Serial,
+                item.AssetCode,
+                item.Status,
+                item.Location
+            })
+            .ToListAsync(cancellationToken);
+        return Ok(items);
+    }
+
+    [HttpPost("resolve-qr")]
+    [EnableRateLimiting("sensitive")]
+    public async Task<IActionResult> ResolveQr(
+        [FromBody] ResolveEquipmentQrDto dto,
+        CancellationToken cancellationToken)
+    {
+        var token = dto.QrToken.Trim();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest(new { message = "Mã QR không hợp lệ." });
+        }
+
+        var equipment = await _context.Equipments
+            .AsNoTracking()
+            .Include(item => item.AssetCategory)
+            .Include(item => item.LocationNode)
+            .SingleOrDefaultAsync(item => item.QrToken == token, cancellationToken);
+        if (equipment is null)
+        {
+            return NotFound(new { message = "Không tìm thấy tài sản từ mã QR." });
+        }
+
+        // Endpoint quét không bao giờ trả token ngược lại, kể cả cho quản lý.
+        return Ok(ToBorrowerDto(equipment));
     }
 
     [HttpPost("import/preview")]
@@ -462,7 +564,7 @@ public class EquipmentController : ControllerBase
             new { equipment.Name, equipment.Serial },
             cancellationToken);
 
-        return Ok(equipment);
+        return Ok(ToManagerDto(equipment));
     }
 
     [HttpPut("{id:int}")]
@@ -510,6 +612,7 @@ public class EquipmentController : ControllerBase
             return BadRequest(new { message = "Số seri đã tồn tại." });
         }
 
+        dto.Status = EquipmentStatuses.Normalize(dto.Status);
         if (!EquipmentStatuses.All.Contains(dto.Status))
         {
             return BadRequest(new { message = "Trạng thái thiết bị không hợp lệ." });
@@ -912,6 +1015,68 @@ public class EquipmentController : ControllerBase
             equipment.Status,
             equipment.AssetCategoryId,
             equipment.DecisionFileName
+        };
+    }
+
+    private static BorrowerEquipmentDto ToBorrowerDto(Equipment equipment)
+    {
+        return new BorrowerEquipmentDto
+        {
+            Id = equipment.Id,
+            AssetCode = equipment.AssetCode,
+            Name = equipment.Name,
+            Model = equipment.Model,
+            Serial = equipment.Serial,
+            SerialName = equipment.SerialName,
+            DeviceType = equipment.DeviceType,
+            Manufacturer = equipment.Manufacturer,
+            ImagePath = equipment.ImagePath,
+            Location = equipment.Location,
+            LocationNodeId = equipment.LocationNodeId,
+            LocationName = equipment.LocationNode?.Name ?? equipment.Location,
+            WarrantyExpiry = equipment.WarrantyExpiry,
+            Status = equipment.Status,
+            AssetCategoryId = equipment.AssetCategoryId,
+            CategoryName = equipment.AssetCategory?.Name
+        };
+    }
+
+    private static ManagerEquipmentDto ToManagerDto(Equipment equipment)
+    {
+        return new ManagerEquipmentDto
+        {
+            Id = equipment.Id,
+            AssetCode = equipment.AssetCode,
+            QrToken = equipment.QrToken,
+            Name = equipment.Name,
+            Model = equipment.Model,
+            Serial = equipment.Serial,
+            SerialName = equipment.SerialName,
+            DeviceType = equipment.DeviceType,
+            MacAddress = equipment.MacAddress,
+            Imei = equipment.Imei,
+            FirmwareVersion = equipment.FirmwareVersion,
+            Manufacturer = equipment.Manufacturer,
+            Supplier = equipment.Supplier,
+            FundingSource = equipment.FundingSource,
+            PurchaseValue = equipment.PurchaseValue,
+            ImagePath = equipment.ImagePath,
+            LastInventoryAt = equipment.LastInventoryAt,
+            Notes = equipment.Notes,
+            Location = equipment.Location,
+            LocationNodeId = equipment.LocationNodeId,
+            LocationName = equipment.LocationNode?.Name ?? equipment.Location,
+            ResponsiblePerson = equipment.ResponsiblePerson,
+            DecisionFileName = equipment.DecisionFileName,
+            HasDecisionFile = !string.IsNullOrEmpty(equipment.DecisionFilePath),
+            EntryDate = equipment.EntryDate,
+            WarrantyExpiry = equipment.WarrantyExpiry,
+            InvoiceNumber = equipment.InvoiceNumber,
+            Status = equipment.Status,
+            BorrowCount = equipment.BorrowCount,
+            AssetCategoryId = equipment.AssetCategoryId,
+            CategoryName = equipment.AssetCategory?.Name,
+            CreatedAt = equipment.CreatedAt
         };
     }
 

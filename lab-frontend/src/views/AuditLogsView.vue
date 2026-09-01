@@ -13,6 +13,7 @@
 
     <FilterBar class="filter-card">
       <div class="filters">
+        <a-input-search v-model:value="filters.search" allow-clear placeholder="Người thao tác, mã..." class="filter-control" @search="applySearch" />
         <a-select v-model:value="filters.action" allowClear placeholder="Hành động" class="filter-control">
           <a-select-option value="Create">Tạo mới</a-select-option>
           <a-select-option value="Update">Cập nhật</a-select-option>
@@ -91,6 +92,7 @@ const loading = ref(false)
 const detailsVisible = ref(false)
 const selectedDetails = ref('')
 const filters = reactive({
+  search: '',
   action: undefined,
   entityType: undefined
 })
@@ -121,7 +123,8 @@ const fetchLogs = async () => {
       page: pagination.current,
       pageSize: pagination.pageSize,
       action: filters.action,
-      entityType: filters.entityType
+      entityType: filters.entityType,
+      search: filters.search.trim() || undefined
     })
     logs.value = res.items || []
     pagination.total = res.total || 0
@@ -133,13 +136,19 @@ const fetchLogs = async () => {
 }
 
 const resetFilters = () => {
-  if (!filters.action && !filters.entityType) {
+  if (!filters.search && !filters.action && !filters.entityType) {
     pagination.current = 1
     fetchLogs()
     return
   }
   filters.action = undefined
   filters.entityType = undefined
+  filters.search = ''
+}
+
+const applySearch = () => {
+  pagination.current = 1
+  fetchLogs()
 }
 
 const handleTableChange = (pager) => {

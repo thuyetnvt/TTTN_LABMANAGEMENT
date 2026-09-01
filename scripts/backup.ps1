@@ -26,7 +26,10 @@ Write-Host "Đang backup volume $UploadVolume vào $uploadsBackup"
 if ($LASTEXITCODE -ne 0) { throw "Backup volume upload thất bại." }
 
 if ([string]::IsNullOrWhiteSpace($DataProtectionVolume)) {
-    $DataProtectionVolume = (& docker volume ls --format '{{.Name}}' | Where-Object { $_ -match 'backend_data_protection$' } | Select-Object -First 1)
+    $DataProtectionVolume = (& docker volume ls --format '{{.Name}}' |
+        Where-Object { $_ -match 'backend_data_protection(?:_v\d+)?$' } |
+        Sort-Object -Descending |
+        Select-Object -First 1)
 }
 if (-not [string]::IsNullOrWhiteSpace($DataProtectionVolume)) {
     Write-Host "Đang backup volume Data Protection $DataProtectionVolume vào $dataProtectionBackup"

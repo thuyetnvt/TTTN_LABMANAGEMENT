@@ -27,12 +27,17 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+    options.UseMySql(
+        connectionString,
+        ServerVersion.AutoDetect(connectionString),
+        mysqlOptions => mysqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<OperationalAutomationRunner>();
+builder.Services.AddHostedService<OperationalAutomationWorker>();
 if (string.Equals(builder.Configuration["Storage:Provider"], "S3", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddSingleton<IFileStorage, S3FileStorage>();
@@ -48,6 +53,9 @@ var dataProtectionBuilder = builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
     .SetApplicationName("LabManagement");
 var dataProtectionCertificatePath = builder.Configuration["Security:DataProtectionCertificatePath"];
+var requireEncryptedDataProtectionKeys = builder.Configuration.GetValue(
+    "Security:RequireEncryptedDataProtectionKeys",
+    false);
 if (!string.IsNullOrWhiteSpace(dataProtectionCertificatePath))
 {
     if (!File.Exists(dataProtectionCertificatePath))
@@ -59,6 +67,11 @@ if (!string.IsNullOrWhiteSpace(dataProtectionCertificatePath))
         X509CertificateLoader.LoadPkcs12FromFile(
             dataProtectionCertificatePath,
             builder.Configuration["Security:DataProtectionCertificatePassword"]));
+}
+else if (requireEncryptedDataProtectionKeys)
+{
+    throw new InvalidOperationException(
+        "Production yêu cầu certificate để mã hóa khóa Data Protection.");
 }
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -145,13 +158,21 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddRateLimiter(options =>
 {
+    var loginPermitLimit = Math.Clamp(
+        builder.Configuration.GetValue("Security:LoginRateLimitPermit", 5),
+        1,
+        500);
+    var sensitivePermitLimit = Math.Clamp(
+        builder.Configuration.GetValue("Security:SensitiveRateLimitPermit", 30),
+        1,
+        1000);
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("login", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 5,
+                PermitLimit = loginPermitLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 AutoReplenishment = true
@@ -161,7 +182,7 @@ builder.Services.AddRateLimiter(options =>
             $"{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}:{httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous"}",
             _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 30,
+                PermitLimit = sensitivePermitLimit,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 AutoReplenishment = true

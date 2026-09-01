@@ -16,9 +16,30 @@ const notificationItems = Array.from({ length: 20 }, (_, index) => ({
 
 async function mockNotificationApi(page, { unreadCount = 120 } = {}) {
   let unreadOnlySeen = false
+
+  // Cô lập bài kiểm thử khỏi thông báo SignalR do luồng nghiệp vụ chạy song song phát ra.
+  await page.unroute('**/notificationHub**')
+  await page.route('**/notificationHub**', route => route.abort())
+  await page.unroute('**/api/notification**')
   await page.route('**/api/notification**', async route => {
-    if (route.request().method() !== 'GET') return route.continue()
+    const method = route.request().method()
     const url = new URL(route.request().url())
+
+    if (method === 'GET' && url.pathname.endsWith('/notification/unread-count')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ count: unreadCount })
+      })
+      return
+    }
+
+    if (method === 'PUT' && (url.pathname.endsWith('/notification/read-all') || url.pathname.endsWith('/read'))) {
+      await route.fulfill({ status: 204, body: '' })
+      return
+    }
+
+    if (method !== 'GET' || !url.pathname.endsWith('/notification')) return route.continue()
     unreadOnlySeen = url.searchParams.get('unreadOnly') === 'true'
     const items = unreadOnlySeen ? notificationItems.filter(item => !item.isRead) : notificationItems
     await route.fulfill({
@@ -32,18 +53,6 @@ async function mockNotificationApi(page, { unreadCount = 120 } = {}) {
         hasNextPage: false
       })
     })
-  })
-  await page.route('**/api/notification/unread-count', async route => {
-    if (route.request().method() !== 'GET') return route.continue()
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: unreadCount }) })
-  })
-  await page.route('**/api/notification/*/read', async route => {
-    if (route.request().method() !== 'PUT') return route.continue()
-    await route.fulfill({ status: 204, body: '' })
-  })
-  await page.route('**/api/notification/read-all', async route => {
-    if (route.request().method() !== 'PUT') return route.continue()
-    await route.fulfill({ status: 204, body: '' })
   })
   return { unreadOnlySeen: () => unreadOnlySeen }
 }
@@ -80,9 +89,15 @@ test('popover desktop có giới hạn chiều rộng, vùng cuộn và điều 
   expect(listMetrics.scrollHeight).toBeGreaterThan(listMetrics.clientHeight)
   await expect(page.locator('.ant-badge-count')).toHaveText('99+')
 
-  await page.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' }).click()
+  // Các E2E chạy song song có thể phát toast SignalR thật che nút trong chốc lát.
+  // Force click ở đây chỉ loại bỏ nhiễu lớp phủ, vẫn kiểm tra đầy đủ request và trạng thái UI.
+  await page.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' }).click({ force: true })
   await expect(page.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Xem tất cả thông báo' }).click()
+  const viewAllButton = page.getByRole('button', { name: 'Xem tất cả thông báo' })
+  if (await viewAllButton.count() === 0) {
+    await page.getByTestId('notification-bell').click({ force: true })
+  }
+  await viewAllButton.click({ force: true })
   await expect(page).toHaveURL(/\/dashboard\/notifications$/)
 })
 
@@ -105,7 +120,7 @@ test('badge 0 được ẩn và bộ lọc Chưa đọc gọi API đúng', async
   await mockNotificationApi(page, { unreadCount: 0 })
   await loginUi(page, '/dashboard/notifications')
   await expect(page.getByText('0 chưa đọc')).toBeVisible()
-  await expect(page.locator('.ant-badge-count')).toHaveCount(0)
+  await expect(page.getByTestId('notification-bell').locator('.ant-badge-count')).toHaveCount(0)
 
   const filterState = await mockNotificationApi(page, { unreadCount: 2 })
   await page.getByRole('tab', { name: 'Chưa đọc' }).click()

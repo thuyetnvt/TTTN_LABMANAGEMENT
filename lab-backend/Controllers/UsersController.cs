@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using LabManagementAPI.Data;
+using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -152,6 +153,60 @@ public class UsersController : ControllerBase
                 AvatarUpdatedAt = user.AvatarUpdatedAt
             })
             .ToListAsync(cancellationToken);
+    }
+
+    [HttpGet("paged")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<PagedResult<UserDto>>> GetUsersPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.Users.AsNoTracking().AsQueryable();
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(user =>
+                user.Username.Contains(search)
+                || user.FullName.Contains(search)
+                || (user.Email != null && user.Email.Contains(search))
+                || (user.UniversityCode != null && user.UniversityCode.Contains(search))
+                || user.Department.Contains(search));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            if (string.Equals(status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(user => user.IsActive);
+            }
+            else if (string.Equals(status, "INACTIVE", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(user => !user.IsActive);
+            }
+            else
+            {
+                query = query.Where(user => user.Role == status);
+            }
+        }
+
+        return await query
+            .OrderBy(user => user.Username)
+            .Select(user => new UserDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                FullName = user.FullName,
+                UniversityCode = user.UniversityCode,
+                Phone = user.Phone,
+                Department = user.Department,
+                ClassName = user.ClassName,
+                Role = user.Role,
+                IsActive = user.IsActive,
+                HasAvatar = user.AvatarStorageKey != null,
+                AvatarUpdatedAt = user.AvatarUpdatedAt
+            })
+            .ToPagedResultAsync(paging, cancellationToken);
     }
 
     [HttpGet("teachers")]
@@ -338,7 +393,7 @@ public class UsersController : ControllerBase
         var email = NormalizeEmail(dto.Email);
         dto.FullName = dto.FullName.Trim(); dto.UniversityCode = dto.UniversityCode?.Trim();
         dto.Phone = dto.Phone.Trim(); dto.Department = dto.Department.Trim(); dto.ClassName = dto.ClassName?.Trim();
-        dto.Password = dto.Password?.Trim();
+        dto.Password = dto.Password.Trim();
         if (!Roles.All.Contains(dto.Role))
         {
             return BadRequest("Vai trò không hợp lệ.");

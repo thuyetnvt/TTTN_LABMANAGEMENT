@@ -83,7 +83,7 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
-    public async Task Manager_approval_claims_all_items_and_marks_each_equipment_borrowed()
+    public async Task Manager_approval_reserves_all_items_until_handover_is_confirmed()
     {
         await using var context = CreateSqliteContext(out var connection);
         await using (connection)
@@ -100,9 +100,13 @@ public sealed class BorrowControllerTests
 
             Assert.IsType<OkObjectResult>(result);
             var record = await context.BorrowRecords.AsNoTracking().Include(item => item.Details).SingleAsync(item => item.Id == 20);
-            Assert.Equal(BorrowStatuses.Borrowed, record.Status);
-            Assert.All(record.Details, detail => Assert.Equal(BorrowStatuses.Borrowed, detail.Status));
-            Assert.All(await context.Equipments.AsNoTracking().ToListAsync(), item => Assert.Equal(EquipmentStatuses.Borrowed, item.Status));
+            Assert.Equal(BorrowStatuses.Approved, record.Status);
+            Assert.All(record.Details, detail => Assert.Equal(BorrowStatuses.Approved, detail.Status));
+            Assert.All(await context.Equipments.AsNoTracking().ToListAsync(), item =>
+            {
+                Assert.Equal(EquipmentStatuses.BorrowPending, item.Status);
+                Assert.Equal(0, item.BorrowCount);
+            });
         }
     }
 

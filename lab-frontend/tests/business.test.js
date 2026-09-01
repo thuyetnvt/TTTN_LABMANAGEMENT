@@ -6,7 +6,7 @@ import { useNotificationStore } from '../src/stores/notificationStore.js'
 import { getApiErrorMessage, getApiSuccessMessage } from '../src/utils/apiError.js'
 import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
 import { getReturnConditionLabel } from '../src/utils/statusLabels.js'
-import { formatVietnamDateTime } from '../src/utils/dateTime.js'
+import { formatVietnamDateInput, formatVietnamDateTime, vietnamDateInputToUtc } from '../src/utils/dateTime.js'
 import { createTablePagination, TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../src/utils/tablePagination.js'
 
 test('dùng chung phân trang 20 dòng và cho phép đổi số dòng', () => {
@@ -38,6 +38,8 @@ test('hiển thị timestamp hoạt động theo múi giờ Việt Nam', () => {
     formatVietnamDateTime('2026-08-27T03:47:57Z'),
     '10:47:57 27/8/2026'
   )
+  assert.equal(formatVietnamDateInput('2026-08-29T17:00:00Z'), '2026-08-30')
+  assert.equal(vietnamDateInputToUtc('2026-08-30'), '2026-08-29T17:00:00.000Z')
 })
 
 test('chuẩn hóa trạng thái cũ nhưng giữ mã ổn định', () => {

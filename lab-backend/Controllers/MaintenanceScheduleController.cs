@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using LabManagementAPI.Data;
+using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -65,6 +66,55 @@ public class MaintenanceScheduleController : ControllerBase
             })
             .ToListAsync(cancellationToken);
         return Ok(schedules);
+    }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetAllPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var query = _context.MaintenanceSchedules
+            .AsNoTracking()
+            .Include(schedule => schedule.Equipment)
+            .AsQueryable();
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(schedule =>
+                schedule.Name.Contains(search)
+                || schedule.Equipment!.Name.Contains(search)
+                || schedule.Equipment.Serial.Contains(search));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim().ToUpperInvariant();
+            if (status == "DUE") query = query.Where(schedule => schedule.IsActive && schedule.NextDueAt <= now);
+            else if (status == "ACTIVE") query = query.Where(schedule => schedule.IsActive);
+            else if (status == "INACTIVE") query = query.Where(schedule => !schedule.IsActive);
+        }
+
+        var page = await query
+            .OrderBy(schedule => schedule.NextDueAt)
+            .ThenBy(schedule => schedule.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+        var items = page.Items.Select(schedule => (object)new
+        {
+            id = schedule.Id,
+            equipmentId = schedule.EquipmentId,
+            device = schedule.Equipment!.Name,
+            serial = schedule.Equipment.Serial,
+            name = schedule.Name,
+            intervalDays = schedule.IntervalDays,
+            intervalUnit = schedule.IntervalUnit,
+            nextDueAt = schedule.NextDueAt,
+            lastGeneratedAt = schedule.LastGeneratedAt,
+            isActive = schedule.IsActive,
+            isDue = schedule.IsActive && schedule.NextDueAt <= now,
+            notes = schedule.Notes,
+            checklist = schedule.Checklist
+        }).ToList();
+        return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
     }
 
     [HttpPost]
@@ -145,7 +195,13 @@ public class MaintenanceScheduleController : ControllerBase
         if (schedule is null) return NotFound();
         if (!schedule.IsActive) return Conflict(new { message = "Kế hoạch bảo trì đang tắt." });
         if (schedule.Equipment is null) return BadRequest(new { message = "Thiết bị của kế hoạch không tồn tại." });
-        if (schedule.Equipment.Status == EquipmentStatuses.Borrowed)
+        var hasActiveBorrow = await _context.BorrowRecords.AsNoTracking()
+            .AnyAsync(record => (record.EquipmentId == schedule.EquipmentId
+                    || record.Details.Any(detail => detail.EquipmentId == schedule.EquipmentId))
+                && (record.Status == BorrowStatuses.Approved || record.Status == BorrowStatuses.Borrowed),
+                cancellationToken);
+        if (hasActiveBorrow
+            || schedule.Equipment.Status is EquipmentStatuses.Borrowed or EquipmentStatuses.BorrowPending)
             return Conflict(new { message = "Không thể tạo bảo trì cho thiết bị đang được mượn." });
         if (await _context.MaintenanceRecords.AnyAsync(record => record.EquipmentId == schedule.EquipmentId
             && record.Status == MaintenanceStatuses.InProgress, cancellationToken))
@@ -164,10 +220,11 @@ public class MaintenanceScheduleController : ControllerBase
         };
         schedule.Equipment.Status = EquipmentStatuses.MaintenanceInProgress;
         schedule.LastGeneratedAt = DateTime.UtcNow;
-        schedule.NextDueAt = AddInterval(
-            schedule.NextDueAt > DateTime.UtcNow ? schedule.NextDueAt : DateTime.UtcNow,
+        schedule.NextDueAt = OperationalAutomationRunner.GetNextFutureDue(
+            schedule.NextDueAt,
             schedule.IntervalDays,
-            schedule.IntervalUnit);
+            schedule.IntervalUnit,
+            DateTime.UtcNow);
         schedule.UpdatedAt = DateTime.UtcNow;
         _context.MaintenanceRecords.Add(record);
         await _context.SaveChangesAsync(cancellationToken);

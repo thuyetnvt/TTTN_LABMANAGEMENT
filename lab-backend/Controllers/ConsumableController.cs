@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using LabManagementAPI.Data;
+using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -54,6 +55,18 @@ public class ConsumableController : ControllerBase
         public DateTime? ExpiryDate { get; set; }
     }
 
+    public sealed class ConsumableLotDto
+    {
+        [Required, MaxLength(100)] public string LotNumber { get; set; } = string.Empty;
+        [Range(0, int.MaxValue)] public int Quantity { get; set; }
+        public DateTime? EntryDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+        [MaxLength(255)] public string Supplier { get; set; } = string.Empty;
+        [MaxLength(100)] public string InvoiceNumber { get; set; } = string.Empty;
+        [Range(0, double.MaxValue)] public decimal? UnitCost { get; set; }
+        [MaxLength(255)] public string StorageLocation { get; set; } = string.Empty;
+    }
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<object>>> GetConsumables(
         CancellationToken cancellationToken)
@@ -61,29 +74,100 @@ public class ConsumableController : ControllerBase
         var assets = await _context.Consumables
             .AsNoTracking()
             .Include(item => item.AssetCategory)
+            .Include(item => item.Lots)
             .OrderByDescending(item => item.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        return Ok(assets.Select(item => new
+        var isManager = User.IsInRole(Roles.Admin)
+            || User.IsInRole(Roles.LabHead)
+            || User.IsInRole(Roles.DeputyLabHead);
+        if (!isManager)
         {
-            item.Id,
-            item.Code,
-            item.Name,
-            item.Unit,
-            item.Quantity,
-            item.MinQuantity,
-            item.ResponsiblePerson,
-            item.AssetCategoryId,
-            CategoryName = item.AssetCategory?.Name,
-            item.EntryDate,
-            item.InvoiceNumber,
-            item.Supplier,
-            item.UnitCost,
-            item.StorageLocation,
-            item.LotNumber,
-            item.ExpiryDate,
-            item.CreatedAt
-        }));
+            return Ok(assets.Select(ToBorrowerDto));
+        }
+
+        return Ok(assets.Select(ToManagerDto));
+    }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetConsumablesPaged(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.Consumables
+            .AsNoTracking()
+            .Include(item => item.AssetCategory)
+            .Include(item => item.Lots)
+            .AsQueryable();
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(item =>
+                item.Name.Contains(search)
+                || item.Code.Contains(search)
+                || item.Unit.Contains(search)
+                || (item.AssetCategory != null && item.AssetCategory.Name.Contains(search)));
+        }
+        if (paging.CategoryId.HasValue)
+        {
+            query = query.Where(item => item.AssetCategoryId == paging.CategoryId.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim().ToUpperInvariant();
+            if (status == "LOW_STOCK")
+            {
+                query = query.Where(item => item.Quantity - item.ReservedQuantity <= item.MinQuantity);
+            }
+            else if (status == "AVAILABLE")
+            {
+                query = query.Where(item => item.Quantity - item.ReservedQuantity > item.MinQuantity);
+            }
+        }
+
+        var page = await query
+            .OrderByDescending(item => item.CreatedAt)
+            .ThenBy(item => item.Id)
+            .ToPagedResultAsync(paging, cancellationToken);
+        var isManager = User.IsInRole(Roles.Admin)
+            || User.IsInRole(Roles.LabHead)
+            || User.IsInRole(Roles.DeputyLabHead);
+        if (isManager)
+        {
+            return Ok(page.Map(ToManagerDto));
+        }
+
+        return Ok(page.Map(ToBorrowerDto));
+    }
+
+    [HttpGet("lookup")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> LookupConsumables(
+        [FromQuery, MaxLength(200)] string? search = null,
+        [FromQuery, Range(1, 50)] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Consumables.AsNoTracking().AsQueryable();
+        var keyword = search?.Trim() ?? string.Empty;
+        if (keyword.Length > 0)
+        {
+            query = query.Where(item => item.Name.Contains(keyword) || item.Code.Contains(keyword));
+        }
+
+        var items = await query
+            .OrderBy(item => item.Name)
+            .ThenBy(item => item.Id)
+            .Take(Math.Clamp(limit, 1, 50))
+            .Select(item => new
+            {
+                item.Id,
+                item.Code,
+                item.Name,
+                item.Unit,
+                quantity = item.Quantity > item.ReservedQuantity ? item.Quantity - item.ReservedQuantity : 0
+            })
+            .ToListAsync(cancellationToken);
+        return Ok(items);
     }
 
     [HttpGet("{id:int}/transactions")]
@@ -162,6 +246,22 @@ public class ConsumableController : ControllerBase
 
         if (consumable.Quantity > 0)
         {
+            var lotNumber = string.IsNullOrWhiteSpace(dto.LotNumber)
+                ? $"LOT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..25].ToUpperInvariant()
+                : dto.LotNumber.Trim();
+            _context.ConsumableLots.Add(new ConsumableLot
+            {
+                ConsumableId = consumable.Id,
+                LotNumber = lotNumber,
+                InitialQuantity = consumable.Quantity,
+                Quantity = consumable.Quantity,
+                EntryDate = dto.EntryDate ?? DateTime.UtcNow,
+                ExpiryDate = dto.ExpiryDate,
+                Supplier = dto.Supplier.Trim(),
+                InvoiceNumber = dto.InvoiceNumber.Trim(),
+                UnitCost = dto.UnitCost,
+                StorageLocation = dto.StorageLocation.Trim()
+            });
             _context.ConsumableTransactions.Add(new ConsumableTransaction
             {
                 ConsumableId = consumable.Id,
@@ -214,10 +314,14 @@ public class ConsumableController : ControllerBase
         var before = SnapshotConsumable(existing);
         var beforeQuantity = existing.Quantity;
 
+        if (dto.Quantity != beforeQuantity)
+        {
+            return BadRequest(new { message = "Số lượng tồn kho được quản lý theo lô. Hãy dùng chức năng Quản lý lô để nhập hoặc điều chỉnh." });
+        }
+
         existing.Name = dto.Name.Trim();
         existing.Code = await ResolveCodeAsync(dto.Code, id, cancellationToken);
         existing.Unit = dto.Unit.Trim();
-        existing.Quantity = dto.Quantity;
         existing.MinQuantity = dto.MinQuantity;
         existing.ResponsiblePerson = dto.ResponsiblePerson.Trim();
         existing.AssetCategoryId = dto.AssetCategoryId;
@@ -228,21 +332,6 @@ public class ConsumableController : ControllerBase
         existing.StorageLocation = dto.StorageLocation.Trim();
         existing.LotNumber = dto.LotNumber.Trim();
         existing.ExpiryDate = dto.ExpiryDate;
-
-        if (beforeQuantity != existing.Quantity)
-        {
-            _context.ConsumableTransactions.Add(new ConsumableTransaction
-            {
-                ConsumableId = existing.Id,
-                Type = "Điều chỉnh",
-                Quantity = Math.Abs(existing.Quantity - beforeQuantity),
-                BeforeQuantity = beforeQuantity,
-                AfterQuantity = existing.Quantity,
-                Reason = "Điều chỉnh số lượng trực tiếp",
-                UserId = GetCurrentUserIdOrNull(),
-                CreatedAt = DateTime.UtcNow
-            });
-        }
 
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.WriteAsync(
@@ -258,6 +347,149 @@ public class ConsumableController : ControllerBase
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return NoContent();
+    }
+
+    [HttpGet("{id:int}/lots")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> GetLots(int id, CancellationToken cancellationToken)
+    {
+        if (!await _context.Consumables.AnyAsync(item => item.Id == id, cancellationToken))
+            return NotFound(new { message = "Không tìm thấy vật tư." });
+
+        var todayStartUtc = VietnamTime.StartOfDayUtc(VietnamTime.Today());
+        var lots = await _context.ConsumableLots.AsNoTracking()
+            .Where(item => item.ConsumableId == id)
+            .OrderBy(item => item.ExpiryDate == null)
+            .ThenBy(item => item.ExpiryDate)
+            .ThenBy(item => item.EntryDate)
+            .Select(item => new
+            {
+                item.Id,
+                item.ConsumableId,
+                item.LotNumber,
+                item.InitialQuantity,
+                item.Quantity,
+                item.EntryDate,
+                item.ExpiryDate,
+                item.Supplier,
+                item.InvoiceNumber,
+                item.UnitCost,
+                item.StorageLocation,
+                isExpired = item.ExpiryDate.HasValue && item.ExpiryDate.Value < todayStartUtc
+            })
+            .ToListAsync(cancellationToken);
+        return Ok(lots);
+    }
+
+    [HttpPost("{id:int}/lots")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> AddLot(
+        int id,
+        [FromBody] ConsumableLotDto dto,
+        CancellationToken cancellationToken)
+    {
+        NormalizeLotDto(dto);
+        if (string.IsNullOrWhiteSpace(dto.LotNumber) || dto.Quantity <= 0)
+            return BadRequest(new { message = "Số lô và số lượng nhập phải hợp lệ." });
+        if (dto.ExpiryDate.HasValue && VietnamTime.Date(dto.ExpiryDate.Value) < VietnamTime.Today())
+            return BadRequest(new { message = "Không thể nhập lô đã hết hạn sử dụng." });
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        var consumable = await _context.Consumables.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (consumable is null) return NotFound(new { message = "Không tìm thấy vật tư." });
+        if (await _context.ConsumableLots.AnyAsync(
+            item => item.ConsumableId == id && item.LotNumber == dto.LotNumber,
+            cancellationToken))
+            return Conflict(new { message = "Số lô đã tồn tại cho vật tư này." });
+
+        var before = consumable.Quantity;
+        var lot = new ConsumableLot
+        {
+            ConsumableId = id,
+            LotNumber = dto.LotNumber,
+            InitialQuantity = dto.Quantity,
+            Quantity = dto.Quantity,
+            EntryDate = dto.EntryDate ?? DateTime.UtcNow,
+            ExpiryDate = dto.ExpiryDate,
+            Supplier = dto.Supplier,
+            InvoiceNumber = dto.InvoiceNumber,
+            UnitCost = dto.UnitCost,
+            StorageLocation = dto.StorageLocation
+        };
+        consumable.Quantity += dto.Quantity;
+        _context.ConsumableLots.Add(lot);
+        _context.ConsumableTransactions.Add(new ConsumableTransaction
+        {
+            ConsumableId = id,
+            Type = "Nhập kho",
+            Quantity = dto.Quantity,
+            BeforeQuantity = before,
+            AfterQuantity = consumable.Quantity,
+            Reason = $"Nhập lô {dto.LotNumber}",
+            UserId = GetCurrentUserIdOrNull()
+        });
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(HttpContext, "CreateLot", nameof(ConsumableLot), lot.Id,
+            new { lot.ConsumableId, lot.LotNumber, lot.Quantity }, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Ok(new { lot.Id, message = "Đã nhập lô vật tư và cập nhật tồn kho." });
+    }
+
+    [HttpPut("{id:int}/lots/{lotId:int}")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> UpdateLot(
+        int id,
+        int lotId,
+        [FromBody] ConsumableLotDto dto,
+        CancellationToken cancellationToken)
+    {
+        NormalizeLotDto(dto);
+        if (string.IsNullOrWhiteSpace(dto.LotNumber) || dto.Quantity < 0)
+            return BadRequest(new { message = "Thông tin lô không hợp lệ." });
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        var lot = await _context.ConsumableLots
+            .Include(item => item.Consumable)
+            .SingleOrDefaultAsync(item => item.Id == lotId && item.ConsumableId == id, cancellationToken);
+        if (lot?.Consumable is null) return NotFound(new { message = "Không tìm thấy lô vật tư." });
+        if (await _context.ConsumableLots.AnyAsync(item => item.ConsumableId == id
+            && item.LotNumber == dto.LotNumber && item.Id != lotId, cancellationToken))
+            return Conflict(new { message = "Số lô đã tồn tại cho vật tư này." });
+
+        var delta = dto.Quantity - lot.Quantity;
+        var newTotal = lot.Consumable.Quantity + delta;
+        if (newTotal < lot.Consumable.ReservedQuantity)
+            return Conflict(new { message = "Không thể giảm tồn kho thấp hơn số lượng đã giữ cho các yêu cầu đã duyệt." });
+
+        var before = lot.Consumable.Quantity;
+        if (delta > 0) lot.InitialQuantity += delta;
+        lot.Quantity = dto.Quantity;
+        lot.LotNumber = dto.LotNumber;
+        lot.EntryDate = dto.EntryDate ?? lot.EntryDate;
+        lot.ExpiryDate = dto.ExpiryDate;
+        lot.Supplier = dto.Supplier;
+        lot.InvoiceNumber = dto.InvoiceNumber;
+        lot.UnitCost = dto.UnitCost;
+        lot.StorageLocation = dto.StorageLocation;
+        lot.Consumable.Quantity = newTotal;
+        if (delta != 0)
+        {
+            _context.ConsumableTransactions.Add(new ConsumableTransaction
+            {
+                ConsumableId = id,
+                Type = delta > 0 ? "Nhập kho" : "Điều chỉnh",
+                Quantity = Math.Abs(delta),
+                BeforeQuantity = before,
+                AfterQuantity = newTotal,
+                Reason = $"Điều chỉnh lô {dto.LotNumber}",
+                UserId = GetCurrentUserIdOrNull()
+            });
+        }
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(HttpContext, "UpdateLot", nameof(ConsumableLot), lot.Id,
+            new { lot.ConsumableId, lot.LotNumber, lot.Quantity }, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Ok(new { message = "Đã cập nhật lô và đồng bộ tồn kho." });
     }
 
     [HttpDelete("{id:int}")]
@@ -381,5 +613,57 @@ public class ConsumableController : ControllerBase
         return int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
             ? userId
             : null;
+    }
+
+    private static BorrowerConsumableDto ToBorrowerDto(Consumable item)
+    {
+        var available = Math.Max(0, item.Quantity - item.ReservedQuantity);
+        return new BorrowerConsumableDto
+        {
+            Id = item.Id,
+            Code = item.Code,
+            Name = item.Name,
+            Unit = item.Unit,
+            Quantity = available,
+            AvailableQuantity = available,
+            MinQuantity = item.MinQuantity,
+            AssetCategoryId = item.AssetCategoryId,
+            CategoryName = item.AssetCategory?.Name
+        };
+    }
+
+    private static ManagerConsumableDto ToManagerDto(Consumable item)
+    {
+        return new ManagerConsumableDto
+        {
+            Id = item.Id,
+            Code = item.Code,
+            Name = item.Name,
+            Unit = item.Unit,
+            Quantity = item.Quantity,
+            ReservedQuantity = item.ReservedQuantity,
+            AvailableQuantity = Math.Max(0, item.Quantity - item.ReservedQuantity),
+            MinQuantity = item.MinQuantity,
+            ResponsiblePerson = item.ResponsiblePerson,
+            AssetCategoryId = item.AssetCategoryId,
+            CategoryName = item.AssetCategory?.Name,
+            EntryDate = item.EntryDate,
+            InvoiceNumber = item.InvoiceNumber,
+            Supplier = item.Supplier,
+            UnitCost = item.UnitCost,
+            StorageLocation = item.StorageLocation,
+            LotNumber = item.LotNumber,
+            ExpiryDate = item.ExpiryDate,
+            LotCount = item.Lots.Count,
+            CreatedAt = item.CreatedAt
+        };
+    }
+
+    private static void NormalizeLotDto(ConsumableLotDto dto)
+    {
+        dto.LotNumber = dto.LotNumber.Trim();
+        dto.Supplier = dto.Supplier.Trim();
+        dto.InvoiceNumber = dto.InvoiceNumber.Trim();
+        dto.StorageLocation = dto.StorageLocation.Trim();
     }
 }

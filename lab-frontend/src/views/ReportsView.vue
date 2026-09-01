@@ -192,11 +192,11 @@
             >
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'quantity'">
-                  {{ formatNumber(record.quantity) }} {{ record.unit || '' }}
+                  {{ formatNumber(record.availableQuantity ?? record.quantity) }} {{ record.unit || '' }}
                 </template>
                 <template v-else-if="column.key === 'status'">
-                  <a-tag :color="record.quantity <= record.minQuantity ? 'orange' : 'green'">
-                    {{ record.quantity <= record.minQuantity ? 'Sắp hết' : 'Đủ tồn' }}
+                  <a-tag :color="(record.availableQuantity ?? record.quantity) <= record.minQuantity ? 'orange' : 'green'">
+                    {{ (record.availableQuantity ?? record.quantity) <= record.minQuantity ? 'Sắp hết' : 'Đủ tồn' }}
                   </a-tag>
                 </template>
                 <template v-else>
@@ -239,6 +239,7 @@ import { getEquipmentStatusLabel, getStatusColor } from '../utils/statusLabels'
 import { getApiErrorMessage } from '../utils/apiError'
 import router from '../router'
 import { createTablePagination } from '../utils/tablePagination'
+import { formatVietnamDate } from '../utils/dateTime'
 
 const borrowPagination = createTablePagination()
 const maintenancePagination = createTablePagination()
@@ -287,7 +288,7 @@ const maintenanceColumns = [
 ]
 const consumableColumns = [
   { title: 'Vật tư', dataIndex: 'name', key: 'name', width: 280, ellipsis: true },
-  { title: 'Tồn kho', key: 'quantity', width: 150 },
+  { title: 'Khả dụng', key: 'quantity', width: 150 },
   { title: 'Mức tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', width: 150 },
   { title: 'Trạng thái', key: 'status', width: 140 }
 ]
@@ -344,17 +345,20 @@ const statusRows = computed(() => {
 
 const statusTotal = computed(() => statusRows.value.reduce((total, item) => total + item.count, 0))
 
-const maintenanceInProgressCount = computed(() => report.value.maintenance.filter(item => {
-  const status = normalizeStatus(item.status)
-  return status === 'IN_PROGRESS' || status === STATUS.MAINTENANCE_IN_PROGRESS
-}).length)
+const maintenanceInProgressCount = computed(() => Number(
+  report.value.totals.maintenanceInProgress
+    ?? report.value.maintenance.filter(item => {
+      const status = normalizeStatus(item.status)
+      return status === 'IN_PROGRESS' || status === STATUS.MAINTENANCE_IN_PROGRESS
+    }).length
+))
 
 const attentionCards = computed(() => [
   {
     key: 'overdue',
     title: 'Thiết bị quá hạn trả',
-    count: report.value.borrowed.filter(item => item.overdue).length,
-    value: formatNumber(report.value.borrowed.filter(item => item.overdue).length),
+    count: Number(report.value.totals.overdue || 0),
+    value: formatNumber(report.value.totals.overdue),
     description: 'Thiết bị cần được trả trước hạn.',
     icon: ClockCircleOutlined,
     tone: 'info',
@@ -396,7 +400,6 @@ const hasAttention = computed(() => attentionCards.value.some(item => item.count
 
 const formatNumber = value => Number(value || 0).toLocaleString('vi-VN')
 const formatCurrency = value => `${Number(value || 0).toLocaleString('vi-VN')} ₫`
-const formatDate = value => value ? new Date(value).toLocaleDateString('vi-VN') : '—'
 const formatInputDate = value => {
   const [year, month, day] = value.split('-')
   return `${day}/${month}/${year}`

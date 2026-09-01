@@ -474,10 +474,19 @@ const markAllNotifications = async () => {
   }
 }
 
-const loadSearchData = async () => {
+let searchRequestTimer = null
+let searchRequestSequence = 0
+
+const loadSearchData = async (value = searchQuery.value) => {
+  const keyword = value.trim()
+  if (!keyword) {
+    searchData.value = []
+    return
+  }
+  const sequence = ++searchRequestSequence
   try {
-    const res = await equipmentApi.getAll()
-    searchData.value = res || []
+    const res = await equipmentApi.getPaged({ page: 1, pageSize: 10, search: keyword })
+    if (sequence === searchRequestSequence) searchData.value = res.items || []
   } catch (error) {
     console.error("Lỗi lấy dữ liệu search", error)
   }
@@ -486,17 +495,18 @@ const loadSearchData = async () => {
 watch(searchVisible, (newVal) => {
   if (newVal) {
     searchQuery.value = ''
-    loadSearchData()
+    searchData.value = []
   }
+})
+
+watch(searchQuery, value => {
+  clearTimeout(searchRequestTimer)
+  searchRequestTimer = setTimeout(() => loadSearchData(value), 300)
 })
 
 const filteredSearchData = computed(() => {
   if (!searchQuery.value) return []
-  const query = searchQuery.value.toLowerCase()
-  return searchData.value.filter(item => 
-    (item.name && item.name.toLowerCase().includes(query)) || 
-    (item.serial && item.serial.toLowerCase().includes(query))
-  )
+  return searchData.value
 })
 
 const handleSelectSearchResult = (item) => {
@@ -536,6 +546,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  clearTimeout(searchRequestTimer)
   if (hubConnection) {
     hubConnection.stop()
   }
