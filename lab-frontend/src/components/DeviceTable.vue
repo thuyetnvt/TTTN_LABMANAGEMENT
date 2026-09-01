@@ -41,7 +41,7 @@
     rowKey="id"
     bordered
     :pagination="tablePagination"
-    :scroll="{ x: 'max-content' }"
+    :scroll="{ x: 1810 }"
     :row-selection="isManager ? rowSelection : undefined"
     @change="handleTableChange"
   >
@@ -374,6 +374,7 @@ const columns = computed(() => [
     title: 'Hành động',
     key: 'action',
     align: 'center',
+    fixed: 'right',
     width: isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
   }
 ])

@@ -12,7 +12,7 @@
     </div>
 
     <div class="consumables-desktop-table">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: tableScrollX }" :pagination="tablePagination" @change="handleTableChange">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'quantity'">
           <span :style="{ color: record.quantity <= record.minQuantity ? '#dc2626' : '#16a34a', fontWeight: 700 }">
@@ -246,7 +246,7 @@
         size="small"
         bordered
         :pagination="lotPagination"
-        :scroll="{ x: 'max-content' }"
+        :scroll="{ x: 1110 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'entryDate'">{{ formatDate(record.entryDate) }}</template>
@@ -342,9 +342,18 @@ const columns = computed(() => {
     title: 'Hành động', 
     key: 'action', 
     align: 'center', 
+    fixed: 'right',
     width: isAdminRole(role.value) ? 170 : (isManagerRole(role.value) ? 140 : 70)
   }
   ]
+})
+
+const tableScrollX = computed(() => {
+  const commonWidth = 860
+  const managerWidth = isManagerRole(role.value) ? 370 : 0
+  const actionWidth = isAdminRole(role.value) ? 170 : (isManagerRole(role.value) ? 140 : 70)
+
+  return commonWidth + managerWidth + 120 + actionWidth
 })
 
 const lotColumns = [
@@ -356,7 +365,7 @@ const lotColumns = [
   { title: 'Nhà cung cấp', dataIndex: 'supplier', key: 'supplier', width: 160 },
   { title: 'Đơn giá', key: 'unitCost', width: 120 },
   { title: 'Vị trí', dataIndex: 'storageLocation', key: 'storageLocation', width: 140 },
-  { title: 'Hành động', key: 'action', align: 'center', width: 110 }
+  { title: 'Hành động', key: 'action', fixed: 'right', align: 'center', width: 110 }
 ]
 
 const historyColumns = [

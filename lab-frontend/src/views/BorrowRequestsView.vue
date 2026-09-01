@@ -14,7 +14,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1600 }" :pagination="tablePagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
@@ -326,7 +326,7 @@ const columns = [
   { title: 'Hạn trả', key: 'dueStatus', align: 'center', width: 130 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 180 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 120 },
-  { title: 'Hành động', key: 'action', align: 'center', width: 220 }
+  { title: 'Hành động', key: 'action', align: 'center', fixed: 'right', width: 220 }
 ]
 
 onMounted(() => fetchRequests())

@@ -19,11 +19,12 @@ const TABLE_FILES_WITH_HORIZONTAL_SCROLL = [
   '../src/views/MaintenanceView.vue'
 ]
 
-test('không ghim cột trong các bảng cuộn ngang để tránh lệch header và dữ liệu', () => {
+test('chỉ ghim cột hành động bên phải trong các bảng cuộn ngang', () => {
   for (const relativePath of TABLE_FILES_WITH_HORIZONTAL_SCROLL) {
     const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
-    assert.doesNotMatch(source, /fixed\s*:\s*['"](?:left|right)['"]/, relativePath)
+    assert.doesNotMatch(source, /fixed\s*:\s*['"]left['"]/, relativePath)
+    assert.match(source, /key\s*:\s*['"]action['"][\s\S]{0,100}?fixed\s*:\s*['"]right['"]/, relativePath)
   }
 })
 
