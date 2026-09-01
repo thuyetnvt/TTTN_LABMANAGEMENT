@@ -13,7 +13,7 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     {
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
         optionsBuilder.UseMySql(
-            "Server=localhost;Port=3306;Database=lab_management;Uid=lab_app;Pwd=design-time;",
+            "Server=localhost;Port=3306;Database=lab_management;Uid=lab_app;Pwd=AppPassword123!;",
             new MySqlServerVersion(new Version(8, 4, 0)));
         return new AppDbContext(optionsBuilder.Options);
     }
