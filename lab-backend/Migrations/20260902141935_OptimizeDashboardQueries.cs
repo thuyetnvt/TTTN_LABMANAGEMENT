@@ -10,14 +10,6 @@ namespace LabManagementAPI.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_BorrowRecords_TeacherId",
-                table: "BorrowRecords");
-
-            migrationBuilder.DropIndex(
-                name: "IX_BorrowRecords_UserId",
-                table: "BorrowRecords");
-
             migrationBuilder.CreateIndex(
                 name: "IX_MaintenanceRecords_MaintenanceDate",
                 table: "MaintenanceRecords",
@@ -37,6 +29,17 @@ namespace LabManagementAPI.Migrations
                 name: "IX_BorrowRecords_UserId_Status_BorrowDate",
                 table: "BorrowRecords",
                 columns: new[] { "UserId", "Status", "BorrowDate" });
+
+            // MySQL requires an index for each foreign key. Create the new
+            // composite indexes before removing the old single-column ones;
+            // otherwise the DROP INDEX statements fail during migration.
+            migrationBuilder.DropIndex(
+                name: "IX_BorrowRecords_TeacherId",
+                table: "BorrowRecords");
+
+            migrationBuilder.DropIndex(
+                name: "IX_BorrowRecords_UserId",
+                table: "BorrowRecords");
         }
 
         /// <inheritdoc />
@@ -50,14 +53,6 @@ namespace LabManagementAPI.Migrations
                 name: "IX_BorrowRecords_Status_ExpectedReturnDate",
                 table: "BorrowRecords");
 
-            migrationBuilder.DropIndex(
-                name: "IX_BorrowRecords_TeacherId_Status_BorrowDate",
-                table: "BorrowRecords");
-
-            migrationBuilder.DropIndex(
-                name: "IX_BorrowRecords_UserId_Status_BorrowDate",
-                table: "BorrowRecords");
-
             migrationBuilder.CreateIndex(
                 name: "IX_BorrowRecords_TeacherId",
                 table: "BorrowRecords",
@@ -67,6 +62,14 @@ namespace LabManagementAPI.Migrations
                 name: "IX_BorrowRecords_UserId",
                 table: "BorrowRecords",
                 column: "UserId");
+
+            migrationBuilder.DropIndex(
+                name: "IX_BorrowRecords_TeacherId_Status_BorrowDate",
+                table: "BorrowRecords");
+
+            migrationBuilder.DropIndex(
+                name: "IX_BorrowRecords_UserId_Status_BorrowDate",
+                table: "BorrowRecords");
         }
     }
 }

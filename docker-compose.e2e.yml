@@ -29,8 +29,8 @@ services:
       Jwt__Issuer: LabManagementAPI
       Jwt__Audience: LabManagementApp
       Jwt__AccessTokenMinutes: 60
-      App__FrontendBaseUrl: http://127.0.0.1:8081
-      Cors__AllowedOrigins__0: http://127.0.0.1:8081
+      App__FrontendBaseUrl: ${E2E_FRONTEND_ORIGIN:-http://127.0.0.1:8081}
+      Cors__AllowedOrigins__0: ${E2E_FRONTEND_ORIGIN:-http://127.0.0.1:8081}
       AllowedHosts: "localhost;127.0.0.1"
       Database__ApplyMigrations: "true"
       Seed__Enabled: "true"
@@ -61,7 +61,7 @@ services:
         VITE_API_BASE_URL: /api
         VITE_SIGNALR_URL: /notificationHub
     ports:
-      - "8081:80"
+      - "${E2E_FRONTEND_PORT:-8081}:80"
     depends_on:
       backend:
         condition: service_healthy
