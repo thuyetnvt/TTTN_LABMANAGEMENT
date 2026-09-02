@@ -58,6 +58,24 @@ for (const role of roles) {
   })
 }
 
+test('Dashboard Sinh viên chỉ nhận và hiển thị dữ liệu cá nhân', async ({ page }) => {
+  await login(page, process.env.E2E_STUDENT_USERNAME || 'sv1', password)
+  const statsResponse = page.waitForResponse(response => response.url().includes('/api/dashboard/stats'))
+  await page.goto('/dashboard')
+  const response = await statsResponse
+  expect(response.ok()).toBeTruthy()
+
+  const payload = await response.json()
+  expect(payload.counts).toBeNull()
+  expect(payload.studentSummary).toBeTruthy()
+  expect(payload.studentSummary).toHaveProperty('activeBorrows')
+  expect(payload.studentSummary).toHaveProperty('statusCounts')
+
+  await expect(page.getByText('Không gian sinh viên')).toBeVisible()
+  await expect(page.getByText('Tình trạng phiếu mượn của bạn')).toBeVisible()
+  await expect(page.getByText('Thiết bị rảnh')).toHaveCount(0)
+})
+
 async function login(page, username, userPassword) {
   await page.goto('/login')
   await page.getByLabel(/tài khoản/i).fill(username)

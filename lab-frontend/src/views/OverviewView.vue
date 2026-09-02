@@ -230,36 +230,93 @@
       </section>
     </template>
 
-    <template v-else>
-      <div class="header">
-        <h2 class="serif-title">Tổng quan hệ thống</h2>
-        <p class="subtitle">Theo dõi nhanh thiết bị, yêu cầu và cảnh báo cần xử lý.</p>
-      </div>
+    <template v-else-if="isStudent">
+      <header class="student-header">
+        <div>
+          <span class="student-eyebrow">Không gian sinh viên</span>
+          <h2>Xin chào {{ studentDisplayName }}</h2>
+          <p class="subtitle">Theo dõi các phiếu mượn và thiết bị đang thuộc trách nhiệm của bạn.</p>
+        </div>
+        <a-button :loading="refreshing" class="student-refresh-button" @click="refreshStats(true)">
+          <template #icon><ReloadOutlined /></template>
+          Làm mới
+        </a-button>
+      </header>
 
-      <a-row :gutter="[12, 12]" class="stat-grid">
-        <a-col v-for="item in studentStats" :key="item.label" :xs="24" :sm="12">
-          <a-card class="stat-card" :class="item.tone">
-            <div class="stat-icon"><component :is="item.icon" /></div>
-            <div class="stat-info">
-              <span class="label">{{ item.label }}</span>
-              <span class="value">{{ item.value }}</span>
+      <section class="student-kpi-grid" aria-label="Chỉ số cá nhân">
+        <button
+          v-for="item in studentStats"
+          :key="item.key"
+          type="button"
+          class="student-kpi-card"
+          :class="`student-tone-${item.tone}`"
+          @click="navigateTo(item.route)"
+        >
+          <span class="student-kpi-icon" aria-hidden="true"><component :is="item.icon" /></span>
+          <span class="student-kpi-copy">
+            <small>{{ item.label }}</small>
+            <strong>{{ item.value }}</strong>
+            <span>{{ item.hint }}</span>
+          </span>
+          <ArrowRightOutlined class="student-kpi-arrow" />
+        </button>
+      </section>
+
+      <section class="student-main-grid">
+        <a-card :bordered="false" class="student-panel student-activity-panel">
+          <template #title>
+            <div class="student-panel-title">
+              <span>Hoạt động của bạn</span>
+              <a-button type="link" @click="navigateTo({ name: 'BorrowHistory' })">Xem lịch sử</a-button>
             </div>
-          </a-card>
-        </a-col>
-      </a-row>
-
-      <div class="borrower-content-grid">
-        <a-card title="Hoạt động gần đây" :bordered="false" class="borrower-panel">
-          <a-timeline>
+          </template>
+          <a-timeline v-if="stats.activities.length">
             <a-timeline-item v-for="(activity, index) in stats.activities" :key="index" :color="activity.color">
               <p class="timeline-date">{{ formatDateTime(activity.date) }}</p>
               <p class="timeline-content">{{ activity.message }}</p>
             </a-timeline-item>
           </a-timeline>
-          <a-empty v-if="!stats.activities.length" description="Chưa có hoạt động nào" />
+          <a-empty v-else description="Chưa có hoạt động mượn nào" />
         </a-card>
 
-        <a-card title="Cảnh báo cần xử lý" :bordered="false" class="borrower-panel">
+        <a-card :bordered="false" class="student-panel student-return-panel">
+          <template #title>Mốc trả gần nhất</template>
+          <div v-if="studentSummary.nextReturnDate" class="student-return-content">
+            <div class="student-return-date">
+              <span>{{ studentReturnDay }}</span>
+              <small>{{ studentReturnMonth }}</small>
+            </div>
+            <div class="student-return-copy">
+              <span>Thiết bị cần trả</span>
+              <strong>{{ studentSummary.nextReturnEquipment || 'Thiết bị đang mượn' }}</strong>
+              <small>{{ studentReturnState }}</small>
+            </div>
+            <a-button block @click="navigateTo({ name: 'BorrowHistory' })">Xem lịch sử mượn <ArrowRightOutlined /></a-button>
+          </div>
+          <div v-else class="student-no-return">
+            <span><CheckCircleOutlined /></span>
+            <strong>Chưa có lịch trả sắp tới</strong>
+            <p>Bạn hiện không giữ thiết bị nào cần theo dõi hạn trả.</p>
+            <a-button @click="navigateTo({ name: 'Devices' })">Xem thiết bị có thể mượn</a-button>
+          </div>
+        </a-card>
+      </section>
+
+      <section class="student-bottom-grid">
+        <a-card :bordered="false" class="student-panel">
+          <template #title>Tình trạng phiếu mượn của bạn</template>
+          <apexchart
+            v-if="hasStudentStatusData"
+            type="donut"
+            height="220"
+            :options="studentDonutOptions"
+            :series="studentDonutSeries"
+          />
+          <a-empty v-else description="Chưa có phiếu mượn" />
+        </a-card>
+
+        <a-card :bordered="false" class="student-panel">
+          <template #title>Cảnh báo của bạn</template>
           <div
             v-for="(alert, index) in stats.alerts"
             :key="index"
@@ -276,13 +333,9 @@
             <span><strong>{{ alert.title }}</strong><small>{{ alert.message }}</small></span>
             <ArrowRightOutlined />
           </div>
-          <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo" />
+          <a-empty v-if="!stats.alerts.length" description="Không có cảnh báo cá nhân" />
         </a-card>
-
-        <a-card title="Trạng thái thiết bị" :bordered="false" class="borrower-panel borrower-status-panel">
-          <apexchart type="donut" height="220" :options="pieOptions" :series="pieSeries" />
-        </a-card>
-      </div>
+      </section>
     </template>
   </div>
 </template>
@@ -307,7 +360,7 @@ import {
 } from '@ant-design/icons-vue'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../stores/authStore'
-import { isAdminRole, isManagerRole, isTeacherRole } from '../constants/business'
+import { isAdminRole, isManagerRole, isStudentRole, isTeacherRole } from '../constants/business'
 import { getDashboardAlertTarget } from '../utils/dashboardAlerts'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatVietnamDateTime } from '../utils/dateTime.js'
@@ -319,6 +372,7 @@ const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 const isManager = computed(() => isManagerRole(role.value))
 const isTeacher = computed(() => isTeacherRole(role.value))
+const isStudent = computed(() => isStudentRole(role.value))
 const canViewAuditLogs = computed(() => isAdminRole(role.value))
 const apexchart = VueApexCharts
 const refreshing = ref(false)
@@ -338,7 +392,16 @@ const stats = ref({
   activities: [],
   alerts: [],
   advanced: { pendingRequests: 0, lowStockConsumables: [], borrowTrends: [] },
-  teacherSummary: { pendingApprovals: 0, pendingOwnRequests: 0, activeBorrows: 0, nextReturnDate: null, nextReturnEquipment: '' }
+  teacherSummary: { pendingApprovals: 0, pendingOwnRequests: 0, activeBorrows: 0, nextReturnDate: null, nextReturnEquipment: '' },
+  studentSummary: {
+    pendingRequests: 0,
+    approvedRequests: 0,
+    activeBorrows: 0,
+    returnedBorrows: 0,
+    nextReturnDate: null,
+    nextReturnEquipment: '',
+    statusCounts: { pending: 0, approved: 0, active: 0, returned: 0, rejected: 0, cancelled: 0, expired: 0 }
+  }
 })
 
 const formatNumber = value => Number(value || 0).toLocaleString('vi-VN')
@@ -551,19 +614,86 @@ const teacherReturnState = computed(() => {
   return `Còn ${days} ngày để hoàn trả`
 })
 
+const studentSummary = computed(() => stats.value.studentSummary || {})
+const studentDisplayName = computed(() => authStore.user?.fullName?.trim() || 'Sinh viên')
 const studentStats = computed(() => [
-  { label: 'Thiết bị đang được mượn', value: stats.value.counts.borrowed, icon: ClockCircleOutlined, tone: 'amber' },
-  { label: 'Thiết bị rảnh', value: stats.value.counts.available, icon: CheckCircleOutlined, tone: 'green' }
+  {
+    key: 'pending',
+    label: 'Phiếu đang xử lý',
+    value: formatNumber(studentSummary.value.pendingRequests),
+    hint: 'Chờ duyệt hoặc bảo lãnh',
+    icon: FileSearchOutlined,
+    tone: 'coral',
+    route: { name: 'BorrowHistory' }
+  },
+  {
+    key: 'approved',
+    label: 'Chờ bàn giao',
+    value: formatNumber(studentSummary.value.approvedRequests),
+    hint: 'Đã duyệt, chưa nhận thiết bị',
+    icon: ClockCircleOutlined,
+    tone: 'amber',
+    route: { name: 'BorrowHistory' }
+  },
+  {
+    key: 'active',
+    label: 'Đang mượn',
+    value: formatNumber(studentSummary.value.activeBorrows),
+    hint: 'Thiết bị thuộc trách nhiệm của bạn',
+    icon: AppstoreOutlined,
+    tone: 'blue',
+    route: { name: 'BorrowHistory' }
+  },
+  {
+    key: 'returned',
+    label: 'Đã hoàn tất',
+    value: formatNumber(studentSummary.value.returnedBorrows),
+    hint: 'Lịch sử đã trả',
+    icon: CheckCircleOutlined,
+    tone: 'green',
+    route: { name: 'BorrowHistory' }
+  }
 ])
 
-const pieOptions = ref({
-  chart: { type: 'donut' },
-  labels: ['Rảnh', 'Đang mượn', 'Bảo hành', 'Hỏng'],
-  colors: ['#52c41a', '#1890ff', '#faad14', '#f5222d'],
+const studentStatusRows = computed(() => [
+  { key: 'pending', label: 'Chờ xử lý', value: Number(studentSummary.value.statusCounts?.pending || 0) },
+  { key: 'approved', label: 'Chờ bàn giao', value: Number(studentSummary.value.statusCounts?.approved || 0) },
+  { key: 'active', label: 'Đang mượn', value: Number(studentSummary.value.statusCounts?.active || 0) },
+  { key: 'returned', label: 'Đã trả', value: Number(studentSummary.value.statusCounts?.returned || 0) },
+  { key: 'rejected', label: 'Từ chối', value: Number(studentSummary.value.statusCounts?.rejected || 0) },
+  { key: 'cancelled', label: 'Đã hủy', value: Number(studentSummary.value.statusCounts?.cancelled || 0) },
+  { key: 'expired', label: 'Hết hạn', value: Number(studentSummary.value.statusCounts?.expired || 0) }
+])
+const hasStudentStatusData = computed(() => studentStatusRows.value.some(item => item.value > 0))
+const studentDonutSeries = computed(() => studentStatusRows.value.map(item => item.value))
+const studentDonutOptions = computed(() => ({
+  chart: { type: 'donut', toolbar: { show: false }, fontFamily: 'inherit' },
+  labels: studentStatusRows.value.map(item => item.label),
+  colors: ['#DF7657', '#F2B24B', '#4D91D8', '#7FBD68', '#E35F4E', '#94A3B8', '#8B5CF6'],
   legend: { position: 'bottom' },
-  dataLabels: { enabled: true }
+  stroke: { width: 3, colors: ['#fff'] },
+  dataLabels: { enabled: false },
+  tooltip: { y: { formatter: value => formatNumber(value) } }
+}))
+
+const studentReturnParts = computed(() => {
+  if (!studentSummary.value.nextReturnDate) return { day: '', month: '' }
+  const parts = new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit', month: '2-digit', timeZone: 'Asia/Ho_Chi_Minh'
+  }).formatToParts(new Date(studentSummary.value.nextReturnDate))
+  const getPart = type => parts.find(part => part.type === type)?.value || ''
+  return { day: getPart('day'), month: `Tháng ${getPart('month')}` }
 })
-const pieSeries = ref([0, 0, 0, 0])
+const studentReturnDay = computed(() => studentReturnParts.value.day)
+const studentReturnMonth = computed(() => studentReturnParts.value.month)
+const studentReturnState = computed(() => {
+  if (!studentSummary.value.nextReturnDate) return ''
+  const milliseconds = new Date(studentSummary.value.nextReturnDate).getTime() - Date.now()
+  const days = Math.ceil(milliseconds / 86400000)
+  if (days < 0) return `Đã quá hạn ${Math.abs(days)} ngày`
+  if (days === 0) return 'Đến hạn hôm nay'
+  return `Còn ${days} ngày để hoàn trả`
+})
 
 const navigateTo = route => router.push(route)
 
@@ -595,6 +725,14 @@ const normalizeDashboardStats = result => {
     alerts,
     advanced: { ...stats.value.advanced, ...advanced },
     teacherSummary: { ...stats.value.teacherSummary, ...(payload.teacherSummary || {}) },
+    studentSummary: {
+      ...stats.value.studentSummary,
+      ...(payload.studentSummary || {}),
+      statusCounts: {
+        ...stats.value.studentSummary.statusCounts,
+        ...(payload.studentSummary?.statusCounts || {})
+      }
+    },
     pendingBorrowRequests: Number(payload.pendingBorrowRequests ?? countFromAlert(alerts, 'pending-borrow-requests')),
     pendingConsumableRequests: Number(payload.pendingConsumableRequests ?? countFromAlert(alerts, 'pending-consumable-requests')),
     borrowRequestsToProcess: Number(payload.borrowRequestsToProcess ?? payload.pendingBorrowRequests ?? 0),
@@ -611,12 +749,6 @@ const refreshStats = async (forceRefresh = false) => {
   try {
     const result = await dashboardApi.getStats(forceRefresh)
     stats.value = normalizeDashboardStats(result)
-    pieSeries.value = [
-      result.counts?.available || 0,
-      result.counts?.borrowed || 0,
-      result.counts?.warranty || 0,
-      result.counts?.broken || 0
-    ]
   } catch (error) {
     message.error(getApiErrorMessage(error, 'Không tải được dữ liệu tổng quan.'))
   } finally {
@@ -774,6 +906,45 @@ onMounted(() => refreshStats(false))
 .teacher-quick-action strong { overflow: hidden; color: #26384f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .teacher-quick-action small { overflow: hidden; color: #94a3b8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .teacher-quick-action > .anticon { grid-column: 3; grid-row: 1 / 3; color: #aeb7c1; font-size: 10px; }
+.student-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.student-header h2 { margin: 8px 0 0; color: #10233f; font-family: var(--font-serif); font-size: 34px; font-weight: 650; line-height: 1.15; letter-spacing: -.025em; }
+.student-eyebrow { color: #d26548; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.student-refresh-button { height: 42px; border-color: #dfe4e8; border-radius: 9px; color: #10233f; }
+.student-refresh-button:hover, .student-refresh-button:focus { border-color: #df7657; color: #df7657; }
+.student-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.student-kpi-card { display: grid; grid-template-columns: 48px minmax(0, 1fr) 12px; align-items: center; min-width: 0; gap: 13px; min-height: 108px; padding: 17px; border: 1px solid #e4e8ec; border-radius: 14px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color .2s ease, transform .2s ease; }
+.student-kpi-card:hover, .student-kpi-card:focus-visible { border-color: #dfb8aa; outline: none; transform: translateY(-1px); }
+.student-kpi-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; font-size: 20px; }
+.student-kpi-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.student-kpi-copy small { overflow: hidden; color: #526276; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.student-kpi-copy strong { color: #10233f; font-size: 28px; line-height: 1; }
+.student-kpi-copy span { overflow: hidden; color: #94a3b8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.student-kpi-arrow { color: #a8b2bd; font-size: 11px; }
+.student-tone-coral .student-kpi-icon { color: #d26548; background: #fff1ec; }
+.student-tone-amber .student-kpi-icon { color: #d98b18; background: #fff6e5; }
+.student-tone-blue .student-kpi-icon { color: #4d91d8; background: #edf5ff; }
+.student-tone-green .student-kpi-icon { color: #4d9b3b; background: #edf8e9; }
+.student-main-grid, .student-bottom-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .9fr); gap: 18px; margin-top: 18px; }
+.student-panel { min-width: 0; border: 1px solid #e4e8ec; border-radius: 14px; background: #fff; box-shadow: none; }
+.student-panel :deep(.ant-card-head) { min-height: 56px; padding: 0 20px; border-bottom: 1px solid #eef1f3; }
+.student-panel :deep(.ant-card-head-title) { padding: 16px 0; color: #10233f; font-size: 17px; font-weight: 700; }
+.student-panel :deep(.ant-card-body) { padding: 18px 20px; }
+.student-panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.student-panel-title :deep(.ant-btn) { height: auto; padding: 0; color: #d26548; }
+.student-return-content { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: center; gap: 14px; }
+.student-return-date { display: flex; align-items: center; justify-content: center; width: 70px; height: 76px; flex-direction: column; border-radius: 13px; background: #fff1ec; color: #c85f42; }
+.student-return-date span { font-size: 28px; font-weight: 750; line-height: 1; }
+.student-return-date small { margin-top: 7px; font-size: 12px; font-weight: 650; }
+.student-return-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.student-return-copy > span { color: #94a3b8; font-size: 12px; }
+.student-return-copy strong { display: -webkit-box; overflow: hidden; color: #20334d; font-size: 15px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.student-return-copy small { color: #c56b24; font-size: 12px; }
+.student-return-content :deep(.ant-btn) { grid-column: 1 / -1; height: 38px; margin-top: 4px; border-color: #e1e5e9; border-radius: 8px; }
+.student-no-return { display: flex; align-items: center; min-height: 180px; flex-direction: column; justify-content: center; text-align: center; }
+.student-no-return > span { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 10px; border-radius: 50%; background: #edf8e9; color: #4d9b3b; font-size: 22px; }
+.student-no-return strong { color: #20334d; }
+.student-no-return p { max-width: 270px; margin: 5px 0 13px; color: #7c8999; font-size: 13px; line-height: 1.45; }
+.student-no-return :deep(.ant-btn) { border-radius: 8px; }
 .header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
 .serif-title { font-family: var(--font-serif); }
 .stat-grid { margin-bottom: 16px; }
@@ -800,23 +971,25 @@ onMounted(() => refreshStats(false))
 .borrower-alert.info { border-left-color: #2563eb; background: #eff6ff; }
 .borrower-alert.error { border-left-color: #dc2626; background: #fef2f2; }
 @media (max-width: 1199px) {
-  .manager-kpi-grid, .quick-actions-grid, .teacher-kpi-grid, .teacher-quick-grid, .dashboard-loading-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manager-kpi-grid, .quick-actions-grid, .teacher-kpi-grid, .teacher-quick-grid, .student-kpi-grid, .dashboard-loading-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .manager-two-column, .teacher-main-grid, .dashboard-loading-panels { grid-template-columns: 1fr; }
+  .student-main-grid, .student-bottom-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 767px) {
-  .manager-header, .teacher-header { align-items: flex-start; flex-direction: column; }
+  .manager-header, .teacher-header, .student-header { align-items: flex-start; flex-direction: column; }
   .manager-header-actions { align-items: flex-start; }
-  .manager-kpi-grid, .quick-actions-grid, .borrower-content-grid, .teacher-kpi-grid, .teacher-quick-grid, .teacher-activity-list, .dashboard-loading-kpis { grid-template-columns: 1fr; }
+  .manager-kpi-grid, .quick-actions-grid, .borrower-content-grid, .teacher-kpi-grid, .teacher-quick-grid, .student-kpi-grid, .teacher-activity-list, .dashboard-loading-kpis { grid-template-columns: 1fr; }
   .manager-donut-layout { grid-template-columns: 1fr; }
   .manager-status-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 10px 7px; }
   .manager-attention-item { grid-template-columns: 30px minmax(0, 1fr) auto auto; }
   .borrower-status-panel { grid-column: auto; }
-  .manager-header h2, .teacher-header h2, .header h2 { font-size: 30px; }
+  .manager-header h2, .teacher-header h2, .student-header h2, .header h2 { font-size: 30px; }
   .subtitle { font-size: 15px; }
   .manager-kpi-card { min-height: 96px; padding: 18px; }
   .manager-kpi-copy strong { font-size: 32px; }
   .manager-attention-item { grid-template-columns: 42px minmax(0, 1fr) auto 34px; }
   .teacher-refresh-button { width: 100%; }
+  .student-refresh-button { width: 100%; }
   .teacher-kpi-card { min-height: 104px; }
   .teacher-activity-item:nth-last-child(2) { border-bottom: 1px solid #f0f2f4; }
 }
