@@ -30,6 +30,32 @@ html,
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/*
+ * Ghim cột thao tác bằng cùng một class cho cả <th> và <td>.
+ * Không dùng `fixed: right` của Ant Table vì trong các bảng cuộn ngang,
+ * thư viện có thể tính offset khác nhau giữa header và body làm lệch dữ liệu.
+ */
+.ant-table-wrapper .table-sticky-action-column {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 2;
+  background: #ffffff !important;
+  box-shadow: -10px 0 12px -12px rgba(15, 23, 42, 0.55);
+}
+
+.ant-table-wrapper .ant-table-thead > tr > .table-sticky-action-column {
+  z-index: 4;
+  background: #fafafa !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr:hover > .table-sticky-action-column {
+  background: #fafafa !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > .table-sticky-action-column {
+  background: #e6f4ff !important;
+}
+
 @media (max-width: 800px) {
   .responsive-modal .ant-modal {
     width: 95% !important;

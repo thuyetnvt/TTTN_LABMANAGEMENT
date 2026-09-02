@@ -7,20 +7,28 @@
       <template v-else-if="column.key === 'fullName'">
         <span>{{ record.fullName || '—' }}</span>
       </template>
+      <template v-else-if="column.key === 'isActive'">
+        <a-tag :color="record.isActive ? 'green' : 'red'">{{ record.isActive ? 'Hoạt động' : 'Đã khóa' }}</a-tag>
+      </template>
       <template v-else-if="column.key === 'action'">
         <div v-if="isAdminRole(role)" class="table-action-buttons">
-          <a-tooltip title="Sửa người dùng">
+          <a-tooltip v-if="record.isActive" title="Sửa người dùng">
             <a-button type="link" size="small" aria-label="Sửa người dùng" @click="$emit('edit', record)">
               <template #icon><EditOutlined /></template>
             </a-button>
           </a-tooltip>
-          <a-tooltip v-if="record.username !== 'admin'" title="Xóa người dùng">
-            <a-button type="link" danger size="small" aria-label="Xóa người dùng" @click="$emit('delete', record)">
-              <template #icon><DeleteOutlined /></template>
+          <a-tooltip v-if="record.isActive && record.username !== 'admin'" title="Khóa tài khoản">
+            <a-button type="link" danger size="small" aria-label="Khóa tài khoản" @click="$emit('delete', record)">
+              <template #icon><LockOutlined /></template>
+            </a-button>
+          </a-tooltip>
+          <a-tooltip v-else-if="!record.isActive" title="Mở khóa tài khoản">
+            <a-button type="link" size="small" aria-label="Mở khóa tài khoản" @click="$emit('activate', record)">
+              <template #icon><UnlockOutlined /></template>
             </a-button>
           </a-tooltip>
         </div>
-        <span v-else style="color: #9ca3af;">Chỉ xem</span>
+        <span v-else style="color: #9ca3af;">—</span>
       </template>
     </template>
   </a-table>
@@ -31,9 +39,11 @@
         <a-tag :color="isAdminRole(item.role) ? 'gold' : 'blue'">{{ roleLabel(item.role) }}</a-tag>
       </div>
       <div class="mobile-user-code">Mã định danh: <strong>{{ item.universityCode || '—' }}</strong></div>
+      <a-tag :color="item.isActive ? 'green' : 'red'">{{ item.isActive ? 'Hoạt động' : 'Đã khóa' }}</a-tag>
       <div v-if="isAdminRole(role)" class="mobile-user-actions">
-        <a-button @click="emit('edit', item)"><template #icon><EditOutlined /></template>Sửa</a-button>
-        <a-button v-if="item.username !== 'admin'" danger @click="emit('delete', item)"><template #icon><DeleteOutlined /></template>Xóa</a-button>
+        <a-button v-if="item.isActive" @click="emit('edit', item)"><template #icon><EditOutlined /></template>Sửa</a-button>
+        <a-button v-if="item.isActive && item.username !== 'admin'" danger @click="emit('delete', item)"><template #icon><LockOutlined /></template>Khóa</a-button>
+        <a-button v-else-if="!item.isActive" @click="emit('activate', item)"><template #icon><UnlockOutlined /></template>Mở khóa</a-button>
       </div>
     </template>
   </ResponsiveDataList>
@@ -42,7 +52,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '../stores/authStore'
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons-vue'
 import { isAdminRole, roleLabel } from '../constants/business'
 import ResponsiveDataList from './ResponsiveDataList.vue'
 
@@ -57,7 +67,7 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['edit', 'delete', 'change'])
+const emit = defineEmits(['edit', 'delete', 'activate', 'change'])
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -67,7 +77,8 @@ const columns = [
   { title: 'Mã định danh', dataIndex: 'universityCode', key: 'universityCode' },
   { title: 'Email', dataIndex: 'email', key: 'email' },
   { title: 'Vai trò', dataIndex: 'role', key: 'role' },
-  { title: 'Hành động', key: 'action', width: 150, align: 'center' }
+  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 120 },
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 150, align: 'center' }
 ]
 </script>
 

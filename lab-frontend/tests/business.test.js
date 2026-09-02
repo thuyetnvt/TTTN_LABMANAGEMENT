@@ -6,25 +6,47 @@ import { ROLE_LABELS, STATUS, normalizeStatus, roleLabel, statusLabel, statusMat
 import { useNotificationStore } from '../src/stores/notificationStore.js'
 import { getApiErrorMessage, getApiSuccessMessage } from '../src/utils/apiError.js'
 import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
-import { getReturnConditionLabel } from '../src/utils/statusLabels.js'
+import {
+  getBorrowStatusLabel,
+  getConsumableRequestStatusLabel,
+  getEquipmentStatusLabel,
+  getInventoryStatusLabel,
+  getMaintenanceStatusLabel,
+  getPenaltyStatusLabel,
+  getReturnConditionLabel,
+  getStatusColor
+} from '../src/utils/statusLabels.js'
 import { formatVietnamDateInput, formatVietnamDateTime, vietnamDateInputToUtc } from '../src/utils/dateTime.js'
 import { createTablePagination, TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../src/utils/tablePagination.js'
 
-const TABLE_FILES_WITH_HORIZONTAL_SCROLL = [
+const TABLE_FILES_WITH_STICKY_ACTION = [
   '../src/views/BorrowRequestsView.vue',
   '../src/views/BorrowHistoryView.vue',
   '../src/views/ConsumableRequestsView.vue',
+  '../src/views/InventoryView.vue',
+  '../src/views/LocationsView.vue',
   '../src/components/DeviceTable.vue',
   '../src/components/ConsumablesTable.vue',
-  '../src/views/MaintenanceView.vue'
+  '../src/components/AssetCategoriesTable.vue',
+  '../src/components/UserTable.vue',
+  '../src/views/MaintenanceView.vue',
+  '../src/views/MaintenanceSchedulesView.vue',
+  '../src/views/PenaltyView.vue',
+  '../src/views/TeacherApprovalView.vue'
 ]
 
-test('không ghim cột trong các bảng cuộn ngang để tránh lệch header và dữ liệu', () => {
-  for (const relativePath of TABLE_FILES_WITH_HORIZONTAL_SCROLL) {
+test('ghim cùng một cột hành động cho cả header và body của mọi bảng thao tác', () => {
+  for (const relativePath of TABLE_FILES_WITH_STICKY_ACTION) {
     const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
     assert.doesNotMatch(source, /fixed\s*:\s*['"](?:left|right)['"]/, relativePath)
+    assert.match(source, /className\s*:\s*['"]table-sticky-action-column['"]/, relativePath)
+    assert.match(source, /customCell\s*:\s*\(\)\s*=>\s*\(\{\s*class:\s*['"]table-sticky-action-column['"]\s*\}\)/, relativePath)
   }
+
+  const globalStyle = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8')
+  assert.match(globalStyle, /\.table-sticky-action-column\s*\{[\s\S]*?position:\s*sticky\s*!important;/)
+  assert.match(globalStyle, /\.table-sticky-action-column\s*\{[\s\S]*?right:\s*0\s*!important;/)
 })
 
 test('dùng chung phân trang 20 dòng và cho phép đổi số dòng', () => {
@@ -65,6 +87,29 @@ test('chuẩn hóa trạng thái cũ nhưng giữ mã ổn định', () => {
   assert.equal(normalizeStatus('Đang mượn'), STATUS.BORROWED)
   assert.equal(statusMatches('Đang mượn', STATUS.BORROWED), true)
   assert.equal(statusMatches(STATUS.BROKEN, STATUS.AVAILABLE), false)
+})
+
+test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', () => {
+  const cases = [
+    [getEquipmentStatusLabel, STATUS.BORROW_PENDING, 'Đã giữ chỗ', 'orange'],
+    [getEquipmentStatusLabel, STATUS.MISSING, 'Thất lạc', 'red'],
+    [getBorrowStatusLabel, STATUS.BORROW_PENDING, 'Chờ duyệt', 'orange'],
+    [getBorrowStatusLabel, STATUS.APPROVAL_PROCESSING, 'Đang xử lý duyệt', 'blue'],
+    [getBorrowStatusLabel, STATUS.RETURN_PROCESSING, 'Đang xử lý trả', 'blue'],
+    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_IN_PROGRESS, 'Đang bảo trì', 'blue'],
+    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_COMPLETING, 'Đang nghiệm thu', 'purple'],
+    [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_PENDING, 'Chờ duyệt cấp phát', 'orange'],
+    [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_ISSUED, 'Đã cấp phát', 'green'],
+    [getPenaltyStatusLabel, STATUS.UNPAID, 'Chưa thanh toán', 'red'],
+    [getPenaltyStatusLabel, STATUS.PAID, 'Đã thanh toán', 'green'],
+    [getInventoryStatusLabel, STATUS.INVENTORY_DAMAGED, 'Hư hỏng', 'red'],
+    [getInventoryStatusLabel, STATUS.INVENTORY_WRONG_LOCATION, 'Sai vị trí', 'orange']
+  ]
+
+  for (const [labeler, status, expectedLabel, expectedColor] of cases) {
+    assert.equal(labeler(status), expectedLabel, status)
+    assert.equal(getStatusColor(status), expectedColor, status)
+  }
 })
 
 test('notification store dedupe realtime và chỉ tăng unread một lần', () => {
@@ -109,10 +154,10 @@ test('không hiển thị [object Object] khi response lỗi là object', () => 
 })
 
 test('điều hướng cảnh báo Dashboard đến đúng màn hình', () => {
-  assert.deepEqual(getDashboardAlertTarget('overdue'), { name: 'BorrowRequests' })
-  assert.deepEqual(getDashboardAlertTarget('low-stock'), { name: 'Devices', query: { tab: 'consumables' } })
+  assert.deepEqual(getDashboardAlertTarget('overdue'), { name: 'BorrowHistory', query: { status: 'OVERDUE' } })
+  assert.deepEqual(getDashboardAlertTarget('low-stock'), { name: 'Devices', query: { tab: 'consumables', stock: 'LOW_STOCK' } })
   assert.deepEqual(getDashboardAlertTarget('pending-borrow-requests'), { name: 'BorrowRequests' })
   assert.deepEqual(getDashboardAlertTarget('pending-consumable-requests'), { name: 'ConsumableRequests' })
-  assert.deepEqual(getDashboardAlertTarget('warranty-soon'), { name: 'Devices', query: { status: 'warranty' } })
+  assert.deepEqual(getDashboardAlertTarget('warranty-soon'), { name: 'Devices', query: { status: 'warranty-soon' } })
   assert.equal(getDashboardAlertTarget('unknown'), null)
 })

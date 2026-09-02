@@ -67,7 +67,7 @@ const columns = [
   { title: 'Tên danh mục', dataIndex: 'name', key: 'name' },
   { title: 'Mô tả', dataIndex: 'description', key: 'description' },
   { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'createdAt', width: 140 },
-  { title: 'Hành động', key: 'action', align: 'center', width: 160 }
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), align: 'center', width: 160 }
 ]
 
 onMounted(() => fetchData())

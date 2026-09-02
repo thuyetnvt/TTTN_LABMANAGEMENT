@@ -41,7 +41,7 @@
     rowKey="id"
     bordered
     :pagination="tablePagination"
-    :scroll="{ x: 'max-content' }"
+    :scroll="{ x: 1810 }"
     :row-selection="isManager ? rowSelection : undefined"
     @change="handleTableChange"
   >
@@ -254,8 +254,11 @@
             <a-select v-model:value="formData.status">
               <a-select-option :value="STATUS.AVAILABLE">Rảnh</a-select-option>
               <a-select-option v-if="statusMatches(formData.status, STATUS.BORROWED)" :value="STATUS.BORROWED" disabled>Đang mượn</a-select-option>
+              <a-select-option v-if="statusMatches(formData.status, STATUS.BORROW_PENDING)" :value="STATUS.BORROW_PENDING" disabled>Đã giữ chỗ</a-select-option>
+              <a-select-option v-if="statusMatches(formData.status, STATUS.MAINTENANCE_IN_PROGRESS)" :value="STATUS.MAINTENANCE_IN_PROGRESS" disabled>Đang bảo trì</a-select-option>
               <a-select-option :value="STATUS.UNDER_WARRANTY">Bảo hành</a-select-option>
               <a-select-option :value="STATUS.BROKEN">Hỏng</a-select-option>
+              <a-select-option :value="STATUS.MISSING">Thất lạc</a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
@@ -374,6 +377,8 @@ const columns = computed(() => [
     title: 'Hành động',
     key: 'action',
     align: 'center',
+    className: 'table-sticky-action-column',
+    customCell: () => ({ class: 'table-sticky-action-column' }),
     width: isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
   }
 ])
@@ -499,7 +504,11 @@ const fetchData = async () => {
   try {
     const routeStatus = route.query.status
     const status = routeStatus && routeStatus !== 'all'
-      ? (routeStatus === 'problem' ? 'PROBLEM' : (routeStatus === 'warranty' ? STATUS.UNDER_WARRANTY : routeStatus))
+      ? (routeStatus === 'problem'
+        ? 'PROBLEM'
+        : (routeStatus === 'warranty'
+          ? STATUS.UNDER_WARRANTY
+          : (routeStatus === 'warranty-soon' ? 'WARRANTY_SOON' : routeStatus)))
       : undefined
     const response = await equipmentApi.getPaged({
       page: tablePagination.current,

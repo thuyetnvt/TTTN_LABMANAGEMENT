@@ -4,7 +4,7 @@ const UNKNOWN_STATUS = 'Không xác định'
 
 const equipmentLabels = Object.freeze({
   AVAILABLE: 'Rảnh',
-  BORROW_PENDING: 'Chờ mượn',
+  BORROW_PENDING: 'Đã giữ chỗ',
   BORROWED: 'Đang mượn',
   RETURNED: 'Đã trả',
   RETURNED_DAMAGED: 'Đã trả (hỏng)',
@@ -17,6 +17,7 @@ const equipmentLabels = Object.freeze({
 
 const borrowLabels = Object.freeze({
   PENDING: 'Chờ duyệt',
+  BORROW_PENDING: 'Chờ duyệt',
   TEACHER_PENDING: 'Chờ giảng viên duyệt',
   PROCESSING_APPROVAL: 'Đang xử lý duyệt',
   APPROVAL_PROCESSING: 'Đang xử lý duyệt',
@@ -30,10 +31,10 @@ const borrowLabels = Object.freeze({
 })
 
 const maintenanceLabels = Object.freeze({
-  IN_PROGRESS: 'Đang thực hiện',
+  IN_PROGRESS: 'Đang bảo trì',
   COMPLETING: 'Đang nghiệm thu',
   COMPLETED: 'Đã hoàn tất',
-  MAINTENANCE_IN_PROGRESS: 'Đang thực hiện',
+  MAINTENANCE_IN_PROGRESS: 'Đang bảo trì',
   MAINTENANCE_COMPLETING: 'Đang nghiệm thu',
   MAINTENANCE_COMPLETED: 'Đã hoàn tất'
 })
@@ -57,14 +58,14 @@ const inventoryLabels = Object.freeze({
 })
 
 const consumableRequestLabels = Object.freeze({
-  PENDING: 'Chờ xử lý',
+  PENDING: 'Chờ duyệt cấp phát',
   PROCESSING: 'Đang xử lý',
   APPROVED: 'Đã duyệt, chờ bàn giao',
   HANDED_OVER: 'Đã bàn giao, chờ xác nhận',
   RECEIVED: 'Đã nhận vật tư',
   ISSUED: 'Đã cấp phát',
   REJECTED: 'Từ chối',
-  CONSUMABLE_PENDING: 'Chờ xử lý',
+  CONSUMABLE_PENDING: 'Chờ duyệt cấp phát',
   CONSUMABLE_PROCESSING: 'Đang xử lý',
   CONSUMABLE_APPROVED: 'Đã duyệt, chờ bàn giao',
   CONSUMABLE_HANDED_OVER: 'Đã bàn giao, chờ xác nhận',
@@ -97,13 +98,14 @@ export const getReturnConditionLabel = status => displayLabel(returnConditionLab
 
 export const getStatusColor = status => {
   const normalized = normalizeStatus(status)
-  if (normalized === 'AVAILABLE' || normalized === 'RETURNED' || normalized === 'MAINTENANCE_COMPLETED' || normalized === 'CONSUMABLE_RECEIVED') return 'green'
-  if (normalized === 'BORROWED' || normalized === 'MAINTENANCE_IN_PROGRESS' || normalized === 'RETURN_PROCESSING') return 'blue'
+  if (normalized === 'AVAILABLE' || normalized === 'RETURNED' || normalized === 'MAINTENANCE_COMPLETED' || normalized === 'CONSUMABLE_RECEIVED' || normalized === 'CONSUMABLE_ISSUED' || normalized === 'PAID' || normalized === 'INVENTORY_COMPLETED' || normalized === 'INVENTORY_FOUND') return 'green'
+  if (normalized === 'BORROWED' || normalized === 'MAINTENANCE_IN_PROGRESS' || normalized === 'RETURN_PROCESSING' || normalized === 'APPROVAL_PROCESSING' || normalized === 'CONSUMABLE_PROCESSING' || normalized === 'INVENTORY_OPEN') return 'blue'
   if (normalized === 'COMPLETED' || normalized === 'APPROVED' || normalized === 'CONSUMABLE_APPROVED') return 'cyan'
   if (normalized === 'CONSUMABLE_HANDED_OVER') return 'purple'
   if (normalized === 'UNDER_WARRANTY') return 'gold'
-  if (normalized === 'BROKEN' || normalized === 'RETURNED_DAMAGED' || normalized === 'REJECTED') return 'red'
+  if (normalized === 'BROKEN' || normalized === 'MISSING' || normalized === 'RETURNED_DAMAGED' || normalized === 'REJECTED' || normalized === 'UNPAID' || normalized === 'INVENTORY_DAMAGED' || normalized === 'INVENTORY_MISSING') return 'red'
   if (normalized.includes('PENDING') || normalized === 'PENDING') return 'orange'
-  if (normalized === 'IN_PROGRESS' || normalized === 'COMPLETING') return 'purple'
+  if (normalized === 'IN_PROGRESS' || normalized === 'COMPLETING' || normalized === 'MAINTENANCE_COMPLETING' || normalized === 'INVENTORY_REVIEWING' || normalized === 'CONSUMABLE_HANDED_OVER') return 'purple'
+  if (normalized === 'INVENTORY_WRONG_LOCATION') return 'orange'
   return 'default'
 }

@@ -72,11 +72,13 @@ public class DashboardController : ControllerBase
                     ? $"{userName} đã yêu cầu mượn {equipmentName} ({StatusCodeMap.Label(record.Status)})"
                     : $"Bạn đã yêu cầu mượn {equipmentName} ({StatusCodeMap.Label(record.Status)})",
                 record.BorrowDate,
-                record.Status == BorrowStatuses.Returned
-                    ? "blue"
-                    : record.Status is BorrowStatuses.Pending or BorrowStatuses.TeacherPending
+                record.Status is BorrowStatuses.Rejected or BorrowStatuses.ReturnedDamaged
+                    ? "red"
+                    : record.Status is BorrowStatuses.Pending or BorrowStatuses.TeacherPending or BorrowStatuses.ProcessingApproval
                         ? "orange"
-                        : "green");
+                        : record.Status == BorrowStatuses.Returned
+                            ? "green"
+                            : "blue");
         });
 
         var activities = new List<DashboardActivity>(borrowActivities);
@@ -91,7 +93,9 @@ public class DashboardController : ControllerBase
                     "maintenance",
                     $"{record.Equipment!.Name} được bảo trì ({StatusCodeMap.Label(record.Status)})",
                     record.MaintenanceDate,
-                    "red"))
+                    record.Status == MaintenanceStatuses.Completed
+                        ? "green"
+                        : record.Status == MaintenanceStatuses.Completing ? "purple" : "blue"))
                 .ToListAsync(cancellationToken);
             activities.AddRange(maintenanceActivities);
         }

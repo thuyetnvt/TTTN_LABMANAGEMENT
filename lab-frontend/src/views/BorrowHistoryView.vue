@@ -7,23 +7,26 @@
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 180px" @change="applyFilters">
           <a-select-option :value="STATUS.APPROVED">Chờ nhận</a-select-option>
           <a-select-option :value="STATUS.BORROWED">Đang mượn</a-select-option>
+          <a-select-option :value="STATUS.RETURN_PROCESSING">Đang kiểm tra trả</a-select-option>
           <a-select-option :value="STATUS.RETURNED">Đã trả</a-select-option>
+          <a-select-option :value="STATUS.RETURNED_DAMAGED">Đã trả, có hư hỏng</a-select-option>
           <a-select-option :value="STATUS.REJECTED">Từ chối</a-select-option>
+          <a-select-option value="OVERDUE">Quá hạn</a-select-option>
         </a-select>
       </div>
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1640 }" :pagination="tablePagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
+          <template v-if="column.key === 'requestDate' || column.key === 'expectedReturnDate' || column.key === 'actualReturnDate'">
             {{ formatDate(record[column.key]) }}
           </template>
           <template v-else-if="column.key === 'returnCondition'">
             <StatusBadge v-if="record.returnCondition" :status="record.returnCondition" type="returnCondition" />
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" type="borrow" />
+            <StatusBadge :status="record.status" type="borrow" :label-override="borrowWorkflowLabel(record)" />
           </template>
           <template v-else-if="column.key === 'compensationAmount'">
             {{ record.compensationAmount ? record.compensationAmount.toLocaleString('vi-VN') + ' VNĐ' : '' }}
@@ -37,10 +40,11 @@
             >
               Xem & xác nhận nhận
             </a-button>
-            <span v-else-if="statusMatches(record.status, STATUS.APPROVED)" class="muted">
-              {{ record.handover ? 'Chờ người nhận xác nhận' : 'Chờ lập biên bản' }}
-            </span>
-            <span v-else class="muted">—</span>
+            <a-tooltip v-else title="Xem chi tiết phiếu">
+              <a-button type="text" class="view-action" aria-label="Xem chi tiết phiếu mượn" @click="openDetails(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
           </template>
         </template>
       </a-table>
@@ -48,19 +52,18 @@
         <template #default="{ item }">
           <div class="mobile-card-heading">
             <strong>{{ item.device }}</strong>
-            <StatusBadge :status="item.status" type="borrow" />
+            <StatusBadge :status="item.status" type="borrow" :label-override="borrowWorkflowLabel(item)" />
           </div>
           <div class="mobile-card-subtitle">{{ item.student }} · {{ item.serial || 'Không có số seri' }}</div>
           <dl class="mobile-card-details">
             <div><dt>Ngày đăng ký</dt><dd>{{ formatDate(item.requestDate) }}</dd></div>
-            <div><dt>Hạn/ngày trả</dt><dd>{{ formatDate(item.returnDate) }}</dd></div>
+            <div><dt>Hạn trả</dt><dd>{{ formatDate(item.expectedReturnDate) }}</dd></div>
+            <div><dt>Ngày trả thực tế</dt><dd>{{ item.actualReturnDate ? formatDate(item.actualReturnDate) : '—' }}</dd></div>
             <div v-if="item.returnCondition"><dt>Tình trạng trả</dt><dd><StatusBadge :status="item.returnCondition" type="returnCondition" /></dd></div>
             <div v-if="item.compensationAmount"><dt>Bồi thường</dt><dd>{{ item.compensationAmount.toLocaleString('vi-VN') }} VNĐ</dd></div>
           </dl>
           <a-button v-if="item.canConfirmHandover" type="primary" block @click="openHandover(item)">Xem & xác nhận nhận</a-button>
-          <div v-else-if="statusMatches(item.status, STATUS.APPROVED)" class="mobile-card-note">
-            {{ item.handover ? 'Chờ người nhận xác nhận' : 'Chờ lập biên bản' }}
-          </div>
+          <a-button v-else block @click="openDetails(item)"><EyeOutlined /> Xem chi tiết</a-button>
         </template>
       </ResponsiveDataList>
     </a-card>
@@ -68,14 +71,10 @@
     <a-modal
       v-model:open="isHandoverVisible"
       title="Kiểm tra biên bản bàn giao"
-      :confirm-loading="confirming"
-      ok-text="Xác nhận đã nhận đủ"
-      cancel-text="Đóng"
       width="720px"
-      @ok="confirmReceipt"
     >
       <a-spin :spinning="handoverLoading">
-        <a-alert
+        <a-alert v-if="selectedRecord?.canConfirmHandover"
           type="warning"
           show-icon
           message="Chỉ xác nhận sau khi đã nhận và kiểm tra thực tế"
@@ -97,13 +96,33 @@
           </a-card>
         </div>
       </a-spin>
+      <template #footer>
+        <a-button @click="isHandoverVisible = false">Đóng</a-button>
+        <a-button v-if="selectedRecord?.canConfirmHandover" type="primary" :loading="confirming" @click="confirmReceipt">
+          Xác nhận đã nhận đủ
+        </a-button>
+      </template>
+    </a-modal>
+
+    <a-modal v-model:open="isDetailsVisible" title="Chi tiết phiếu mượn/trả" :footer="null" width="760px">
+      <a-descriptions v-if="selectedRecord" bordered size="small" :column="1">
+        <a-descriptions-item label="Người mượn">{{ selectedRecord.student }}</a-descriptions-item>
+        <a-descriptions-item label="Thiết bị">{{ selectedRecord.device }}</a-descriptions-item>
+        <a-descriptions-item label="Hạn trả">{{ formatDate(selectedRecord.expectedReturnDate) }}</a-descriptions-item>
+        <a-descriptions-item label="Ngày trả thực tế">{{ selectedRecord.actualReturnDate ? formatDate(selectedRecord.actualReturnDate) : 'Chưa trả' }}</a-descriptions-item>
+        <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedRecord.status" type="borrow" :label-override="borrowWorkflowLabel(selectedRecord)" /></a-descriptions-item>
+        <a-descriptions-item label="Ghi chú kiểm tra">{{ selectedRecord.returnInspectionNote || 'Chưa có' }}</a-descriptions-item>
+        <a-descriptions-item label="Xử lý bảo hành">{{ selectedRecord.warrantyAction || 'Không có' }}</a-descriptions-item>
+      </a-descriptions>
     </a-modal>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
+import { EyeOutlined } from '@ant-design/icons-vue'
 import { borrowApi } from '../api/borrowApi'
 import { handoverApi } from '../api/handoverApi'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -111,7 +130,7 @@ import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { STATUS, statusMatches } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
-import { formatVietnamDate, formatVietnamDateTime } from '../utils/dateTime'
+import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 
 const tablePagination = reactive({
   ...createTablePagination(),
@@ -121,6 +140,7 @@ const tablePagination = reactive({
 })
 
 const dataSource = ref([])
+const route = useRoute()
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
@@ -129,22 +149,49 @@ const handoverLoading = ref(false)
 const confirming = ref(false)
 const selectedRecord = ref(null)
 const selectedHandover = ref(null)
+const isDetailsVisible = ref(false)
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'student', key: 'student', width: 130 },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },
-  { title: 'Ngày trả/hạn trả', dataIndex: 'returnDate', key: 'returnDate', width: 130 },
+  { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 120 },
+  { title: 'Ngày trả thực tế', dataIndex: 'actualReturnDate', key: 'actualReturnDate', width: 130 },
   { title: 'Tình trạng trả', dataIndex: 'returnCondition', key: 'returnCondition', width: 130 },
   { title: 'Ghi chú kiểm tra', dataIndex: 'returnInspectionNote', key: 'returnInspectionNote', width: 200 },
   { title: 'Xử lý bảo hành', dataIndex: 'warrantyAction', key: 'warrantyAction', width: 180 },
   { title: 'Bồi thường', dataIndex: 'compensationAmount', key: 'compensationAmount', width: 130 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 140 },
-  { title: 'Hành động', key: 'action', align: 'center', width: 190 }
+  { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190 }
 ]
 
-onMounted(() => fetchHistory())
+const borrowWorkflowLabel = record => {
+  if (statusMatches(record.status, STATUS.APPROVED)) {
+    return record.handover ? 'Đã bàn giao, chờ người nhận xác nhận' : 'Đã duyệt, chờ lập bàn giao'
+  }
+  return ''
+}
+
+const openDetails = record => {
+  selectedRecord.value = record
+  isDetailsVisible.value = true
+}
+
+const syncRouteFilter = () => {
+  const routeStatus = typeof route.query.status === 'string' ? route.query.status : undefined
+  if (routeStatus && routeStatus !== statusFilter.value) statusFilter.value = routeStatus
+}
+
+onMounted(() => {
+  syncRouteFilter()
+  fetchHistory()
+})
+
+watch(() => route.query.status, () => {
+  syncRouteFilter()
+  applyFilters()
+})
 
 
 const openHandover = async record => {
@@ -234,6 +281,7 @@ h2 {
 }
 
 .muted { color: #8c8c8c; font-size: 13px; }
+.view-action { color: var(--color-primary); }
 .handover-items { display: grid; gap: 10px; margin-top: 16px; }
 .handover-items :deep(.ant-card-body) { display: grid; gap: 6px; }
 .mobile-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }

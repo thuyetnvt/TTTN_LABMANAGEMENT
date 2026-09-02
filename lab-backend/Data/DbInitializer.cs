@@ -379,9 +379,8 @@ public static class DbInitializer
                 consumables["Dây jumper đực-cái"],
                 20,
                 "Chuẩn bị demo cảm biến IoT.",
-                ConsumableRequestStatuses.Issued,
-                now.AddDays(-7),
-                now.AddDays(-6));
+                ConsumableRequestStatuses.Pending,
+                now.AddDays(-7));
 
             await AddConsumableRequestAsync(
                 context,

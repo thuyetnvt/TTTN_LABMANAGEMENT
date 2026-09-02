@@ -102,7 +102,7 @@ const columns = [
   { title: 'Vị trí cha', key: 'parent' },
   { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount' },
   { title: 'Trạng thái', key: 'status' },
-  { title: 'Thao tác', key: 'action', width: 120, align: 'center' }
+  { title: 'Thao tác', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 120, align: 'center' }
 ]
 
 const parentOptions = computed(() => locations.value.filter(item => item.id !== editing.value?.id && item.isActive))

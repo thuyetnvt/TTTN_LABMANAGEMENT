@@ -14,18 +14,17 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1600 }" :pagination="tablePagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
           </template>
           <template v-else-if="column.key === 'dueStatus'">
-            <a-tag v-if="record.isOverdue" color="red">Quá hạn {{ Math.abs(record.daysUntilDue) }} ngày</a-tag>
-            <a-tag v-else-if="statusMatches(record.status, STATUS.BORROWED) && record.daysUntilDue <= 2" color="orange">Sắp tới hạn</a-tag>
-            <a-tag v-else color="green">Trong hạn</a-tag>
+            <a-tag v-if="dueState(record).color" :color="dueState(record).color">{{ dueState(record).label }}</a-tag>
+            <span v-else class="muted">—</span>
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" type="borrow" />
+            <StatusBadge :status="record.status" type="borrow" :label-override="borrowWorkflowLabel(record)" />
           </template>
           <template v-else-if="column.key === 'details'">
             <div v-for="detail in record.details" :key="detail.id">
@@ -59,9 +58,13 @@
                   <a-button v-if="!record.hasHandover" type="primary" size="small" @click="showHandoverModal(record)">
                     Lập bàn giao
                   </a-button>
-                  <a-tag v-else color="processing">Chờ người nhận xác nhận</a-tag>
+                  <a-tooltip v-else :title="`Xem biên bản ${record.handoverCode || ''}`">
+                    <a-button type="text" class="view-action" aria-label="Xem biên bản bàn giao" @click="showExistingHandover(record)">
+                      <template #icon><EyeOutlined /></template>
+                    </a-button>
+                  </a-tooltip>
                 </template>
-                <template v-else-if="statusMatches(record.status, STATUS.BORROWED)">
+                <template v-else-if="statusMatches(record.status, STATUS.BORROWED) || statusMatches(record.status, STATUS.RETURN_PROCESSING)">
                   <a-button type="default" size="small" @click="showReturnModal(record)">Kiểm tra trả</a-button>
                   <a-dropdown trigger="click">
                     <a-tooltip title="Thêm thao tác">
@@ -86,7 +89,7 @@
                 </template>
               </div>
             </template>
-            <span v-else class="muted">Chỉ xem</span>
+            <span v-else class="muted">—</span>
           </template>
         </template>
       </a-table>
@@ -94,7 +97,7 @@
         <template #default="{ item }">
           <div class="mobile-request-heading">
             <div><strong>{{ item.device }}</strong><span>{{ item.student }} · {{ item.serial || 'Không có số seri' }}</span></div>
-            <StatusBadge :status="item.status" type="borrow" />
+            <StatusBadge :status="item.status" type="borrow" :label-override="borrowWorkflowLabel(item)" />
           </div>
           <div class="mobile-request-dates">
             <span>Đăng ký <strong>{{ formatDate(item.requestDate) }}</strong></span>
@@ -110,9 +113,9 @@
             </template>
             <template v-else-if="statusMatches(item.status, STATUS.APPROVED)">
               <a-button v-if="!item.hasHandover" type="primary" block @click="showHandoverModal(item)">Lập bàn giao</a-button>
-              <a-tag v-else color="processing">Chờ người nhận xác nhận</a-tag>
+              <a-button v-else block @click="showExistingHandover(item)"><EyeOutlined /> Xem biên bản</a-button>
             </template>
-            <template v-else-if="statusMatches(item.status, STATUS.BORROWED)">
+            <template v-else-if="statusMatches(item.status, STATUS.BORROWED) || statusMatches(item.status, STATUS.RETURN_PROCESSING)">
               <a-button @click="showReturnModal(item)">Kiểm tra trả</a-button>
               <a-button :loading="isReminding(item.id)" @click="handleRemind(item)">Nhắc trả</a-button>
             </template>
@@ -265,13 +268,33 @@
         </footer>
       </div>
     </a-modal>
+
+    <a-modal v-model:open="handoverDetailsVisible" title="Biên bản bàn giao" :footer="null" width="720px">
+      <a-spin :spinning="handoverDetailsLoading">
+        <a-descriptions v-if="handoverDetails" bordered size="small" :column="1">
+          <a-descriptions-item label="Mã biên bản">{{ handoverDetails.code }}</a-descriptions-item>
+          <a-descriptions-item label="Thời gian lập">{{ formatDateTime(handoverDetails.handoverAt) }}</a-descriptions-item>
+          <a-descriptions-item label="Xác nhận nhận">{{ handoverDetails.confirmedAt ? formatDateTime(handoverDetails.confirmedAt) : 'Chưa xác nhận' }}</a-descriptions-item>
+          <a-descriptions-item label="Ghi chú">{{ handoverDetails.notes || 'Không có' }}</a-descriptions-item>
+        </a-descriptions>
+        <div v-if="handoverDetails?.items?.length" class="handover-items-readonly">
+          <a-card v-for="item in handoverDetails.items" :key="item.equipmentId" size="small">
+            <strong>{{ item.equipmentName }}</strong>
+            <span>Serial: {{ item.serial || '—' }}</span>
+            <span>Tình trạng: {{ item.condition }}</span>
+            <span>Phụ kiện: {{ item.accessories || 'Không ghi nhận' }}</span>
+            <span>Ghi chú: {{ item.note || 'Không có' }}</span>
+          </a-card>
+        </div>
+      </a-spin>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onBeforeUnmount, onMounted, computed } from 'vue'
 import { message, Upload } from 'ant-design-vue'
-import { CloseOutlined, DeleteOutlined, FileOutlined, InboxOutlined, LoadingOutlined, MoreOutlined } from '@ant-design/icons-vue'
+import { CloseOutlined, DeleteOutlined, EyeOutlined, FileOutlined, InboxOutlined, LoadingOutlined, MoreOutlined } from '@ant-design/icons-vue'
 import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -280,7 +303,7 @@ import { HANDOVER_CONDITIONS, STATUS, isManagerRole, statusMatches } from '../co
 import { handoverApi } from '../api/handoverApi'
 import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
-import { formatVietnamDate, formatVietnamDateTime } from '../utils/dateTime'
+import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 
 const tablePagination = reactive({
   ...createTablePagination(),
@@ -307,6 +330,9 @@ const handoverEvidenceFile = ref(null)
 const handoverEvidenceType = ref('PHOTO')
 const handoverEvidencePreviewUrl = ref('')
 const handoverAt = ref(new Date())
+const handoverDetailsVisible = ref(false)
+const handoverDetailsLoading = ref(false)
+const handoverDetails = ref(null)
 const remindingRecordIds = ref(new Set())
 const returnForm = ref({
   condition: STATUS.AVAILABLE,
@@ -326,7 +352,7 @@ const columns = [
   { title: 'Hạn trả', key: 'dueStatus', align: 'center', width: 130 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 180 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 120 },
-  { title: 'Hành động', key: 'action', align: 'center', width: 220 }
+  { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220 }
 ]
 
 onMounted(() => fetchRequests())
@@ -339,6 +365,34 @@ const formatFileSize = (bytes) => {
 const borrowRecordCode = computed(() => currentHandoverRecord.value?.id ? `BR-${String(currentHandoverRecord.value.id).padStart(6, '0')}` : '—')
 const completedHandoverItems = computed(() => handoverForm.value.items.filter(item => Boolean(item.condition)).length)
 const isReminding = id => remindingRecordIds.value.has(id)
+
+const borrowWorkflowLabel = record => {
+  if (statusMatches(record.status, STATUS.APPROVED)) {
+    return record.hasHandover ? 'Đã bàn giao, chờ người nhận xác nhận' : 'Đã duyệt, chờ lập bàn giao'
+  }
+  return ''
+}
+
+const dueState = record => {
+  if (!statusMatches(record.status, STATUS.BORROWED)) return { label: '', color: '' }
+  if (record.isOverdue) return { label: `Quá hạn ${Math.abs(record.daysUntilDue)} ngày`, color: 'red' }
+  if (record.daysUntilDue <= 2) return { label: 'Sắp tới hạn', color: 'orange' }
+  return { label: 'Trong hạn', color: 'green' }
+}
+
+const showExistingHandover = async record => {
+  handoverDetails.value = null
+  handoverDetailsVisible.value = true
+  handoverDetailsLoading.value = true
+  try {
+    handoverDetails.value = await handoverApi.getByBorrowRecord(record.id)
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể tải biên bản bàn giao.'))
+    handoverDetailsVisible.value = false
+  } finally {
+    handoverDetailsLoading.value = false
+  }
+}
 
 const fetchRequests = async () => {
   loading.value = true
@@ -618,6 +672,9 @@ h2 {
   color: #9ca3af;
   font-size: 13px;
 }
+.view-action { color: var(--color-primary); }
+.handover-items-readonly { display: grid; gap: 10px; margin-top: 14px; }
+.handover-items-readonly :deep(.ant-card-body) { display: grid; gap: 5px; }
 
 :deep(.handover-modal-wrap .ant-modal) {
   width: min(820px, calc(100vw - 32px)) !important;

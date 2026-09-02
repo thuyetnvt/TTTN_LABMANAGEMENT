@@ -12,12 +12,15 @@
     </div>
 
     <div class="consumables-desktop-table">
-      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: tableScrollX }" :pagination="tablePagination" @change="handleTableChange">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'quantity'">
-          <span :style="{ color: record.quantity <= record.minQuantity ? '#dc2626' : '#16a34a', fontWeight: 700 }">
-            {{ record.quantity }}
+          <span :style="{ color: availableStock(record) <= record.minQuantity ? '#dc2626' : '#16a34a', fontWeight: 700 }">
+            {{ isManagerRole(role) ? record.quantity : availableStock(record) }}
           </span>
+        </template>
+        <template v-else-if="column.key === 'availableQuantity'">
+          <strong :style="{ color: availableStock(record) <= record.minQuantity ? '#dc2626' : '#16a34a' }">{{ availableStock(record) }}</strong>
         </template>
         <template v-else-if="column.key === 'entryDate'">
           {{ formatVietnamDate(record.entryDate, '') }}
@@ -26,8 +29,8 @@
           {{ formatVietnamDate(record.expiryDate, 'Không áp dụng') }}
         </template>
         <template v-else-if="column.key === 'status'">
-          <a-tag :color="record.quantity <= record.minQuantity ? 'red' : 'green'">
-            {{ record.quantity <= record.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
+          <a-tag :color="availableStock(record) <= record.minQuantity ? 'red' : 'green'">
+            {{ availableStock(record) <= record.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
           </a-tag>
         </template>
         <template v-else-if="column.key === 'action'">
@@ -73,12 +76,14 @@
             </div>
             <dl class="consumable-mobile-details">
               <div><dt>Danh mục</dt><dd>{{ item.categoryName || '—' }}</dd></div>
-              <div><dt>Tồn kho</dt><dd>{{ item.quantity }} {{ item.unit }}</dd></div>
+              <div v-if="isManagerRole(role)"><dt>Tổng tồn</dt><dd>{{ item.quantity }} {{ item.unit }}</dd></div>
+              <div v-if="isManagerRole(role)"><dt>Đang giữ</dt><dd>{{ item.reservedQuantity || 0 }} {{ item.unit }}</dd></div>
+              <div><dt>Khả dụng</dt><dd>{{ availableStock(item) }} {{ item.unit }}</dd></div>
               <div><dt>Tồn tối thiểu</dt><dd>{{ item.minQuantity }} {{ item.unit }}</dd></div>
               <div v-if="item.responsiblePerson"><dt>Người phụ trách</dt><dd>{{ item.responsiblePerson }}</dd></div>
             </dl>
-            <a-tag :color="item.quantity <= item.minQuantity ? 'red' : 'green'">
-              {{ item.quantity <= item.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
+            <a-tag :color="availableStock(item) <= item.minQuantity ? 'red' : 'green'">
+              {{ availableStock(item) <= item.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
             </a-tag>
           </div>
           <div class="consumable-mobile-actions">
@@ -178,7 +183,7 @@
           <strong>{{ currentRequestConsumable?.name }}</strong>
         </a-form-item>
         <a-form-item label="Số lượng" required>
-          <a-input-number v-model:value="requestForm.quantity" style="width: 100%" :min="1" :max="currentRequestConsumable?.quantity" />
+          <a-input-number v-model:value="requestForm.quantity" style="width: 100%" :min="1" :max="availableStock(currentRequestConsumable)" />
         </a-form-item>
         <a-form-item label="Mục đích" required>
           <a-textarea v-model:value="requestForm.reason" :rows="3" />
@@ -246,7 +251,7 @@
         size="small"
         bordered
         :pagination="lotPagination"
-        :scroll="{ x: 'max-content' }"
+        :scroll="{ x: 1110 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'entryDate'">{{ formatDate(record.entryDate) }}</template>
@@ -290,7 +295,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import { consumableApi } from '../api/consumableApi'
@@ -314,6 +320,7 @@ const lotPagination = createTablePagination()
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
+const route = useRoute()
 
 const dataSource = ref([])
 const categories = ref([])
@@ -321,6 +328,7 @@ const loading = ref(false)
 const submitting = ref(false)
 const searchQuery = ref('')
 const stockFilter = ref(undefined)
+const availableStock = record => Number(record?.availableQuantity ?? Math.max(0, Number(record?.quantity || 0) - Number(record?.reservedQuantity || 0)))
 
 const columns = computed(() => {
   const commonColumns = [
@@ -328,11 +336,12 @@ const columns = computed(() => {
   { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240 },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100 },
-  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 110 },
+  { title: isManagerRole(role.value) ? 'Tổng tồn' : 'Khả dụng', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 110 },
   { title: 'Tồn tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', align: 'center', width: 120 }
   ]
   const managerColumns = isManagerRole(role.value) ? [
     { title: 'Đang giữ', dataIndex: 'reservedQuantity', key: 'reservedQuantity', align: 'center', width: 100 },
+    { title: 'Khả dụng', dataIndex: 'availableQuantity', key: 'availableQuantity', align: 'center', width: 100 },
     { title: 'Số lô', dataIndex: 'lotCount', key: 'lotCount', align: 'center', width: 90 },
     { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 }
   ] : []
@@ -342,9 +351,19 @@ const columns = computed(() => {
     title: 'Hành động', 
     key: 'action', 
     align: 'center', 
+    className: 'table-sticky-action-column',
+    customCell: () => ({ class: 'table-sticky-action-column' }),
     width: isAdminRole(role.value) ? 170 : (isManagerRole(role.value) ? 140 : 70)
   }
   ]
+})
+
+const tableScrollX = computed(() => {
+  const commonWidth = 860
+  const managerWidth = isManagerRole(role.value) ? 470 : 0
+  const actionWidth = isAdminRole(role.value) ? 170 : (isManagerRole(role.value) ? 140 : 70)
+
+  return commonWidth + managerWidth + 120 + actionWidth
 })
 
 const lotColumns = [
@@ -356,7 +375,7 @@ const lotColumns = [
   { title: 'Nhà cung cấp', dataIndex: 'supplier', key: 'supplier', width: 160 },
   { title: 'Đơn giá', key: 'unitCost', width: 120 },
   { title: 'Vị trí', dataIndex: 'storageLocation', key: 'storageLocation', width: 140 },
-  { title: 'Hành động', key: 'action', align: 'center', width: 110 }
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), align: 'center', width: 110 }
 ]
 
 const historyColumns = [
@@ -420,8 +439,14 @@ const emptyLotForm = () => ({
 const lotForm = ref(emptyLotForm())
 
 onMounted(() => {
+  stockFilter.value = typeof route.query.stock === 'string' ? route.query.stock : undefined
   fetchData()
   fetchCategories()
+})
+
+watch(() => route.query.stock, value => {
+  stockFilter.value = typeof value === 'string' ? value : undefined
+  applyFilters()
 })
 
 const fetchCategories = async () => {

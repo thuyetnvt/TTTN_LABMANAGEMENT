@@ -233,7 +233,7 @@ const managerKpis = computed(() => [
   },
   {
     key: 'borrowed-equipment',
-    label: 'Đang mượn',
+    label: 'Thiết bị đang được mượn',
     value: formatNumber(stats.value.counts.borrowed),
     icon: ClockCircleOutlined,
     tone: 'success'
@@ -256,7 +256,7 @@ const managerKpis = computed(() => [
 
 const managerStatusRows = computed(() => [
   { key: 'available', label: 'Rảnh', value: Number(stats.value.counts.available || 0), tone: 'success' },
-  { key: 'borrow-pending', label: 'Chờ bàn giao', value: Number(stats.value.counts.borrowPending || 0), tone: 'warning' },
+  { key: 'borrow-pending', label: 'Đã giữ chỗ', value: Number(stats.value.counts.borrowPending || 0), tone: 'warning' },
   { key: 'borrowed', label: 'Đang mượn', value: Number(stats.value.counts.borrowed || 0), tone: 'info' },
   { key: 'maintenance', label: 'Bảo trì', value: Number(stats.value.counts.maintenance || 0), tone: 'purple' },
   { key: 'warranty', label: 'Bảo hành', value: Number(stats.value.counts.warranty || 0), tone: 'warning' },
@@ -317,17 +317,17 @@ const managerAttentionItems = computed(() => [
   {
     key: 'overdue-borrow-records', label: 'Mượn quá hạn',
     value: formatNumber(stats.value.overdueBorrowRecords),
-    icon: ClockCircleOutlined, tone: 'danger', route: { name: 'BorrowHistory' }
+    icon: ClockCircleOutlined, tone: 'danger', route: { name: 'BorrowHistory', query: { status: 'OVERDUE' } }
   },
   {
     key: 'low-stock-consumables', label: 'Vật tư sắp hết',
     value: formatNumber(stats.value.lowStockConsumables),
-    icon: AppstoreOutlined, tone: 'warning', route: { name: 'Devices', query: { tab: 'consumables' } }
+    icon: AppstoreOutlined, tone: 'warning', route: { name: 'Devices', query: { tab: 'consumables', stock: 'LOW_STOCK' } }
   },
   {
     key: 'warranty-expiring-soon', label: 'Bảo hành sắp hết',
     value: formatNumber(stats.value.warrantyExpiringSoon),
-    icon: ToolOutlined, tone: 'info', route: { name: 'Devices', query: { status: 'warranty' } }
+    icon: ToolOutlined, tone: 'info', route: { name: 'Devices', query: { status: 'warranty-soon' } }
   }
 ])
 
@@ -361,7 +361,7 @@ const managerQuickActions = computed(() => [
 ])
 
 const studentStats = computed(() => [
-  { label: 'Đang mượn', value: stats.value.counts.borrowed, icon: ClockCircleOutlined, tone: 'amber' },
+  { label: 'Thiết bị đang được mượn', value: stats.value.counts.borrowed, icon: ClockCircleOutlined, tone: 'amber' },
   { label: 'Thiết bị rảnh', value: stats.value.counts.available, icon: CheckCircleOutlined, tone: 'green' }
 ])
 
