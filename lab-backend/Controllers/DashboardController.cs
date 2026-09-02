@@ -31,8 +31,8 @@ public class DashboardController : ControllerBase
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var isManager = role is Roles.Admin or Roles.LabHead or Roles.DeputyLabHead;
         var cacheKey = isManager
-            ? "dashboard:v3:manager"
-            : $"dashboard:v3:{role}:{userId}";
+            ? "dashboard:v4:manager"
+            : $"dashboard:v4:{role}:{userId}";
         var forceRefresh = bool.TryParse(Request.Query["refresh"], out var refreshRequested)
             && refreshRequested;
         if (!forceRefresh
@@ -46,7 +46,7 @@ public class DashboardController : ControllerBase
         var today = VietnamTime.Today(now);
         var todayStartUtc = VietnamTime.StartOfDayUtc(today);
 
-        var equipmentCounts = role == Roles.Teacher
+        var equipmentCounts = !isManager
             ? null
             : await _context.Equipments
                 .AsNoTracking()
@@ -193,6 +193,13 @@ public class DashboardController : ControllerBase
         var teacherActiveBorrows = 0;
         DateTime? teacherNextReturnDate = null;
         var teacherNextReturnEquipment = string.Empty;
+        var studentPendingRequests = 0;
+        var studentApprovedRequests = 0;
+        var studentActiveBorrows = 0;
+        var studentReturnedBorrows = 0;
+        DateTime? studentNextReturnDate = null;
+        var studentNextReturnEquipment = string.Empty;
+        var studentStatusCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
         if (isManager)
         {
@@ -394,20 +401,66 @@ public class DashboardController : ControllerBase
             }
         }
 
+        else if (role == Roles.Student)
+        {
+            var studentBorrowStatusRows = await _context.BorrowRecords
+                .AsNoTracking()
+                .Where(record => record.UserId == userId)
+                .GroupBy(record => record.Status)
+                .Select(group => new
+                {
+                    Status = group.Key,
+                    Count = group.Count()
+                })
+                .ToListAsync(cancellationToken);
+            studentStatusCounts = studentBorrowStatusRows.ToDictionary(
+                item => item.Status,
+                item => item.Count,
+                StringComparer.Ordinal);
+
+            studentPendingRequests = GetStatusCount(studentStatusCounts, BorrowStatuses.Pending)
+                + GetStatusCount(studentStatusCounts, BorrowStatuses.TeacherPending)
+                + GetStatusCount(studentStatusCounts, BorrowStatuses.ProcessingApproval);
+            studentApprovedRequests = GetStatusCount(studentStatusCounts, BorrowStatuses.Approved);
+            studentActiveBorrows = GetStatusCount(studentStatusCounts, BorrowStatuses.Borrowed)
+                + GetStatusCount(studentStatusCounts, BorrowStatuses.ReturnProcessing);
+            studentReturnedBorrows = GetStatusCount(studentStatusCounts, BorrowStatuses.Returned)
+                + GetStatusCount(studentStatusCounts, BorrowStatuses.ReturnedDamaged);
+
+            var nextReturn = await _context.BorrowRecords
+                .AsNoTracking()
+                .Include(record => record.Equipment)
+                .Include(record => record.Details)
+                    .ThenInclude(detail => detail.Equipment)
+                .Where(record => record.UserId == userId
+                    && (record.Status == BorrowStatuses.Borrowed
+                        || record.Status == BorrowStatuses.ReturnProcessing))
+                .AsSingleQuery()
+                .OrderBy(record => record.ExpectedReturnDate)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (nextReturn != null)
+            {
+                studentNextReturnDate = nextReturn.ExpectedReturnDate;
+                studentNextReturnEquipment = EquipmentLabel(nextReturn);
+            }
+        }
+
         var payload = new
         {
             UpdatedAt = now,
-            Counts = new
-            {
-                Total = equipmentCounts?.Total ?? 0,
-                Available = equipmentCounts?.Available ?? 0,
-                BorrowPending = equipmentCounts?.BorrowPending ?? 0,
-                Maintenance = equipmentCounts?.Maintenance ?? 0,
-                Borrowed = equipmentCounts?.Borrowed ?? 0,
-                Broken = equipmentCounts?.Broken ?? 0,
-                Missing = equipmentCounts?.Missing ?? 0,
-                Warranty = equipmentCounts?.Warranty ?? 0
-            },
+            Counts = isManager
+                ? new
+                {
+                    Total = equipmentCounts?.Total ?? 0,
+                    Available = equipmentCounts?.Available ?? 0,
+                    BorrowPending = equipmentCounts?.BorrowPending ?? 0,
+                    Maintenance = equipmentCounts?.Maintenance ?? 0,
+                    Borrowed = equipmentCounts?.Borrowed ?? 0,
+                    Broken = equipmentCounts?.Broken ?? 0,
+                    Missing = equipmentCounts?.Missing ?? 0,
+                    Warranty = equipmentCounts?.Warranty ?? 0
+                }
+                : null,
             Activities = recentActivities,
             Alerts = alerts,
             Advanced = new
@@ -425,6 +478,25 @@ public class DashboardController : ControllerBase
                 ActiveBorrows = teacherActiveBorrows,
                 NextReturnDate = teacherNextReturnDate,
                 NextReturnEquipment = teacherNextReturnEquipment
+            },
+            StudentSummary = new
+            {
+                PendingRequests = studentPendingRequests,
+                ApprovedRequests = studentApprovedRequests,
+                ActiveBorrows = studentActiveBorrows,
+                ReturnedBorrows = studentReturnedBorrows,
+                NextReturnDate = studentNextReturnDate,
+                NextReturnEquipment = studentNextReturnEquipment,
+                StatusCounts = new
+                {
+                    Pending = studentPendingRequests,
+                    Approved = studentApprovedRequests,
+                    Active = studentActiveBorrows,
+                    Returned = studentReturnedBorrows,
+                    Rejected = GetStatusCount(studentStatusCounts, BorrowStatuses.Rejected),
+                    Cancelled = GetStatusCount(studentStatusCounts, BorrowStatuses.Cancelled),
+                    Expired = GetStatusCount(studentStatusCounts, BorrowStatuses.Expired)
+                }
             },
             PendingBorrowRequests = pendingBorrowRequests,
             PendingConsumableRequests = pendingConsumableRequests,
@@ -449,6 +521,11 @@ public class DashboardController : ControllerBase
         string Message,
         DateTime Date,
         string Color);
+
+    private static int GetStatusCount(
+        IReadOnlyDictionary<string, int> counts,
+        string status)
+        => counts.TryGetValue(status, out var count) ? count : 0;
 
     private static string EquipmentLabel(BorrowRecord record)
     {

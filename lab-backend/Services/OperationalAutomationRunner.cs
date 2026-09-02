@@ -234,7 +234,8 @@ public sealed class OperationalAutomationRunner
                 var hasActiveBorrow = await _context.BorrowRecords.AsNoTracking()
                     .AnyAsync(record => (record.EquipmentId == schedule.EquipmentId
                             || record.Details.Any(detail => detail.EquipmentId == schedule.EquipmentId))
-                        && (record.Status == BorrowStatuses.Approved || record.Status == BorrowStatuses.Borrowed),
+                        && (BorrowLockRules.EquipmentLockedBorrowStatuses.Contains(record.Status)
+                            || record.Status == BorrowStatuses.Borrowed),
                         cancellationToken);
                 var hasActiveMaintenance = await _context.MaintenanceRecords.AsNoTracking()
                     .AnyAsync(record => record.EquipmentId == schedule.EquipmentId

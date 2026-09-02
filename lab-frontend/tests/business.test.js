@@ -195,6 +195,17 @@ test('dashboard giảng viên dùng dữ liệu và tác vụ riêng theo vai tr
   assert.match(source, /name:\s*'TeacherApproval'/)
 })
 
+test('dashboard sinh viên dùng thống kê cá nhân, không dùng số liệu toàn lab', () => {
+  const source = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /v-else-if="isStudent"/)
+  assert.match(source, /Không gian sinh viên/)
+  assert.match(source, /studentSummary/)
+  assert.match(source, /Tình trạng phiếu mượn của bạn/)
+  assert.match(source, /const studentStats[\s\S]*?studentSummary\.value\.activeBorrows/)
+  assert.doesNotMatch(source, /label:\s*'Thiết bị rảnh'/)
+})
+
 test('dashboard có skeleton ban đầu và cho phép làm mới bỏ qua cache', () => {
   const viewSource = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
   const apiSource = readFileSync(new URL('../src/api/dashboardApi.js', import.meta.url), 'utf8')

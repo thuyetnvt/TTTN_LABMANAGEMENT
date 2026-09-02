@@ -77,6 +77,87 @@ public sealed class MaintenanceScheduleControllerTests
     }
 
     [Fact]
+    public async Task Generate_rejects_equipment_referenced_by_pending_borrow_request()
+    {
+        await using var context = CreateContext();
+        context.Equipments.Add(new Equipment
+        {
+            Id = 1,
+            AssetCode = "IOT-001",
+            QrToken = "qr-001",
+            Name = "Gateway",
+            Model = "GW-1",
+            Serial = "SN-001",
+            Location = "Phòng Lab",
+            Status = EquipmentStatuses.Available
+        });
+        context.MaintenanceSchedules.Add(new MaintenanceSchedule
+        {
+            Id = 1,
+            EquipmentId = 1,
+            Name = "Kiểm tra định kỳ",
+            IntervalDays = 30,
+            NextDueAt = DateTime.UtcNow.AddDays(-1),
+            CreatedByUserId = 7
+        });
+        context.BorrowRecords.Add(new BorrowRecord
+        {
+            Id = 1,
+            UserId = 9,
+            Status = BorrowStatuses.Pending,
+            BorrowDate = DateTime.UtcNow,
+            ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+            Details = [new BorrowRequestDetail { EquipmentId = 1 }]
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context).GenerateMaintenanceRecord(1, CancellationToken.None);
+
+        Assert.IsType<ConflictObjectResult>(result);
+        Assert.Empty(context.MaintenanceRecords);
+        Assert.Equal(EquipmentStatuses.Available, (await context.Equipments.FindAsync(1))!.Status);
+    }
+
+    [Fact]
+    public async Task Manual_maintenance_rejects_equipment_with_pending_borrow_request()
+    {
+        await using var context = CreateContext();
+        context.Equipments.Add(new Equipment
+        {
+            Id = 1,
+            AssetCode = "IOT-001",
+            Name = "Gateway",
+            Model = "GW-1",
+            Serial = "SN-001",
+            Location = "Phòng Lab",
+            Status = EquipmentStatuses.Available
+        });
+        context.BorrowRecords.Add(new BorrowRecord
+        {
+            Id = 1,
+            UserId = 9,
+            Status = BorrowStatuses.Pending,
+            BorrowDate = DateTime.UtcNow,
+            ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+            EquipmentId = 1
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateMaintenanceController(context).CreateMaintenance(
+            new MaintenanceController.CreateMaintenanceDto
+            {
+                EquipmentId = 1,
+                Description = "Vệ sinh thiết bị",
+                PerformedBy = "Kỹ thuật viên"
+            },
+            CancellationToken.None);
+
+        Assert.IsType<ConflictObjectResult>(result.Result);
+        Assert.Empty(context.MaintenanceRecords);
+        Assert.Equal(EquipmentStatuses.Available, (await context.Equipments.FindAsync(1))!.Status);
+    }
+
+    [Fact]
     public void Business_status_map_contains_stable_codes_for_legacy_values()
     {
         Assert.Equal(BorrowStatuses.Pending, StatusCodeMap.LegacyMap["Chờ duyệt"]);
@@ -169,6 +250,25 @@ public sealed class MaintenanceScheduleControllerTests
                 new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                 new Claim(ClaimTypes.Role, role),
                 new Claim(ClaimTypes.Name, role)
+            ], "Test"))
+        };
+        controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+        return controller;
+    }
+
+    private static MaintenanceController CreateMaintenanceController(AppDbContext context)
+    {
+        var controller = new MaintenanceController(
+            context,
+            new NoopAuditService(),
+            new NoopNotificationService(),
+            new NoopFileStorage(),
+            new ConfigurationBuilder().Build());
+        var httpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([
+                new Claim(ClaimTypes.NameIdentifier, "7"),
+                new Claim(ClaimTypes.Role, Roles.Admin)
             ], "Test"))
         };
         controller.ControllerContext = new ControllerContext { HttpContext = httpContext };

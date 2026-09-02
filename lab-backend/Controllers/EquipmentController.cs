@@ -590,6 +590,15 @@ public class EquipmentController : ControllerBase
             return NotFound();
         }
 
+        if (existing.Status == EquipmentStatuses.BorrowPending
+            || await HasLockedBorrowRequestAsync(id, cancellationToken))
+        {
+            return Conflict(new
+            {
+                message = "Không thể sửa hoặc điều chuyển thiết bị khi đang có phiếu mượn chờ xử lý/bàn giao."
+            });
+        }
+
         if (!HasRequiredEquipmentFields(dto))
         {
             return BadRequest(new { message = "Tên, model, số seri và vị trí là bắt buộc." });
@@ -839,8 +848,18 @@ public class EquipmentController : ControllerBase
             return NotFound();
         }
 
+        if (equipment.Status == EquipmentStatuses.BorrowPending
+            || await HasLockedBorrowRequestAsync(id, cancellationToken))
+        {
+            return Conflict(new
+            {
+                message = "Không thể xóa thiết bị khi đang có phiếu mượn chờ xử lý/bàn giao."
+            });
+        }
+
         var hasHistory = await _context.BorrowRecords.AnyAsync(
-                record => record.EquipmentId == id,
+                record => record.EquipmentId == id
+                    || record.Details.Any(detail => detail.EquipmentId == id),
                 cancellationToken)
             || await _context.MaintenanceRecords.AnyAsync(
                 record => record.EquipmentId == id,
@@ -1090,6 +1109,17 @@ public class EquipmentController : ControllerBase
     }
 
     private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private Task<bool> HasLockedBorrowRequestAsync(
+        int equipmentId,
+        CancellationToken cancellationToken)
+        => _context.BorrowRecords
+            .AsNoTracking()
+            .AnyAsync(record =>
+                (record.EquipmentId == equipmentId
+                    || record.Details.Any(detail => detail.EquipmentId == equipmentId))
+                && BorrowLockRules.EquipmentLockedBorrowStatuses.Contains(record.Status),
+                cancellationToken);
 
     [HttpGet("{id:int}/location-history")]
     public async Task<IActionResult> GetLocationHistory(int id, CancellationToken cancellationToken)

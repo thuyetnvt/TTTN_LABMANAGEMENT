@@ -137,6 +137,13 @@ public class MaintenanceScheduleController : ControllerBase
         {
             return BadRequest(new { message = "Thiết bị không tồn tại." });
         }
+        if (await IsEquipmentBorrowLockedAsync(dto.EquipmentId, cancellationToken))
+        {
+            return Conflict(new
+            {
+                message = "Không thể lập kế hoạch bảo trì cho thiết bị đang có phiếu mượn chờ xử lý/bàn giao."
+            });
+        }
 
         var userId = GetUserId();
         var schedule = new MaintenanceSchedule
@@ -171,6 +178,13 @@ public class MaintenanceScheduleController : ControllerBase
         if (!IsValidIntervalUnit(dto.IntervalUnit)) return BadRequest(new { message = "Đơn vị chu kỳ không hợp lệ." });
         if (!await _context.Equipments.AnyAsync(equipment => equipment.Id == dto.EquipmentId, cancellationToken))
             return BadRequest(new { message = "Thiết bị không tồn tại." });
+        if (await IsEquipmentBorrowLockedAsync(dto.EquipmentId, cancellationToken))
+        {
+            return Conflict(new
+            {
+                message = "Không thể gắn kế hoạch bảo trì với thiết bị đang có phiếu mượn chờ xử lý/bàn giao."
+            });
+        }
 
         schedule.EquipmentId = dto.EquipmentId;
         schedule.Name = dto.Name;
@@ -195,10 +209,11 @@ public class MaintenanceScheduleController : ControllerBase
         if (schedule is null) return NotFound();
         if (!schedule.IsActive) return Conflict(new { message = "Kế hoạch bảo trì đang tắt." });
         if (schedule.Equipment is null) return BadRequest(new { message = "Thiết bị của kế hoạch không tồn tại." });
-        var hasActiveBorrow = await _context.BorrowRecords.AsNoTracking()
-            .AnyAsync(record => (record.EquipmentId == schedule.EquipmentId
+        var hasActiveBorrow = await IsEquipmentBorrowLockedAsync(schedule.EquipmentId, cancellationToken)
+            || await _context.BorrowRecords.AsNoTracking().AnyAsync(record =>
+                (record.EquipmentId == schedule.EquipmentId
                     || record.Details.Any(detail => detail.EquipmentId == schedule.EquipmentId))
-                && (record.Status == BorrowStatuses.Approved || record.Status == BorrowStatuses.Borrowed),
+                && record.Status == BorrowStatuses.Borrowed,
                 cancellationToken);
         if (hasActiveBorrow
             || schedule.Equipment.Status is EquipmentStatuses.Borrowed or EquipmentStatuses.BorrowPending)
@@ -265,4 +280,25 @@ public class MaintenanceScheduleController : ControllerBase
             "YEAR" => value.AddYears(amount),
             _ => value.AddDays(amount)
         };
+
+    private async Task<bool> IsEquipmentBorrowLockedAsync(
+        int equipmentId,
+        CancellationToken cancellationToken)
+    {
+        if (await _context.BorrowRecords
+            .AsNoTracking()
+            .AnyAsync(record =>
+                (record.EquipmentId == equipmentId
+                    || record.Details.Any(detail => detail.EquipmentId == equipmentId))
+                && BorrowLockRules.EquipmentLockedBorrowStatuses.Contains(record.Status),
+                cancellationToken))
+        {
+            return true;
+        }
+
+        return await _context.Equipments.AnyAsync(
+            equipment => equipment.Id == equipmentId
+                && equipment.Status == EquipmentStatuses.BorrowPending,
+            cancellationToken);
+    }
 }

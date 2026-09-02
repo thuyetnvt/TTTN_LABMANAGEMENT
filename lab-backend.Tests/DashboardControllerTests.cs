@@ -294,6 +294,15 @@ public sealed class DashboardControllerTests
         Assert.Equal(1, ReadInt(response.Value!, "OverdueBorrowRecords"));
         Assert.Contains("Thiết bị của sv1", payload);
         Assert.DoesNotContain("Thiết bị của sv2", payload);
+
+        var counts = response.Value!.GetType().GetProperty("Counts")!.GetValue(response.Value);
+        Assert.Null(counts);
+
+        var studentSummary = response.Value.GetType().GetProperty("StudentSummary")!.GetValue(response.Value)!;
+        Assert.Equal(1, ReadInt(studentSummary, "ActiveBorrows"));
+        Assert.Equal(0, ReadInt(studentSummary, "PendingRequests"));
+        Assert.Equal(0, ReadInt(studentSummary, "ApprovedRequests"));
+        Assert.Equal(0, ReadInt(studentSummary, "ReturnedBorrows"));
     }
 
     [Fact]

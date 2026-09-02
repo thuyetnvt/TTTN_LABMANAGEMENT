@@ -229,10 +229,23 @@ public class MaintenanceController : ControllerBase
             return BadRequest(new { message = "Nội dung và người thực hiện là bắt buộc." });
         }
 
+        if (await HasLockedBorrowRequestAsync(dto.EquipmentId, cancellationToken)
+            || await _context.Equipments.AnyAsync(
+                equipment => equipment.Id == dto.EquipmentId
+                    && equipment.Status == EquipmentStatuses.BorrowPending,
+                cancellationToken))
+        {
+            return Conflict(new
+            {
+                message = "Không thể tạo bảo trì khi thiết bị đang có phiếu mượn chờ xử lý/bàn giao."
+            });
+        }
+
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         var claimedEquipment = await _context.Equipments
             .Where(equipment => equipment.Id == dto.EquipmentId
-                && equipment.Status != EquipmentStatuses.Borrowed)
+                && equipment.Status != EquipmentStatuses.Borrowed
+                && equipment.Status != EquipmentStatuses.BorrowPending)
             .ExecuteUpdateAsync(
                 updates => updates.SetProperty(
                     equipment => equipment.Status,
@@ -526,4 +539,15 @@ public class MaintenanceController : ControllerBase
     }
 
     private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private Task<bool> HasLockedBorrowRequestAsync(
+        int equipmentId,
+        CancellationToken cancellationToken)
+        => _context.BorrowRecords
+            .AsNoTracking()
+            .AnyAsync(record =>
+                (record.EquipmentId == equipmentId
+                    || record.Details.Any(detail => detail.EquipmentId == equipmentId))
+                && BorrowLockRules.EquipmentLockedBorrowStatuses.Contains(record.Status),
+                cancellationToken);
 }

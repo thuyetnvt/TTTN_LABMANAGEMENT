@@ -114,6 +114,73 @@ public sealed class EquipmentControllerTests
         Assert.All(payload.Items, item => Assert.Contains("Cảm biến", item.Name));
     }
 
+    [Fact]
+    public async Task Edit_rejects_equipment_referenced_by_pending_multi_item_request()
+    {
+        await using var context = CreateContext();
+        context.LocationNodes.Add(new LocationNode { Id = 1, Code = "LAB", Name = "Lab" });
+        context.Equipments.Add(new Equipment
+        {
+            Id = 1,
+            AssetCode = "EQ-001",
+            Name = "Gateway",
+            Model = "GW-1",
+            Serial = "SN-001",
+            Location = "Lab",
+            LocationNodeId = 1,
+            Status = EquipmentStatuses.Available
+        });
+        context.BorrowRecords.Add(new BorrowRecord
+        {
+            Id = 1,
+            UserId = 7,
+            Status = BorrowStatuses.Pending,
+            BorrowDate = DateTime.UtcNow,
+            ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+            Details = [new BorrowRequestDetail { EquipmentId = 1 }]
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context, Roles.Admin).PutEquipment(
+            1,
+            new EquipmentController.EquipmentFormDto
+            {
+                Name = "Gateway đã sửa",
+                Model = "GW-1",
+                Serial = "SN-001",
+                Location = "Lab",
+                LocationNodeId = 1,
+                Status = EquipmentStatuses.Available
+            },
+            CancellationToken.None);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result);
+        Assert.Contains("phiếu mượn", conflict.Value!.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Gateway", (await context.Equipments.FindAsync(1))!.Name);
+    }
+
+    [Fact]
+    public async Task Delete_rejects_equipment_that_is_reserved_for_handover()
+    {
+        await using var context = CreateContext();
+        context.Equipments.Add(new Equipment
+        {
+            Id = 1,
+            AssetCode = "EQ-001",
+            Name = "Gateway",
+            Model = "GW-1",
+            Serial = "SN-001",
+            Location = "Lab",
+            Status = EquipmentStatuses.BorrowPending
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context, Roles.Admin).DeleteEquipment(1, CancellationToken.None);
+
+        Assert.IsType<ConflictObjectResult>(result);
+        Assert.NotNull(await context.Equipments.FindAsync(1));
+    }
+
     private static AppDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
