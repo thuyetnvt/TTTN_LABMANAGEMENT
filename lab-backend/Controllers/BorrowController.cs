@@ -22,6 +22,7 @@ public class BorrowController : ControllerBase
     private const string Approved = BorrowStatuses.Approved;
     private const string Borrowed = BorrowStatuses.Borrowed;
     private const string Rejected = BorrowStatuses.Rejected;
+    private const string Cancelled = BorrowStatuses.Cancelled;
     private const string ProcessingApproval = BorrowStatuses.ProcessingApproval;
     private const string ProcessingReturn = BorrowStatuses.ReturnProcessing;
 
@@ -67,6 +68,12 @@ public class BorrowController : ControllerBase
     public sealed class DecisionNoteDto
     {
         public string Note { get; set; } = string.Empty;
+    }
+
+    public sealed class CancelBorrowRequestDto
+    {
+        [Required, MaxLength(1000)]
+        public string Reason { get; set; } = string.Empty;
     }
 
     public sealed class ReturnInspectionDto
@@ -278,6 +285,7 @@ public class BorrowController : ControllerBase
             returnDate = item.ExpectedReturnDate,
             purpose = item.Purpose,
             status = item.Status,
+            holdExpiresAt = item.HoldExpiresAt,
             hasHandover = handovers.ContainsKey(item.Id),
             handoverCode = handovers.GetValueOrDefault(item.Id)?.Code,
             handoverConfirmedAt = handovers.GetValueOrDefault(item.Id)?.ConfirmedAt,
@@ -374,6 +382,7 @@ public class BorrowController : ControllerBase
             returnDate = item.ExpectedReturnDate,
             purpose = item.Purpose,
             status = item.Status,
+            holdExpiresAt = item.HoldExpiresAt,
             hasHandover = handovers.ContainsKey(item.Id),
             handoverCode = handovers.GetValueOrDefault(item.Id)?.Code,
             handoverConfirmedAt = handovers.GetValueOrDefault(item.Id)?.ConfirmedAt,
@@ -412,11 +421,15 @@ public class BorrowController : ControllerBase
             .Include(item => item.Details)
                 .ThenInclude(detail => detail.Equipment)
             .Include(item => item.StatusHistory)
-            .Where(item => item.Status != Pending && item.Status != TeacherPending);
+            .AsQueryable();
 
         if (role is Roles.Student or Roles.Teacher)
         {
             query = query.Where(item => item.UserId == userId);
+        }
+        else
+        {
+            query = query.Where(item => item.Status != Pending && item.Status != TeacherPending);
         }
 
         var records = await query
@@ -448,6 +461,9 @@ public class BorrowController : ControllerBase
                 returnInspectionNote = item.ReturnInspectionNote,
                 warrantyAction = item.WarrantyAction,
                 compensationAmount = item.CompensationAmount,
+                holdExpiresAt = item.HoldExpiresAt,
+                cancellationReason = item.CancellationReason,
+                cancelledAt = item.CancelledAt,
                 handover = handover is null ? null : new
                 {
                     handover.Id,
@@ -469,6 +485,9 @@ public class BorrowController : ControllerBase
                     && item.Status == Approved
                     && handover is not null
                     && handover.ConfirmedAt is null,
+                canCancel = (role is Roles.Student or Roles.Teacher)
+                    && item.UserId == userId
+                    && item.Status is Pending or TeacherPending,
                 details = item.Details.Select(detail => new
                 {
                     detail.Id,
@@ -511,11 +530,14 @@ public class BorrowController : ControllerBase
             .Include(item => item.Details)
                 .ThenInclude(detail => detail.Equipment)
             .Include(item => item.StatusHistory)
-            .Where(item => item.Status != Pending && item.Status != TeacherPending)
             .AsQueryable();
         if (role is Roles.Student or Roles.Teacher)
         {
             query = query.Where(item => item.UserId == userId);
+        }
+        else
+        {
+            query = query.Where(item => item.Status != Pending && item.Status != TeacherPending);
         }
 
         var search = paging.NormalizedSearch;
@@ -582,6 +604,9 @@ public class BorrowController : ControllerBase
                 returnInspectionNote = item.ReturnInspectionNote,
                 warrantyAction = item.WarrantyAction,
                 compensationAmount = item.CompensationAmount,
+                holdExpiresAt = item.HoldExpiresAt,
+                cancellationReason = item.CancellationReason,
+                cancelledAt = item.CancelledAt,
                 handover = handover is null ? null : new
                 {
                     handover.Id,
@@ -603,6 +628,9 @@ public class BorrowController : ControllerBase
                     && item.Status == Approved
                     && handover is not null
                     && handover.ConfirmedAt is null,
+                canCancel = (role is Roles.Student or Roles.Teacher)
+                    && item.UserId == userId
+                    && item.Status is Pending or TeacherPending,
                 details = item.Details.Select(detail => new
                 {
                     detail.Id,
@@ -892,17 +920,24 @@ public class BorrowController : ControllerBase
             .ExecuteUpdateAsync(
                 updates => updates.SetProperty(detail => detail.Status, Approved),
                 cancellationToken);
+        var holdDurationHours = Math.Clamp(
+            _configuration.GetValue("Borrow:ApprovedHoldHours", 24),
+            1,
+            720);
+        var holdExpiresAt = DateTime.UtcNow.AddHours(holdDurationHours);
         await _context.BorrowRecords
             .Where(item => item.Id == id && item.Status == ProcessingApproval)
             .ExecuteUpdateAsync(
-                updates => updates.SetProperty(item => item.Status, Approved),
+                updates => updates
+                    .SetProperty(item => item.Status, Approved)
+                    .SetProperty(item => item.HoldExpiresAt, holdExpiresAt),
                 cancellationToken);
         _context.BorrowStatusHistories.Add(new BorrowStatusHistory
         {
             BorrowRecordId = id,
             FromStatus = ProcessingApproval,
             ToStatus = Approved,
-            Note = "Quản lý lab đã duyệt; tài sản được giữ chỗ để lập biên bản bàn giao.",
+            Note = $"Quản lý lab đã duyệt; tài sản được giữ chỗ để lập biên bản bàn giao trong {holdDurationHours} giờ.",
             ChangedByUserId = GetCurrentUserId()
         });
         await _auditService.WriteAsync(
@@ -918,10 +953,10 @@ public class BorrowController : ControllerBase
             record.UserId,
             "BORROW_APPROVED",
             "Yêu cầu mượn đã được duyệt",
-            $"Yêu cầu mượn {equipmentIds.Length} tài sản đã được duyệt. Vui lòng chờ quản lý lập biên bản bàn giao.",
+            $"Yêu cầu mượn {equipmentIds.Length} tài sản đã được duyệt. Vui lòng lập biên bản bàn giao trước {VietnamTime.Now(holdExpiresAt):dd/MM/yyyy HH:mm} (giờ Việt Nam).",
             "/dashboard/borrow-history",
             cancellationToken);
-        return Ok(new { message = "Đã duyệt và giữ chỗ tài sản. Bước tiếp theo là lập biên bản bàn giao." });
+        return Ok(new { holdExpiresAt, message = "Đã duyệt và giữ chỗ tài sản. Bước tiếp theo là lập biên bản bàn giao." });
     }
 
     [HttpPut("{id:int}/reject")]
@@ -981,6 +1016,149 @@ public class BorrowController : ControllerBase
             "/dashboard/borrow-history",
             cancellationToken);
         return Ok(new { message = "Đã từ chối yêu cầu mượn." });
+    }
+
+    [HttpPut("{id:int}/cancel")]
+    [Authorize(Roles = Roles.Managers + "," + Roles.Borrowers)]
+    public async Task<IActionResult> CancelRequest(
+        int id,
+        [FromBody] CancelBorrowRequestDto dto,
+        CancellationToken cancellationToken)
+    {
+        var reason = dto.Reason?.Trim() ?? string.Empty;
+        if (reason.Length == 0 || reason.Length > 1000)
+        {
+            return BadRequest(new { message = "Lý do hủy là bắt buộc và không vượt quá 1000 ký tự." });
+        }
+
+        var userId = GetCurrentUserId();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        var isManager = role is Roles.Admin or Roles.LabHead or Roles.DeputyLabHead;
+        var record = await _context.BorrowRecords
+            .AsNoTracking()
+            .Include(item => item.Details)
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (record is null)
+        {
+            return NotFound(new { message = "Không tìm thấy phiếu mượn." });
+        }
+
+        var borrowerCanCancel = !isManager
+            && record.UserId == userId
+            && record.Status is Pending or TeacherPending;
+        var managerCanCancel = isManager && record.Status == Approved;
+        if (!isManager && record.UserId != userId)
+        {
+            return Forbid();
+        }
+        if (!borrowerCanCancel && !managerCanCancel)
+        {
+            return Conflict(new { message = "Phiếu không còn ở trạng thái có thể hủy." });
+        }
+
+        var equipmentIds = record.Details
+            .Select(detail => detail.EquipmentId)
+            .Append(record.EquipmentId.GetValueOrDefault())
+            .Where(equipmentId => equipmentId > 0)
+            .Distinct()
+            .ToArray();
+        var now = DateTime.UtcNow;
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        var currentStatus = record.Status;
+        var updateQuery = _context.BorrowRecords
+            .Where(item => item.Id == id && item.Status == currentStatus);
+        if (managerCanCancel)
+        {
+            updateQuery = updateQuery.Where(item => !_context.HandoverRecords
+                .Any(handover => handover.BorrowRecordId == id));
+        }
+
+        var updated = await updateQuery.ExecuteUpdateAsync(
+            updates => updates
+                .SetProperty(item => item.Status, BorrowStatuses.Cancelled)
+                .SetProperty(item => item.CancellationReason, reason)
+                .SetProperty(item => item.CancelledAt, now)
+                .SetProperty(item => item.CancelledByUserId, userId)
+                .SetProperty(item => item.HoldExpiresAt, (DateTime?)null),
+            cancellationToken);
+        if (updated == 0)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return managerCanCancel
+                ? Conflict(new { message = "Phiếu đã được bàn giao hoặc đã được xử lý bởi phiên khác." })
+                : Conflict(new { message = "Phiếu đã được xử lý bởi phiên khác." });
+        }
+
+        await _context.BorrowRequestDetails
+            .Where(detail => detail.BorrowRecordId == id && detail.Status == currentStatus)
+            .ExecuteUpdateAsync(
+                updates => updates.SetProperty(detail => detail.Status, BorrowStatuses.Cancelled),
+                cancellationToken);
+
+        if (managerCanCancel && equipmentIds.Length > 0)
+        {
+            var released = await _context.Equipments
+                .Where(item => equipmentIds.Contains(item.Id)
+                    && item.Status == EquipmentStatuses.BorrowPending)
+                .ExecuteUpdateAsync(
+                    updates => updates.SetProperty(item => item.Status, EquipmentStatuses.Available),
+                    cancellationToken);
+            if (released != equipmentIds.Length)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return Conflict(new { message = "Trạng thái giữ chỗ tài sản không đồng bộ; chưa thể hủy phiếu." });
+            }
+        }
+
+        _context.BorrowStatusHistories.Add(new BorrowStatusHistory
+        {
+            BorrowRecordId = id,
+            FromStatus = currentStatus,
+            ToStatus = BorrowStatuses.Cancelled,
+            Note = reason,
+            ChangedByUserId = userId
+        });
+        await _auditService.WriteAsync(
+            HttpContext,
+            "Cancel",
+            nameof(BorrowRecord),
+            id,
+            new { FromStatus = currentStatus, reason, EquipmentIds = equipmentIds },
+            cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        if (managerCanCancel)
+        {
+            await _notificationService.NotifyUserAsync(
+                record.UserId,
+                "BORROW_CANCELLED",
+                "Phiếu mượn đã bị hủy",
+                $"Phiếu mượn của bạn đã bị hủy. Lý do: {reason}",
+                "/dashboard/borrow-history",
+                cancellationToken);
+        }
+        else if (currentStatus == TeacherPending && record.TeacherId.HasValue)
+        {
+            await _notificationService.NotifyUserAsync(
+                record.TeacherId.Value,
+                "BORROW_CANCELLED",
+                "Yêu cầu mượn đã bị hủy",
+                "Sinh viên đã hủy yêu cầu mượn cần bạn bảo lãnh.",
+                "/dashboard/teacher-approval",
+                cancellationToken);
+        }
+        else
+        {
+            await _notificationService.NotifyManagersAsync(
+                "BORROW_CANCELLED",
+                "Yêu cầu mượn đã bị hủy",
+                "Một yêu cầu mượn đang chờ duyệt đã được người mượn hủy.",
+                "/dashboard/borrow-requests",
+                cancellationToken);
+        }
+
+        return Ok(new { message = "Đã hủy phiếu mượn và cập nhật trạng thái liên quan." });
     }
 
     [HttpPut("{id:int}/return")]

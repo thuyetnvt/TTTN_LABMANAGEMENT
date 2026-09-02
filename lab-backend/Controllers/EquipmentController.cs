@@ -222,6 +222,7 @@ public class EquipmentController : ControllerBase
         }
 
         var page = await query
+            .AsSingleQuery()
             .OrderByDescending(equipment => equipment.CreatedAt)
             .ThenBy(equipment => equipment.Id)
             .ToPagedResultAsync(paging, cancellationToken);

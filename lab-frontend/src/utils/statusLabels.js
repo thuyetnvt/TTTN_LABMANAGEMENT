@@ -27,7 +27,9 @@ const borrowLabels = Object.freeze({
   RETURN_PROCESSING: 'Đang xử lý trả',
   RETURNED: 'Đã trả',
   RETURNED_DAMAGED: 'Đã trả (hỏng)',
-  REJECTED: 'Từ chối'
+  REJECTED: 'Từ chối',
+  CANCELLED: 'Đã hủy',
+  EXPIRED: 'Hết hạn giữ chỗ'
 })
 
 const maintenanceLabels = Object.freeze({
@@ -103,7 +105,8 @@ export const getStatusColor = status => {
   if (normalized === 'COMPLETED' || normalized === 'APPROVED' || normalized === 'CONSUMABLE_APPROVED') return 'cyan'
   if (normalized === 'CONSUMABLE_HANDED_OVER') return 'purple'
   if (normalized === 'UNDER_WARRANTY') return 'gold'
-  if (normalized === 'BROKEN' || normalized === 'MISSING' || normalized === 'RETURNED_DAMAGED' || normalized === 'REJECTED' || normalized === 'UNPAID' || normalized === 'INVENTORY_DAMAGED' || normalized === 'INVENTORY_MISSING') return 'red'
+  if (normalized === 'BROKEN' || normalized === 'MISSING' || normalized === 'RETURNED_DAMAGED' || normalized === 'REJECTED' || normalized === 'CANCELLED' || normalized === 'UNPAID' || normalized === 'INVENTORY_DAMAGED' || normalized === 'INVENTORY_MISSING') return 'red'
+  if (normalized === 'EXPIRED') return 'orange'
   if (normalized.includes('PENDING') || normalized === 'PENDING') return 'orange'
   if (normalized === 'IN_PROGRESS' || normalized === 'COMPLETING' || normalized === 'MAINTENANCE_COMPLETING' || normalized === 'INVENTORY_REVIEWING' || normalized === 'CONSUMABLE_HANDED_OVER') return 'purple'
   if (normalized === 'INVENTORY_WRONG_LOCATION') return 'orange'

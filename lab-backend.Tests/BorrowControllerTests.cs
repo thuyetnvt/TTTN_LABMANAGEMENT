@@ -101,6 +101,7 @@ public sealed class BorrowControllerTests
             Assert.IsType<OkObjectResult>(result);
             var record = await context.BorrowRecords.AsNoTracking().Include(item => item.Details).SingleAsync(item => item.Id == 20);
             Assert.Equal(BorrowStatuses.Approved, record.Status);
+            Assert.True(record.HoldExpiresAt > DateTime.UtcNow);
             Assert.All(record.Details, detail => Assert.Equal(BorrowStatuses.Approved, detail.Status));
             Assert.All(await context.Equipments.AsNoTracking().ToListAsync(), item =>
             {
@@ -132,6 +133,126 @@ public sealed class BorrowControllerTests
             Assert.Equal(BorrowStatuses.Pending, record.Status);
             Assert.Equal(EquipmentStatuses.Available, equipment[0].Status);
             Assert.Equal(EquipmentStatuses.Borrowed, equipment[1].Status);
+        }
+    }
+
+    [Fact]
+    public async Task Borrower_can_cancel_pending_request_and_reason_is_recorded()
+    {
+        await using var context = CreateSqliteContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 2, Username = "teacher", Role = Roles.Teacher, IsActive = true });
+            context.Equipments.Add(CreateEquipment(1));
+            context.BorrowRecords.Add(new BorrowRecord
+            {
+                Id = 22,
+                UserId = 1,
+                TeacherId = 2,
+                BorrowDate = DateTime.UtcNow,
+                ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+                Purpose = "Hủy yêu cầu thử nghiệm",
+                Status = BorrowStatuses.TeacherPending,
+                Details = [new BorrowRequestDetail { EquipmentId = 1, Quantity = 1, Status = BorrowStatuses.TeacherPending }]
+            });
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 1, Roles.Student);
+            var result = await controller.CancelRequest(
+                22,
+                new BorrowController.CancelBorrowRequestDto { Reason = "Không còn nhu cầu sử dụng." },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            var record = await context.BorrowRecords.AsNoTracking().Include(item => item.Details).SingleAsync();
+            Assert.Equal(BorrowStatuses.Cancelled, record.Status);
+            Assert.Equal("Không còn nhu cầu sử dụng.", record.CancellationReason);
+            Assert.NotNull(record.CancelledAt);
+            Assert.Equal(BorrowStatuses.Cancelled, record.Details.Single().Status);
+        }
+    }
+
+    [Fact]
+    public async Task Manager_can_cancel_approved_request_and_release_reserved_equipment()
+    {
+        await using var context = CreateSqliteContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.BorrowPending));
+            context.BorrowRecords.Add(new BorrowRecord
+            {
+                Id = 23,
+                UserId = 1,
+                BorrowDate = DateTime.UtcNow,
+                ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+                HoldExpiresAt = DateTime.UtcNow.AddHours(12),
+                Purpose = "Hủy phiếu đã duyệt",
+                Status = BorrowStatuses.Approved,
+                Details = [new BorrowRequestDetail { EquipmentId = 1, Quantity = 1, Status = BorrowStatuses.Approved }]
+            });
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.LabHead);
+            var result = await controller.CancelRequest(
+                23,
+                new BorrowController.CancelBorrowRequestDto { Reason = "Thiết bị cần ưu tiên cho buổi học khác." },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            var record = await context.BorrowRecords.AsNoTracking().Include(item => item.Details).SingleAsync();
+            Assert.Equal(BorrowStatuses.Cancelled, record.Status);
+            Assert.Null(record.HoldExpiresAt);
+            Assert.Equal(BorrowStatuses.Cancelled, record.Details.Single().Status);
+            Assert.Equal(EquipmentStatuses.Available, (await context.Equipments.AsNoTracking().SingleAsync()).Status);
+            Assert.Contains(await context.BorrowStatusHistories.AsNoTracking().ToListAsync(), history =>
+                history.FromStatus == BorrowStatuses.Approved && history.ToStatus == BorrowStatuses.Cancelled);
+        }
+    }
+
+    [Fact]
+    public async Task Manager_cannot_cancel_after_handover_exists()
+    {
+        await using var context = CreateSqliteContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.BorrowPending));
+            context.BorrowRecords.Add(new BorrowRecord
+            {
+                Id = 24,
+                UserId = 1,
+                BorrowDate = DateTime.UtcNow,
+                ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+                Status = BorrowStatuses.Approved,
+                Details = [new BorrowRequestDetail { EquipmentId = 1, Quantity = 1, Status = BorrowStatuses.Approved }]
+            });
+            context.HandoverRecords.Add(new HandoverRecord
+            {
+                Id = 1,
+                Code = "BH-TEST-24",
+                BorrowRecordId = 24,
+                HandedOverByUserId = 99,
+                ReceivedByUserId = 1,
+                Items = [new HandoverItem { EquipmentId = 1, Condition = EquipmentStatuses.Available }]
+            });
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.LabHead);
+            var result = await controller.CancelRequest(
+                24,
+                new BorrowController.CancelBorrowRequestDto { Reason = "Không được phép sau bàn giao." },
+                CancellationToken.None);
+
+            Assert.IsType<ConflictObjectResult>(result);
+            Assert.Equal(BorrowStatuses.Approved, (await context.BorrowRecords.AsNoTracking().SingleAsync()).Status);
+            Assert.Equal(EquipmentStatuses.BorrowPending, (await context.Equipments.AsNoTracking().SingleAsync()).Status);
         }
     }
 

@@ -40,7 +40,8 @@ html,
   right: 0 !important;
   z-index: 2;
   background: #ffffff !important;
-  box-shadow: -10px 0 12px -12px rgba(15, 23, 42, 0.55);
+  border-left: 1px solid #e5e7eb !important;
+  box-shadow: none !important;
 }
 
 .ant-table-wrapper .ant-table-thead > tr > .table-sticky-action-column {

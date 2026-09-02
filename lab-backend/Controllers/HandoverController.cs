@@ -101,6 +101,8 @@ public class HandoverController : ControllerBase
             .SingleOrDefaultAsync(item => item.Id == dto.BorrowRecordId, cancellationToken);
         if (record is null) return NotFound(new { message = "Không tìm thấy phiếu mượn." });
         if (record.Status != BorrowStatuses.Approved) return Conflict(new { message = "Chỉ được lập biên bản cho phiếu đã duyệt và đang chờ bàn giao." });
+        if (record.HoldExpiresAt.HasValue && record.HoldExpiresAt.Value <= DateTime.UtcNow)
+            return Conflict(new { message = "Thời gian giữ chỗ đã hết hạn. Vui lòng tạo lại yêu cầu mượn." });
         if (await _context.HandoverRecords.AnyAsync(item => item.BorrowRecordId == record.Id, cancellationToken))
             return Conflict(new { message = "Phiếu đã có biên bản bàn giao." });
 

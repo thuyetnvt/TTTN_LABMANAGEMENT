@@ -169,7 +169,7 @@ const handleModalOk = async () => {
       message.success('Thêm tài khoản thành công!')
     }
     isModalVisible.value = false
-    fetchUsers()
+    await fetchUsers()
   } catch (error) {
     if (!error.errorFields) {
       message.error(getApiErrorMessage(error, 'Có lỗi xảy ra!'))

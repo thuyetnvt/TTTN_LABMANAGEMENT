@@ -99,6 +99,7 @@ public class PenaltyController : ControllerBase
         }
 
         var page = await query
+            .AsSingleQuery()
             .OrderByDescending(penalty => penalty.CreatedAt)
             .ThenByDescending(penalty => penalty.Id)
             .ToPagedResultAsync(paging, cancellationToken);

@@ -4,6 +4,7 @@ using LabManagementAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabManagementAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902141935_OptimizeDashboardQueries")]
+    partial class OptimizeDashboardQueries
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -223,17 +226,6 @@ namespace LabManagementAPI.Migrations
                     b.Property<DateTime>("BorrowDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("CancellationReason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<DateTime?>("CancelledAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int?>("CancelledByUserId")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("CompensationAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -242,9 +234,6 @@ namespace LabManagementAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("ExpectedReturnDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("HoldExpiresAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<int?>("InspectedByUserId")
@@ -296,8 +285,6 @@ namespace LabManagementAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CancelledByUserId");
-
                     b.HasIndex("EquipmentId");
 
                     b.HasIndex("ExpectedReturnDate");
@@ -307,8 +294,6 @@ namespace LabManagementAPI.Migrations
                     b.HasIndex("Status");
 
                     b.HasIndex("Status", "ExpectedReturnDate");
-
-                    b.HasIndex("Status", "HoldExpiresAt");
 
                     b.HasIndex("TeacherId", "Status", "BorrowDate");
 
@@ -1602,9 +1587,7 @@ namespace LabManagementAPI.Migrations
 
                     b.HasIndex("Status");
 
-                    b.HasIndex("Status", "CreatedAt");
-
-                    b.HasIndex("UserId", "CreatedAt");
+                    b.HasIndex("UserId");
 
                     b.ToTable("Penalties");
                 });
@@ -1757,11 +1740,6 @@ namespace LabManagementAPI.Migrations
 
             modelBuilder.Entity("LabManagementAPI.Models.BorrowRecord", b =>
                 {
-                    b.HasOne("LabManagementAPI.Models.User", "CancelledByUser")
-                        .WithMany()
-                        .HasForeignKey("CancelledByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("LabManagementAPI.Models.Equipment", "Equipment")
                         .WithMany()
                         .HasForeignKey("EquipmentId")
@@ -1782,8 +1760,6 @@ namespace LabManagementAPI.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("CancelledByUser");
 
                     b.Navigation("Equipment");
 

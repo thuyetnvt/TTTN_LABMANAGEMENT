@@ -167,6 +167,109 @@ public sealed class OperationalAutomationRunnerTests
         }
     }
 
+    [Fact]
+    public async Task Approved_hold_expires_once_and_releases_reserved_equipment()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            var now = new DateTime(2026, 9, 1, 2, 0, 0, DateTimeKind.Utc);
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 7, Username = "manager", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(new Equipment
+            {
+                Id = 1,
+                AssetCode = "EQ-001",
+                QrToken = "qr-001",
+                Name = "ESP32",
+                Serial = "SN-001",
+                Model = "M1",
+                Location = "Lab",
+                Status = EquipmentStatuses.BorrowPending
+            });
+            context.BorrowRecords.Add(new BorrowRecord
+            {
+                Id = 40,
+                UserId = 1,
+                BorrowDate = now.AddHours(-5),
+                ExpectedReturnDate = now.AddDays(3),
+                HoldExpiresAt = now.AddMinutes(-1),
+                Purpose = "Chờ bàn giao",
+                Status = BorrowStatuses.Approved,
+                Details = [new BorrowRequestDetail { EquipmentId = 1, Quantity = 1, Status = BorrowStatuses.Approved }]
+            });
+            await context.SaveChangesAsync();
+            var notifications = new RecordingNotificationService();
+            var runner = CreateRunner(context, notifications);
+
+            await runner.RunOnceAsync(now);
+            await runner.RunOnceAsync(now.AddMinutes(1));
+
+            var record = await context.BorrowRecords.AsNoTracking().Include(item => item.Details).SingleAsync();
+            Assert.Equal(BorrowStatuses.Expired, record.Status);
+            Assert.NotEmpty(record.CancellationReason);
+            Assert.Equal(BorrowStatuses.Expired, record.Details.Single().Status);
+            Assert.Equal(EquipmentStatuses.Available, (await context.Equipments.AsNoTracking().SingleAsync()).Status);
+            Assert.Single(notifications.UserNotifications, item => item.Type == "BORROW_HOLD_EXPIRED");
+            Assert.Single(await context.AutomationDispatches.AsNoTracking()
+                .Where(item => item.JobType == "BORROW_HOLD_EXPIRED").ToListAsync());
+        }
+    }
+
+    [Fact]
+    public async Task Approved_hold_with_handover_is_not_expired()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            var now = new DateTime(2026, 9, 1, 2, 0, 0, DateTimeKind.Utc);
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 7, Username = "manager", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(new Equipment
+            {
+                Id = 1,
+                AssetCode = "EQ-001",
+                QrToken = "qr-001",
+                Name = "ESP32",
+                Serial = "SN-001",
+                Model = "M1",
+                Location = "Lab",
+                Status = EquipmentStatuses.BorrowPending
+            });
+            context.BorrowRecords.Add(new BorrowRecord
+            {
+                Id = 41,
+                UserId = 1,
+                BorrowDate = now.AddHours(-5),
+                ExpectedReturnDate = now.AddDays(3),
+                HoldExpiresAt = now.AddMinutes(-1),
+                Purpose = "Đã lập bàn giao",
+                Status = BorrowStatuses.Approved,
+                Details = [new BorrowRequestDetail { EquipmentId = 1, Quantity = 1, Status = BorrowStatuses.Approved }]
+            });
+            context.HandoverRecords.Add(new HandoverRecord
+            {
+                Id = 41,
+                Code = "BH-TEST-41",
+                BorrowRecordId = 41,
+                HandedOverByUserId = 7,
+                ReceivedByUserId = 1,
+                Items = [new HandoverItem { EquipmentId = 1, Condition = EquipmentStatuses.Available }]
+            });
+            await context.SaveChangesAsync();
+            var notifications = new RecordingNotificationService();
+            var runner = CreateRunner(context, notifications);
+
+            await runner.RunOnceAsync(now);
+
+            Assert.Equal(BorrowStatuses.Approved, (await context.BorrowRecords.AsNoTracking().SingleAsync()).Status);
+            Assert.Equal(EquipmentStatuses.BorrowPending, (await context.Equipments.AsNoTracking().SingleAsync()).Status);
+            Assert.DoesNotContain(notifications.UserNotifications, item => item.Type == "BORROW_HOLD_EXPIRED");
+        }
+    }
+
     private static OperationalAutomationRunner CreateRunner(
         AppDbContext context,
         RecordingNotificationService notifications)

@@ -4,9 +4,11 @@ import axios from "axios";
 // value for production, while an explicit VITE_API_BASE_URL still works for
 // a separately hosted backend.
 export const apiBaseUrl = import.meta.env?.VITE_API_BASE_URL || "/api";
+export const apiTimeoutMs = Number(import.meta.env?.VITE_API_TIMEOUT_MS) || 15000;
 
 const axiosClient = axios.create({
   baseURL: apiBaseUrl,
+  timeout: apiTimeoutMs,
   headers: {
     "Content-Type": "application/json",
   },
@@ -57,6 +59,8 @@ axiosClient.interceptors.response.use(
       } else {
         error.message = error.response.data?.message || "Đã có lỗi xảy ra. Vui lòng thử lại.";
       }
+    } else if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT") {
+      error.message = "Máy chủ phản hồi quá lâu. Vui lòng thử lại sau.";
     } else if (error.request) {
       error.message = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
     } else {

@@ -4,6 +4,7 @@ const ALERT_TARGETS = Object.freeze({
   'pending-requests': { name: 'BorrowRequests' },
   'pending-borrow-requests': { name: 'BorrowRequests' },
   'pending-consumable-requests': { name: 'ConsumableRequests' },
+  'teacher-pending-approvals': { name: 'TeacherApproval' },
   'warranty-soon': { name: 'Devices', query: { status: 'warranty-soon' } }
 })
 

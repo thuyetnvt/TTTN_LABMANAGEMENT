@@ -5,12 +5,16 @@
       <div class="toolbar-filters">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người mượn, thiết bị..." style="width: 260px" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 180px" @change="applyFilters">
+          <a-select-option :value="STATUS.BORROW_PENDING">Chờ quản lý duyệt</a-select-option>
+          <a-select-option :value="STATUS.TEACHER_PENDING">Chờ giảng viên duyệt</a-select-option>
           <a-select-option :value="STATUS.APPROVED">Chờ nhận</a-select-option>
           <a-select-option :value="STATUS.BORROWED">Đang mượn</a-select-option>
           <a-select-option :value="STATUS.RETURN_PROCESSING">Đang kiểm tra trả</a-select-option>
           <a-select-option :value="STATUS.RETURNED">Đã trả</a-select-option>
           <a-select-option :value="STATUS.RETURNED_DAMAGED">Đã trả, có hư hỏng</a-select-option>
           <a-select-option :value="STATUS.REJECTED">Từ chối</a-select-option>
+          <a-select-option :value="STATUS.CANCELLED">Đã hủy</a-select-option>
+          <a-select-option :value="STATUS.EXPIRED">Hết hạn giữ chỗ</a-select-option>
           <a-select-option value="OVERDUE">Quá hạn</a-select-option>
         </a-select>
       </div>
@@ -33,7 +37,15 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <a-button
-              v-if="record.canConfirmHandover"
+              v-if="record.canCancel"
+              danger
+              size="small"
+              @click="openCancelModal(record)"
+            >
+              Hủy phiếu
+            </a-button>
+            <a-button
+              v-else-if="record.canConfirmHandover"
               type="primary"
               size="small"
               @click="openHandover(record)"
@@ -62,7 +74,8 @@
             <div v-if="item.returnCondition"><dt>Tình trạng trả</dt><dd><StatusBadge :status="item.returnCondition" type="returnCondition" /></dd></div>
             <div v-if="item.compensationAmount"><dt>Bồi thường</dt><dd>{{ item.compensationAmount.toLocaleString('vi-VN') }} VNĐ</dd></div>
           </dl>
-          <a-button v-if="item.canConfirmHandover" type="primary" block @click="openHandover(item)">Xem & xác nhận nhận</a-button>
+          <a-button v-if="item.canCancel" danger block @click="openCancelModal(item)">Hủy phiếu</a-button>
+          <a-button v-else-if="item.canConfirmHandover" type="primary" block @click="openHandover(item)">Xem & xác nhận nhận</a-button>
           <a-button v-else block @click="openDetails(item)"><EyeOutlined /> Xem chi tiết</a-button>
         </template>
       </ResponsiveDataList>
@@ -111,9 +124,33 @@
         <a-descriptions-item label="Hạn trả">{{ formatDate(selectedRecord.expectedReturnDate) }}</a-descriptions-item>
         <a-descriptions-item label="Ngày trả thực tế">{{ selectedRecord.actualReturnDate ? formatDate(selectedRecord.actualReturnDate) : 'Chưa trả' }}</a-descriptions-item>
         <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedRecord.status" type="borrow" :label-override="borrowWorkflowLabel(selectedRecord)" /></a-descriptions-item>
+        <a-descriptions-item v-if="selectedRecord.holdExpiresAt" label="Thời hạn giữ chỗ">{{ formatDateTime(selectedRecord.holdExpiresAt) }}</a-descriptions-item>
+        <a-descriptions-item v-if="selectedRecord.cancellationReason" label="Lý do hủy">{{ selectedRecord.cancellationReason }}</a-descriptions-item>
+        <a-descriptions-item v-if="selectedRecord.cancelledAt" label="Thời điểm hủy">{{ formatDateTime(selectedRecord.cancelledAt) }}</a-descriptions-item>
         <a-descriptions-item label="Ghi chú kiểm tra">{{ selectedRecord.returnInspectionNote || 'Chưa có' }}</a-descriptions-item>
         <a-descriptions-item label="Xử lý bảo hành">{{ selectedRecord.warrantyAction || 'Không có' }}</a-descriptions-item>
       </a-descriptions>
+    </a-modal>
+
+    <a-modal
+      v-model:open="isCancelVisible"
+      title="Hủy phiếu mượn"
+      ok-text="Xác nhận hủy"
+      cancel-text="Đóng"
+      :confirm-loading="cancelling"
+      @ok="submitCancellation"
+    >
+      <a-alert
+        type="warning"
+        show-icon
+        message="Sau khi hủy, yêu cầu sẽ không thể tiếp tục xử lý."
+        style="margin-bottom: 16px"
+      />
+      <a-form layout="vertical">
+        <a-form-item label="Lý do hủy" required>
+          <a-textarea v-model:value="cancelReason" :rows="4" maxlength="1000" show-count placeholder="Nhập lý do để phòng lab theo dõi..." />
+        </a-form-item>
+      </a-form>
     </a-modal>
   </div>
 </template>
@@ -150,6 +187,10 @@ const confirming = ref(false)
 const selectedRecord = ref(null)
 const selectedHandover = ref(null)
 const isDetailsVisible = ref(false)
+const isCancelVisible = ref(false)
+const cancelling = ref(false)
+const cancelReason = ref('')
+const cancelRecord = ref(null)
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'student', key: 'student', width: 130 },
@@ -176,6 +217,31 @@ const borrowWorkflowLabel = record => {
 const openDetails = record => {
   selectedRecord.value = record
   isDetailsVisible.value = true
+}
+
+const openCancelModal = record => {
+  cancelRecord.value = record
+  cancelReason.value = ''
+  isCancelVisible.value = true
+}
+
+const submitCancellation = async () => {
+  const reason = cancelReason.value.trim()
+  if (!reason) {
+    message.warning('Vui lòng nhập lý do hủy phiếu.')
+    return
+  }
+  cancelling.value = true
+  try {
+    await borrowApi.cancel(cancelRecord.value.id, reason)
+    message.success('Đã hủy phiếu mượn.')
+    isCancelVisible.value = false
+    await fetchHistory()
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể hủy phiếu mượn.'))
+  } finally {
+    cancelling.value = false
+  }
 }
 
 const syncRouteFilter = () => {

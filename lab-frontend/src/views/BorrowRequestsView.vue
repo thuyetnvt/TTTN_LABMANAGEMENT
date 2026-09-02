@@ -58,6 +58,9 @@
                   <a-button v-if="!record.hasHandover" type="primary" size="small" @click="showHandoverModal(record)">
                     Lập bàn giao
                   </a-button>
+                  <a-button v-if="!record.hasHandover" danger size="small" @click="openCancelModal(record)">
+                    Hủy
+                  </a-button>
                   <a-tooltip v-else :title="`Xem biên bản ${record.handoverCode || ''}`">
                     <a-button type="text" class="view-action" aria-label="Xem biên bản bàn giao" @click="showExistingHandover(record)">
                       <template #icon><EyeOutlined /></template>
@@ -113,6 +116,7 @@
             </template>
             <template v-else-if="statusMatches(item.status, STATUS.APPROVED)">
               <a-button v-if="!item.hasHandover" type="primary" block @click="showHandoverModal(item)">Lập bàn giao</a-button>
+              <a-button v-if="!item.hasHandover" danger block @click="openCancelModal(item)">Hủy phiếu</a-button>
               <a-button v-else block @click="showExistingHandover(item)"><EyeOutlined /> Xem biên bản</a-button>
             </template>
             <template v-else-if="statusMatches(item.status, STATUS.BORROWED) || statusMatches(item.status, STATUS.RETURN_PROCESSING)">
@@ -288,6 +292,28 @@
         </div>
       </a-spin>
     </a-modal>
+
+    <a-modal
+      v-model:open="isCancelVisible"
+      title="Hủy phiếu mượn đã duyệt"
+      ok-text="Xác nhận hủy"
+      cancel-text="Đóng"
+      :confirm-loading="cancelSubmitting"
+      @ok="submitCancellation"
+    >
+      <a-alert
+        type="warning"
+        show-icon
+        message="Tài sản đang giữ chỗ sẽ được trả về trạng thái sẵn sàng."
+        description="Chỉ hủy khi chưa lập biên bản bàn giao cho người mượn."
+        style="margin-bottom: 16px"
+      />
+      <a-form layout="vertical">
+        <a-form-item label="Lý do hủy" required>
+          <a-textarea v-model:value="cancelReason" :rows="4" maxlength="1000" show-count placeholder="Nhập lý do để lưu vào nhật ký hệ thống..." />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -333,6 +359,10 @@ const handoverAt = ref(new Date())
 const handoverDetailsVisible = ref(false)
 const handoverDetailsLoading = ref(false)
 const handoverDetails = ref(null)
+const isCancelVisible = ref(false)
+const cancelSubmitting = ref(false)
+const cancelReason = ref('')
+const cancelRecord = ref(null)
 const remindingRecordIds = ref(new Set())
 const returnForm = ref({
   condition: STATUS.AVAILABLE,
@@ -440,6 +470,31 @@ const handleReject = async (record) => {
     fetchRequests()
   } catch {
     message.error('Lỗi từ chối yêu cầu!')
+  }
+}
+
+const openCancelModal = record => {
+  cancelRecord.value = record
+  cancelReason.value = ''
+  isCancelVisible.value = true
+}
+
+const submitCancellation = async () => {
+  const reason = cancelReason.value.trim()
+  if (!reason) {
+    message.warning('Vui lòng nhập lý do hủy phiếu.')
+    return
+  }
+  cancelSubmitting.value = true
+  try {
+    await borrowApi.cancel(cancelRecord.value.id, reason)
+    message.success('Đã hủy phiếu và giải phóng tài sản giữ chỗ.')
+    isCancelVisible.value = false
+    await fetchRequests()
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể hủy phiếu mượn.'))
+  } finally {
+    cancelSubmitting.value = false
   }
 }
 

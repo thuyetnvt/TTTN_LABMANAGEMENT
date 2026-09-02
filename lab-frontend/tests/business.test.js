@@ -89,6 +89,14 @@ test('chuẩn hóa trạng thái cũ nhưng giữ mã ổn định', () => {
   assert.equal(statusMatches(STATUS.BROKEN, STATUS.AVAILABLE), false)
 })
 
+test('nhật ký ẩn mã nội bộ và luôn có nhãn người thao tác', () => {
+  const source = readFileSync(new URL('../src/views/AuditLogsView.vue', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(source, /title:\s*['"]Mã['"]\s*,\s*dataIndex:\s*['"]entityId['"]/)
+  assert.match(source, /if \(!normalized\) return ['"]Không xác định['"]/)
+  assert.match(source, /normalized\.toLowerCase\(\) === ['"]system['"] \? ['"]Hệ thống['"]/)
+})
+
 test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', () => {
   const cases = [
     [getEquipmentStatusLabel, STATUS.BORROW_PENDING, 'Đã giữ chỗ', 'orange'],
@@ -96,6 +104,8 @@ test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', ()
     [getBorrowStatusLabel, STATUS.BORROW_PENDING, 'Chờ duyệt', 'orange'],
     [getBorrowStatusLabel, STATUS.APPROVAL_PROCESSING, 'Đang xử lý duyệt', 'blue'],
     [getBorrowStatusLabel, STATUS.RETURN_PROCESSING, 'Đang xử lý trả', 'blue'],
+    [getBorrowStatusLabel, STATUS.CANCELLED, 'Đã hủy', 'red'],
+    [getBorrowStatusLabel, STATUS.EXPIRED, 'Hết hạn giữ chỗ', 'orange'],
     [getMaintenanceStatusLabel, STATUS.MAINTENANCE_IN_PROGRESS, 'Đang bảo trì', 'blue'],
     [getMaintenanceStatusLabel, STATUS.MAINTENANCE_COMPLETING, 'Đang nghiệm thu', 'purple'],
     [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_PENDING, 'Chờ duyệt cấp phát', 'orange'],
@@ -110,6 +120,18 @@ test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', ()
     assert.equal(labeler(status), expectedLabel, status)
     assert.equal(getStatusColor(status), expectedColor, status)
   }
+})
+
+test('luồng hủy phiếu có nút và lý do ở cả người mượn và quản lý', () => {
+  const historySource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+  const requestsSource = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
+  const apiSource = readFileSync(new URL('../src/api/borrowApi.js', import.meta.url), 'utf8')
+
+  assert.match(historySource, /record\.canCancel/)
+  assert.match(historySource, /cancelReason/)
+  assert.match(requestsSource, /openCancelModal/)
+  assert.match(requestsSource, /Tài sản đang giữ chỗ sẽ được trả về trạng thái sẵn sàng/)
+  assert.match(apiSource, /cancel:\s*\(id, reason\)\s*=>\s*axiosClient\.put\(`\/borrow\/\$\{id\}\/cancel`/)
 })
 
 test('notification store dedupe realtime và chỉ tăng unread một lần', () => {
@@ -159,5 +181,40 @@ test('điều hướng cảnh báo Dashboard đến đúng màn hình', () => {
   assert.deepEqual(getDashboardAlertTarget('pending-borrow-requests'), { name: 'BorrowRequests' })
   assert.deepEqual(getDashboardAlertTarget('pending-consumable-requests'), { name: 'ConsumableRequests' })
   assert.deepEqual(getDashboardAlertTarget('warranty-soon'), { name: 'Devices', query: { status: 'warranty-soon' } })
+  assert.deepEqual(getDashboardAlertTarget('teacher-pending-approvals'), { name: 'TeacherApproval' })
   assert.equal(getDashboardAlertTarget('unknown'), null)
+})
+
+test('dashboard giảng viên dùng dữ liệu và tác vụ riêng theo vai trò', () => {
+  const source = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /v-else-if="isTeacher"/)
+  assert.match(source, /Không gian giảng viên/)
+  assert.match(source, /Chờ bạn bảo lãnh/)
+  assert.match(source, /teacherSummary/)
+  assert.match(source, /name:\s*'TeacherApproval'/)
+})
+
+test('dashboard có skeleton ban đầu và cho phép làm mới bỏ qua cache', () => {
+  const viewSource = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
+  const apiSource = readFileSync(new URL('../src/api/dashboardApi.js', import.meta.url), 'utf8')
+
+  assert.match(viewSource, /v-if="initialLoading"/)
+  assert.match(viewSource, /<a-skeleton/)
+  assert.match(viewSource, /refreshStats\(true\)/)
+  assert.match(apiSource, /params:\s*refresh\s*\?\s*\{\s*refresh:\s*true\s*\}/)
+})
+
+test('API không bị quay vô hạn khi backend không phản hồi', () => {
+  const source = readFileSync(new URL('../src/api/axiosClient.js', import.meta.url), 'utf8')
+
+  assert.match(source, /timeout:\s*apiTimeoutMs/)
+  assert.match(source, /Máy chủ phản hồi quá lâu/)
+})
+
+test('Vite cho phép đổi đích proxy API khi kiểm thử VPS hoặc backend local', () => {
+  const source = readFileSync(new URL('../vite.config.js', import.meta.url), 'utf8')
+
+  assert.match(source, /VITE_DEV_API_PROXY_TARGET/)
+  assert.match(source, /proxyTarget/)
 })
