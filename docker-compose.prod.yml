@@ -54,6 +54,7 @@ services:
       Automation__SendEmailReminders: ${AUTOMATION_SEND_EMAIL_REMINDERS:-false}
       Automation__EmailMaxAttempts: ${AUTOMATION_EMAIL_MAX_ATTEMPTS:-3}
       Automation__EmailRetryMinutes: ${AUTOMATION_EMAIL_RETRY_MINUTES:-60}
+      Borrow__ApprovedHoldHours: ${BORROW_APPROVED_HOLD_HOURS:-24}
       Database__ApplyMigrations: ${APPLY_MIGRATIONS:-true}
       Seed__Enabled: "false"
       Seed__DefaultPassword: ${SEED_DEFAULT_PASSWORD:?Set SEED_DEFAULT_PASSWORD in .env.production}

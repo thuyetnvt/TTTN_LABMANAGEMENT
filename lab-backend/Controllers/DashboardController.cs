@@ -5,6 +5,7 @@ using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace LabManagementAPI.Controllers;
 
@@ -14,10 +15,13 @@ namespace LabManagementAPI.Controllers;
 public class DashboardController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IMemoryCache _cache;
+    private static readonly TimeSpan DashboardCacheDuration = TimeSpan.FromSeconds(20);
 
-    public DashboardController(AppDbContext context)
+    public DashboardController(AppDbContext context, IMemoryCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     [HttpGet("stats")]
@@ -26,25 +30,39 @@ public class DashboardController : ControllerBase
         var role = User.FindFirstValue(ClaimTypes.Role);
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var isManager = role is Roles.Admin or Roles.LabHead or Roles.DeputyLabHead;
+        var cacheKey = isManager
+            ? "dashboard:v3:manager"
+            : $"dashboard:v3:{role}:{userId}";
+        var forceRefresh = bool.TryParse(Request.Query["refresh"], out var refreshRequested)
+            && refreshRequested;
+        if (!forceRefresh
+            && _cache.TryGetValue(cacheKey, out object? cachedPayload)
+            && cachedPayload != null)
+        {
+            return Ok(cachedPayload);
+        }
+
         var now = DateTime.UtcNow;
         var today = VietnamTime.Today(now);
         var todayStartUtc = VietnamTime.StartOfDayUtc(today);
 
-        var equipmentCounts = await _context.Equipments
-            .AsNoTracking()
-            .GroupBy(_ => 1)
-            .Select(group => new
-            {
-                Total = group.Count(),
-                Available = group.Count(item => item.Status == EquipmentStatuses.Available),
-                BorrowPending = group.Count(item => item.Status == EquipmentStatuses.BorrowPending),
-                Borrowed = group.Count(item => item.Status == EquipmentStatuses.Borrowed),
-                Broken = group.Count(item => item.Status == EquipmentStatuses.Broken),
-                Missing = group.Count(item => item.Status == EquipmentStatuses.Missing),
-                Warranty = group.Count(item => item.Status == EquipmentStatuses.Warranty),
-                Maintenance = group.Count(item => item.Status == EquipmentStatuses.MaintenanceInProgress)
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+        var equipmentCounts = role == Roles.Teacher
+            ? null
+            : await _context.Equipments
+                .AsNoTracking()
+                .GroupBy(_ => 1)
+                .Select(group => new
+                {
+                    Total = group.Count(),
+                    Available = group.Count(item => item.Status == EquipmentStatuses.Available),
+                    BorrowPending = group.Count(item => item.Status == EquipmentStatuses.BorrowPending),
+                    Borrowed = group.Count(item => item.Status == EquipmentStatuses.Borrowed),
+                    Broken = group.Count(item => item.Status == EquipmentStatuses.Broken),
+                    Missing = group.Count(item => item.Status == EquipmentStatuses.Missing),
+                    Warranty = group.Count(item => item.Status == EquipmentStatuses.Warranty),
+                    Maintenance = group.Count(item => item.Status == EquipmentStatuses.MaintenanceInProgress)
+                })
+                .SingleOrDefaultAsync(cancellationToken);
 
         var recentBorrowQuery = _context.BorrowRecords
             .AsNoTracking()
@@ -59,6 +77,7 @@ public class DashboardController : ControllerBase
         }
 
         var recentBorrows = await recentBorrowQuery
+            .AsSingleQuery()
             .OrderByDescending(record => record.BorrowDate)
             .Take(5)
             .ToListAsync(cancellationToken);
@@ -99,26 +118,52 @@ public class DashboardController : ControllerBase
                 .ToListAsync(cancellationToken);
             activities.AddRange(maintenanceActivities);
         }
+        else if (role == Roles.Teacher)
+        {
+            var sponsoredRequests = await _context.BorrowRecords
+                .AsNoTracking()
+                .Include(record => record.User)
+                .Include(record => record.Equipment)
+                .Include(record => record.Details)
+                    .ThenInclude(detail => detail.Equipment)
+                .Where(record => record.TeacherId == userId)
+                .AsSingleQuery()
+                .OrderByDescending(record => record.BorrowDate)
+                .Take(5)
+                .ToListAsync(cancellationToken);
+            activities.AddRange(sponsoredRequests.Select(record => new DashboardActivity(
+                "teacher-approval",
+                $"{record.User?.Username ?? "Sinh viên"} nhờ bạn bảo lãnh {EquipmentLabel(record)} ({StatusCodeMap.Label(record.Status)})",
+                record.BorrowDate,
+                record.Status == BorrowStatuses.TeacherPending
+                    ? "orange"
+                    : record.Status == BorrowStatuses.Rejected ? "red" : "green")));
+        }
 
         var recentActivities = activities
             .OrderByDescending(activity => activity.Date)
             .Take(5)
             .ToList();
 
-        var overdueQuery = _context.BorrowRecords
+        var overdueBaseQuery = _context.BorrowRecords
             .AsNoTracking()
-            .Include(record => record.User)
-            .Include(record => record.Equipment)
-            .Include(record => record.Details)
-                .ThenInclude(detail => detail.Equipment)
             .Where(record => record.Status == BorrowStatuses.Borrowed
                 && record.ExpectedReturnDate < todayStartUtc);
         if (!isManager)
         {
-            overdueQuery = overdueQuery.Where(record => record.UserId == userId);
+            overdueBaseQuery = overdueBaseQuery.Where(record => record.UserId == userId);
         }
 
-        var overdueRecords = await overdueQuery.ToListAsync(cancellationToken);
+        var overdueBorrowRecords = await overdueBaseQuery.CountAsync(cancellationToken);
+        var overdueRecords = await overdueBaseQuery
+            .Include(record => record.User)
+            .Include(record => record.Equipment)
+            .Include(record => record.Details)
+                .ThenInclude(detail => detail.Equipment)
+            .AsSingleQuery()
+            .OrderBy(record => record.ExpectedReturnDate)
+            .Take(5)
+            .ToListAsync(cancellationToken);
         var alerts = overdueRecords.Select(record =>
         {
             var days = Math.Max(1, (today - VietnamTime.Date(record.ExpectedReturnDate)).Days);
@@ -139,11 +184,15 @@ public class DashboardController : ControllerBase
         var pendingConsumableRequests = 0;
         var borrowRequestsToProcess = 0;
         var consumableRequestsToProcess = 0;
-        var overdueBorrowRecords = overdueRecords.Count;
         var lowStockConsumableCount = 0;
         var warrantyExpiringSoon = 0;
         var lowStockConsumables = new List<object>();
         var borrowTrends = new List<object>();
+        var teacherPendingApprovals = 0;
+        var teacherPendingOwnRequests = 0;
+        var teacherActiveBorrows = 0;
+        DateTime? teacherNextReturnDate = null;
+        var teacherNextReturnEquipment = string.Empty;
 
         if (isManager)
         {
@@ -153,19 +202,32 @@ public class DashboardController : ControllerBase
             totalPenalties = await _context.Penalties
                 .Where(penalty => penalty.Status == PenaltyStatuses.Unpaid)
                 .SumAsync(penalty => penalty.Amount, cancellationToken);
-            pendingBorrowRequests = await _context.BorrowRecords
-                .CountAsync(record => record.Status == BorrowStatuses.Pending, cancellationToken);
-            pendingConsumableRequests = await _context.ConsumableRequests
-                .CountAsync(request => request.Status == ConsumableRequestStatuses.Pending, cancellationToken);
-            borrowRequestsToProcess = await _context.BorrowRecords.CountAsync(
-                record => record.Status == BorrowStatuses.Pending
-                    || record.Status == BorrowStatuses.Approved
-                    || record.Status == BorrowStatuses.ReturnProcessing,
-                cancellationToken);
-            consumableRequestsToProcess = await _context.ConsumableRequests.CountAsync(
-                request => request.Status == ConsumableRequestStatuses.Pending
-                    || request.Status == ConsumableRequestStatuses.Approved,
-                cancellationToken);
+            var borrowWork = await _context.BorrowRecords
+                .AsNoTracking()
+                .GroupBy(_ => 1)
+                .Select(group => new
+                {
+                    Pending = group.Count(record => record.Status == BorrowStatuses.Pending),
+                    ToProcess = group.Count(record => record.Status == BorrowStatuses.Pending
+                        || record.Status == BorrowStatuses.Approved
+                        || record.Status == BorrowStatuses.ReturnProcessing)
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+            pendingBorrowRequests = borrowWork?.Pending ?? 0;
+            borrowRequestsToProcess = borrowWork?.ToProcess ?? 0;
+
+            var consumableWork = await _context.ConsumableRequests
+                .AsNoTracking()
+                .GroupBy(_ => 1)
+                .Select(group => new
+                {
+                    Pending = group.Count(request => request.Status == ConsumableRequestStatuses.Pending),
+                    ToProcess = group.Count(request => request.Status == ConsumableRequestStatuses.Pending
+                        || request.Status == ConsumableRequestStatuses.Approved)
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+            pendingConsumableRequests = consumableWork?.Pending ?? 0;
+            consumableRequestsToProcess = consumableWork?.ToProcess ?? 0;
             pendingRequests = borrowRequestsToProcess + consumableRequestsToProcess;
 
             var lowStockItems = await _context.Consumables
@@ -222,18 +284,17 @@ public class DashboardController : ControllerBase
                 .Where(equipment => equipment.WarrantyExpiry.HasValue
                     && equipment.WarrantyExpiry.Value >= now
                     && equipment.WarrantyExpiry.Value <= now.AddDays(30));
-            warrantyExpiringSoon = await warrantySoonQuery.CountAsync(cancellationToken);
             var warrantySoon = await warrantySoonQuery
                 .OrderBy(equipment => equipment.WarrantyExpiry)
-                .Take(5)
                 .Select(equipment => new
                 {
                     equipment.Name,
                     equipment.WarrantyExpiry
                 })
                 .ToListAsync(cancellationToken);
+            warrantyExpiringSoon = warrantySoon.Count;
 
-            foreach (var equipment in warrantySoon)
+            foreach (var equipment in warrantySoon.Take(5))
             {
                 alerts.Add(new
                 {
@@ -280,8 +341,60 @@ public class DashboardController : ControllerBase
                 } as object)
                 .ToList();
         }
+        else if (role == Roles.Teacher)
+        {
+            var teacherWork = await _context.BorrowRecords
+                .AsNoTracking()
+                .Where(record => record.UserId == userId || record.TeacherId == userId)
+                .GroupBy(_ => 1)
+                .Select(group => new
+                {
+                    PendingApprovals = group.Count(record => record.TeacherId == userId
+                        && record.Status == BorrowStatuses.TeacherPending),
+                    PendingOwnRequests = group.Count(record => record.UserId == userId
+                        && (record.Status == BorrowStatuses.TeacherPending
+                            || record.Status == BorrowStatuses.Pending
+                            || record.Status == BorrowStatuses.ProcessingApproval
+                            || record.Status == BorrowStatuses.Approved)),
+                    ActiveBorrows = group.Count(record => record.UserId == userId
+                        && (record.Status == BorrowStatuses.Borrowed
+                            || record.Status == BorrowStatuses.ReturnProcessing))
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+            teacherPendingApprovals = teacherWork?.PendingApprovals ?? 0;
+            teacherPendingOwnRequests = teacherWork?.PendingOwnRequests ?? 0;
+            teacherActiveBorrows = teacherWork?.ActiveBorrows ?? 0;
 
-        return Ok(new
+            var nextReturn = await _context.BorrowRecords
+                .AsNoTracking()
+                .Include(record => record.Equipment)
+                .Include(record => record.Details)
+                    .ThenInclude(detail => detail.Equipment)
+                .Where(record => record.UserId == userId
+                    && (record.Status == BorrowStatuses.Borrowed
+                        || record.Status == BorrowStatuses.ReturnProcessing))
+                .AsSingleQuery()
+                .OrderBy(record => record.ExpectedReturnDate)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (nextReturn != null)
+            {
+                teacherNextReturnDate = nextReturn.ExpectedReturnDate;
+                teacherNextReturnEquipment = EquipmentLabel(nextReturn);
+            }
+
+            if (teacherPendingApprovals > 0)
+            {
+                alerts.Add(new
+                {
+                    Type = "teacher-pending-approvals",
+                    Title = "Yêu cầu chờ bảo lãnh",
+                    Message = $"Có {teacherPendingApprovals} yêu cầu của sinh viên cần bạn xem xét.",
+                    Level = "warning"
+                });
+            }
+        }
+
+        var payload = new
         {
             UpdatedAt = now,
             Counts = new
@@ -305,6 +418,14 @@ public class DashboardController : ControllerBase
                 LowStockConsumables = lowStockConsumables,
                 BorrowTrends = borrowTrends
             },
+            TeacherSummary = new
+            {
+                PendingApprovals = teacherPendingApprovals,
+                PendingOwnRequests = teacherPendingOwnRequests,
+                ActiveBorrows = teacherActiveBorrows,
+                NextReturnDate = teacherNextReturnDate,
+                NextReturnEquipment = teacherNextReturnEquipment
+            },
             PendingBorrowRequests = pendingBorrowRequests,
             PendingConsumableRequests = pendingConsumableRequests,
             BorrowRequestsToProcess = borrowRequestsToProcess,
@@ -313,7 +434,14 @@ public class DashboardController : ControllerBase
             LowStockConsumables = lowStockConsumableCount,
             WarrantyExpiringSoon = warrantyExpiringSoon,
             MaintenanceInProgress = equipmentCounts?.Maintenance ?? 0
+        };
+
+        _cache.Set(cacheKey, payload, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = DashboardCacheDuration,
+            Size = 1
         });
+        return Ok(payload);
     }
 
     private sealed record DashboardActivity(

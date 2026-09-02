@@ -10,6 +10,8 @@ public static class BorrowStatuses
     public const string Returned = "RETURNED";
     public const string ReturnedDamaged = "RETURNED_DAMAGED";
     public const string Rejected = "REJECTED";
+    public const string Cancelled = "CANCELLED";
+    public const string Expired = "EXPIRED";
     public const string ProcessingApproval = "APPROVAL_PROCESSING";
 }
 
@@ -95,6 +97,8 @@ public static class StatusCodeMap
             [BorrowStatuses.Returned] = "Đã trả",
             [BorrowStatuses.ReturnedDamaged] = "Đã trả, có hư hỏng",
             [BorrowStatuses.Rejected] = "Từ chối",
+            [BorrowStatuses.Cancelled] = "Đã hủy",
+            [BorrowStatuses.Expired] = "Hết hạn giữ chỗ",
             [BorrowStatuses.ProcessingApproval] = "Đang xử lý duyệt",
             [ConsumableRequestStatuses.Pending] = "Chờ duyệt cấp phát",
             [ConsumableRequestStatuses.Processing] = "Đang xử lý cấp phát",

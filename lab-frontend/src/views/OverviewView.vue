@@ -1,13 +1,25 @@
 <template>
   <div class="overview-container">
-    <template v-if="isManager">
+    <section v-if="initialLoading" class="dashboard-loading-shell" aria-label="Đang tải dữ liệu tổng quan">
+      <a-skeleton active :title="{ width: '34%' }" :paragraph="{ rows: 1, width: ['52%'] }" />
+      <div class="dashboard-loading-kpis">
+        <a-skeleton-button v-for="index in 4" :key="index" active block />
+      </div>
+      <div class="dashboard-loading-panels">
+        <a-card v-for="index in 2" :key="index" :bordered="false">
+          <a-skeleton active :title="{ width: '42%' }" :paragraph="{ rows: 5 }" />
+        </a-card>
+      </div>
+    </section>
+
+    <template v-else-if="isManager">
       <header class="manager-header">
         <div>
           <h2>Tổng quan quản trị</h2>
           <p class="subtitle">Các công việc và cảnh báo cần xử lý trong Phòng Lab IoT.</p>
         </div>
         <div class="manager-header-actions">
-          <a-button :loading="refreshing" @click="refreshStats">
+          <a-button :loading="refreshing" @click="refreshStats(true)">
             <template #icon><ReloadOutlined /></template>
             Làm mới
           </a-button>
@@ -112,6 +124,112 @@
       </section>
     </template>
 
+    <template v-else-if="isTeacher">
+      <header class="teacher-header">
+        <div>
+          <span class="teacher-eyebrow">Không gian giảng viên</span>
+          <h2>Chào {{ teacherDisplayName }}</h2>
+          <p class="subtitle">Theo dõi yêu cầu bảo lãnh và việc mượn thiết bị của bạn tại một nơi.</p>
+        </div>
+        <a-button :loading="refreshing" class="teacher-refresh-button" @click="refreshStats(true)">
+          <template #icon><ReloadOutlined /></template>
+          Làm mới
+        </a-button>
+      </header>
+
+      <section class="teacher-kpi-grid" aria-label="Công việc của giảng viên">
+        <button
+          v-for="item in teacherKpis"
+          :key="item.key"
+          type="button"
+          class="teacher-kpi-card"
+          :class="`teacher-tone-${item.tone}`"
+          @click="navigateTo(item.route)"
+        >
+          <span class="teacher-kpi-icon" aria-hidden="true"><component :is="item.icon" /></span>
+          <span class="teacher-kpi-copy">
+            <small>{{ item.label }}</small>
+            <strong>{{ item.value }}</strong>
+            <span>{{ item.hint }}</span>
+          </span>
+          <ArrowRightOutlined class="teacher-kpi-arrow" />
+        </button>
+      </section>
+
+      <section class="teacher-main-grid">
+        <a-card :bordered="false" class="teacher-panel teacher-task-panel">
+          <template #title>
+            <div class="teacher-panel-title">
+              <span>Việc cần làm</span>
+              <small>{{ teacherTasks.length ? `${teacherTasks.length} nhóm việc` : 'Đã xử lý hết' }}</small>
+            </div>
+          </template>
+          <div v-if="teacherTasks.length" class="teacher-task-list">
+            <button v-for="task in teacherTasks" :key="task.key" type="button" class="teacher-task-item" @click="navigateTo(task.route)">
+              <span class="teacher-task-icon" :class="`teacher-tone-${task.tone}`"><component :is="task.icon" /></span>
+              <span class="teacher-task-copy"><strong>{{ task.title }}</strong><small>{{ task.description }}</small></span>
+              <span class="teacher-task-count">{{ task.value }}</span>
+              <ArrowRightOutlined class="teacher-task-arrow" />
+            </button>
+          </div>
+          <div v-else class="teacher-clear-state">
+            <span><CheckCircleOutlined /></span>
+            <div><strong>Không có việc tồn đọng</strong><p>Các yêu cầu và hạn trả hiện đều ổn.</p></div>
+          </div>
+        </a-card>
+
+        <a-card :bordered="false" class="teacher-panel teacher-return-panel">
+          <template #title>Mốc trả gần nhất</template>
+          <div v-if="teacherSummary.nextReturnDate" class="teacher-return-content">
+            <div class="teacher-return-date">
+              <span>{{ teacherReturnDay }}</span>
+              <small>{{ teacherReturnMonth }}</small>
+            </div>
+            <div class="teacher-return-copy">
+              <span>Thiết bị cần trả</span>
+              <strong>{{ teacherSummary.nextReturnEquipment || 'Thiết bị đang mượn' }}</strong>
+              <small>{{ teacherReturnState }}</small>
+            </div>
+            <a-button block @click="navigateTo({ name: 'BorrowHistory' })">Xem lịch sử mượn <ArrowRightOutlined /></a-button>
+          </div>
+          <div v-else class="teacher-no-return">
+            <span><CheckCircleOutlined /></span>
+            <strong>Chưa có lịch trả sắp tới</strong>
+            <p>Bạn hiện không giữ thiết bị nào cần theo dõi hạn trả.</p>
+            <a-button @click="navigateTo({ name: 'Devices' })">Xem thiết bị có thể mượn</a-button>
+          </div>
+        </a-card>
+      </section>
+
+      <a-card :bordered="false" class="teacher-panel teacher-activity-panel">
+        <template #title>
+          <div class="teacher-panel-title">
+            <span>Hoạt động liên quan đến bạn</span>
+            <a-button type="link" @click="navigateTo({ name: 'BorrowHistory' })">Xem lịch sử</a-button>
+          </div>
+        </template>
+        <div v-if="teacherActivities.length" class="teacher-activity-list">
+          <div v-for="(activity, index) in teacherActivities" :key="`${activity.date}-${index}`" class="teacher-activity-item">
+            <span class="teacher-activity-dot" :class="`activity-dot-${activity.color || 'blue'}`" />
+            <div><p>{{ activity.message }}</p><small>{{ formatDateTime(activity.date) }}</small></div>
+          </div>
+        </div>
+        <div v-else class="teacher-inline-empty">Chưa có hoạt động mượn hoặc bảo lãnh gần đây.</div>
+      </a-card>
+
+      <section class="teacher-quick-section" aria-labelledby="teacher-quick-heading">
+        <h3 id="teacher-quick-heading">Thao tác nhanh</h3>
+        <div class="teacher-quick-grid">
+          <button v-for="item in teacherQuickActions" :key="item.key" type="button" class="teacher-quick-action" @click="navigateTo(item.route)">
+            <span><component :is="item.icon" /></span>
+            <strong>{{ item.label }}</strong>
+            <small>{{ item.description }}</small>
+            <ArrowRightOutlined />
+          </button>
+        </div>
+      </section>
+    </template>
+
     <template v-else>
       <div class="header">
         <h2 class="serif-title">Tổng quan hệ thống</h2>
@@ -189,7 +307,7 @@ import {
 } from '@ant-design/icons-vue'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../stores/authStore'
-import { isAdminRole, isManagerRole } from '../constants/business'
+import { isAdminRole, isManagerRole, isTeacherRole } from '../constants/business'
 import { getDashboardAlertTarget } from '../utils/dashboardAlerts'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatVietnamDateTime } from '../utils/dateTime.js'
@@ -200,9 +318,11 @@ const router = useRouter()
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 const isManager = computed(() => isManagerRole(role.value))
+const isTeacher = computed(() => isTeacherRole(role.value))
 const canViewAuditLogs = computed(() => isAdminRole(role.value))
 const apexchart = VueApexCharts
 const refreshing = ref(false)
+const initialLoading = ref(true)
 
 const stats = ref({
   updatedAt: null,
@@ -217,7 +337,8 @@ const stats = ref({
   counts: { total: 0, available: 0, borrowPending: 0, maintenance: 0, borrowed: 0, broken: 0, missing: 0, warranty: 0 },
   activities: [],
   alerts: [],
-  advanced: { pendingRequests: 0, lowStockConsumables: [], borrowTrends: [] }
+  advanced: { pendingRequests: 0, lowStockConsumables: [], borrowTrends: [] },
+  teacherSummary: { pendingApprovals: 0, pendingOwnRequests: 0, activeBorrows: 0, nextReturnDate: null, nextReturnEquipment: '' }
 })
 
 const formatNumber = value => Number(value || 0).toLocaleString('vi-VN')
@@ -360,6 +481,76 @@ const managerQuickActions = computed(() => [
   { key: 'reports', label: 'Xem báo cáo', icon: AppstoreOutlined, route: { name: 'Reports' } }
 ])
 
+const teacherSummary = computed(() => stats.value.teacherSummary || {})
+const teacherDisplayName = computed(() => authStore.user?.fullName?.trim() || 'Giảng viên')
+const teacherKpis = computed(() => [
+  {
+    key: 'teacher-approvals', label: 'Chờ bạn bảo lãnh',
+    value: formatNumber(teacherSummary.value.pendingApprovals),
+    hint: 'Yêu cầu của sinh viên', icon: FileSearchOutlined, tone: 'coral', route: { name: 'TeacherApproval' }
+  },
+  {
+    key: 'own-pending', label: 'Phiếu đang xử lý',
+    value: formatNumber(teacherSummary.value.pendingOwnRequests),
+    hint: 'Yêu cầu mượn của bạn', icon: ClockCircleOutlined, tone: 'amber', route: { name: 'BorrowHistory' }
+  },
+  {
+    key: 'active-borrows', label: 'Đang mượn',
+    value: formatNumber(teacherSummary.value.activeBorrows),
+    hint: 'Phiếu đang sử dụng', icon: AppstoreOutlined, tone: 'blue', route: { name: 'BorrowHistory' }
+  },
+  {
+    key: 'overdue', label: 'Đã quá hạn',
+    value: formatNumber(stats.value.overdueBorrowRecords),
+    hint: 'Cần xử lý sớm', icon: WarningOutlined, tone: 'red', route: { name: 'BorrowHistory', query: { status: 'OVERDUE' } }
+  }
+])
+
+const teacherTasks = computed(() => [
+  Number(teacherSummary.value.pendingApprovals || 0) > 0 && {
+    key: 'approvals', title: 'Duyệt yêu cầu bảo lãnh',
+    description: 'Sinh viên đang chờ quyết định của bạn.', value: teacherSummary.value.pendingApprovals,
+    icon: FileSearchOutlined, tone: 'coral', route: { name: 'TeacherApproval' }
+  },
+  Number(stats.value.overdueBorrowRecords || 0) > 0 && {
+    key: 'overdue', title: 'Xử lý thiết bị quá hạn',
+    description: 'Kiểm tra và hoàn tất thủ tục trả thiết bị.', value: stats.value.overdueBorrowRecords,
+    icon: WarningOutlined, tone: 'red', route: { name: 'BorrowHistory', query: { status: 'OVERDUE' } }
+  },
+  Number(teacherSummary.value.pendingOwnRequests || 0) > 0 && {
+    key: 'pending', title: 'Theo dõi phiếu mượn',
+    description: 'Phiếu của bạn đang chờ các bước phê duyệt hoặc bàn giao.', value: teacherSummary.value.pendingOwnRequests,
+    icon: ClockCircleOutlined, tone: 'amber', route: { name: 'BorrowHistory' }
+  }
+].filter(Boolean))
+
+const teacherActivities = computed(() => stats.value.activities.slice(0, 5))
+const teacherQuickActions = computed(() => [
+  { key: 'approval', label: 'Duyệt bảo lãnh', description: 'Xử lý yêu cầu sinh viên', icon: FileSearchOutlined, route: { name: 'TeacherApproval' } },
+  { key: 'equipment', label: 'Mượn thiết bị', description: 'Xem tài sản đang sẵn sàng', icon: AppstoreOutlined, route: { name: 'Devices' } },
+  { key: 'history', label: 'Lịch sử mượn', description: 'Theo dõi phiếu của bạn', icon: ClockCircleOutlined, route: { name: 'BorrowHistory' } },
+  { key: 'consumable', label: 'Yêu cầu vật tư', description: 'Đăng ký và theo dõi cấp phát', icon: PlusOutlined, route: { name: 'ConsumableRequests' } }
+])
+
+const teacherReturnParts = computed(() => {
+  if (!teacherSummary.value.nextReturnDate) return { day: '', month: '' }
+  const parts = new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit', month: '2-digit', timeZone: 'Asia/Ho_Chi_Minh'
+  }).formatToParts(new Date(teacherSummary.value.nextReturnDate))
+  const getPart = type => parts.find(part => part.type === type)?.value || ''
+  return { day: getPart('day'), month: `Tháng ${getPart('month')}` }
+})
+const teacherReturnDay = computed(() => teacherReturnParts.value.day)
+const teacherReturnMonth = computed(() => teacherReturnParts.value.month)
+const teacherReturnState = computed(() => {
+  if (!teacherSummary.value.nextReturnDate) return ''
+  const milliseconds = new Date(teacherSummary.value.nextReturnDate).getTime() - Date.now()
+  const days = Math.ceil(milliseconds / 86400000)
+  if (days < 0) return `Đã quá hạn ${Math.abs(days)} ngày`
+  if (days === 0) return 'Đến hạn hôm nay'
+  return `Còn ${days} ngày để hoàn trả`
+})
+
 const studentStats = computed(() => [
   { label: 'Thiết bị đang được mượn', value: stats.value.counts.borrowed, icon: ClockCircleOutlined, tone: 'amber' },
   { label: 'Thiết bị rảnh', value: stats.value.counts.available, icon: CheckCircleOutlined, tone: 'green' }
@@ -403,6 +594,7 @@ const normalizeDashboardStats = result => {
     activities: Array.isArray(payload.activities) ? payload.activities : [],
     alerts,
     advanced: { ...stats.value.advanced, ...advanced },
+    teacherSummary: { ...stats.value.teacherSummary, ...(payload.teacherSummary || {}) },
     pendingBorrowRequests: Number(payload.pendingBorrowRequests ?? countFromAlert(alerts, 'pending-borrow-requests')),
     pendingConsumableRequests: Number(payload.pendingConsumableRequests ?? countFromAlert(alerts, 'pending-consumable-requests')),
     borrowRequestsToProcess: Number(payload.borrowRequestsToProcess ?? payload.pendingBorrowRequests ?? 0),
@@ -414,10 +606,10 @@ const normalizeDashboardStats = result => {
   }
 }
 
-const refreshStats = async () => {
+const refreshStats = async (forceRefresh = false) => {
   refreshing.value = true
   try {
-    const result = await dashboardApi.getStats()
+    const result = await dashboardApi.getStats(forceRefresh)
     stats.value = normalizeDashboardStats(result)
     pieSeries.value = [
       result.counts?.available || 0,
@@ -429,14 +621,20 @@ const refreshStats = async () => {
     message.error(getApiErrorMessage(error, 'Không tải được dữ liệu tổng quan.'))
   } finally {
     refreshing.value = false
+    initialLoading.value = false
   }
 }
 
-onMounted(refreshStats)
+onMounted(() => refreshStats(false))
 </script>
 
 <style scoped>
 .overview-container { max-width: 1600px; padding: 4px 0 24px; }
+.dashboard-loading-shell { display: grid; gap: 18px; }
+.dashboard-loading-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.dashboard-loading-kpis :deep(.ant-skeleton-button) { height: 112px; border-radius: 14px; }
+.dashboard-loading-panels { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr); gap: 18px; }
+.dashboard-loading-panels :deep(.ant-card) { min-height: 270px; border: 1px solid #e7eaee; border-radius: 14px; }
 .manager-header, .panel-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .manager-header { align-items: center; margin-bottom: 24px; }
 .manager-header h2, .header h2 { margin: 0; color: #10233f; font-family: var(--font-serif); font-size: 36px; font-weight: 650; line-height: 1.15; letter-spacing: -0.025em; }
@@ -501,6 +699,81 @@ onMounted(refreshStats)
 .quick-action-button:hover, .quick-action-button:focus { border-color: #df7657; color: #df7657; }
 .quick-action-button > span:not(.ant-btn-icon) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .quick-action-arrow { margin-left: auto; color: #94a3b8; font-size: 11px; }
+.teacher-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.teacher-header h2 { margin: 8px 0 0; color: #10233f; font-family: var(--font-serif); font-size: 34px; font-weight: 650; line-height: 1.15; letter-spacing: -.025em; }
+.teacher-eyebrow { display: inline-flex; align-items: center; gap: 7px; color: #c85f42; font-size: 13px; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
+.teacher-eyebrow::before { width: 7px; height: 7px; border-radius: 50%; background: #df7657; content: ''; }
+.teacher-refresh-button { height: 40px; border-color: #dfe4e8; border-radius: 9px; color: #334155; }
+.teacher-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.teacher-kpi-card { position: relative; display: grid; grid-template-columns: 46px minmax(0, 1fr) 16px; align-items: center; min-width: 0; min-height: 116px; gap: 13px; padding: 18px; overflow: hidden; border: 1px solid #e4e8ec; border-radius: 14px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+.teacher-kpi-card:hover, .teacher-kpi-card:focus-visible { border-color: #d7b3a7; box-shadow: 0 8px 22px rgba(16, 35, 63, .075); outline: none; transform: translateY(-2px); }
+.teacher-kpi-icon { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 12px; font-size: 20px; }
+.teacher-kpi-copy { display: flex; min-width: 0; flex-direction: column; }
+.teacher-kpi-copy small { overflow: hidden; color: #526276; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-kpi-copy strong { margin-top: 3px; color: #10233f; font-size: 29px; line-height: 1.05; }
+.teacher-kpi-copy span { margin-top: 5px; overflow: hidden; color: #94a3b8; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-kpi-arrow { color: #b3bdc8; font-size: 12px; }
+.teacher-tone-coral { color: #d26548; background: #fff1ec; }
+.teacher-tone-amber { color: #c77a0a; background: #fff7e7; }
+.teacher-tone-blue { color: #347fc1; background: #edf6ff; }
+.teacher-tone-red { color: #d34a43; background: #fff0ef; }
+.teacher-main-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, .8fr); gap: 16px; margin-top: 16px; }
+.teacher-panel { min-width: 0; border: 1px solid #e4e8ec; border-radius: 14px; background: #fff; box-shadow: none; }
+.teacher-panel :deep(.ant-card-head) { min-height: 56px; padding: 0 20px; border-bottom: 1px solid #eef1f3; }
+.teacher-panel :deep(.ant-card-head-title) { padding: 16px 0; color: #10233f; font-size: 17px; font-weight: 700; }
+.teacher-panel :deep(.ant-card-body) { padding: 18px 20px; }
+.teacher-panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.teacher-panel-title > small { color: #94a3b8; font-size: 12px; font-weight: 500; }
+.teacher-panel-title :deep(.ant-btn) { height: auto; padding: 0; color: #d26548; }
+.teacher-task-list { display: flex; flex-direction: column; gap: 9px; }
+.teacher-task-item { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto 14px; align-items: center; width: 100%; gap: 12px; padding: 10px 12px; border: 1px solid #edf0f2; border-radius: 11px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.teacher-task-item:hover, .teacher-task-item:focus-visible { border-color: #dfc0b5; background: #fffcfb; outline: none; }
+.teacher-task-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 10px; font-size: 18px; }
+.teacher-task-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.teacher-task-copy strong { color: #20334d; font-size: 14px; }
+.teacher-task-copy small { overflow: hidden; color: #7c8999; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-task-count { min-width: 28px; color: #10233f; font-size: 20px; font-weight: 750; text-align: right; }
+.teacher-task-arrow { color: #a8b2bd; font-size: 11px; }
+.teacher-clear-state { display: flex; align-items: center; min-height: 124px; gap: 15px; padding: 18px; border: 1px dashed #cfe4ca; border-radius: 12px; background: #f7fbf5; }
+.teacher-clear-state > span { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; flex: 0 0 46px; border-radius: 50%; background: #e7f6e3; color: #4d9b3b; font-size: 22px; }
+.teacher-clear-state strong { color: #24452a; }
+.teacher-clear-state p { margin: 3px 0 0; color: #6d806f; font-size: 13px; }
+.teacher-return-panel :deep(.ant-card-body) { height: calc(100% - 57px); }
+.teacher-return-content { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: center; gap: 14px; }
+.teacher-return-date { display: flex; align-items: center; justify-content: center; width: 70px; height: 76px; flex-direction: column; border-radius: 13px; background: #fff1ec; color: #c85f42; }
+.teacher-return-date span { font-size: 28px; font-weight: 750; line-height: 1; }
+.teacher-return-date small { margin-top: 7px; font-size: 12px; font-weight: 650; }
+.teacher-return-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.teacher-return-copy > span { color: #94a3b8; font-size: 12px; }
+.teacher-return-copy strong { display: -webkit-box; overflow: hidden; color: #20334d; font-size: 15px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.teacher-return-copy small { color: #c56b24; font-size: 12px; }
+.teacher-return-content :deep(.ant-btn) { grid-column: 1 / -1; height: 38px; margin-top: 4px; border-color: #e1e5e9; border-radius: 8px; }
+.teacher-no-return { display: flex; align-items: center; min-height: 180px; flex-direction: column; justify-content: center; text-align: center; }
+.teacher-no-return > span { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 10px; border-radius: 50%; background: #edf8e9; color: #4d9b3b; font-size: 22px; }
+.teacher-no-return strong { color: #20334d; }
+.teacher-no-return p { max-width: 270px; margin: 5px 0 13px; color: #7c8999; font-size: 13px; line-height: 1.45; }
+.teacher-no-return :deep(.ant-btn) { border-radius: 8px; }
+.teacher-activity-panel { margin-top: 16px; }
+.teacher-activity-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
+.teacher-activity-item { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; min-width: 0; padding: 11px 0; border-bottom: 1px solid #f0f2f4; }
+.teacher-activity-item:nth-last-child(-n+2) { border-bottom: 0; }
+.teacher-activity-dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: #4d91d8; }
+.activity-dot-orange, .activity-dot-warning { background: #e5a12f; }
+.activity-dot-red, .activity-dot-error { background: #d95048; }
+.activity-dot-green { background: #63a850; }
+.activity-dot-purple { background: #8b5cf6; }
+.teacher-activity-item p { display: -webkit-box; margin: 0; overflow: hidden; color: #334155; font-size: 13px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.teacher-activity-item small { display: block; margin-top: 4px; color: #9aa5b1; font-size: 11px; }
+.teacher-inline-empty { padding: 26px 0; color: #94a3b8; text-align: center; }
+.teacher-quick-section { margin-top: 18px; }
+.teacher-quick-section h3 { margin: 0 0 11px; color: #10233f; font-size: 17px; }
+.teacher-quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.teacher-quick-action { display: grid; grid-template-columns: 38px minmax(0, 1fr) 12px; grid-template-rows: auto auto; align-items: center; min-width: 0; gap: 1px 10px; padding: 13px 14px; border: 1px solid #e4e8ec; border-radius: 11px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.teacher-quick-action:hover, .teacher-quick-action:focus-visible { border-color: #dfb8aa; outline: none; }
+.teacher-quick-action > span { display: inline-flex; grid-row: 1 / 3; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 9px; background: #f5f7f9; color: #d26548; font-size: 17px; }
+.teacher-quick-action strong { overflow: hidden; color: #26384f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-quick-action small { overflow: hidden; color: #94a3b8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-quick-action > .anticon { grid-column: 3; grid-row: 1 / 3; color: #aeb7c1; font-size: 10px; }
 .header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
 .serif-title { font-family: var(--font-serif); }
 .stat-grid { margin-bottom: 16px; }
@@ -527,21 +800,24 @@ onMounted(refreshStats)
 .borrower-alert.info { border-left-color: #2563eb; background: #eff6ff; }
 .borrower-alert.error { border-left-color: #dc2626; background: #fef2f2; }
 @media (max-width: 1199px) {
-  .manager-kpi-grid, .quick-actions-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .manager-two-column { grid-template-columns: 1fr; }
+  .manager-kpi-grid, .quick-actions-grid, .teacher-kpi-grid, .teacher-quick-grid, .dashboard-loading-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manager-two-column, .teacher-main-grid, .dashboard-loading-panels { grid-template-columns: 1fr; }
 }
 @media (max-width: 767px) {
-  .manager-header { align-items: flex-start; flex-direction: column; }
+  .manager-header, .teacher-header { align-items: flex-start; flex-direction: column; }
   .manager-header-actions { align-items: flex-start; }
-  .manager-kpi-grid, .quick-actions-grid, .borrower-content-grid { grid-template-columns: 1fr; }
+  .manager-kpi-grid, .quick-actions-grid, .borrower-content-grid, .teacher-kpi-grid, .teacher-quick-grid, .teacher-activity-list, .dashboard-loading-kpis { grid-template-columns: 1fr; }
   .manager-donut-layout { grid-template-columns: 1fr; }
   .manager-status-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 10px 7px; }
   .manager-attention-item { grid-template-columns: 30px minmax(0, 1fr) auto auto; }
   .borrower-status-panel { grid-column: auto; }
-  .manager-header h2, .header h2 { font-size: 30px; }
+  .manager-header h2, .teacher-header h2, .header h2 { font-size: 30px; }
   .subtitle { font-size: 15px; }
   .manager-kpi-card { min-height: 96px; padding: 18px; }
   .manager-kpi-copy strong { font-size: 32px; }
   .manager-attention-item { grid-template-columns: 42px minmax(0, 1fr) auto 34px; }
+  .teacher-refresh-button { width: 100%; }
+  .teacher-kpi-card { min-height: 104px; }
+  .teacher-activity-item:nth-last-child(2) { border-bottom: 1px solid #f0f2f4; }
 }
 </style>

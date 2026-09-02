@@ -13,7 +13,7 @@
 
     <FilterBar class="filter-card">
       <div class="filters">
-        <a-input-search v-model:value="filters.search" allow-clear placeholder="Người thao tác, mã..." class="filter-control" @search="applySearch" />
+        <a-input-search v-model:value="filters.search" allow-clear placeholder="Người thao tác, hành động..." class="filter-control" @search="applySearch" />
         <a-select v-model:value="filters.action" allowClear placeholder="Hành động" class="filter-control">
           <a-select-option value="Create">Tạo mới</a-select-option>
           <a-select-option value="Update">Cập nhật</a-select-option>
@@ -47,6 +47,9 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
             <AuditActionLabel :action="record.action" />
+          </template>
+          <template v-else-if="column.key === 'username'">
+            {{ actorLabel(record.username) }}
           </template>
           <template v-else-if="column.key === 'createdAt'">
             {{ formatDateTime(record.createdAt) }}
@@ -111,7 +114,6 @@ const columns = [
   { title: 'Người thao tác', dataIndex: 'username', key: 'username', width: 150 },
   { title: 'Hành động', dataIndex: 'action', key: 'action', width: 130 },
   { title: 'Đối tượng', dataIndex: 'entityType', key: 'entityType', width: 150 },
-  { title: 'Mã', dataIndex: 'entityId', key: 'entityId', width: 90 },
   { title: 'IP', dataIndex: 'ipAddress', key: 'ipAddress', width: 150 },
   { title: 'Chi tiết', key: 'details', width: 120, align: 'center' }
 ]
@@ -185,6 +187,12 @@ const entityLabel = (entityType) => ({
 }[entityType] || 'Đối tượng khác')
 
 const formatDateTime = value => formatVietnamDateTime(value, '')
+
+const actorLabel = username => {
+  const normalized = String(username || '').trim()
+  if (!normalized) return 'Không xác định'
+  return normalized.toLowerCase() === 'system' ? 'Hệ thống' : normalized
+}
 
 watch(
   () => [filters.action, filters.entityType],

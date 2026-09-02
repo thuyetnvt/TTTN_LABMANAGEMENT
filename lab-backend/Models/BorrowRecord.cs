@@ -22,6 +22,11 @@ namespace LabManagementAPI.Models
         public string Status { get; set; } = BorrowStatuses.Pending;
         public string TeacherDecisionNote { get; set; } = string.Empty;
         public string ManagerDecisionNote { get; set; } = string.Empty;
+        public DateTime? HoldExpiresAt { get; set; }
+        public string CancellationReason { get; set; } = string.Empty;
+        public DateTime? CancelledAt { get; set; }
+        public int? CancelledByUserId { get; set; }
+        public User? CancelledByUser { get; set; }
 
         public string ReturnCondition { get; set; } = string.Empty;
         public string ReturnInspectionNote { get; set; } = string.Empty;

@@ -91,6 +91,37 @@ public sealed class HandoverControllerTests
         }
     }
 
+    [Fact]
+    public async Task Manager_cannot_create_handover_after_hold_expired()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            await SeedApprovedBorrow(context);
+            var record = await context.BorrowRecords.SingleAsync(item => item.Id == 10);
+            record.HoldExpiresAt = DateTime.UtcNow.AddMinutes(-1);
+            await context.SaveChangesAsync();
+
+            var manager = CreateController(context, 9, Roles.LabHead);
+            var result = await manager.Create(new HandoverController.CreateHandoverDto
+            {
+                BorrowRecordId = 10,
+                Items =
+                [
+                    new HandoverController.HandoverItemDto
+                    {
+                        EquipmentId = 20,
+                        Condition = EquipmentStatuses.Available
+                    }
+                ]
+            }, CancellationToken.None);
+
+            Assert.IsType<ConflictObjectResult>(result.Result);
+            Assert.Empty(await context.HandoverRecords.AsNoTracking().ToListAsync());
+            Assert.Equal(BorrowStatuses.Approved, (await context.BorrowRecords.AsNoTracking().SingleAsync()).Status);
+        }
+    }
+
     private static AppDbContext CreateContext(out SqliteConnection connection)
     {
         connection = new SqliteConnection("Data Source=:memory:");

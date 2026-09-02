@@ -514,6 +514,9 @@ public class UsersController : ControllerBase
             && await _context.Users.AnyAsync(item => item.Id != id && item.UniversityCode == dto.UniversityCode, cancellationToken))
             return Conflict(new { message = "Mã sinh viên/mã cán bộ đã tồn tại." });
 
+        var passwordChanged = !string.IsNullOrWhiteSpace(dto.Password);
+        var identityChanged = user.Username != username || user.Role != dto.Role;
+
         user.Username = username;
         user.Email = email;
         user.FullName = dto.FullName;
@@ -522,10 +525,15 @@ public class UsersController : ControllerBase
         user.Department = dto.Department;
         user.ClassName = dto.ClassName;
         user.Role = dto.Role;
-        user.TokenVersion += 1;
-        if (!string.IsNullOrWhiteSpace(dto.Password))
+        if (passwordChanged)
         {
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password!);
+        }
+        if (passwordChanged || identityChanged)
+        {
+            // JWT chỉ chứa tên đăng nhập, vai trò và phiên bản token. Thay đổi hồ sơ
+            // thông thường không được làm mất phiên; thay đổi danh tính/mật khẩu thì phải có.
+            user.TokenVersion += 1;
         }
 
         await _context.SaveChangesAsync(cancellationToken);

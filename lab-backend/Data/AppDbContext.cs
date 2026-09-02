@@ -170,12 +170,17 @@ namespace LabManagementAPI.Data
                 entity.Property(record => record.Status).HasMaxLength(50);
                 entity.Property(record => record.TeacherDecisionNote).HasMaxLength(2000);
                 entity.Property(record => record.ManagerDecisionNote).HasMaxLength(2000);
+                entity.Property(record => record.CancellationReason).HasMaxLength(1000);
                 entity.Property(record => record.ReturnCondition).HasMaxLength(50);
                 entity.Property(record => record.ReturnInspectionNote).HasMaxLength(2000);
                 entity.Property(record => record.WarrantyAction).HasMaxLength(255);
                 entity.Property(record => record.CompensationAmount).HasPrecision(18, 2);
                 entity.HasIndex(record => record.Status);
                 entity.HasIndex(record => record.ExpectedReturnDate);
+                entity.HasIndex(record => new { record.UserId, record.Status, record.BorrowDate });
+                entity.HasIndex(record => new { record.TeacherId, record.Status, record.BorrowDate });
+                entity.HasIndex(record => new { record.Status, record.ExpectedReturnDate });
+                entity.HasIndex(record => new { record.Status, record.HoldExpiresAt });
                 entity.HasOne(record => record.InspectedByUser)
                     .WithMany()
                     .HasForeignKey(record => record.InspectedByUserId)
@@ -183,6 +188,10 @@ namespace LabManagementAPI.Data
                 entity.HasOne(record => record.Teacher)
                     .WithMany()
                     .HasForeignKey(record => record.TeacherId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(record => record.CancelledByUser)
+                    .WithMany()
+                    .HasForeignKey(record => record.CancelledByUserId)
                     .OnDelete(DeleteBehavior.SetNull);
                 entity.HasOne(record => record.User)
                     .WithMany()
@@ -448,6 +457,7 @@ namespace LabManagementAPI.Data
                 entity.Property(record => record.ChecklistResult).HasMaxLength(4000);
                 entity.Property(record => record.Cost).HasPrecision(18, 2);
                 entity.HasIndex(record => record.Status);
+                entity.HasIndex(record => record.MaintenanceDate);
                 entity.HasIndex(record => record.ActiveEquipmentKey).IsUnique();
                 entity.HasOne(record => record.Equipment)
                     .WithMany()
@@ -507,6 +517,8 @@ namespace LabManagementAPI.Data
                 entity.Property(penalty => penalty.Status).HasMaxLength(50);
                 entity.Property(penalty => penalty.Amount).HasPrecision(18, 2);
                 entity.HasIndex(penalty => penalty.Status);
+                entity.HasIndex(penalty => new { penalty.UserId, penalty.CreatedAt });
+                entity.HasIndex(penalty => new { penalty.Status, penalty.CreatedAt });
                 entity.HasOne(penalty => penalty.User)
                     .WithMany()
                     .HasForeignKey(penalty => penalty.UserId)

@@ -13,6 +13,7 @@ public sealed class OperationalAutomationRunner
     private const string ReturnDueSoon = "RETURN_DUE_SOON";
     private const string ReturnDueToday = "RETURN_DUE_TODAY";
     private const string ReturnOverdue = "RETURN_OVERDUE";
+    private const string BorrowHoldExpired = "BORROW_HOLD_EXPIRED";
 
     private readonly AppDbContext _context;
     private readonly INotificationService _notifications;
@@ -37,12 +38,174 @@ public sealed class OperationalAutomationRunner
     public async Task RunOnceAsync(DateTime utcNow, CancellationToken cancellationToken = default)
     {
         utcNow = DateTime.SpecifyKind(utcNow, DateTimeKind.Utc);
+        await ExpireApprovedHoldsAsync(utcNow, cancellationToken);
         await GenerateDueMaintenanceAsync(utcNow, cancellationToken);
         await CreateReturnRemindersAsync(utcNow, cancellationToken);
         if (_configuration.GetValue("Automation:SendEmailReminders", false))
         {
             await SendPendingReminderEmailsAsync(utcNow, cancellationToken);
         }
+    }
+
+    private async Task ExpireApprovedHoldsAsync(DateTime utcNow, CancellationToken cancellationToken)
+    {
+        var candidates = await _context.BorrowRecords
+            .AsNoTracking()
+            .Include(record => record.User)
+            .Include(record => record.Equipment)
+            .Include(record => record.Details)
+                .ThenInclude(detail => detail.Equipment)
+            .Include(record => record.StatusHistory)
+            .Where(record => record.Status == BorrowStatuses.Approved
+                && !_context.HandoverRecords.Any(handover => handover.BorrowRecordId == record.Id))
+            .OrderBy(record => record.HoldExpiresAt ?? record.BorrowDate)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+        var holdDurationHours = GetApprovedHoldHours();
+
+        foreach (var candidate in candidates)
+        {
+            var expiry = ResolveHoldExpiry(candidate, holdDurationHours);
+            if (expiry > utcNow) continue;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var record = await _context.BorrowRecords
+                    .Include(item => item.Details)
+                    .SingleOrDefaultAsync(item => item.Id == candidate.Id, cancellationToken);
+                if (record is null || record.Status != BorrowStatuses.Approved)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    continue;
+                }
+
+                if (await _context.HandoverRecords.AnyAsync(
+                    handover => handover.BorrowRecordId == record.Id,
+                    cancellationToken))
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    continue;
+                }
+
+                expiry = ResolveHoldExpiry(record, holdDurationHours);
+                if (expiry > utcNow)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    continue;
+                }
+
+                var equipmentIds = record.Details
+                    .Select(detail => detail.EquipmentId)
+                    .Append(record.EquipmentId.GetValueOrDefault())
+                    .Where(equipmentId => equipmentId > 0)
+                    .Distinct()
+                    .ToArray();
+                var updated = await _context.BorrowRecords
+                    .Where(item => item.Id == record.Id
+                        && item.Status == BorrowStatuses.Approved
+                        && !_context.HandoverRecords.Any(handover => handover.BorrowRecordId == record.Id))
+                    .ExecuteUpdateAsync(
+                        updates => updates
+                            .SetProperty(item => item.Status, BorrowStatuses.Expired)
+                            .SetProperty(item => item.CancellationReason, "Tự động hết hạn giữ chỗ sau khi được duyệt nhưng chưa lập biên bản bàn giao.")
+                            .SetProperty(item => item.CancelledAt, utcNow)
+                            .SetProperty(item => item.CancelledByUserId, (int?)null)
+                            .SetProperty(item => item.HoldExpiresAt, expiry),
+                        cancellationToken);
+                if (updated == 0)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    continue;
+                }
+
+                await _context.BorrowRequestDetails
+                    .Where(detail => detail.BorrowRecordId == record.Id
+                        && detail.Status == BorrowStatuses.Approved)
+                    .ExecuteUpdateAsync(
+                        updates => updates.SetProperty(detail => detail.Status, BorrowStatuses.Expired),
+                        cancellationToken);
+
+                if (equipmentIds.Length > 0)
+                {
+                    var released = await _context.Equipments
+                        .Where(item => equipmentIds.Contains(item.Id)
+                            && item.Status == EquipmentStatuses.BorrowPending)
+                        .ExecuteUpdateAsync(
+                            updates => updates.SetProperty(item => item.Status, EquipmentStatuses.Available),
+                            cancellationToken);
+                    if (released != equipmentIds.Length)
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        _logger.LogWarning(
+                            "Borrow hold expiration for record {BorrowRecordId} found inconsistent equipment state.",
+                            record.Id);
+                        continue;
+                    }
+                }
+
+                _context.BorrowStatusHistories.Add(new BorrowStatusHistory
+                {
+                    BorrowRecordId = record.Id,
+                    FromStatus = BorrowStatuses.Approved,
+                    ToStatus = BorrowStatuses.Expired,
+                    Note = $"Tự động hết hạn giữ chỗ lúc {expiry:O} vì chưa lập biên bản bàn giao.",
+                    ChangedByUserId = null
+                });
+                var dispatch = AddDispatch(
+                    BorrowHoldExpired,
+                    nameof(BorrowRecord),
+                    record.Id,
+                    expiry.ToString("O"),
+                    record.UserId);
+                AddSystemAudit(
+                    "ExpireBorrowHold",
+                    nameof(BorrowRecord),
+                    record.Id,
+                    new { HoldExpiresAt = expiry, EquipmentIds = equipmentIds },
+                    utcNow);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                await _notifications.NotifyUserAsync(
+                    record.UserId,
+                    BorrowHoldExpired,
+                    "Phiếu mượn đã hết hạn giữ chỗ",
+                    "Phiếu mượn đã hết hạn vì chưa lập biên bản bàn giao; tài sản đã được trả về trạng thái sẵn sàng.",
+                    "/dashboard/borrow-history",
+                    cancellationToken);
+                dispatch.CompletedAt = utcNow;
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException exception)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                _context.ChangeTracker.Clear();
+                _logger.LogWarning(
+                    exception,
+                    "Borrow hold expiration for record {BorrowRecordId} was not committed.",
+                    candidate.Id);
+            }
+        }
+    }
+
+    private int GetApprovedHoldHours()
+        => Math.Clamp(_configuration.GetValue("Borrow:ApprovedHoldHours", 24), 1, 720);
+
+    private static DateTime ResolveHoldExpiry(BorrowRecord record, int holdDurationHours)
+    {
+        if (record.HoldExpiresAt.HasValue)
+        {
+            return DateTime.SpecifyKind(record.HoldExpiresAt.Value, DateTimeKind.Utc);
+        }
+
+        var approvedAt = record.StatusHistory
+            .Where(history => history.ToStatus == BorrowStatuses.Approved)
+            .OrderByDescending(history => history.CreatedAt)
+            .Select(history => (DateTime?)history.CreatedAt)
+            .FirstOrDefault()
+            ?? record.BorrowDate;
+        return DateTime.SpecifyKind(approvedAt, DateTimeKind.Utc).AddHours(holdDurationHours);
     }
 
     private async Task GenerateDueMaintenanceAsync(DateTime utcNow, CancellationToken cancellationToken)
