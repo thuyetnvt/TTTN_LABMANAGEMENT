@@ -7,7 +7,7 @@
       </div>
       <div class="toolbar-actions">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Thiết bị, kế hoạch..." style="width: 240px" @search="applyFilters" />
-        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 160px" @change="applyFilters">
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Tình trạng kế hoạch" style="width: 190px" @change="applyFilters">
           <a-select-option value="DUE">Đã đến hạn</a-select-option>
           <a-select-option value="ACTIVE">Đang bật</a-select-option>
           <a-select-option value="INACTIVE">Tạm tắt</a-select-option>
@@ -20,7 +20,10 @@
       <a-table class="desktop-table" :data-source="schedules" :columns="columns" :loading="loading" row-key="id" bordered :scroll="{ x: 1200 }" :pagination="tablePagination" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'nextDueAt'">
-            <a-tag :color="record.isDue ? 'red' : 'blue'">{{ formatDate(record.nextDueAt) }}</a-tag>
+            <div class="due-date-cell">
+              <a-tag :color="record.isDue ? 'red' : 'blue'">{{ record.isDue ? 'Đã đến hạn' : 'Chưa đến hạn' }}</a-tag>
+              <span>{{ formatDate(record.nextDueAt) }}</span>
+            </div>
           </template>
           <template v-else-if="column.key === 'isActive'">
             <a-tag :color="record.isActive ? 'green' : 'default'">{{ record.isActive ? 'Đang bật' : 'Tạm tắt' }}</a-tag>
@@ -58,7 +61,7 @@
           <div class="mobile-schedule-name">{{ item.name }}</div>
           <dl class="mobile-schedule-details">
             <div><dt>Chu kỳ</dt><dd>{{ item.intervalDays }} {{ ({ DAY: 'ngày', WEEK: 'tuần', MONTH: 'tháng', QUARTER: 'quý', YEAR: 'năm' })[item.intervalUnit] || 'ngày' }}</dd></div>
-            <div><dt>Hạn kế tiếp</dt><dd><a-tag :color="item.isDue ? 'red' : 'blue'">{{ formatDate(item.nextDueAt) }}</a-tag></dd></div>
+            <div><dt>Hạn kế tiếp</dt><dd><a-tag :color="item.isDue ? 'red' : 'blue'">{{ item.isDue ? 'Đã đến hạn' : 'Chưa đến hạn' }}</a-tag> {{ formatDate(item.nextDueAt) }}</dd></div>
           </dl>
           <div class="mobile-schedule-actions">
             <a-button v-if="item.isActive" @click="generate(item)"><template #icon><FileAddOutlined /></template>Tạo phiếu</a-button>
@@ -159,8 +162,8 @@ const columns = [
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 260 },
   { title: 'Kế hoạch', dataIndex: 'name', key: 'name', width: 380 },
   { title: 'Chu kỳ', dataIndex: 'intervalDays', key: 'intervalDays', width: 120, customRender: ({ record }) => `${record.intervalDays} ${({ DAY: 'ngày', WEEK: 'tuần', MONTH: 'tháng', QUARTER: 'quý', YEAR: 'năm' })[record.intervalUnit] || 'ngày'}` },
-  { title: 'Hạn kế tiếp', dataIndex: 'nextDueAt', key: 'nextDueAt', width: 150 },
-  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 140 },
+  { title: 'Hạn bảo trì', dataIndex: 'nextDueAt', key: 'nextDueAt', width: 170 },
+  { title: 'Hoạt động', dataIndex: 'isActive', key: 'isActive', width: 120 },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 150, align: 'center' }
 ]
 
@@ -237,6 +240,8 @@ onMounted(load)
 .toolbar-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
 h2 { margin: 0; }
 .muted { margin: 5px 0 0; color: #777; }
+.due-date-cell { display: grid; gap: 4px; }
+.due-date-cell span { color: var(--color-text-secondary); font-size: 12px; }
 
 :deep(.schedule-action-button) {
   min-width: 36px;

@@ -6,7 +6,16 @@ import { ROLE_LABELS, STATUS, normalizeStatus, roleLabel, statusLabel, statusMat
 import { useNotificationStore } from '../src/stores/notificationStore.js'
 import { getApiErrorMessage, getApiSuccessMessage } from '../src/utils/apiError.js'
 import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
-import { getReturnConditionLabel } from '../src/utils/statusLabels.js'
+import {
+  getBorrowStatusLabel,
+  getConsumableRequestStatusLabel,
+  getEquipmentStatusLabel,
+  getInventoryStatusLabel,
+  getMaintenanceStatusLabel,
+  getPenaltyStatusLabel,
+  getReturnConditionLabel,
+  getStatusColor
+} from '../src/utils/statusLabels.js'
 import { formatVietnamDateInput, formatVietnamDateTime, vietnamDateInputToUtc } from '../src/utils/dateTime.js'
 import { createTablePagination, TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../src/utils/tablePagination.js'
 
@@ -80,6 +89,29 @@ test('chuẩn hóa trạng thái cũ nhưng giữ mã ổn định', () => {
   assert.equal(statusMatches(STATUS.BROKEN, STATUS.AVAILABLE), false)
 })
 
+test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', () => {
+  const cases = [
+    [getEquipmentStatusLabel, STATUS.BORROW_PENDING, 'Đã giữ chỗ', 'orange'],
+    [getEquipmentStatusLabel, STATUS.MISSING, 'Thất lạc', 'red'],
+    [getBorrowStatusLabel, STATUS.BORROW_PENDING, 'Chờ duyệt', 'orange'],
+    [getBorrowStatusLabel, STATUS.APPROVAL_PROCESSING, 'Đang xử lý duyệt', 'blue'],
+    [getBorrowStatusLabel, STATUS.RETURN_PROCESSING, 'Đang xử lý trả', 'blue'],
+    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_IN_PROGRESS, 'Đang bảo trì', 'blue'],
+    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_COMPLETING, 'Đang nghiệm thu', 'purple'],
+    [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_PENDING, 'Chờ duyệt cấp phát', 'orange'],
+    [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_ISSUED, 'Đã cấp phát', 'green'],
+    [getPenaltyStatusLabel, STATUS.UNPAID, 'Chưa thanh toán', 'red'],
+    [getPenaltyStatusLabel, STATUS.PAID, 'Đã thanh toán', 'green'],
+    [getInventoryStatusLabel, STATUS.INVENTORY_DAMAGED, 'Hư hỏng', 'red'],
+    [getInventoryStatusLabel, STATUS.INVENTORY_WRONG_LOCATION, 'Sai vị trí', 'orange']
+  ]
+
+  for (const [labeler, status, expectedLabel, expectedColor] of cases) {
+    assert.equal(labeler(status), expectedLabel, status)
+    assert.equal(getStatusColor(status), expectedColor, status)
+  }
+})
+
 test('notification store dedupe realtime và chỉ tăng unread một lần', () => {
   setActivePinia(createPinia())
   const store = useNotificationStore()
@@ -122,10 +154,10 @@ test('không hiển thị [object Object] khi response lỗi là object', () => 
 })
 
 test('điều hướng cảnh báo Dashboard đến đúng màn hình', () => {
-  assert.deepEqual(getDashboardAlertTarget('overdue'), { name: 'BorrowRequests' })
-  assert.deepEqual(getDashboardAlertTarget('low-stock'), { name: 'Devices', query: { tab: 'consumables' } })
+  assert.deepEqual(getDashboardAlertTarget('overdue'), { name: 'BorrowHistory', query: { status: 'OVERDUE' } })
+  assert.deepEqual(getDashboardAlertTarget('low-stock'), { name: 'Devices', query: { tab: 'consumables', stock: 'LOW_STOCK' } })
   assert.deepEqual(getDashboardAlertTarget('pending-borrow-requests'), { name: 'BorrowRequests' })
   assert.deepEqual(getDashboardAlertTarget('pending-consumable-requests'), { name: 'ConsumableRequests' })
-  assert.deepEqual(getDashboardAlertTarget('warranty-soon'), { name: 'Devices', query: { status: 'warranty' } })
+  assert.deepEqual(getDashboardAlertTarget('warranty-soon'), { name: 'Devices', query: { status: 'warranty-soon' } })
   assert.equal(getDashboardAlertTarget('unknown'), null)
 })

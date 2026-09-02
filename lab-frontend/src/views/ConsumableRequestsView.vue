@@ -10,7 +10,7 @@
       <div class="toolbar-filters">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Vật tư, người yêu cầu..." style="width: 260px" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 190px" @change="applyFilters">
-          <a-select-option :value="STATUS.CONSUMABLE_PENDING">Chờ xử lý</a-select-option>
+          <a-select-option :value="STATUS.CONSUMABLE_PENDING">Chờ duyệt cấp phát</a-select-option>
           <a-select-option :value="STATUS.CONSUMABLE_APPROVED">Chờ bàn giao</a-select-option>
           <a-select-option :value="STATUS.CONSUMABLE_HANDED_OVER">Chờ xác nhận nhận</a-select-option>
           <a-select-option :value="STATUS.CONSUMABLE_RECEIVED">Đã nhận</a-select-option>
@@ -59,12 +59,11 @@
                 Xem & xác nhận
               </a-button>
 
-              <a-tooltip v-else-if="!statusMatches(record.status, STATUS.CONSUMABLE_PENDING)" title="Xem chi tiết">
+              <a-tooltip v-else title="Xem chi tiết">
                 <a-button type="text" class="view-action-button" aria-label="Xem chi tiết yêu cầu" @click="showDetails(record)">
                   <template #icon><EyeOutlined /></template>
                 </a-button>
               </a-tooltip>
-              <span v-else class="waiting-text">Đang chờ duyệt</span>
             </div>
           </template>
         </template>
@@ -90,8 +89,7 @@
               <a-button danger @click="handleReject(item.id)">Từ chối</a-button>
             </template>
             <a-button v-else-if="!isManager && statusMatches(item.status, STATUS.CONSUMABLE_HANDED_OVER)" type="primary" block @click="openReceiptConfirmation(item)">Xem & xác nhận</a-button>
-            <a-button v-else-if="!statusMatches(item.status, STATUS.CONSUMABLE_PENDING)" block @click="showDetails(item)">Xem chi tiết</a-button>
-            <span v-else class="waiting-text">Đang chờ duyệt</span>
+            <a-button v-else block @click="showDetails(item)"><EyeOutlined /> Xem chi tiết</a-button>
           </div>
         </template>
       </ResponsiveDataList>

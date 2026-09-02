@@ -25,6 +25,10 @@
           <template v-else-if="column.key === 'status'">
              <StatusBadge :status="record.status" type="maintenance" />
           </template>
+          <template v-else-if="column.key === 'resultStatus'">
+             <StatusBadge v-if="record.resultStatus" :status="record.resultStatus" type="equipment" />
+             <span v-else class="muted">—</span>
+          </template>
           <template v-else-if="column.key === 'action'">
               <a-space class="table-action-buttons">
                 <a-tooltip v-if="statusMatches(record.status, STATUS.MAINTENANCE_IN_PROGRESS)" title="Hoàn tất bảo trì">
@@ -76,6 +80,7 @@
               <div><span>Chi phí</span><strong>{{ Number(item.cost || 0).toLocaleString('vi-VN') }} VNĐ</strong></div>
               <div><span>Nội dung</span><strong>{{ item.description || '—' }}</strong></div>
               <div><span>Kết quả</span><strong>{{ item.result || '—' }}</strong></div>
+              <div><span>Tình trạng thiết bị sau bảo trì</span><strong><StatusBadge v-if="item.resultStatus" :status="item.resultStatus" type="equipment" /><span v-else>—</span></strong></div>
             </div>
             <div class="maintenance-mobile-actions">
               <a-button
@@ -173,7 +178,7 @@
             <a-select-option :value="STATUS.AVAILABLE">Hoạt động bình thường — Rảnh</a-select-option>
             <a-select-option :value="STATUS.BROKEN">Chưa sửa được — Hỏng</a-select-option>
             <a-select-option :value="STATUS.UNDER_WARRANTY">Gửi hãng — Bảo hành</a-select-option>
-            <a-select-option :value="STATUS.MAINTENANCE_IN_PROGRESS">Cần xử lý tiếp — Đang bảo trì</a-select-option>
+            <a-select-option :value="STATUS.MAINTENANCE_IN_PROGRESS">Cần tiếp tục bảo trì — tạo phiếu tiếp theo</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="Kết quả checklist"><a-textarea v-model:value="completeChecklistResult" :rows="3" placeholder="Đạt/không đạt theo từng hạng mục" /></a-form-item>
@@ -258,6 +263,7 @@ const columns = [
   { title: 'Chi phí', dataIndex: 'cost', key: 'cost', width: 120 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160 },
   { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 280 },
+  { title: 'Tình trạng sau bảo trì', dataIndex: 'resultStatus', key: 'resultStatus', width: 180 },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 120 }
 ]
 

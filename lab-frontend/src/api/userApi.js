@@ -20,5 +20,6 @@ export const userApi = {
   create: (data) => axiosClient.post('/users', data),
   update: (id, data) => axiosClient.put(`/users/${id}`, data),
   changePassword: (data) => axiosClient.put('/users/me/password', data),
-  delete: (id) => axiosClient.delete(`/users/${id}`)
+  delete: (id) => axiosClient.delete(`/users/${id}`),
+  activate: (id) => axiosClient.put(`/users/${id}/activate`)
 };

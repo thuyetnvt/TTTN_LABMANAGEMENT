@@ -11,13 +11,17 @@
           <a-select-option :value="ROLE.TEACHER">Giảng viên</a-select-option>
           <a-select-option :value="ROLE.STUDENT">Sinh viên</a-select-option>
         </a-select>
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 140px" @change="applyFilters">
+          <a-select-option value="ACTIVE">Hoạt động</a-select-option>
+          <a-select-option value="INACTIVE">Đã khóa</a-select-option>
+        </a-select>
         <a-button v-if="isAdminRole(role)" type="primary" @click="showAddModal">+ Thêm tài khoản</a-button>
       </div>
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <a-spin :spinning="loading">
-        <UserTable :dataSource="users" :pagination="pagination" @change="handleTableChange" @edit="showEditModal" @delete="handleDelete" />
+        <UserTable :dataSource="users" :pagination="pagination" @change="handleTableChange" @edit="showEditModal" @delete="handleDelete" @activate="handleActivate" />
       </a-spin>
     </a-card>
 
@@ -55,6 +59,7 @@ const loading = ref(false)
 const submitting = ref(false)
 const searchQuery = ref('')
 const roleFilter = ref(undefined)
+const statusFilter = ref(undefined)
 const pagination = reactive({
   ...createTablePagination(),
   current: 1,
@@ -78,7 +83,8 @@ const fetchUsers = async () => {
       page: pagination.current,
       pageSize: pagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: roleFilter.value
+      role: roleFilter.value,
+      status: statusFilter.value
     })
     users.value = res.items || []
     pagination.total = res.total || 0
@@ -118,25 +124,36 @@ const showEditModal = (record) => {
 const handleDelete = (record) => {
   if (!isAdminRole(role.value)) return
   if (record.username === 'admin') {
-    message.warning('Không thể xóa tài khoản quản trị hệ thống!')
+    message.warning('Không thể khóa tài khoản quản trị hệ thống!')
     return
   }
   Modal.confirm({
-    title: 'Xóa tài khoản',
-    content: `Bạn có chắc chắn muốn xóa tài khoản ${record.username}?`,
-    okText: 'Xóa',
+    title: 'Khóa tài khoản',
+    content: `Khóa tài khoản ${record.username}? Người dùng sẽ bị đăng xuất và không thể đăng nhập cho đến khi được mở khóa.`,
+    okText: 'Khóa',
     okType: 'danger',
     cancelText: 'Hủy',
     onOk: async () => {
       try {
         await userApi.delete(record.id)
-        message.success(`Đã xóa tài khoản: ${record.username}`)
+        message.success(`Đã khóa tài khoản: ${record.username}`)
         fetchUsers()
       } catch (error) {
-        message.error(getApiErrorMessage(error, 'Lỗi khi xóa tài khoản!'))
+        message.error(getApiErrorMessage(error, 'Không thể khóa tài khoản!'))
       }
     }
   })
+}
+
+const handleActivate = async record => {
+  if (!isAdminRole(role.value)) return
+  try {
+    await userApi.activate(record.id)
+    message.success(`Đã mở khóa tài khoản: ${record.username}`)
+    await fetchUsers()
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể mở khóa tài khoản!'))
+  }
 }
 
 const handleModalOk = async () => {

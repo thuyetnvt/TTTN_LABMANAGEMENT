@@ -137,7 +137,7 @@
                 size="small"
                 @click="openReview(record)"
               >Xử lý</a-button>
-              <a-tag v-else-if="record.reviewedAt" color="success">Đã duyệt</a-tag>
+              <a-tag v-else-if="record.reviewedAt" color="success">Đã đối soát</a-tag>
               <span v-else>—</span>
             </template>
           </template>
@@ -236,7 +236,7 @@ const columns = [
   { title: 'Mã đợt', dataIndex: 'code', key: 'code', width: 150 },
   { title: 'Tên đợt', dataIndex: 'name', key: 'name', width: 230 },
   { title: 'Tiến độ', key: 'progress', width: 190 },
-  { title: 'Thiếu/chưa quét', key: 'missing', width: 150, customRender: ({ record }) => `${record.missing}/${record.total}` },
+  { title: 'Chưa quét / Thất lạc', key: 'missing', width: 170, customRender: ({ record }) => inventoryDifferenceLabel(record) },
   { title: 'Trạng thái', key: 'status', width: 150 },
   { title: 'Bắt đầu', key: 'startedAt', width: 150 },
   { title: 'Thao tác', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 96, align: 'center' }
@@ -267,6 +267,9 @@ const reviewOptions = computed(() => {
 
 const formatDate = value => formatVietnamDateTime(value)
 const progress = record => record.total ? Math.round(((record.found + record.wrongLocation + record.damaged) / record.total) * 100) : 0
+const inventoryDifferenceLabel = record => record.status === STATUS.INVENTORY_OPEN
+  ? `${record.pending ?? Math.max(0, record.total - record.found - record.wrongLocation - record.damaged)} chưa quét`
+  : `${record.missing || 0} thất lạc`
 
 const fetchAll = async () => {
   loading.value = true

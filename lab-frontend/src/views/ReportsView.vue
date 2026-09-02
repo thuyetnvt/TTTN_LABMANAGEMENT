@@ -267,10 +267,12 @@ const report = ref({
 
 const assetStatusOrder = [
   STATUS.AVAILABLE,
+  STATUS.BORROW_PENDING,
   STATUS.BORROWED,
   STATUS.MAINTENANCE_IN_PROGRESS,
   STATUS.UNDER_WARRANTY,
-  STATUS.BROKEN
+  STATUS.BROKEN,
+  STATUS.MISSING
 ]
 
 const borrowColumns = [
@@ -340,7 +342,8 @@ const statusRows = computed(() => {
   const counts = new Map(
     report.value.byStatus.map(item => [normalizeStatus(item.status), Number(item.count || 0)])
   )
-  return assetStatusOrder.map(value => ({ value, count: counts.get(value) || 0 }))
+  const extraStatuses = [...counts.keys()].filter(value => !assetStatusOrder.includes(value))
+  return [...assetStatusOrder, ...extraStatuses].map(value => ({ value, count: counts.get(value) || 0 }))
 })
 
 const statusTotal = computed(() => statusRows.value.reduce((total, item) => total + item.count, 0))
@@ -362,7 +365,7 @@ const attentionCards = computed(() => [
     description: 'Thiết bị cần được trả trước hạn.',
     icon: ClockCircleOutlined,
     tone: 'info',
-    route: { name: 'BorrowHistory' }
+    route: { name: 'BorrowHistory', query: { status: 'OVERDUE' } }
   },
   {
     key: 'maintenance',

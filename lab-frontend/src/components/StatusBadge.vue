@@ -1,5 +1,5 @@
 <template>
-  <a-tag :color="getStatusColor(status)" :title="label">
+  <a-tag :color="color || getStatusColor(status)" :title="label">
     {{ label }}
   </a-tag>
 </template>
@@ -25,6 +25,14 @@ const props = defineProps({
   type: {
     type: String,
     default: 'equipment'
+  },
+  labelOverride: {
+    type: String,
+    default: ''
+  },
+  color: {
+    type: String,
+    default: ''
   }
 })
 
@@ -38,5 +46,5 @@ const labelers = {
   returnCondition: getReturnConditionLabel
 }
 
-const label = computed(() => (labelers[props.type] || getEquipmentStatusLabel)(props.status))
+const label = computed(() => props.labelOverride || (labelers[props.type] || getEquipmentStatusLabel)(props.status))
 </script>

@@ -199,6 +199,14 @@ public class EquipmentController : ControllerBase
                     || equipment.Status == EquipmentStatuses.UnderWarranty
                     || equipment.Status == EquipmentStatuses.Missing);
             }
+            else if (string.Equals(status, "WARRANTY_SOON", StringComparison.OrdinalIgnoreCase))
+            {
+                var now = DateTime.UtcNow;
+                var deadline = now.AddDays(30);
+                query = query.Where(equipment => equipment.WarrantyExpiry.HasValue
+                    && equipment.WarrantyExpiry.Value >= now
+                    && equipment.WarrantyExpiry.Value <= deadline);
+            }
             else
             {
                 query = query.Where(equipment => equipment.Status == status);

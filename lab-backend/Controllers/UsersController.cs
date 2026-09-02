@@ -159,6 +159,7 @@ public class UsersController : ControllerBase
     [Authorize(Roles = Roles.Admin)]
     public async Task<ActionResult<PagedResult<UserDto>>> GetUsersPaged(
         [FromQuery] PageQuery paging,
+        [FromQuery] string? role,
         CancellationToken cancellationToken)
     {
         var query = _context.Users.AsNoTracking().AsQueryable();
@@ -183,10 +184,17 @@ public class UsersController : ControllerBase
             {
                 query = query.Where(user => !user.IsActive);
             }
-            else
+            else if (string.IsNullOrWhiteSpace(role))
             {
+                // Backward compatibility for older clients that sent the role
+                // through the generic status parameter.
                 query = query.Where(user => user.Role == status);
             }
+        }
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            var normalizedRole = role.Trim();
+            query = query.Where(user => user.Role == normalizedRole);
         }
 
         return await query

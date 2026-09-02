@@ -79,7 +79,7 @@ public static class StatusCodeMap
             ["Đang xử lý"] = MaintenanceStatuses.InProgress,
             ["Hoàn tất"] = MaintenanceStatuses.Completed,
             ["Hoàn thành"] = MaintenanceStatuses.Completed,
-            ["Đã cấp phát"] = ConsumableRequestStatuses.Issued,
+            ["Đã cấp phát"] = ConsumableRequestStatuses.Received,
             ["Chưa thanh toán"] = PenaltyStatuses.Unpaid,
             ["Đã thanh toán"] = PenaltyStatuses.Paid
         };
@@ -87,7 +87,7 @@ public static class StatusCodeMap
     public static readonly IReadOnlyDictionary<string, string> Labels =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            [BorrowStatuses.Pending] = "Chờ duyệt",
+            [BorrowStatuses.Pending] = "Chờ duyệt mượn",
             [BorrowStatuses.TeacherPending] = "Chờ giảng viên duyệt",
             [BorrowStatuses.Approved] = "Đã duyệt, chờ bàn giao",
             [BorrowStatuses.Borrowed] = "Đang mượn",
@@ -111,6 +111,8 @@ public static class StatusCodeMap
             [InventoryStatuses.Reviewing] = "Đang đối soát",
             [InventoryStatuses.Completed] = "Đã kết thúc kiểm kê",
             [EquipmentStatuses.Available] = "Sẵn sàng",
+            [EquipmentStatuses.Borrowed] = "Đang được mượn",
+            [EquipmentStatuses.MaintenanceInProgress] = "Đang bảo trì",
             [EquipmentStatuses.Broken] = "Hỏng",
             [EquipmentStatuses.Missing] = "Thất lạc",
             [EquipmentStatuses.UnderWarranty] = "Đang bảo hành"

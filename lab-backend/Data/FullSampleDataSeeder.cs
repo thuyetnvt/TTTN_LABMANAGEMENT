@@ -357,7 +357,7 @@ public static class FullSampleDataSeeder
         {
             new BorrowSeed("sv2", "TS-DEMO-001", "giangvien2", BorrowStatuses.TeacherPending, -1, 8, "[SEED-FULL-BORROW-001] Bài thực hành MQTT và ESP32."),
             new BorrowSeed("sv3", "TS-DEMO-002", "giangvien2", BorrowStatuses.Pending, -2, 5, "[SEED-FULL-BORROW-002] Lập trình Arduino nâng cao."),
-            new BorrowSeed("sv4", "TS-DEMO-003", "giangvien3", BorrowStatuses.ProcessingApproval, -1, 10, "[SEED-FULL-BORROW-003] Huấn luyện mô hình nhận diện ảnh."),
+            new BorrowSeed("sv4", "TS-DEMO-003", "giangvien3", BorrowStatuses.Pending, -1, 10, "[SEED-FULL-BORROW-003] Huấn luyện mô hình nhận diện ảnh."),
             new BorrowSeed("sv5", "TS-DEMO-004", "giangvien3", BorrowStatuses.Borrowed, -12, -4, "[SEED-FULL-BORROW-004] Thu thập dữ liệu cảm biến ngoài trời."),
             new BorrowSeed("sv6", "TS-DEMO-005", "giangvien2", BorrowStatuses.Borrowed, -2, 6, "[SEED-FULL-BORROW-005] Thử nghiệm truyền dữ liệu LoRa."),
             new BorrowSeed("sv7", "TS-DEMO-006", "giangvien2", BorrowStatuses.ReturnProcessing, -6, 1, "[SEED-FULL-BORROW-006] Kiểm thử mạng Zigbee."),
@@ -434,12 +434,12 @@ public static class FullSampleDataSeeder
         var requests = new[]
         {
             new ConsumableRequestSeed("sv2", "VT-SEED-001", 8, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-001] Thực hành cảm biến nhiệt."),
-            new ConsumableRequestSeed("sv3", "VT-SEED-002", 4, ConsumableRequestStatuses.Processing, "[SEED-FULL-REQ-002] Chuẩn bị mạch relay."),
-            new ConsumableRequestSeed("sv4", "VT-SEED-003", 6, ConsumableRequestStatuses.Issued, "[SEED-FULL-REQ-003] Làm bài thực hành RFID."),
+            new ConsumableRequestSeed("sv3", "VT-SEED-002", 4, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-002] Chuẩn bị mạch relay."),
+            new ConsumableRequestSeed("sv4", "VT-SEED-003", 6, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-003] Làm bài thực hành RFID."),
             new ConsumableRequestSeed("sv5", "VT-SEED-004", 10, ConsumableRequestStatuses.Rejected, "[SEED-FULL-REQ-004] Vật tư vượt định mức."),
             new ConsumableRequestSeed("sv6", "VT-SEED-005", 12, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-005] Lắp ráp bộ dây thực hành."),
-            new ConsumableRequestSeed("sv7", "VT-SEED-006", 20, ConsumableRequestStatuses.Issued, "[SEED-FULL-REQ-006] Hoàn thiện mạch nguồn."),
-            new ConsumableRequestSeed("sv8", "VT-SEED-007", 5, ConsumableRequestStatuses.Processing, "[SEED-FULL-REQ-007] Cấp pin cho robot."),
+            new ConsumableRequestSeed("sv7", "VT-SEED-006", 20, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-006] Hoàn thiện mạch nguồn."),
+            new ConsumableRequestSeed("sv8", "VT-SEED-007", 5, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-007] Cấp pin cho robot."),
             new ConsumableRequestSeed("sv9", "VT-SEED-009", 2, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-008] Bảo trì máy tính lab.")
         };
 
@@ -448,6 +448,7 @@ public static class FullSampleDataSeeder
             if (!users.TryGetValue(seed.Username, out var userId) || !consumables.TryGetValue(seed.Code, out var consumableId)) continue;
             if (await context.ConsumableRequests.AnyAsync(item => item.Reason == seed.Reason)) continue;
 
+            var completedAt = now.AddDays(-seed.Quantity + 1);
             context.ConsumableRequests.Add(new ConsumableRequest
             {
                 UserId = userId,
@@ -456,7 +457,13 @@ public static class FullSampleDataSeeder
                 Reason = seed.Reason,
                 Status = seed.Status,
                 RequestDate = now.AddDays(-seed.Quantity),
-                ApprovalDate = seed.Status is ConsumableRequestStatuses.Issued or ConsumableRequestStatuses.Rejected ? now.AddDays(-seed.Quantity + 1) : null
+                ApprovalDate = seed.Status is ConsumableRequestStatuses.Approved
+                    or ConsumableRequestStatuses.HandedOver
+                    or ConsumableRequestStatuses.Received
+                    or ConsumableRequestStatuses.Rejected ? completedAt : null,
+                HandedOverAt = seed.Status is ConsumableRequestStatuses.HandedOver
+                    or ConsumableRequestStatuses.Received ? completedAt : null,
+                ReceivedAt = seed.Status == ConsumableRequestStatuses.Received ? completedAt : null
             });
         }
 
@@ -473,7 +480,7 @@ public static class FullSampleDataSeeder
         var seeds = new[]
         {
             new MaintenanceSeed("TS-DEMO-009", MaintenanceStatuses.InProgress, 1, 450000, "Kiểm tra ổ cứng và cập nhật môi trường AI.", "Kỹ thuật lab", "Nhà cung cấp thiết bị mẫu"),
-            new MaintenanceSeed("TS-DEMO-016", MaintenanceStatuses.Completing, 3, 180000, "Thay mũi hàn và kiểm tra nhiệt độ.", "Kỹ thuật điện tử", "Hakko Việt Nam"),
+            new MaintenanceSeed("TS-DEMO-016", MaintenanceStatuses.InProgress, 3, 180000, "Thay mũi hàn và kiểm tra nhiệt độ.", "Kỹ thuật điện tử", "Hakko Việt Nam"),
             new MaintenanceSeed("TS-DEMO-010", MaintenanceStatuses.Completed, 5, 250000, "Hiệu chuẩn máy hiện sóng.", "Kỹ thuật đo lường", "Rigol Service"),
             new MaintenanceSeed("TS-DEMO-011", MaintenanceStatuses.Completed, 8, 900000, "Kiểm tra và thay cầu chì bảo vệ.", "Kỹ thuật đo lường", "Keysight Service"),
             new MaintenanceSeed("TS-DEMO-017", MaintenanceStatuses.Completed, 12, 320000, "Vệ sinh đầu phun và cân bàn máy in.", "Kỹ thuật cơ khí", "Bambu Lab Service"),

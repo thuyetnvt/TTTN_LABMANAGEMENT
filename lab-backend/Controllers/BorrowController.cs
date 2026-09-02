@@ -441,6 +441,8 @@ public class BorrowController : ControllerBase
                 serial = item.Equipment != null ? item.Equipment.Serial : string.Empty,
                 requestDate = item.BorrowDate,
                 returnDate = item.ActualReturnDate ?? item.ExpectedReturnDate,
+                expectedReturnDate = item.ExpectedReturnDate,
+                actualReturnDate = item.ActualReturnDate,
                 status = item.Status,
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,
@@ -531,7 +533,15 @@ public class BorrowController : ControllerBase
         if (!string.IsNullOrWhiteSpace(paging.Status))
         {
             var status = paging.Status.Trim();
-            query = query.Where(item => item.Status == status);
+            if (string.Equals(status, "OVERDUE", StringComparison.OrdinalIgnoreCase))
+            {
+                var today = VietnamTime.Today();
+                query = query.Where(item => item.Status == Borrowed && item.ExpectedReturnDate < today);
+            }
+            else
+            {
+                query = query.Where(item => item.Status == status);
+            }
         }
         if (paging.From.HasValue)
         {
@@ -565,6 +575,8 @@ public class BorrowController : ControllerBase
                 serial = item.Equipment?.Serial ?? string.Empty,
                 requestDate = item.BorrowDate,
                 returnDate = item.ActualReturnDate ?? item.ExpectedReturnDate,
+                expectedReturnDate = item.ExpectedReturnDate,
+                actualReturnDate = item.ActualReturnDate,
                 status = item.Status,
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,

@@ -25,11 +25,10 @@
             <StatusBadge :status="record.status" type="penalty" />
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-button v-if="statusMatches(record.status, STATUS.UNPAID) && isManagerRole(role)"
-                      type="primary" size="small" @click="handlePay(record)">
-              Xác nhận Thu tiền
-            </a-button>
-            <span v-else style="color: #9ca3af; font-size: 13px;">Không có</span>
+            <a-space>
+              <a-button v-if="statusMatches(record.status, STATUS.UNPAID) && isManagerRole(role)" type="primary" size="small" @click="handlePay(record)">Xác nhận thu tiền</a-button>
+              <a-tooltip title="Xem biên bản"><a-button type="text" class="view-action" aria-label="Xem biên bản bồi thường" @click="showDetails(record)"><template #icon><EyeOutlined /></template></a-button></a-tooltip>
+            </a-space>
           </template>
         </template>
       </a-table>
@@ -40,15 +39,27 @@
           <p>{{ item.reason }}</p>
           <div class="mobile-penalty-amount">{{ item.amount.toLocaleString('vi-VN') }} ₫</div>
           <a-button v-if="statusMatches(item.status, STATUS.UNPAID) && isManagerRole(role)" type="primary" block @click="handlePay(item)">Xác nhận thu tiền</a-button>
+          <a-button block @click="showDetails(item)"><EyeOutlined /> Xem biên bản</a-button>
         </template>
       </ResponsiveDataList>
     </a-card>
+    <a-modal v-model:open="detailsVisible" title="Biên bản bồi thường" :footer="null" width="620px">
+      <a-descriptions v-if="selectedPenalty" bordered :column="1" size="small">
+        <a-descriptions-item label="Người bồi thường">{{ selectedPenalty.username }}</a-descriptions-item>
+        <a-descriptions-item label="Thiết bị">{{ selectedPenalty.equipmentName }}</a-descriptions-item>
+        <a-descriptions-item label="Lý do / tình trạng">{{ selectedPenalty.reason }}</a-descriptions-item>
+        <a-descriptions-item label="Số tiền">{{ selectedPenalty.amount.toLocaleString('vi-VN') }} ₫</a-descriptions-item>
+        <a-descriptions-item label="Ngày lập">{{ formatVietnamDate(selectedPenalty.createdAt) }}</a-descriptions-item>
+        <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedPenalty.status" type="penalty" /></a-descriptions-item>
+      </a-descriptions>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { reactive, ref, onMounted, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
+import { EyeOutlined } from '@ant-design/icons-vue'
 import { penaltyApi } from '../api/penaltyApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -71,6 +82,12 @@ const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const detailsVisible = ref(false)
+const selectedPenalty = ref(null)
+const showDetails = record => {
+  selectedPenalty.value = record
+  detailsVisible.value = true
+}
 
 const columns = [
   { title: 'Người bồi thường', dataIndex: 'username', key: 'username' },
@@ -147,6 +164,7 @@ const handlePay = (record) => {
 .mobile-penalty-heading strong { color: var(--color-ink); font-size: 15px; }
 .mobile-penalty-user { margin-top: 5px; color: var(--color-text-secondary); font-size: 12px; }
 .mobile-penalty-amount { margin: 10px 0; color: #dc2626; font-size: 18px; font-weight: 700; }
+.view-action { color: var(--color-primary); }
 @media (max-width: 767px) { .desktop-table { display: none; } .toolbar-filters > * { width: 100% !important; } }
 </style>
 
