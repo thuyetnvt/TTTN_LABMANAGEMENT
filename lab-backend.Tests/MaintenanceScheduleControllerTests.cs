@@ -4,6 +4,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Encodings.Web;
 using LabManagementAPI.Controllers;
 using LabManagementAPI.Data;
 using LabManagementAPI.Models;
@@ -18,6 +20,42 @@ namespace LabManagementAPI.Tests;
 
 public sealed class MaintenanceScheduleControllerTests
 {
+    [Fact]
+    public async Task GetAll_hides_internal_seed_marker_from_schedule_name()
+    {
+        await using var context = CreateContext();
+        context.Equipments.Add(new Equipment
+        {
+            Id = 1,
+            AssetCode = "IOT-001",
+            QrToken = "qr-001",
+            Name = "Gateway",
+            Model = "GW-1",
+            Serial = "SN-001",
+            Location = "Phòng Lab"
+        });
+        context.MaintenanceSchedules.Add(new MaintenanceSchedule
+        {
+            Id = 1,
+            EquipmentId = 1,
+            Name = "[SEED-FULL] Hiệu chuẩn hàng quý",
+            IntervalDays = 90,
+            NextDueAt = DateTime.UtcNow.AddDays(90),
+            CreatedByUserId = 7
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context).GetAll(CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var json = JsonSerializer.Serialize(ok.Value, new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        });
+        Assert.DoesNotContain("[SEED-FULL]", json, StringComparison.Ordinal);
+        Assert.Contains("Hiệu chuẩn hàng quý", json, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Create_rejects_unknown_equipment()
     {
