@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using LabManagementAPI.Controllers;
 using LabManagementAPI.Data;
+using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Http;
@@ -18,6 +20,52 @@ namespace LabManagementAPI.Tests;
 
 public sealed class ConsumableRequestControllerTests
 {
+    [Fact]
+    public async Task Paged_requests_return_requester_full_name_for_students_and_managers()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            context.Users.Add(new User
+            {
+                Id = 1,
+                Username = "sv5",
+                FullName = "Phạm Hà My",
+                Role = Roles.Student,
+                IsActive = true
+            });
+            context.Consumables.Add(new Consumable
+            {
+                Id = 1,
+                Code = "VT-001",
+                Name = "Dây Dupont",
+                Unit = "bộ",
+                Quantity = 20
+            });
+            context.ConsumableRequests.Add(new ConsumableRequest
+            {
+                Id = 1,
+                ConsumableId = 1,
+                UserId = 1,
+                Quantity = 10,
+                Reason = "Thực hành",
+                Status = ConsumableRequestStatuses.Pending
+            });
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 1, Roles.Student);
+            var result = await controller.GetRequestsPaged(new PageQuery(), CancellationToken.None);
+
+            var response = Assert.IsType<OkObjectResult>(result);
+            using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+                response.Value,
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            var item = json.RootElement.GetProperty("items")[0];
+            Assert.Equal("Phạm Hà My", item.GetProperty("fullName").GetString());
+            Assert.Equal("sv5", item.GetProperty("username").GetString());
+        }
+    }
+
     [Fact]
     public async Task Approve_rejects_insufficient_stock_without_making_stock_negative()
     {
