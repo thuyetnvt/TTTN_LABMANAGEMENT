@@ -11,7 +11,8 @@
           <a-select-option :value="ROLE.TEACHER">Giảng viên</a-select-option>
           <a-select-option :value="ROLE.STUDENT">Sinh viên</a-select-option>
         </a-select>
-        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 140px" @change="applyFilters">
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
+          <a-select-option value="">Tất cả</a-select-option>
           <a-select-option value="ACTIVE">Hoạt động</a-select-option>
           <a-select-option value="INACTIVE">Đã khóa</a-select-option>
         </a-select>

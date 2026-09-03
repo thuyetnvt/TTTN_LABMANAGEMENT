@@ -31,7 +31,7 @@
       </a-table>
       <ResponsiveDataList :items="dataSource" :loading="loading" :pagination="tablePagination" empty-description="Không có yêu cầu chờ bảo lãnh" @change="handleTableChange">
         <template #default="{ item }">
-          <div class="mobile-approval-heading"><strong>{{ item.student }}</strong><StatusBadge :status="item.status" type="borrow" /></div>
+          <div class="mobile-approval-heading"><strong>{{ borrowerLabel(item) }}</strong><StatusBadge :status="item.status" type="borrow" /></div>
           <div class="mobile-approval-device">{{ item.device }}</div>
           <div v-for="detail in item.details || []" :key="detail.equipmentId" class="detail-line">{{ detail.equipmentName }} — {{ detail.serial }}</div>
           <dl class="mobile-approval-details">
@@ -56,7 +56,7 @@
     cancel-text="Hủy"
     @ok="submitDecision"
   >
-    <p v-if="selectedRecord">Yêu cầu của {{ selectedRecord.student }} — {{ selectedRecord.device }}</p>
+    <p v-if="selectedRecord">Yêu cầu của {{ borrowerLabel(selectedRecord) }} — {{ selectedRecord.device }}</p>
     <a-form-item label="Ghi chú quyết định" required>
       <a-textarea v-model:value="decisionNote" :rows="4" placeholder="Nhập lý do hoặc ghi chú xử lý..." />
     </a-form-item>
@@ -88,8 +88,10 @@ const decisionType = ref('approve')
 const decisionNote = ref('')
 const selectedRecord = ref(null)
 
+const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
+
 const columns = [
-  { title: 'Sinh viên', dataIndex: 'student', key: 'student' },
+  { title: 'Sinh viên', dataIndex: 'borrowerName', key: 'borrowerName' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device' },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate' },
   { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate' },
@@ -149,10 +151,10 @@ const submitDecision = async () => {
     const record = selectedRecord.value
     if (decisionType.value === 'approve') {
       await borrowApi.teacherApprove(record.id, note)
-      message.success(`Đã bảo lãnh cho sinh viên ${record.student}. Đơn đã chuyển lên kho.`)
+      message.success(`Đã bảo lãnh cho sinh viên ${borrowerLabel(record)}. Đơn đã chuyển lên kho.`)
     } else {
       await borrowApi.teacherReject(record.id, note)
-      message.warning(`Đã từ chối bảo lãnh yêu cầu của sinh viên ${record.student}.`)
+      message.warning(`Đã từ chối bảo lãnh yêu cầu của sinh viên ${borrowerLabel(record)}.`)
     }
     decisionOpen.value = false
     fetchRequests()

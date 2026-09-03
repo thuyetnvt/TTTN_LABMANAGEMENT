@@ -7,7 +7,8 @@
       </div>
       <div class="toolbar-actions">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Thiết bị, kế hoạch..." style="width: 240px" @search="applyFilters" />
-        <a-select v-model:value="statusFilter" allow-clear placeholder="Tình trạng kế hoạch" style="width: 190px" @change="applyFilters">
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Tình trạng kế hoạch" class="status-filter" @change="applyFilters">
+          <a-select-option value="">Tất cả</a-select-option>
           <a-select-option value="DUE">Đã đến hạn</a-select-option>
           <a-select-option value="ACTIVE">Đang bật</a-select-option>
           <a-select-option value="INACTIVE">Tạm tắt</a-select-option>

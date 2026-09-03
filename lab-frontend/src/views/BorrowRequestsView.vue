@@ -4,7 +4,8 @@
       <h2>Duyệt yêu cầu mượn/trả</h2>
       <div class="toolbar-filters">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người mượn, thiết bị..." style="width: 260px" @search="applyFilters" />
-        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 190px" @change="applyFilters">
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
+          <a-select-option value="">Tất cả</a-select-option>
           <a-select-option :value="STATUS.BORROW_PENDING">Chờ duyệt</a-select-option>
           <a-select-option :value="STATUS.APPROVED">Chờ bàn giao</a-select-option>
           <a-select-option :value="STATUS.BORROWED">Đang mượn</a-select-option>
@@ -64,7 +65,7 @@
       <ResponsiveDataList :items="dataSource" :loading="loading" :pagination="tablePagination" empty-description="Không có phiếu cần xử lý" @change="handleTableChange">
         <template #default="{ item }">
           <div class="mobile-request-heading">
-            <div><strong>{{ item.device }}</strong><span>{{ item.student }} · {{ item.serial || 'Không có số seri' }}</span></div>
+            <div><strong>{{ item.device }}</strong><span>{{ borrowerLabel(item) }} · {{ item.serial || 'Không có số seri' }}</span></div>
             <StatusBadge :status="item.status" type="borrow" :label-override="borrowWorkflowLabel(item)" />
           </div>
           <div class="mobile-request-dates">
@@ -337,7 +338,7 @@ const returnForm = ref({
 })
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'student', key: 'student', width: 130 },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170 },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160 },
   { title: 'Danh mục', dataIndex: 'category', key: 'category', width: 110 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
@@ -360,6 +361,8 @@ const formatFileSize = (bytes) => {
 const borrowRecordCode = computed(() => currentHandoverRecord.value?.id ? `BR-${String(currentHandoverRecord.value.id).padStart(6, '0')}` : '—')
 const completedHandoverItems = computed(() => handoverForm.value.items.filter(item => Boolean(item.condition)).length)
 const isReminding = id => remindingRecordIds.value.has(id)
+
+const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
 
 const borrowWorkflowLabel = record => {
   if (statusMatches(record.status, STATUS.APPROVED)) {
@@ -421,7 +424,7 @@ const handleTableChange = (pager) => {
 const handleApprove = async (record) => {
   try {
     await borrowApi.approve(record.id)
-    message.success(`Đã duyệt cho ${record.student} mượn tài sản!`)
+    message.success(`Đã duyệt cho ${borrowerLabel(record)} mượn tài sản!`)
     fetchRequests()
   } catch (error) {
     message.error(getApiErrorMessage(error, 'Lỗi duyệt yêu cầu!'))
@@ -431,7 +434,7 @@ const handleApprove = async (record) => {
 const handleReject = async (record) => {
   try {
     await borrowApi.reject(record.id)
-    message.warning(`Đã từ chối yêu cầu của ${record.student}.`)
+    message.warning(`Đã từ chối yêu cầu của ${borrowerLabel(record)}.`)
     fetchRequests()
   } catch {
     message.error('Lỗi từ chối yêu cầu!')

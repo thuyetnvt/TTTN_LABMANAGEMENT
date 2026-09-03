@@ -454,6 +454,7 @@ public class BorrowController : ControllerBase
             {
                 id = item.Id,
                 student = item.User!.Username,
+                borrowerName = item.User!.FullName,
                 device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
                 serial = item.Equipment != null ? item.Equipment.Serial : string.Empty,
                 requestDate = item.BorrowDate,
@@ -597,6 +598,7 @@ public class BorrowController : ControllerBase
             {
                 id = item.Id,
                 student = item.User!.Username,
+                borrowerName = item.User!.FullName,
                 device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
                 serial = item.Equipment?.Serial ?? string.Empty,
                 requestDate = item.BorrowDate,
@@ -680,6 +682,7 @@ public class BorrowController : ControllerBase
             {
                 id = item.Id,
                 student = item.User!.Username,
+                borrowerName = item.User!.FullName,
                 device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
                 requestDate = item.BorrowDate,
                 returnDate = item.ExpectedReturnDate,
@@ -733,6 +736,7 @@ public class BorrowController : ControllerBase
         {
             id = item.Id,
             student = item.User!.Username,
+            borrowerName = item.User!.FullName,
             device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,

@@ -6,7 +6,8 @@
 
     <div class="inventory-filters">
       <a-input-search v-model:value="searchQuery" allow-clear placeholder="Mã hoặc tên đợt kiểm kê..." style="width: 280px" @search="applyFilters" />
-      <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 180px" @change="applyFilters">
+      <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
+        <a-select-option value="">Tất cả</a-select-option>
         <a-select-option :value="STATUS.INVENTORY_OPEN">Đang kiểm kê</a-select-option>
         <a-select-option :value="STATUS.INVENTORY_REVIEWING">Đang đối soát</a-select-option>
         <a-select-option :value="STATUS.INVENTORY_COMPLETED">Đã kết thúc</a-select-option>
@@ -113,7 +114,8 @@
         </a-space>
         <div class="inventory-item-filters">
           <a-input-search v-model:value="itemSearchQuery" allow-clear placeholder="Tìm tài sản trong đợt..." @search="applyItemFilters" />
-          <a-select v-model:value="itemStatusFilter" allow-clear placeholder="Kết quả" @change="applyItemFilters">
+          <a-select v-model:value="itemStatusFilter" allow-clear placeholder="Kết quả" class="status-filter" @change="applyItemFilters">
+            <a-select-option value="">Tất cả</a-select-option>
             <a-select-option :value="STATUS.INVENTORY_PENDING">Chưa quét</a-select-option>
             <a-select-option :value="STATUS.INVENTORY_FOUND">Đã tìm thấy</a-select-option>
             <a-select-option :value="STATUS.INVENTORY_WRONG_LOCATION">Sai vị trí</a-select-option>
@@ -559,7 +561,7 @@ onMounted(fetchAll)
 <style scoped>
 .inventory-container { padding: 0; }
 .inventory-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; }
-.inventory-item-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 180px; gap: 10px; margin-top: 16px; }
+.inventory-item-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 220px; gap: 10px; margin-top: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
 .toolbar h2 { margin: 0; font-weight: 600; }
 .toolbar p { color: #64748b; margin: 6px 0 0; }

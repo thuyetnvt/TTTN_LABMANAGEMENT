@@ -3,7 +3,8 @@
     <div class="table-actions">
       <div class="left-actions">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm mã, tên vật tư..." style="width: 260px" @search="applyFilters" />
-        <a-select v-model:value="stockFilter" allow-clear placeholder="Tình trạng tồn" style="width: 170px" @change="applyFilters">
+        <a-select v-model:value="stockFilter" allow-clear placeholder="Tình trạng tồn" class="status-filter" @change="applyFilters">
+          <a-select-option value="">Tất cả</a-select-option>
           <a-select-option value="AVAILABLE">Đủ dùng</a-select-option>
           <a-select-option value="LOW_STOCK">Cần nhập thêm</a-select-option>
         </a-select>

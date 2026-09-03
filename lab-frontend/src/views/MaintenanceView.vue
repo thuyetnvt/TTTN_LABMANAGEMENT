@@ -4,7 +4,8 @@
       <h2>Lịch sử Bảo trì & Hiệu chuẩn</h2>
       <div class="toolbar-actions">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Thiết bị, nội dung..." style="width: 240px" @search="applyFilters" />
-        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 180px" @change="applyFilters">
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
+          <a-select-option value="">Tất cả</a-select-option>
           <a-select-option :value="STATUS.MAINTENANCE_IN_PROGRESS">Đang bảo trì</a-select-option>
           <a-select-option :value="STATUS.MAINTENANCE_COMPLETED">Đã hoàn tất</a-select-option>
         </a-select>

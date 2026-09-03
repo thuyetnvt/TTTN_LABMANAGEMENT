@@ -4,7 +4,8 @@
       <h2>Lịch sử mượn/trả</h2>
       <div class="toolbar-filters">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người mượn, thiết bị..." style="width: 260px" @search="applyFilters" />
-        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 180px" @change="applyFilters">
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
+          <a-select-option value="">Tất cả</a-select-option>
           <a-select-option :value="STATUS.BORROW_PENDING">Chờ quản lý duyệt</a-select-option>
           <a-select-option :value="STATUS.TEACHER_PENDING">Chờ giảng viên duyệt</a-select-option>
           <a-select-option :value="STATUS.APPROVED">Chờ nhận</a-select-option>
@@ -66,7 +67,7 @@
             <strong>{{ item.device }}</strong>
             <StatusBadge :status="item.status" type="borrow" :label-override="borrowWorkflowLabel(item)" />
           </div>
-          <div class="mobile-card-subtitle">{{ item.student }} · {{ item.serial || 'Không có số seri' }}</div>
+          <div class="mobile-card-subtitle">{{ borrowerLabel(item) }} · {{ item.serial || 'Không có số seri' }}</div>
           <dl class="mobile-card-details">
             <div><dt>Ngày đăng ký</dt><dd>{{ formatDate(item.requestDate) }}</dd></div>
             <div><dt>Hạn trả</dt><dd>{{ formatDate(item.expectedReturnDate) }}</dd></div>
@@ -119,7 +120,7 @@
 
     <a-modal v-model:open="isDetailsVisible" title="Chi tiết phiếu mượn/trả" :footer="null" width="760px">
       <a-descriptions v-if="selectedRecord" bordered size="small" :column="1">
-        <a-descriptions-item label="Người mượn">{{ selectedRecord.student }}</a-descriptions-item>
+        <a-descriptions-item label="Người mượn">{{ borrowerLabel(selectedRecord) }}</a-descriptions-item>
         <a-descriptions-item label="Thiết bị">{{ selectedRecord.device }}</a-descriptions-item>
         <a-descriptions-item label="Hạn trả">{{ formatDate(selectedRecord.expectedReturnDate) }}</a-descriptions-item>
         <a-descriptions-item label="Ngày trả thực tế">{{ selectedRecord.actualReturnDate ? formatDate(selectedRecord.actualReturnDate) : 'Chưa trả' }}</a-descriptions-item>
@@ -192,8 +193,10 @@ const cancelling = ref(false)
 const cancelReason = ref('')
 const cancelRecord = ref(null)
 
+const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
+
 const columns = [
-  { title: 'Người mượn', dataIndex: 'student', key: 'student', width: 130 },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170 },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },

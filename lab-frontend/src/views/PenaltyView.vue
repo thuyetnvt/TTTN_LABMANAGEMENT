@@ -5,7 +5,8 @@
       <p style="color: #6b7280; margin-bottom: 24px;">Danh sách các biên bản bồi thường liên quan đến người mượn và thiết bị.</p>
       <div class="toolbar-filters">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người dùng, thiết bị..." style="width: 260px" @search="applyFilters" />
-        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 170px" @change="applyFilters">
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
+          <a-select-option value="">Tất cả</a-select-option>
           <a-select-option :value="STATUS.UNPAID">Chưa thanh toán</a-select-option>
           <a-select-option :value="STATUS.PAID">Đã thanh toán</a-select-option>
         </a-select>

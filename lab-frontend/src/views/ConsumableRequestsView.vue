@@ -9,7 +9,8 @@
       </p>
       <div class="toolbar-filters">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Vật tư, người yêu cầu..." style="width: 260px" @search="applyFilters" />
-        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 190px" @change="applyFilters">
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
+          <a-select-option value="">Tất cả</a-select-option>
           <a-select-option :value="STATUS.CONSUMABLE_PENDING">Chờ duyệt cấp phát</a-select-option>
           <a-select-option :value="STATUS.CONSUMABLE_APPROVED">Chờ bàn giao</a-select-option>
           <a-select-option :value="STATUS.CONSUMABLE_HANDED_OVER">Chờ xác nhận nhận</a-select-option>
