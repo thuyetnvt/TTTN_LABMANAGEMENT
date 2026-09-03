@@ -122,6 +122,22 @@ test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', ()
   }
 })
 
+test('kiểm kê hiển thị đã đối soát cho tài sản đã quét bình thường', () => {
+  const source = readFileSync(new URL('../src/views/InventoryView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /record\.reviewedAt \|\| isScannedNormally\(record\)/)
+  assert.match(source, /const isScannedNormally = record => record\.status === STATUS\.INVENTORY_FOUND && Boolean\(record\.scannedAt\)/)
+})
+
+test('landing page dùng ảnh nội bộ để không phụ thuộc URL ảnh ngoài', () => {
+  const source = readFileSync(new URL('../src/views/LandingView.vue', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(source, /images\.unsplash\.com/)
+  assert.match(source, /src="\/hero\.png"/)
+  assert.match(source, /image: '\/lab-bg\.png'/)
+  assert.match(source, /image: '\/feature\.png'/)
+})
+
 test('luồng hủy phiếu có nút và lý do ở cả người mượn và quản lý', () => {
   const historySource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
   const requestsSource = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
