@@ -36,23 +36,7 @@
               <div class="request-actions">
                 <template v-if="statusMatches(record.status, STATUS.BORROW_PENDING)">
                   <a-button type="primary" size="small" @click="handleApprove(record)">Duyệt</a-button>
-                  <a-dropdown trigger="click">
-                    <a-tooltip title="Thêm thao tác">
-                      <a-button
-                        type="text"
-                        size="small"
-                        class="request-more-button"
-                        aria-label="Mở thêm thao tác phiếu mượn"
-                      >
-                        <template #icon><MoreOutlined /></template>
-                      </a-button>
-                    </a-tooltip>
-                    <template #overlay>
-                      <a-menu @click="event => handleActionMenuClick(event, record)">
-                        <a-menu-item key="reject">Từ chối</a-menu-item>
-                      </a-menu>
-                    </template>
-                  </a-dropdown>
+                  <a-button danger size="small" @click="handleReject(record)">Từ chối</a-button>
                 </template>
                 <template v-else-if="statusMatches(record.status, STATUS.APPROVED)">
                   <a-button v-if="!record.hasHandover" type="primary" size="small" @click="showHandoverModal(record)">
@@ -69,26 +53,7 @@
                 </template>
                 <template v-else-if="statusMatches(record.status, STATUS.BORROWED) || statusMatches(record.status, STATUS.RETURN_PROCESSING)">
                   <a-button type="default" size="small" @click="showReturnModal(record)">Kiểm tra trả</a-button>
-                  <a-dropdown trigger="click">
-                    <a-tooltip title="Thêm thao tác">
-                      <a-button
-                        type="text"
-                        size="small"
-                        class="request-more-button"
-                        aria-label="Mở thêm thao tác phiếu mượn"
-                      >
-                        <template #icon><MoreOutlined /></template>
-                      </a-button>
-                    </a-tooltip>
-                    <template #overlay>
-                      <a-menu @click="event => handleActionMenuClick(event, record)">
-                        <a-menu-item key="remind" :disabled="isReminding(record.id)">
-                          <LoadingOutlined v-if="isReminding(record.id)" />
-                          Nhắc trả
-                        </a-menu-item>
-                      </a-menu>
-                    </template>
-                  </a-dropdown>
+                  <a-button size="small" :loading="isReminding(record.id)" @click="handleRemind(record)">Nhắc trả</a-button>
                 </template>
               </div>
             </template>
@@ -320,7 +285,7 @@
 <script setup>
 import { ref, reactive, onBeforeUnmount, onMounted, computed } from 'vue'
 import { message, Upload } from 'ant-design-vue'
-import { CloseOutlined, DeleteOutlined, EyeOutlined, FileOutlined, InboxOutlined, LoadingOutlined, MoreOutlined } from '@ant-design/icons-vue'
+import { CloseOutlined, DeleteOutlined, EyeOutlined, FileOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -496,12 +461,6 @@ const submitCancellation = async () => {
   } finally {
     cancelSubmitting.value = false
   }
-}
-
-const handleActionMenuClick = ({ key }, record) => {
-  if (key === 'reject') handleReject(record)
-  if (key === 'handover') showHandoverModal(record)
-  if (key === 'remind') handleRemind(record)
 }
 
 const showReturnModal = (record) => {
@@ -689,22 +648,6 @@ const handleRemind = async (record) => {
   justify-content: center;
   gap: 4px;
   white-space: nowrap;
-}
-
-.request-more-button {
-  display: inline-flex;
-  width: 32px;
-  height: 32px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  color: var(--color-ink, #111827);
-}
-
-.request-more-button:hover,
-.request-more-button:focus {
-  background: #fff7f3;
-  color: var(--color-primary, #d97757);
 }
 
 .toolbar {
