@@ -172,6 +172,27 @@ html,
   min-width: 260px;
 }
 
+/* Select trạng thái phải cao bằng ô tìm kiếm, kể cả khi dùng trên bảng. */
+.status-filter,
+.status-filter .ant-select-selector {
+  height: 40px !important;
+}
+
+.status-filter .ant-select-selector {
+  display: flex;
+  align-items: center;
+}
+
+.status-filter .ant-select-selection-item,
+.status-filter .ant-select-selection-placeholder {
+  line-height: 38px !important;
+}
+
+.status-filter .ant-select-arrow {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 /* Áp dụng thiết kế Claude cho Nút bấm (Buttons) */
 .ant-btn-primary {
   background-color: var(--color-primary) !important;

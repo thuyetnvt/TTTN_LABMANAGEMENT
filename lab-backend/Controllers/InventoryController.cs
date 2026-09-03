@@ -238,6 +238,9 @@ public class InventoryController : ControllerBase
             item.ActualLocationNodeId,
             actualLocation = item.ActualLocationNode?.Name,
             item.Status,
+            bookQuantity = 1,
+            actualQuantity = InventoryActualQuantity(item.Status),
+            quantityDifference = InventoryQuantityDifference(item.Status),
             item.ScannedAt,
             item.Note,
             item.ReviewResolution,
@@ -704,7 +707,11 @@ public class InventoryController : ControllerBase
         ExcelPackage.License.SetNonCommercialOrganization("LabManagement Educational Project");
         using var package = new ExcelPackage();
         var sheet = package.Workbook.Worksheets.Add("ChenhLech");
-        var headers = new[] { "Mã tài sản", "Tên tài sản", "Số seri", "Vị trí dự kiến", "Trạng thái", "Thời gian quét", "Ghi chú" };
+        var headers = new[]
+        {
+            "Mã tài sản", "Tên tài sản", "Số seri", "Vị trí dự kiến", "Trạng thái",
+            "Thời gian quét", "Ghi chú", "Số lượng sổ sách", "Số lượng thực tế", "Chênh lệch"
+        };
         for (var index = 0; index < headers.Length; index++)
         {
             sheet.Cells[1, index + 1].Value = headers[index];
@@ -721,6 +728,9 @@ public class InventoryController : ControllerBase
             WriteExcelText(sheet, row, 5, InventoryStatusLabel(item.Status));
             WriteExcelText(sheet, row, 6, item.ScannedAt?.ToString("dd/MM/yyyy HH:mm"));
             WriteExcelText(sheet, row, 7, item.Note);
+            WriteExcelNumber(sheet, row, 8, 1);
+            WriteExcelNumber(sheet, row, 9, InventoryActualQuantity(item.Status));
+            WriteExcelNumber(sheet, row, 10, InventoryQuantityDifference(item.Status));
         }
         sheet.Cells[sheet.Dimension?.Address ?? "A1"].AutoFitColumns();
         var fileContents = await package.GetAsByteArrayAsync(cancellationToken);
@@ -741,7 +751,7 @@ public class InventoryController : ControllerBase
             page.DefaultTextStyle(style => style.FontSize(8));
             page.Header().Column(column =>
             {
-                column.Item().Text("BÁO CÁO CHÊNH LỆCH KIỂM KÊ TÀI SẢN").Bold().FontSize(16);
+                column.Item().Text("BÁO CÁO KIỂM KÊ TÀI SẢN").Bold().FontSize(16);
                 column.Item().Text($"{session.Code} — {session.Name} — {InventoryStatusLabel(session.Status)}");
             });
             page.Content().Table(table =>
@@ -749,11 +759,16 @@ public class InventoryController : ControllerBase
                 table.ColumnsDefinition(columns =>
                 {
                     columns.ConstantColumn(28); columns.RelativeColumn(1.4f); columns.RelativeColumn(2);
-                    columns.RelativeColumn(1.4f); columns.RelativeColumn(1.5f); columns.RelativeColumn(1.2f);
+                    columns.RelativeColumn(1.4f); columns.ConstantColumn(52); columns.ConstantColumn(52);
+                    columns.ConstantColumn(50); columns.RelativeColumn(1.2f); columns.RelativeColumn(1.8f);
                 });
                 table.Header(header =>
                 {
-                    foreach (var title in new[] { "STT", "Mã tài sản", "Tên tài sản", "Vị trí dự kiến", "Kết quả", "Ghi chú" })
+                    foreach (var title in new[]
+                    {
+                        "STT", "Mã tài sản", "Tên tài sản", "Vị trí dự kiến", "SL sổ sách", "SL thực tế",
+                        "Chênh lệch", "Kết quả", "Ghi chú"
+                    })
                         header.Cell().Element(HeaderCell).Text(title);
                 });
                 foreach (var (item, index) in session.Items.Select((value, index) => (value, index)))
@@ -762,6 +777,9 @@ public class InventoryController : ControllerBase
                     table.Cell().Element(BodyCell).Text(item.Equipment?.AssetCode ?? "");
                     table.Cell().Element(BodyCell).Text(item.Equipment?.Name ?? "");
                     table.Cell().Element(BodyCell).Text(item.ExpectedLocationName);
+                    table.Cell().Element(BodyCell).Text(QuantityText(1));
+                    table.Cell().Element(BodyCell).Text(QuantityText(InventoryActualQuantity(item.Status)));
+                    table.Cell().Element(BodyCell).Text(QuantityText(InventoryQuantityDifference(item.Status)));
                     table.Cell().Element(BodyCell).Text(InventoryStatusLabel(item.Status));
                     table.Cell().Element(BodyCell).Text(item.Note);
                 }
@@ -790,6 +808,27 @@ public class InventoryController : ControllerBase
             ? "'" + text
             : text;
     }
+
+    private static void WriteExcelNumber(ExcelWorksheet sheet, int row, int column, int? value)
+    {
+        sheet.Cells[row, column].Value = value;
+    }
+
+    private static int? InventoryActualQuantity(string status) => status switch
+    {
+        InventoryItemStatuses.Found or InventoryItemStatuses.WrongLocation or InventoryItemStatuses.Damaged => 1,
+        InventoryItemStatuses.Missing => 0,
+        InventoryItemStatuses.Pending => null,
+        _ => null
+    };
+
+    private static int? InventoryQuantityDifference(string status)
+    {
+        var actualQuantity = InventoryActualQuantity(status);
+        return actualQuantity.HasValue ? actualQuantity.Value - 1 : null;
+    }
+
+    private static string QuantityText(int? value) => value?.ToString() ?? "—";
 
     private static string InventoryStatusLabel(string status) => status switch
     {

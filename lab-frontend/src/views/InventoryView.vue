@@ -77,9 +77,15 @@
         <a-space direction="vertical" size="middle" style="width: 100%">
           <a-space wrap>
             <a-button v-if="selectedSession.status === STATUS.INVENTORY_OPEN" @click="toggleCamera">{{ cameraOpen ? 'Đóng camera' : 'Mở camera quét QR' }}</a-button>
-            <a-button @click="downloadReport('excel')">Xuất Excel chênh lệch</a-button>
-            <a-button @click="downloadReport('pdf')">Xuất PDF chênh lệch</a-button>
+            <a-button @click="downloadReport('excel')">Xuất Excel kiểm kê</a-button>
+            <a-button @click="downloadReport('pdf')">Xuất PDF kiểm kê</a-button>
           </a-space>
+          <a-alert
+            type="info"
+            show-icon
+            message="Kiểm kê tài sản định danh theo mã QR"
+            description="Mỗi mã tài sản tương ứng 1 đơn vị: số lượng sổ sách là 1; số lượng thực tế là 1 khi tìm thấy (kể cả sai vị trí hoặc hư hỏng), 0 khi thất lạc. Vật tư tiêu hao không nằm trong đợt này; số lượng được quản lý riêng ở Quản lý lô."
+          />
           <a-alert
             v-if="selectedSession.status === STATUS.INVENTORY_REVIEWING"
             type="warning"
@@ -125,7 +131,10 @@
         </div>
         <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="itemPagination" @change="handleItemTableChange">
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
+            <template v-if="column.key === 'bookQuantity'">{{ record.bookQuantity ?? '—' }}</template>
+            <template v-else-if="column.key === 'actualQuantity'">{{ record.actualQuantity ?? '—' }}</template>
+            <template v-else-if="column.key === 'quantityDifference'">{{ record.quantityDifference ?? '—' }}</template>
+            <template v-else-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'scannedAt'">{{ record.scannedAt ? formatDate(record.scannedAt) : 'Chưa quét' }}</template>
             <template v-else-if="column.key === 'evidence'">
               <a-upload :before-upload="file => uploadEvidence(record, file)" :show-upload-list="false" accept=".jpg,.jpeg,.png,.webp,.pdf">
@@ -248,6 +257,9 @@ const itemColumns = [
   { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName' },
   { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode' },
   { title: 'Vị trí dự kiến', dataIndex: 'expectedLocation', key: 'expectedLocation' },
+  { title: 'SL sổ sách', dataIndex: 'bookQuantity', key: 'bookQuantity', width: 100, align: 'center' },
+  { title: 'SL thực tế', dataIndex: 'actualQuantity', key: 'actualQuantity', width: 100, align: 'center' },
+  { title: 'Chênh lệch', dataIndex: 'quantityDifference', key: 'quantityDifference', width: 100, align: 'center' },
   { title: 'Kết quả', key: 'status' },
   { title: 'Thời gian quét', key: 'scannedAt' },
   { title: 'Minh chứng', key: 'evidence' },
