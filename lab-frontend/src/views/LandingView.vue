@@ -41,7 +41,7 @@
         <div class="hero-illustration reveal slide-left reveal-delay-2">
           <div class="glow-orb"></div>
           <div class="hero-composition">
-            <img src="https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=1000&auto=format&fit=crop" alt="Phòng Lab Công Nghệ" class="floating-img main-img" />
+            <img src="/hero.png" alt="Phòng Lab Công Nghệ" class="floating-img main-img" />
             
             <!-- Light Floating Elements -->
             <div class="floating-card glass-badge card-top-left float-delay-1">
@@ -363,17 +363,17 @@ const slides = [
   {
     title: 'Công nghệ phần cứng hiện đại',
     desc: 'Quản lý hàng ngàn thiết bị vi mạch, vi điều khiển, cảm biến với thông số kỹ thuật chi tiết.',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop'
+    image: '/lab-bg.png'
   },
   {
     title: 'Không gian thông minh',
     desc: 'Định vị không gian vật lý, giám sát vị trí tủ kệ chính xác và chống thất thoát dữ liệu.',
-    image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1200&auto=format&fit=crop'
+    image: '/hero.png'
   },
   {
     title: 'Kiểm kê siêu tốc',
     desc: 'Tích hợp Camera QR để quét tự động, lập biên bản kiểm đếm mà không cần giấy tờ thủ công.',
-    image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=1200&auto=format&fit=crop'
+    image: '/feature.png'
   }
 ]
 

@@ -112,6 +112,42 @@ html,
   border-color: var(--color-primary) !important;
 }
 
+/* Nút tìm kiếm: liền mạch với ô nhập và nổi bật hơn trong thanh bộ lọc. */
+.ant-input-search .ant-input-affix-wrapper,
+.ant-input-search .ant-input-group > .ant-input {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.ant-input-search .ant-input-group-addon {
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.ant-input-search .ant-input-search-button {
+  width: 42px;
+  min-width: 42px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-primary) !important;
+  border-radius: 0 8px 8px 0 !important;
+  background: var(--color-primary) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease !important;
+}
+
+.ant-input-search .ant-input-search-button:hover,
+.ant-input-search .ant-input-search-button:focus-visible {
+  border-color: var(--color-primary-hover) !important;
+  background: var(--color-primary-hover) !important;
+  color: #ffffff !important;
+}
+
 /* Áp dụng thiết kế Claude cho Nút bấm (Buttons) */
 .ant-btn-primary {
   background-color: var(--color-primary) !important;

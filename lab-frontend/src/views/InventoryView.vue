@@ -137,7 +137,8 @@
                 size="small"
                 @click="openReview(record)"
               >Xử lý</a-button>
-              <a-tag v-else-if="record.reviewedAt" color="success">Đã đối soát</a-tag>
+              <a-tag v-else-if="record.reviewedAt || isScannedNormally(record)" color="success">Đã đối soát</a-tag>
+              <span v-else-if="selectedSession.status === STATUS.INVENTORY_OPEN" class="muted">Chờ khóa quét</span>
               <span v-else>—</span>
             </template>
           </template>
@@ -267,6 +268,7 @@ const reviewOptions = computed(() => {
 
 const formatDate = value => formatVietnamDateTime(value)
 const progress = record => record.total ? Math.round(((record.found + record.wrongLocation + record.damaged) / record.total) * 100) : 0
+const isScannedNormally = record => record.status === STATUS.INVENTORY_FOUND && Boolean(record.scannedAt)
 const inventoryDifferenceLabel = record => record.status === STATUS.INVENTORY_OPEN
   ? `${record.pending ?? Math.max(0, record.total - record.found - record.wrongLocation - record.damaged)} chưa quét`
   : `${record.missing || 0} thất lạc`
@@ -550,6 +552,7 @@ onMounted(fetchAll)
 .inventory-desktop-table { display: block; }
 .mobile-session-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .mobile-session-meta { margin: 8px 0 4px; color: var(--color-secondary); font-size: 13px; }
+.muted { color: #8c8c8c; font-size: 13px; }
 @media (max-width: 767px) { .inventory-desktop-table { display: none; } }
 </style>
 
