@@ -1062,7 +1062,6 @@ public class EquipmentController : ControllerBase
             Location = equipment.Location,
             LocationNodeId = equipment.LocationNodeId,
             LocationName = equipment.LocationNode?.Name ?? equipment.Location,
-            WarrantyExpiry = equipment.WarrantyExpiry,
             Status = equipment.Status,
             AssetCategoryId = equipment.AssetCategoryId,
             CategoryName = equipment.AssetCategory?.Name

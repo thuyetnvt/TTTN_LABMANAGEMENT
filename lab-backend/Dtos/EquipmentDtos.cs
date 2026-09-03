@@ -18,7 +18,6 @@ public class BorrowerEquipmentDto
     public string Location { get; init; } = string.Empty;
     public int? LocationNodeId { get; init; }
     public string LocationName { get; init; } = string.Empty;
-    public DateTime? WarrantyExpiry { get; init; }
     public string Status { get; init; } = string.Empty;
     public int? AssetCategoryId { get; init; }
     public string? CategoryName { get; init; }
@@ -42,6 +41,7 @@ public sealed class ManagerEquipmentDto : BorrowerEquipmentDto
     public string DecisionFileName { get; init; } = string.Empty;
     public bool HasDecisionFile { get; init; }
     public DateTime? EntryDate { get; init; }
+    public DateTime? WarrantyExpiry { get; init; }
     public string InvoiceNumber { get; init; } = string.Empty;
     public int BorrowCount { get; init; }
     public DateTime CreatedAt { get; init; }
