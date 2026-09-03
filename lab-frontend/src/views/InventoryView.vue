@@ -5,8 +5,9 @@
     </PageHeader>
 
     <div class="inventory-filters">
-      <a-input-search v-model:value="searchQuery" allow-clear placeholder="Mã hoặc tên đợt kiểm kê..." style="width: 280px" @search="applyFilters" />
-      <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 180px" @change="applyFilters">
+      <a-input-search v-model:value="searchQuery" allow-clear placeholder="Mã hoặc tên đợt kiểm kê..." class="filter-search" @search="applyFilters" />
+      <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
+        <a-select-option value="">Tất cả</a-select-option>
         <a-select-option :value="STATUS.INVENTORY_OPEN">Đang kiểm kê</a-select-option>
         <a-select-option :value="STATUS.INVENTORY_REVIEWING">Đang đối soát</a-select-option>
         <a-select-option :value="STATUS.INVENTORY_COMPLETED">Đã kết thúc</a-select-option>
@@ -76,9 +77,15 @@
         <a-space direction="vertical" size="middle" style="width: 100%">
           <a-space wrap>
             <a-button v-if="selectedSession.status === STATUS.INVENTORY_OPEN" @click="toggleCamera">{{ cameraOpen ? 'Đóng camera' : 'Mở camera quét QR' }}</a-button>
-            <a-button @click="downloadReport('excel')">Xuất Excel chênh lệch</a-button>
-            <a-button @click="downloadReport('pdf')">Xuất PDF chênh lệch</a-button>
+            <a-button @click="downloadReport('excel')">Xuất Excel kiểm kê</a-button>
+            <a-button @click="downloadReport('pdf')">Xuất PDF kiểm kê</a-button>
           </a-space>
+          <a-alert
+            type="info"
+            show-icon
+            message="Kiểm kê tài sản định danh theo mã QR"
+            description="Mỗi mã tài sản tương ứng 1 đơn vị: số lượng sổ sách là 1; số lượng thực tế là 1 khi tìm thấy (kể cả sai vị trí hoặc hư hỏng), 0 khi thất lạc. Vật tư tiêu hao không nằm trong đợt này; số lượng được quản lý riêng ở Quản lý lô."
+          />
           <a-alert
             v-if="selectedSession.status === STATUS.INVENTORY_REVIEWING"
             type="warning"
@@ -112,8 +119,9 @@
           <a-alert v-if="scanMessage" :type="scanMessageType" :message="scanMessage" show-icon />
         </a-space>
         <div class="inventory-item-filters">
-          <a-input-search v-model:value="itemSearchQuery" allow-clear placeholder="Tìm tài sản trong đợt..." @search="applyItemFilters" />
-          <a-select v-model:value="itemStatusFilter" allow-clear placeholder="Kết quả" @change="applyItemFilters">
+          <a-input-search v-model:value="itemSearchQuery" allow-clear placeholder="Tìm tài sản trong đợt..." class="filter-search" @search="applyItemFilters" />
+          <a-select v-model:value="itemStatusFilter" allow-clear placeholder="Kết quả" class="status-filter" @change="applyItemFilters">
+            <a-select-option value="">Tất cả</a-select-option>
             <a-select-option :value="STATUS.INVENTORY_PENDING">Chưa quét</a-select-option>
             <a-select-option :value="STATUS.INVENTORY_FOUND">Đã tìm thấy</a-select-option>
             <a-select-option :value="STATUS.INVENTORY_WRONG_LOCATION">Sai vị trí</a-select-option>
@@ -123,7 +131,10 @@
         </div>
         <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="itemPagination" @change="handleItemTableChange">
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
+            <template v-if="column.key === 'bookQuantity'">{{ record.bookQuantity ?? '—' }}</template>
+            <template v-else-if="column.key === 'actualQuantity'">{{ record.actualQuantity ?? '—' }}</template>
+            <template v-else-if="column.key === 'quantityDifference'">{{ record.quantityDifference ?? '—' }}</template>
+            <template v-else-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'scannedAt'">{{ record.scannedAt ? formatDate(record.scannedAt) : 'Chưa quét' }}</template>
             <template v-else-if="column.key === 'evidence'">
               <a-upload :before-upload="file => uploadEvidence(record, file)" :show-upload-list="false" accept=".jpg,.jpeg,.png,.webp,.pdf">
@@ -246,6 +257,9 @@ const itemColumns = [
   { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName' },
   { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode' },
   { title: 'Vị trí dự kiến', dataIndex: 'expectedLocation', key: 'expectedLocation' },
+  { title: 'SL sổ sách', dataIndex: 'bookQuantity', key: 'bookQuantity', width: 100, align: 'center' },
+  { title: 'SL thực tế', dataIndex: 'actualQuantity', key: 'actualQuantity', width: 100, align: 'center' },
+  { title: 'Chênh lệch', dataIndex: 'quantityDifference', key: 'quantityDifference', width: 100, align: 'center' },
   { title: 'Kết quả', key: 'status' },
   { title: 'Thời gian quét', key: 'scannedAt' },
   { title: 'Minh chứng', key: 'evidence' },
@@ -559,7 +573,7 @@ onMounted(fetchAll)
 <style scoped>
 .inventory-container { padding: 0; }
 .inventory-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; }
-.inventory-item-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 180px; gap: 10px; margin-top: 16px; }
+.inventory-item-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 220px; gap: 10px; margin-top: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
 .toolbar h2 { margin: 0; font-weight: 600; }
 .toolbar p { color: #64748b; margin: 6px 0 0; }
@@ -582,13 +596,23 @@ onMounted(fetchAll)
   border-radius: 50%;
   background: var(--color-primary, #d97757);
 }
-.inventory-search-input :deep(.ant-input) {
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
+.inventory-search-input :deep(.ant-input-group) {
+  height: 40px;
 }
-.inventory-search-input :deep(.ant-btn) {
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
+.inventory-search-input :deep(.ant-input-group-addon) {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+.inventory-search-input :deep(.ant-input-search-button) {
+  width: auto !important;
+  min-width: 88px !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.15) !important;
+  border-radius: 0 8px 8px 0 !important;
+  white-space: nowrap;
 }
 @media (max-width: 767px) {
   .inventory-filters > * { width: 100% !important; }

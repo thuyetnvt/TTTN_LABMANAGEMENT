@@ -95,3 +95,34 @@ jobs:
           SEED_DEFAULT_PASSWORD: ci-seed-password
       - run: docker build -t labmanagement-backend ./lab-backend
       - run: docker build -t labmanagement-frontend ./lab-frontend
+
+  deploy-vps:
+    name: Deploy VPS
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/fix-table-fixed-columns')
+    needs: [backend, frontend, e2e, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout deployment script
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Trust VPS host
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.VPS_PORT }}" -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Pull and restart production services
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          DEPLOY_BRANCH: ${{ github.ref_name }}
+        run: |
+          tr -d '\r' < scripts/deploy-vps.sh | \
+            ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+              "DEPLOY_BRANCH='$DEPLOY_BRANCH' bash -s"

@@ -133,7 +133,8 @@ test('landing page dùng ảnh nội bộ để không phụ thuộc URL ảnh n
   const source = readFileSync(new URL('../src/views/LandingView.vue', import.meta.url), 'utf8')
 
   assert.doesNotMatch(source, /images\.unsplash\.com/)
-  assert.match(source, /src="\/hero\.png"/)
+  assert.match(source, /src="\/lab-bg\.png"/)
+  assert.match(source, /image: '\/hero\.png'/)
   assert.match(source, /image: '\/lab-bg\.png'/)
   assert.match(source, /image: '\/feature\.png'/)
 })

@@ -38,7 +38,52 @@ public sealed class InventoryControllerTests
         var sheet = Assert.Single(package.Workbook.Worksheets);
         Assert.Equal("ChenhLech", sheet.Name);
         Assert.Equal("Đã tìm thấy", sheet.Cells[2, 5].Text);
+        Assert.Equal(1d, Convert.ToDouble(sheet.Cells[2, 8].Value));
+        Assert.Equal(1d, Convert.ToDouble(sheet.Cells[2, 9].Value));
+        Assert.Equal(0d, Convert.ToDouble(sheet.Cells[2, 10].Value));
         Assert.Equal(string.Empty, sheet.Cells[3, 1].Text);
+    }
+
+    [Fact]
+    public async Task ExportExcel_reports_zero_actual_quantity_for_missing_assets()
+    {
+        await using var context = CreateContext();
+        var session = new InventorySession
+        {
+            Id = 6,
+            Code = "INV-TEST-MISSING",
+            Name = "Kiểm kê có tài sản thất lạc",
+            Status = InventoryStatuses.Completed,
+            CreatedByUserId = 1,
+            Items =
+            [
+                new InventoryItem
+                {
+                    Id = 12,
+                    EquipmentId = 22,
+                    ExpectedLocationName = "Phòng Lab A",
+                    Status = InventoryItemStatuses.Missing,
+                    Equipment = new Equipment
+                    {
+                        Id = 22,
+                        AssetCode = "IOT-002",
+                        Name = "Thiết bị thất lạc",
+                        Serial = "SN-002"
+                    }
+                }
+            ]
+        };
+        context.InventorySessions.Add(session);
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context).ExportExcel(6, CancellationToken.None);
+
+        var file = Assert.IsType<FileContentResult>(result);
+        using var package = new ExcelPackage(new MemoryStream(file.FileContents));
+        var sheet = Assert.Single(package.Workbook.Worksheets);
+        Assert.Equal(1d, Convert.ToDouble(sheet.Cells[2, 8].Value));
+        Assert.Equal(0d, Convert.ToDouble(sheet.Cells[2, 9].Value));
+        Assert.Equal(-1d, Convert.ToDouble(sheet.Cells[2, 10].Value));
     }
 
     [Fact]
