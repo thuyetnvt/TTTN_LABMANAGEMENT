@@ -95,3 +95,55 @@ jobs:
           SEED_DEFAULT_PASSWORD: ci-seed-password
       - run: docker build -t labmanagement-backend ./lab-backend
       - run: docker build -t labmanagement-frontend ./lab-frontend
+
+  deploy-vps:
+    name: Deploy VPS
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/fix-table-fixed-columns')
+    needs: [backend, frontend, e2e, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Trust VPS host
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.VPS_PORT }}" -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Pull and restart production services
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          DEPLOY_BRANCH: ${{ github.ref_name }}
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "DEPLOY_BRANCH='$DEPLOY_BRANCH' bash -s" <<'REMOTE'
+            set -Eeuo pipefail
+
+            cd /opt/labmanagement
+            if [ -n "$(git status --porcelain)" ]; then
+              echo "VPS working tree is not clean; deployment stopped."
+              exit 1
+            fi
+            git fetch origin
+            git checkout "$DEPLOY_BRANCH" 2>/dev/null || git checkout -b "$DEPLOY_BRANCH" "origin/$DEPLOY_BRANCH"
+            git pull --ff-only origin "$DEPLOY_BRANCH"
+
+            docker compose \
+              --env-file .env.production \
+              -f docker-compose.prod.yml \
+              config --quiet
+
+            docker compose \
+              --env-file .env.production \
+              -f docker-compose.prod.yml \
+              up -d --build backend frontend
+
+            docker compose \
+              --env-file .env.production \
+              -f docker-compose.prod.yml \
+              ps
+          REMOTE

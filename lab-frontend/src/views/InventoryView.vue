@@ -596,13 +596,23 @@ onMounted(fetchAll)
   border-radius: 50%;
   background: var(--color-primary, #d97757);
 }
-.inventory-search-input :deep(.ant-input) {
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
+.inventory-search-input :deep(.ant-input-group) {
+  height: 40px;
 }
-.inventory-search-input :deep(.ant-btn) {
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
+.inventory-search-input :deep(.ant-input-group-addon) {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+.inventory-search-input :deep(.ant-input-search-button) {
+  width: auto !important;
+  min-width: 88px !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.15) !important;
+  border-radius: 0 8px 8px 0 !important;
+  white-space: nowrap;
 }
 @media (max-width: 767px) {
   .inventory-filters > * { width: 100% !important; }
