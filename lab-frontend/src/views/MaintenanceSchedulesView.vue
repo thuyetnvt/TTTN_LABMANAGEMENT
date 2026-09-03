@@ -6,7 +6,7 @@
         <p class="muted">Theo dõi hạn đến và tạo phiếu bảo trì theo kế hoạch.</p>
       </div>
       <div class="toolbar-actions">
-        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Thiết bị, kế hoạch..." style="width: 240px" @search="applyFilters" />
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Thiết bị, kế hoạch..." class="filter-search" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Tình trạng kế hoạch" class="status-filter" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
           <a-select-option value="DUE">Đã đến hạn</a-select-option>

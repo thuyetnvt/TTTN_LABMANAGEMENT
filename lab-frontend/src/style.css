@@ -166,9 +166,10 @@ html,
 }
 
 /* Bộ lọc trạng thái dùng cùng một kích thước trên toàn hệ thống. */
+.filter-search,
 .status-filter {
-  width: 220px !important;
-  min-width: 220px;
+  width: 260px !important;
+  min-width: 260px;
 }
 
 /* Áp dụng thiết kế Claude cho Nút bấm (Buttons) */

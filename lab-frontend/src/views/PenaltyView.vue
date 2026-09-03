@@ -4,7 +4,7 @@
       <h2>Quản lý Đền bù & Phạt</h2>
       <p style="color: #6b7280; margin-bottom: 24px;">Danh sách các biên bản bồi thường liên quan đến người mượn và thiết bị.</p>
       <div class="toolbar-filters">
-        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người dùng, thiết bị..." style="width: 260px" @search="applyFilters" />
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người dùng, thiết bị..." class="filter-search" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
           <a-select-option :value="STATUS.UNPAID">Chưa thanh toán</a-select-option>
@@ -36,7 +36,7 @@
       <ResponsiveDataList :items="dataSource" :loading="loading" :pagination="tablePagination" empty-description="Chưa có biên bản bồi thường" @change="handleTableChange">
         <template #default="{ item }">
           <div class="mobile-penalty-heading"><strong>{{ item.equipmentName }}</strong><StatusBadge :status="item.status" type="penalty" /></div>
-          <div class="mobile-penalty-user">{{ item.username }} · {{ formatVietnamDate(item.createdAt) }}</div>
+          <div class="mobile-penalty-user">{{ penaltyUserLabel(item) }} · {{ formatVietnamDate(item.createdAt) }}</div>
           <p>{{ item.reason }}</p>
           <div class="mobile-penalty-amount">{{ item.amount.toLocaleString('vi-VN') }} ₫</div>
           <a-button v-if="statusMatches(item.status, STATUS.UNPAID) && isManagerRole(role)" type="primary" block @click="handlePay(item)">Xác nhận thu tiền</a-button>
@@ -46,7 +46,7 @@
     </a-card>
     <a-modal v-model:open="detailsVisible" title="Biên bản bồi thường" :footer="null" width="620px">
       <a-descriptions v-if="selectedPenalty" bordered :column="1" size="small">
-        <a-descriptions-item label="Người bồi thường">{{ selectedPenalty.username }}</a-descriptions-item>
+        <a-descriptions-item label="Người bồi thường">{{ penaltyUserLabel(selectedPenalty) }}</a-descriptions-item>
         <a-descriptions-item label="Thiết bị">{{ selectedPenalty.equipmentName }}</a-descriptions-item>
         <a-descriptions-item label="Lý do / tình trạng">{{ selectedPenalty.reason }}</a-descriptions-item>
         <a-descriptions-item label="Số tiền">{{ selectedPenalty.amount.toLocaleString('vi-VN') }} ₫</a-descriptions-item>
@@ -85,13 +85,14 @@ const searchQuery = ref('')
 const statusFilter = ref(undefined)
 const detailsVisible = ref(false)
 const selectedPenalty = ref(null)
+const penaltyUserLabel = record => record?.fullName?.trim() || record?.username || 'Không xác định'
 const showDetails = record => {
   selectedPenalty.value = record
   detailsVisible.value = true
 }
 
 const columns = [
-  { title: 'Người bồi thường', dataIndex: 'username', key: 'username' },
+  { title: 'Người bồi thường', dataIndex: 'fullName', key: 'fullName' },
   { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName' },
   { title: 'Lý do / Tình trạng', dataIndex: 'reason', key: 'reason' },
   { title: 'Số tiền phạt', dataIndex: 'amount', key: 'amount', align: 'right' },
@@ -136,7 +137,7 @@ const handleTableChange = pager => {
 const handlePay = (record) => {
   Modal.confirm({
     title: 'Xác nhận thu tiền',
-    content: `${record.username} đã thanh toán số tiền bồi thường ${record.amount.toLocaleString('vi-VN')} ₫?`,
+    content: `${penaltyUserLabel(record)} đã thanh toán số tiền bồi thường ${record.amount.toLocaleString('vi-VN')} ₫?`,
     okText: 'Xác nhận',
     onOk: async () => {
       try {

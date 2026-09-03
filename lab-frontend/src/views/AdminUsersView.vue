@@ -3,7 +3,7 @@
     <div class="toolbar">
       <h2>Quản lý người dùng</h2>
       <div class="toolbar-actions">
-        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm tên, mã, email..." style="width: 260px" @search="applyFilters" />
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm tên, mã, email..." class="filter-search" @search="applyFilters" />
         <a-select v-model:value="roleFilter" allow-clear placeholder="Vai trò" style="width: 160px" @change="applyFilters">
           <a-select-option :value="ROLE.ADMIN">Quản trị viên</a-select-option>
           <a-select-option :value="ROLE.LAB_HEAD">Trưởng lab</a-select-option>

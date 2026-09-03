@@ -5,7 +5,7 @@
     </PageHeader>
 
     <div class="inventory-filters">
-      <a-input-search v-model:value="searchQuery" allow-clear placeholder="Mã hoặc tên đợt kiểm kê..." style="width: 280px" @search="applyFilters" />
+      <a-input-search v-model:value="searchQuery" allow-clear placeholder="Mã hoặc tên đợt kiểm kê..." class="filter-search" @search="applyFilters" />
       <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
         <a-select-option value="">Tất cả</a-select-option>
         <a-select-option :value="STATUS.INVENTORY_OPEN">Đang kiểm kê</a-select-option>
@@ -113,7 +113,7 @@
           <a-alert v-if="scanMessage" :type="scanMessageType" :message="scanMessage" show-icon />
         </a-space>
         <div class="inventory-item-filters">
-          <a-input-search v-model:value="itemSearchQuery" allow-clear placeholder="Tìm tài sản trong đợt..." @search="applyItemFilters" />
+          <a-input-search v-model:value="itemSearchQuery" allow-clear placeholder="Tìm tài sản trong đợt..." class="filter-search" @search="applyItemFilters" />
           <a-select v-model:value="itemStatusFilter" allow-clear placeholder="Kết quả" class="status-filter" @change="applyItemFilters">
             <a-select-option value="">Tất cả</a-select-option>
             <a-select-option :value="STATUS.INVENTORY_PENDING">Chưa quét</a-select-option>

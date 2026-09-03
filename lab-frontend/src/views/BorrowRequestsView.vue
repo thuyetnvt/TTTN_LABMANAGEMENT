@@ -3,7 +3,7 @@
     <div class="toolbar">
       <h2>Duyệt yêu cầu mượn/trả</h2>
       <div class="toolbar-filters">
-        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người mượn, thiết bị..." style="width: 260px" @search="applyFilters" />
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người mượn, thiết bị..." class="filter-search" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
           <a-select-option :value="STATUS.BORROW_PENDING">Chờ duyệt</a-select-option>

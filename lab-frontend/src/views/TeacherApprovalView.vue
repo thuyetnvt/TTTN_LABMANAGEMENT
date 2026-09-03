@@ -3,7 +3,7 @@
     <div class="toolbar">
       <h2>Duyệt bảo lãnh mượn thiết bị</h2>
       <p>Danh sách yêu cầu sinh viên nhờ giảng viên bảo lãnh trước khi gửi lên kho.</p>
-      <a-input-search v-model:value="searchQuery" allow-clear placeholder="Sinh viên, thiết bị..." style="width: 280px; margin-bottom: 16px" @search="applySearch" />
+      <a-input-search v-model:value="searchQuery" allow-clear placeholder="Sinh viên, thiết bị..." class="filter-search" style="margin-bottom: 16px" @search="applySearch" />
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">

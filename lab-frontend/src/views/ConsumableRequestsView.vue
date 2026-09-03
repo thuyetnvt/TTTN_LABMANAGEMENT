@@ -8,7 +8,7 @@
           : 'Theo dõi yêu cầu và xác nhận sau khi đã nhận đủ vật tư.' }}
       </p>
       <div class="toolbar-filters">
-        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Vật tư, người yêu cầu..." style="width: 260px" @search="applyFilters" />
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Vật tư, người yêu cầu..." class="filter-search" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
           <a-select-option :value="STATUS.CONSUMABLE_PENDING">Chờ duyệt cấp phát</a-select-option>
