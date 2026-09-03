@@ -291,7 +291,7 @@ public sealed class BorrowControllerTests
             IsActive = true
         });
         context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.Borrowed));
-        context.BorrowRecords.Add(CreateBorrowRecord(50, 1, BorrowStatuses.Borrowed, 1));
+        context.BorrowRecords.Add(CreateBorrowRecord(50, 1, "BORROWED ", 1));
         await context.SaveChangesAsync();
 
         var controller = CreateController(context, 99, Roles.LabHead, new ThrowingEmailService());

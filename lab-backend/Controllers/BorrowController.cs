@@ -1354,7 +1354,7 @@ public class BorrowController : ControllerBase
             .Include(item => item.Equipment)
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
 
-        if (record is null || record.Status != Borrowed)
+        if (record is null || StatusCodeMap.Normalize(record.Status) != Borrowed)
         {
             return NotFound(new { message = "Không tìm thấy phiếu mượn hợp lệ." });
         }
