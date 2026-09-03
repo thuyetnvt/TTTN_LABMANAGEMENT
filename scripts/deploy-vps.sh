@@ -25,17 +25,33 @@ fi
 
 git pull --ff-only origin "$DEPLOY_BRANCH"
 
+# The current VPS uses the default compose stack. Use the hardened production
+# stack automatically once .env.production has been configured there.
+if [ -f .env.production ]; then
+  COMPOSE_ENV_FILE=".env.production"
+  COMPOSE_FILE="docker-compose.prod.yml"
+else
+  COMPOSE_ENV_FILE=".env"
+  COMPOSE_FILE="docker-compose.yml"
+  echo "Warning: .env.production is missing; using .env with docker-compose.yml."
+fi
+
+if [ ! -f "$COMPOSE_ENV_FILE" ]; then
+  echo "Missing environment file: $DEPLOY_DIR/$COMPOSE_ENV_FILE"
+  exit 1
+fi
+
 docker compose \
-  --env-file .env.production \
-  -f docker-compose.prod.yml \
+  --env-file "$COMPOSE_ENV_FILE" \
+  -f "$COMPOSE_FILE" \
   config --quiet
 
 docker compose \
-  --env-file .env.production \
-  -f docker-compose.prod.yml \
+  --env-file "$COMPOSE_ENV_FILE" \
+  -f "$COMPOSE_FILE" \
   up -d --build backend frontend
 
 docker compose \
-  --env-file .env.production \
-  -f docker-compose.prod.yml \
+  --env-file "$COMPOSE_ENV_FILE" \
+  -f "$COMPOSE_FILE" \
   ps
