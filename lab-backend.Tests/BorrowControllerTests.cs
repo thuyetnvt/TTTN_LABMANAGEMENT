@@ -279,6 +279,31 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task Manager_can_create_in_app_return_reminder_without_smtp()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            Email = "student@lab.local",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.Borrowed));
+        context.BorrowRecords.Add(CreateBorrowRecord(50, 1, BorrowStatuses.Borrowed, 1));
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 99, Roles.LabHead, new ThrowingEmailService());
+        var result = await controller.RemindReturn(50, CancellationToken.None);
+
+        var response = Assert.IsType<OkObjectResult>(result);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(response.Value));
+        Assert.False(json.RootElement.GetProperty("emailSent").GetBoolean());
+        Assert.Contains("SMTP", json.RootElement.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task Returning_damaged_out_of_warranty_item_creates_penalty_and_maintenance()
     {
         await using var context = CreateSqliteContext(out var connection);
@@ -378,15 +403,20 @@ public sealed class BorrowControllerTests
         }).ToList()
     };
 
-    private static BorrowController CreateController(AppDbContext context, int userId, string role)
+    private static BorrowController CreateController(
+        AppDbContext context,
+        int userId,
+        string role,
+        IEmailService? emailService = null,
+        IConfiguration? configuration = null)
     {
         var controller = new BorrowController(
             context,
-            new NoopEmailService(),
+            emailService ?? new NoopEmailService(),
             new NoopNotificationService(),
             new NoopAuditService(),
             new NoopFileStorage(),
-            new ConfigurationBuilder().Build());
+            configuration ?? new ConfigurationBuilder().Build());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext
@@ -411,6 +441,12 @@ public sealed class BorrowControllerTests
     {
         public Task SendEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+    }
+
+    private sealed class ThrowingEmailService : IEmailService
+    {
+        public Task SendEmailAsync(string toEmail, string subject, string htmlBody, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("SMTP is unavailable.");
     }
 
     private sealed class NoopNotificationService : INotificationService

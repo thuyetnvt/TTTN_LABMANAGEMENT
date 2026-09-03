@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LabManagementAPI.Controllers;
 
@@ -32,6 +33,7 @@ public class BorrowController : ControllerBase
     private readonly IAuditService _auditService;
     private readonly IFileStorage _fileStorage;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<BorrowController> _logger;
 
     public BorrowController(
         AppDbContext context,
@@ -39,7 +41,8 @@ public class BorrowController : ControllerBase
         INotificationService notificationService,
         IAuditService auditService,
         IFileStorage fileStorage,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ILogger<BorrowController>? logger = null)
     {
         _context = context;
         _emailService = emailService;
@@ -47,6 +50,7 @@ public class BorrowController : ControllerBase
         _auditService = auditService;
         _fileStorage = fileStorage;
         _configuration = configuration;
+        _logger = logger ?? NullLogger<BorrowController>.Instance;
     }
 
     public sealed class BorrowRequestDto
@@ -1355,12 +1359,7 @@ public class BorrowController : ControllerBase
             return NotFound(new { message = "Không tìm thấy phiếu mượn hợp lệ." });
         }
 
-        if (string.IsNullOrWhiteSpace(record.User?.Email))
-        {
-            return BadRequest(new { message = "Người mượn chưa cập nhật địa chỉ email." });
-        }
-
-        var username = WebUtility.HtmlEncode(record.User.Username);
+        var username = WebUtility.HtmlEncode(record.User?.Username ?? "bạn");
         var equipmentName = WebUtility.HtmlEncode(record.Equipment?.Name ?? "tài sản");
         var subject = $"[Lab] Nhắc trả tài sản: {record.Equipment?.Name}";
         var body = $"""
@@ -1371,18 +1370,51 @@ public class BorrowController : ControllerBase
             <p>Trân trọng,<br/>Lab Management</p>
             """;
 
-        await _emailService.SendEmailAsync(
-            record.User.Email,
-            subject,
-            body,
+        await _notificationService.NotifyUserAsync(
+            record.UserId,
+            "BORROW_RETURN_REMINDER",
+            "Nhắc trả tài sản",
+            $"Phiếu mượn tài sản của bạn sắp đến hạn trả ngày {record.ExpectedReturnDate:dd/MM/yyyy}.",
+            "/dashboard/borrow-history",
             cancellationToken);
+
+        var emailConfigured = !string.IsNullOrWhiteSpace(record.User?.Email)
+            && !string.IsNullOrWhiteSpace(_configuration["Email:Host"])
+            && !string.IsNullOrWhiteSpace(_configuration["Email:FromEmail"]);
+        var emailSent = false;
+        if (emailConfigured)
+        {
+            try
+            {
+                await _emailService.SendEmailAsync(
+                    record.User!.Email!,
+                    subject,
+                    body,
+                    cancellationToken);
+                emailSent = true;
+            }
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Return reminder email failed for borrow record {BorrowRecordId}; in-app notification was created.",
+                    id);
+            }
+        }
+
         await _auditService.WriteAsync(
             HttpContext,
             "SendReturnReminder",
             nameof(BorrowRecord),
             id,
             cancellationToken: cancellationToken);
-        return Ok(new { message = "Đã gửi email nhắc trả thành công." });
+
+        var message = emailSent
+            ? "Đã gửi email và tạo thông báo nhắc trả thành công."
+            : emailConfigured
+                ? "Đã tạo thông báo nhắc trả. Email tạm thời chưa gửi được."
+                : "Đã tạo thông báo nhắc trả trên hệ thống. Email chưa được gửi vì SMTP chưa được cấu hình.";
+        return Ok(new { message, emailSent });
     }
 
     [HttpPost("{id:int}/return-evidence")]
