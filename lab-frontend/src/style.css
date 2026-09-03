@@ -112,31 +112,43 @@ html,
   border-color: var(--color-primary) !important;
 }
 
-/* Nút tìm kiếm: liền mạch với ô nhập và nổi bật hơn trong thanh bộ lọc. */
+/* Nút tìm kiếm: cùng chiều cao với ô lọc và liền mạch với ô nhập. */
+.ant-input-search .ant-input-group {
+  display: flex;
+  align-items: stretch;
+  height: 40px;
+}
+
 .ant-input-search .ant-input-affix-wrapper,
 .ant-input-search .ant-input-group > .ant-input {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
+  height: 40px !important;
+  box-sizing: border-box;
 }
 
 .ant-input-search .ant-input-group-addon {
+  display: flex;
+  height: 40px;
   padding: 0 !important;
   background: transparent !important;
   border: 0 !important;
 }
 
 .ant-input-search .ant-input-search-button {
-  width: 42px;
-  min-width: 42px;
-  height: 40px;
+  width: 40px;
+  min-width: 40px;
+  height: 40px !important;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-primary) !important;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  border-left: 0 !important;
   border-radius: 0 8px 8px 0 !important;
-  background: var(--color-primary) !important;
-  color: #ffffff !important;
+  background: #ffffff !important;
+  color: var(--color-secondary) !important;
   box-shadow: none !important;
   transition: background-color 0.2s ease, border-color 0.2s ease !important;
 }
@@ -144,8 +156,8 @@ html,
 .ant-input-search .ant-input-search-button:hover,
 .ant-input-search .ant-input-search-button:focus-visible {
   border-color: var(--color-primary-hover) !important;
-  background: var(--color-primary-hover) !important;
-  color: #ffffff !important;
+  background: #fffaf7 !important;
+  color: var(--color-primary) !important;
 }
 
 /* Áp dụng thiết kế Claude cho Nút bấm (Buttons) */

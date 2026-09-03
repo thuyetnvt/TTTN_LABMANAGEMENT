@@ -41,7 +41,7 @@
         <div class="hero-illustration reveal slide-left reveal-delay-2">
           <div class="glow-orb"></div>
           <div class="hero-composition">
-            <img src="/hero.png" alt="Phòng Lab Công Nghệ" class="floating-img main-img" />
+            <img src="/lab-bg.png" alt="Phòng Lab Công Nghệ" class="floating-img main-img" />
             
             <!-- Light Floating Elements -->
             <div class="floating-card glass-badge card-top-left float-delay-1">
@@ -363,12 +363,12 @@ const slides = [
   {
     title: 'Công nghệ phần cứng hiện đại',
     desc: 'Quản lý hàng ngàn thiết bị vi mạch, vi điều khiển, cảm biến với thông số kỹ thuật chi tiết.',
-    image: '/lab-bg.png'
+    image: '/hero.png'
   },
   {
     title: 'Không gian thông minh',
     desc: 'Định vị không gian vật lý, giám sát vị trí tủ kệ chính xác và chống thất thoát dữ liệu.',
-    image: '/hero.png'
+    image: '/lab-bg.png'
   },
   {
     title: 'Kiểm kê siêu tốc',
@@ -681,6 +681,9 @@ onUnmounted(() => {
 }
 .main-img {
   width: 100%;
+  height: 460px;
+  object-fit: cover;
+  object-position: center;
   border-radius: 24px;
   animation: float-main 8s ease-in-out infinite;
   box-shadow: 0 30px 60px rgba(0,0,0,0.1);
@@ -1040,6 +1043,7 @@ onUnmounted(() => {
   .bento-card, .bento-lead, .bento-side { grid-column: span 1; }
   .hero-cta { flex-direction: column; }
   .premium-btn, .premium-btn-outline { width: 100%; }
+  .main-img { height: min(420px, 82vw); }
   .footer-content { flex-direction: column; text-align: center; }
   .cta-band-content h2 { font-size: 36px; }
 }
