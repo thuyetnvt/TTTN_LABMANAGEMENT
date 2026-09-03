@@ -591,6 +591,7 @@ public class BorrowController : ControllerBase
             .Include(item => item.Items)
                 .ThenInclude(item => item.Equipment)
             .ToDictionaryAsync(item => item.BorrowRecordId, cancellationToken);
+        var historyToday = VietnamTime.Today();
         var items = page.Items.Select(item =>
         {
             handovers.TryGetValue(item.Id, out var handover);
@@ -606,6 +607,9 @@ public class BorrowController : ControllerBase
                 expectedReturnDate = item.ExpectedReturnDate,
                 actualReturnDate = item.ActualReturnDate,
                 status = item.Status,
+                isOverdue = item.Status == Borrowed
+                    && VietnamTime.Date(item.ExpectedReturnDate) < historyToday,
+                daysUntilDue = (VietnamTime.Date(item.ExpectedReturnDate) - historyToday).Days,
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,
                 warrantyAction = item.WarrantyAction,

@@ -31,7 +31,7 @@
             <StatusBadge v-if="record.returnCondition" :status="record.returnCondition" type="returnCondition" />
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" type="borrow" :label-override="borrowWorkflowLabel(record)" />
+            <StatusBadge :status="record.status" type="borrow" :color="record.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(record)" />
           </template>
           <template v-else-if="column.key === 'compensationAmount'">
             {{ record.compensationAmount ? record.compensationAmount.toLocaleString('vi-VN') + ' VNĐ' : '' }}
@@ -65,7 +65,7 @@
         <template #default="{ item }">
           <div class="mobile-card-heading">
             <strong>{{ item.device }}</strong>
-            <StatusBadge :status="item.status" type="borrow" :label-override="borrowWorkflowLabel(item)" />
+            <StatusBadge :status="item.status" type="borrow" :color="item.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(item)" />
           </div>
           <div class="mobile-card-subtitle">{{ borrowerLabel(item) }} · {{ item.serial || 'Không có số seri' }}</div>
           <dl class="mobile-card-details">
@@ -124,7 +124,7 @@
         <a-descriptions-item label="Thiết bị">{{ selectedRecord.device }}</a-descriptions-item>
         <a-descriptions-item label="Hạn trả">{{ formatDate(selectedRecord.expectedReturnDate) }}</a-descriptions-item>
         <a-descriptions-item label="Ngày trả thực tế">{{ selectedRecord.actualReturnDate ? formatDate(selectedRecord.actualReturnDate) : 'Chưa trả' }}</a-descriptions-item>
-        <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedRecord.status" type="borrow" :label-override="borrowWorkflowLabel(selectedRecord)" /></a-descriptions-item>
+        <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedRecord.status" type="borrow" :color="selectedRecord.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(selectedRecord)" /></a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.holdExpiresAt" label="Thời hạn giữ chỗ">{{ formatDateTime(selectedRecord.holdExpiresAt) }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.cancellationReason" label="Lý do hủy">{{ selectedRecord.cancellationReason }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.cancelledAt" label="Thời điểm hủy">{{ formatDateTime(selectedRecord.cancelledAt) }}</a-descriptions-item>
@@ -211,6 +211,10 @@ const columns = [
 ]
 
 const borrowWorkflowLabel = record => {
+  if (record?.isOverdue) {
+    const daysOverdue = Math.max(1, Math.abs(Number(record.daysUntilDue || 0)))
+    return `Quá hạn ${daysOverdue} ngày`
+  }
   if (statusMatches(record.status, STATUS.APPROVED)) {
     return record.handover ? 'Đã bàn giao, chờ người nhận xác nhận' : 'Đã duyệt, chờ lập bàn giao'
   }

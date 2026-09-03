@@ -279,6 +279,39 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task Student_paged_history_marks_overdue_with_number_of_days()
+    {
+        await using var context = CreateInMemoryContext();
+        var today = VietnamTime.Today();
+        context.Users.Add(new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true });
+        context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.Borrowed));
+        context.BorrowRecords.Add(new BorrowRecord
+        {
+            Id = 32,
+            UserId = 1,
+            EquipmentId = 1,
+            BorrowDate = DateTime.UtcNow.AddDays(-5),
+            ExpectedReturnDate = VietnamTime.StartOfDayUtc(today.AddDays(-2)),
+            Purpose = "Kiểm tra quá hạn",
+            Status = BorrowStatuses.Borrowed
+        });
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 1, Roles.Student);
+        var result = await controller.GetHistoryPaged(
+            new LabManagementAPI.Dtos.PageQuery(),
+            CancellationToken.None);
+        var json = JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var document = JsonDocument.Parse(json);
+        var item = document.RootElement.GetProperty("items")[0];
+
+        Assert.True(item.GetProperty("isOverdue").GetBoolean());
+        Assert.Equal(-2, item.GetProperty("daysUntilDue").GetInt32());
+    }
+
+    [Fact]
     public async Task Manager_can_create_in_app_return_reminder_without_smtp()
     {
         await using var context = CreateInMemoryContext();
