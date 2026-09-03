@@ -168,6 +168,64 @@ public sealed class OperationalAutomationRunnerTests
     }
 
     [Fact]
+    public async Task Overdue_penalty_is_created_once_per_day_and_accumulates()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            var now = new DateTime(2026, 9, 1, 2, 0, 0, DateTimeKind.Utc);
+            context.Users.Add(new User
+            {
+                Id = 1,
+                Username = "student",
+                Role = Roles.Student,
+                IsActive = true
+            });
+            context.Equipments.Add(new Equipment
+            {
+                Id = 1,
+                AssetCode = "EQ-001",
+                QrToken = "qr-001",
+                Name = "ESP32",
+                Serial = "SN-001",
+                Model = "M1",
+                Location = "Lab",
+                Status = EquipmentStatuses.Borrowed
+            });
+            context.BorrowRecords.Add(new BorrowRecord
+            {
+                Id = 21,
+                UserId = 1,
+                EquipmentId = 1,
+                BorrowDate = now.AddDays(-5),
+                ExpectedReturnDate = now.AddDays(-1),
+                Purpose = "Thực hành",
+                Status = BorrowStatuses.Borrowed
+            });
+            await context.SaveChangesAsync();
+            var runner = CreateRunner(context, new RecordingNotificationService());
+
+            await runner.RunOnceAsync(now);
+            await runner.RunOnceAsync(now.AddHours(2));
+
+            var penalty = await context.Penalties.AsNoTracking().SingleAsync();
+            Assert.Equal(10000m, penalty.Amount);
+            Assert.Equal(PenaltyStatuses.Unpaid, penalty.Status);
+            Assert.Single(await context.AutomationDispatches.AsNoTracking()
+                .Where(item => item.JobType == "RETURN_OVERDUE_PENALTY")
+                .ToListAsync());
+
+            await runner.RunOnceAsync(now.AddDays(1));
+
+            penalty = await context.Penalties.AsNoTracking().SingleAsync();
+            Assert.Equal(20000m, penalty.Amount);
+            Assert.Single(await context.Penalties.AsNoTracking().ToListAsync());
+            Assert.Equal(2, await context.AutomationDispatches.AsNoTracking()
+                .CountAsync(item => item.JobType == "RETURN_OVERDUE_PENALTY"));
+        }
+    }
+
+    [Fact]
     public async Task Approved_hold_expires_once_and_releases_reserved_equipment()
     {
         await using var context = CreateContext(out var connection);
@@ -278,6 +336,7 @@ public sealed class OperationalAutomationRunnerTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Automation:ReturnReminderDaysBefore"] = "3",
+                ["Automation:OverduePenaltyAmountPerDay"] = "10000",
                 ["Automation:SendEmailReminders"] = "false"
             })
             .Build();
