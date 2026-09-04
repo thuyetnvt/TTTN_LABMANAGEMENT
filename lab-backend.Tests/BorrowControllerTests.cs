@@ -320,6 +320,80 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task Manager_pending_queue_excludes_borrowed_and_return_processing_records()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            FullName = "Nguyễn Văn A",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.AddRange(
+            CreateEquipment(1),
+            CreateEquipment(2),
+            CreateEquipment(3, EquipmentStatuses.Borrowed),
+            CreateEquipment(4, EquipmentStatuses.Borrowed));
+        context.BorrowRecords.AddRange(
+            CreateBorrowRecord(60, 1, BorrowStatuses.Pending, 1),
+            CreateBorrowRecord(61, 1, BorrowStatuses.Approved, 2),
+            CreateBorrowRecord(62, 1, BorrowStatuses.Borrowed, 3),
+            CreateBorrowRecord(63, 1, BorrowStatuses.ReturnProcessing, 4));
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 99, Roles.LabHead);
+        var result = await controller.GetPendingRequestsPaged(
+            new LabManagementAPI.Dtos.PageQuery { PageSize = 100 },
+            CancellationToken.None);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        var ids = json.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("id").GetInt32())
+            .ToArray();
+
+        Assert.Equal([61, 60], ids);
+    }
+
+    [Fact]
+    public async Task Manager_history_contains_borrowed_records_but_not_approved_records()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            FullName = "Nguyễn Văn A",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.AddRange(
+            CreateEquipment(5, EquipmentStatuses.BorrowPending),
+            CreateEquipment(6, EquipmentStatuses.Borrowed));
+        context.BorrowRecords.AddRange(
+            CreateBorrowRecord(64, 1, BorrowStatuses.Approved, 5),
+            CreateBorrowRecord(65, 1, BorrowStatuses.Borrowed, 6));
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 99, Roles.LabHead);
+        var result = await controller.GetHistoryPaged(
+            new LabManagementAPI.Dtos.PageQuery { PageSize = 100 },
+            CancellationToken.None);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        var ids = json.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("id").GetInt32())
+            .ToArray();
+
+        Assert.Equal([65], ids);
+    }
+
+    [Fact]
     public async Task Manager_can_create_in_app_return_reminder_without_smtp()
     {
         await using var context = CreateInMemoryContext();

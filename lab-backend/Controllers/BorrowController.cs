@@ -263,9 +263,7 @@ public class BorrowController : ControllerBase
             .Include(item => item.Details)
                 .ThenInclude(item => item.Equipment)
         .Where(item => item.Status == Pending
-            || item.Status == Approved
-            || item.Status == Borrowed
-            || item.Status == ProcessingReturn)
+            || item.Status == Approved)
             .OrderByDescending(item => item.BorrowDate)
             .ToListAsync(cancellationToken);
 
@@ -327,9 +325,7 @@ public class BorrowController : ControllerBase
             .Include(item => item.Details)
                 .ThenInclude(item => item.Equipment)
             .Where(item => item.Status == Pending
-                || item.Status == Approved
-                || item.Status == Borrowed
-                || item.Status == ProcessingReturn)
+                || item.Status == Approved)
             .AsQueryable();
         var search = paging.NormalizedSearch;
         if (search.Length > 0)
@@ -433,7 +429,9 @@ public class BorrowController : ControllerBase
         }
         else
         {
-            query = query.Where(item => item.Status != Pending && item.Status != TeacherPending);
+            query = query.Where(item => item.Status != Pending
+                && item.Status != TeacherPending
+                && item.Status != Approved);
         }
 
         var records = await query
@@ -456,6 +454,7 @@ public class BorrowController : ControllerBase
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
                 device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
+                equipmentId = item.EquipmentId,
                 serial = item.Equipment != null ? item.Equipment.Serial : string.Empty,
                 requestDate = item.BorrowDate,
                 returnDate = item.ActualReturnDate ?? item.ExpectedReturnDate,
@@ -542,7 +541,9 @@ public class BorrowController : ControllerBase
         }
         else
         {
-            query = query.Where(item => item.Status != Pending && item.Status != TeacherPending);
+            query = query.Where(item => item.Status != Pending
+                && item.Status != TeacherPending
+                && item.Status != Approved);
         }
 
         var search = paging.NormalizedSearch;
@@ -601,6 +602,7 @@ public class BorrowController : ControllerBase
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
                 device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
+                equipmentId = item.EquipmentId,
                 serial = item.Equipment?.Serial ?? string.Empty,
                 requestDate = item.BorrowDate,
                 returnDate = item.ActualReturnDate ?? item.ExpectedReturnDate,
