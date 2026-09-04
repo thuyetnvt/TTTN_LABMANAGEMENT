@@ -210,7 +210,7 @@
           <a-card v-for="item in handoverDetails.items" :key="item.equipmentId" size="small">
             <strong>{{ item.equipmentName }}</strong>
             <span>Serial: {{ item.serial || '—' }}</span>
-            <span>Tình trạng: {{ item.condition }}</span>
+            <span>Tình trạng: <StatusBadge :status="item.condition" type="returnCondition" /></span>
             <span>Phụ kiện: {{ item.accessories || 'Không ghi nhận' }}</span>
             <span>Ghi chú: {{ item.note || 'Không có' }}</span>
           </a-card>

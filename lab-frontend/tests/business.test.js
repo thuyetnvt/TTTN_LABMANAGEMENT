@@ -166,6 +166,13 @@ test('tách xử lý trả khỏi phiếu chờ duyệt và đưa sang lịch s�
   assert.match(modalSource, /tự động chuyển sang Đã thanh toán/)
 })
 
+test('biên bản bàn giao hiển thị tình trạng bằng nhãn tiếng Việt', () => {
+  const requestsSource = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
+
+  assert.match(requestsSource, /StatusBadge :status="item\.condition" type="returnCondition"/)
+  assert.doesNotMatch(requestsSource, /Tình trạng:\s*\{\{\s*item\.condition\s*\}\}/)
+})
+
 test('notification store dedupe realtime và chỉ tăng unread một lần', () => {
   setActivePinia(createPinia())
   const store = useNotificationStore()
