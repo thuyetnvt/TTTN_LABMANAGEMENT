@@ -1,7 +1,7 @@
 body,
 html,
 #app {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 :root {
@@ -26,8 +26,8 @@ html,
   --public-heading: #16324F;
   --public-muted: #64748B;
   --public-coral: #DE7653;
-  --font-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: 'Cormorant Garamond', serif;
+  --font-sans: 'Inter', sans-serif;
 }
 
 /*
