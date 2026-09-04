@@ -65,7 +65,22 @@ public class MaintenanceScheduleController : ControllerBase
                 checklist = schedule.Checklist
             })
             .ToListAsync(cancellationToken);
-        return Ok(schedules);
+        return Ok(schedules.Select(schedule => new
+        {
+            schedule.id,
+            schedule.equipmentId,
+            schedule.device,
+            schedule.serial,
+            name = SeedDisplayText.Clean(schedule.name),
+            schedule.intervalDays,
+            schedule.intervalUnit,
+            schedule.nextDueAt,
+            schedule.lastGeneratedAt,
+            schedule.isActive,
+            schedule.isDue,
+            schedule.notes,
+            schedule.checklist
+        }));
     }
 
     [HttpGet("paged")]
@@ -104,7 +119,7 @@ public class MaintenanceScheduleController : ControllerBase
             equipmentId = schedule.EquipmentId,
             device = schedule.Equipment!.Name,
             serial = schedule.Equipment.Serial,
-            name = schedule.Name,
+            name = SeedDisplayText.Clean(schedule.Name),
             intervalDays = schedule.IntervalDays,
             intervalUnit = schedule.IntervalUnit,
             nextDueAt = schedule.NextDueAt,
@@ -222,11 +237,12 @@ public class MaintenanceScheduleController : ControllerBase
             && record.Status == MaintenanceStatuses.InProgress, cancellationToken))
             return Conflict(new { message = "Thiết bị đã có phiếu bảo trì đang xử lý." });
 
+        var displayScheduleName = SeedDisplayText.Clean(schedule.Name);
         var record = new MaintenanceRecord
         {
             EquipmentId = schedule.EquipmentId,
             MaintenanceDate = DateTime.UtcNow,
-            Description = $"Theo kế hoạch: {schedule.Name}",
+            Description = $"Theo kế hoạch: {displayScheduleName}",
             Cost = 0,
             PerformedBy = "Theo kế hoạch",
             Status = MaintenanceStatuses.InProgress,
@@ -246,7 +262,7 @@ public class MaintenanceScheduleController : ControllerBase
         await _notificationService.NotifyManagersAsync(
             "MAINTENANCE_SCHEDULE_GENERATED",
             "Đã tạo nhiệm vụ bảo trì định kỳ",
-            $"Kế hoạch {schedule.Name} đã sinh phiếu #{record.Id}.",
+            $"Kế hoạch {displayScheduleName} đã sinh phiếu #{record.Id}.",
             "/dashboard/maintenance",
             cancellationToken);
         await _auditService.WriteAsync(HttpContext, "GenerateMaintenance", nameof(MaintenanceSchedule), id,

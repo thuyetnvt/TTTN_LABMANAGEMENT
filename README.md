@@ -23,6 +23,8 @@ Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có
 - Đính kèm ảnh, tài liệu hoặc bằng chứng bàn giao/nhận trả.
 - Xử lý đồng thời bằng transaction, không cho một tài sản bị mượn trùng.
 - Tự động cập nhật trạng thái khi trả tốt, trả hỏng, bảo hành hoặc bồi thường.
+- Tự động nhận diện phiếu quá hạn và tạo phạt **10.000đ/ngày** trong mục Đền bù & Phạt.
+- Khoản phạt quá hạn được cộng dồn theo ngày và không tạo bản ghi trùng khi worker chạy lại.
 
 ### Kiểm kê bằng QR
 
@@ -80,7 +82,7 @@ Chi tiết phân quyền xem tại [docs/RBAC_MATRIX.md](docs/RBAC_MATRIX.md).
 | Xác thực | JWT, token version và phân quyền theo vai trò |
 | File storage | Local volume hoặc S3-compatible (AWS S3/MinIO) |
 | Kiểm thử | .NET Test, Node Test Runner, Playwright |
-| Triển khai | Docker Compose, Nginx |
+| Triển khai | Docker Compose, Nginx, Caddy (production reverse proxy) |
 
 ## Cấu trúc dự án
 
@@ -188,6 +190,27 @@ docker compose down
 
 > Không chạy `docker compose down -v` trên hệ thống có dữ liệu thật. Tùy chọn `-v` sẽ xóa database, file upload và Data Protection keys trong Docker volume.
 
+## Tác vụ tự động
+
+Backend có worker chạy nền ngay khi khởi động và kiểm tra định kỳ. Mặc định worker chạy mỗi 5 phút:
+
+- Tự sinh phiếu bảo trì khi kế hoạch đến hạn.
+- Gửi thông báo nhắc trả trước hạn, đến hạn và quá hạn.
+- Tạo phạt trả quá hạn **10.000đ cho mỗi ngày quá hạn**, mỗi phiếu mượn một khoản phạt và tự cộng dồn theo ngày.
+- Ghi nhận lần xử lý trong `AutomationDispatches` để không gửi thông báo hoặc tạo phạt trùng.
+
+Có thể cấu hình trong `.env` hoặc `.env.production`:
+
+```dotenv
+AUTOMATION_ENABLED=true
+AUTOMATION_POLL_MINUTES=5
+AUTOMATION_OVERDUE_PENALTY_AMOUNT_PER_DAY=10000
+RETURN_REMINDER_DAYS_BEFORE=3
+AUTOMATION_SEND_EMAIL_REMINDERS=false
+```
+
+Đặt `AUTOMATION_OVERDUE_PENALTY_AMOUNT_PER_DAY=0` nếu muốn tạm tắt riêng việc tự tạo phạt quá hạn.
+
 ## Kiểm thử
 
 Backend:
@@ -283,6 +306,22 @@ Trước khi đưa lên server/domain:
 10. Thực hiện restore drill trên staging trước khi nghiệm thu production.
 
 Hướng dẫn chi tiết: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## CI/CD và tự động deploy VPS
+
+Workflow GitHub Actions nằm tại [.github/workflows/ci.yml](.github/workflows/ci.yml):
+
+- Pull request vào `main`: chạy kiểm thử backend, frontend, E2E và Docker; bước Deploy VPS được bỏ qua.
+- Push vào `main` hoặc `codex/fix-table-fixed-columns`: sau khi toàn bộ kiểm thử xanh, workflow tự SSH vào VPS, pull đúng nhánh và khởi động lại Docker Compose production.
+- Các secret cần có trong GitHub Actions gồm `VPS_HOST`, `VPS_USER`, `VPS_PORT` và `VPS_SSH_KEY`.
+
+Sau khi sửa code trên nhánh đang deploy, chỉ cần:
+
+```bash
+git push origin codex/fix-table-fixed-columns
+```
+
+Theo dõi kết quả tại tab **Actions**. Chỉ khi job **Deploy VPS** xanh thì phiên bản mới đã được cập nhật trên VPS.
 
 ## Tài liệu dự án
 

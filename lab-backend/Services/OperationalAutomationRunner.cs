@@ -13,7 +13,10 @@ public sealed class OperationalAutomationRunner
     private const string ReturnDueSoon = "RETURN_DUE_SOON";
     private const string ReturnDueToday = "RETURN_DUE_TODAY";
     private const string ReturnOverdue = "RETURN_OVERDUE";
+    private const string ReturnOverduePenalty = "RETURN_OVERDUE_PENALTY";
     private const string BorrowHoldExpired = "BORROW_HOLD_EXPIRED";
+    private const string AutomaticOverduePenaltyReasonPrefix = "Tự động phạt trả quá hạn";
+    private const decimal DefaultOverduePenaltyAmountPerDay = 10000m;
 
     private readonly AppDbContext _context;
     private readonly INotificationService _notifications;
@@ -40,10 +43,114 @@ public sealed class OperationalAutomationRunner
         utcNow = DateTime.SpecifyKind(utcNow, DateTimeKind.Utc);
         await ExpireApprovedHoldsAsync(utcNow, cancellationToken);
         await GenerateDueMaintenanceAsync(utcNow, cancellationToken);
+        await CreateOverduePenaltiesAsync(utcNow, cancellationToken);
         await CreateReturnRemindersAsync(utcNow, cancellationToken);
         if (_configuration.GetValue("Automation:SendEmailReminders", false))
         {
             await SendPendingReminderEmailsAsync(utcNow, cancellationToken);
+        }
+    }
+
+    private async Task CreateOverduePenaltiesAsync(DateTime utcNow, CancellationToken cancellationToken)
+    {
+        var amountPerDay = _configuration.GetValue(
+            "Automation:OverduePenaltyAmountPerDay",
+            DefaultOverduePenaltyAmountPerDay);
+        if (amountPerDay <= 0) return;
+
+        var today = VietnamTime.Today(utcNow);
+        var todayStartUtc = VietnamTime.StartOfDayUtc(today);
+        var records = await _context.BorrowRecords
+            .AsNoTracking()
+            .Include(record => record.Details)
+            .Where(record => record.Status == BorrowStatuses.Borrowed
+                && record.ExpectedReturnDate < todayStartUtc)
+            .OrderBy(record => record.ExpectedReturnDate)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+
+        foreach (var record in records)
+        {
+            var equipmentId = record.EquipmentId
+                ?? record.Details.Select(detail => (int?)detail.EquipmentId).FirstOrDefault();
+            if (!equipmentId.HasValue || equipmentId.Value <= 0) continue;
+
+            var dueDate = VietnamTime.Date(record.ExpectedReturnDate);
+            var daysOverdue = Math.Max(1, (today - dueDate).Days);
+            var totalDue = amountPerDay * daysOverdue;
+            var windowKey = today.ToString("yyyyMMdd");
+            if (await DispatchExistsAsync(ReturnOverduePenalty, record.Id, windowKey, cancellationToken))
+            {
+                continue;
+            }
+
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                if (await DispatchExistsAsync(ReturnOverduePenalty, record.Id, windowKey, cancellationToken))
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    continue;
+                }
+
+                var dispatch = AddDispatch(
+                    ReturnOverduePenalty,
+                    nameof(BorrowRecord),
+                    record.Id,
+                    windowKey,
+                    record.UserId);
+                var automaticPenalties = await _context.Penalties
+                    .Where(penalty => penalty.BorrowRecordId == record.Id
+                        && penalty.Reason.StartsWith(AutomaticOverduePenaltyReasonPrefix))
+                    .OrderByDescending(penalty => penalty.CreatedAt)
+                    .ToListAsync(cancellationToken);
+                var paidAmount = automaticPenalties
+                    .Where(penalty => penalty.Status == PenaltyStatuses.Paid)
+                    .Sum(penalty => penalty.Amount);
+                var outstandingAmount = Math.Max(0m, totalDue - paidAmount);
+                var unpaidPenalty = automaticPenalties
+                    .FirstOrDefault(penalty => penalty.Status == PenaltyStatuses.Unpaid);
+                var reason = $"{AutomaticOverduePenaltyReasonPrefix}: {daysOverdue} ngày (phiếu mượn #{record.Id})";
+
+                if (unpaidPenalty is not null)
+                {
+                    unpaidPenalty.Amount = outstandingAmount;
+                    unpaidPenalty.Reason = reason;
+                    unpaidPenalty.EquipmentId = equipmentId.Value;
+                }
+                else if (outstandingAmount > 0)
+                {
+                    _context.Penalties.Add(new Penalty
+                    {
+                        UserId = record.UserId,
+                        EquipmentId = equipmentId.Value,
+                        BorrowRecordId = record.Id,
+                        Reason = reason,
+                        Amount = outstandingAmount,
+                        Status = PenaltyStatuses.Unpaid,
+                        CreatedAt = utcNow
+                    });
+                }
+
+                dispatch.CompletedAt = utcNow;
+                AddSystemAudit(
+                    "AutoCreateOverduePenalty",
+                    nameof(BorrowRecord),
+                    record.Id,
+                    new { record.ExpectedReturnDate, daysOverdue, Amount = outstandingAmount },
+                    utcNow);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch (DbUpdateException exception)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                _context.ChangeTracker.Clear();
+                _logger.LogWarning(
+                    exception,
+                    "Overdue penalty for borrow record {BorrowRecordId} was not committed.",
+                    record.Id);
+            }
         }
     }
 

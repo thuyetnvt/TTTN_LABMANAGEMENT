@@ -49,7 +49,7 @@
             <AuditActionLabel :action="record.action" />
           </template>
           <template v-else-if="column.key === 'username'">
-            {{ actorLabel(record.username) }}
+            {{ actorLabel(record) }}
           </template>
           <template v-else-if="column.key === 'createdAt'">
             {{ formatDateTime(record.createdAt) }}
@@ -188,7 +188,11 @@ const entityLabel = (entityType) => ({
 
 const formatDateTime = value => formatVietnamDateTime(value, '')
 
-const actorLabel = username => {
+const actorLabel = record => {
+  const displayName = String(record?.actorDisplayName || '').trim()
+  if (displayName) return displayName
+
+  const username = record?.username
   const normalized = String(username || '').trim()
   if (!normalized) return 'Không xác định'
   return normalized.toLowerCase() === 'system' ? 'Hệ thống' : normalized

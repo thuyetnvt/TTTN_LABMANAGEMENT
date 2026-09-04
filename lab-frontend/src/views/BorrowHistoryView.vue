@@ -31,14 +31,20 @@
             <StatusBadge v-if="record.returnCondition" :status="record.returnCondition" type="returnCondition" />
           </template>
           <template v-else-if="column.key === 'status'">
-            <StatusBadge :status="record.status" type="borrow" :label-override="borrowWorkflowLabel(record)" />
+            <StatusBadge :status="record.status" type="borrow" :color="record.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(record)" />
           </template>
           <template v-else-if="column.key === 'compensationAmount'">
             {{ record.compensationAmount ? record.compensationAmount.toLocaleString('vi-VN') + ' VNĐ' : '' }}
           </template>
           <template v-else-if="column.key === 'action'">
+            <template v-if="isManager && (statusMatches(record.status, STATUS.BORROWED) || statusMatches(record.status, STATUS.RETURN_PROCESSING))">
+              <div class="request-actions">
+                <a-button type="default" size="small" @click="openReturn(record)">Kiểm tra trả</a-button>
+                <a-button size="small" :loading="isReminding(record.id)" @click="handleRemind(record)">Nhắc trả</a-button>
+              </div>
+            </template>
             <a-button
-              v-if="record.canCancel"
+              v-else-if="record.canCancel"
               danger
               size="small"
               @click="openCancelModal(record)"
@@ -65,7 +71,7 @@
         <template #default="{ item }">
           <div class="mobile-card-heading">
             <strong>{{ item.device }}</strong>
-            <StatusBadge :status="item.status" type="borrow" :label-override="borrowWorkflowLabel(item)" />
+            <StatusBadge :status="item.status" type="borrow" :color="item.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(item)" />
           </div>
           <div class="mobile-card-subtitle">{{ borrowerLabel(item) }} · {{ item.serial || 'Không có số seri' }}</div>
           <dl class="mobile-card-details">
@@ -75,12 +81,23 @@
             <div v-if="item.returnCondition"><dt>Tình trạng trả</dt><dd><StatusBadge :status="item.returnCondition" type="returnCondition" /></dd></div>
             <div v-if="item.compensationAmount"><dt>Bồi thường</dt><dd>{{ item.compensationAmount.toLocaleString('vi-VN') }} VNĐ</dd></div>
           </dl>
-          <a-button v-if="item.canCancel" danger block @click="openCancelModal(item)">Hủy phiếu</a-button>
+          <div v-if="isManager && (statusMatches(item.status, STATUS.BORROWED) || statusMatches(item.status, STATUS.RETURN_PROCESSING))" class="mobile-request-actions">
+            <a-button @click="openReturn(item)">Kiểm tra trả</a-button>
+            <a-button :loading="isReminding(item.id)" @click="handleRemind(item)">Nhắc trả</a-button>
+          </div>
+          <a-button v-else-if="item.canCancel" danger block @click="openCancelModal(item)">Hủy phiếu</a-button>
           <a-button v-else-if="item.canConfirmHandover" type="primary" block @click="openHandover(item)">Xem & xác nhận nhận</a-button>
           <a-button v-else block @click="openDetails(item)"><EyeOutlined /> Xem chi tiết</a-button>
         </template>
       </ResponsiveDataList>
     </a-card>
+
+    <ReturnInspectionModal
+      :open="isReturnVisible"
+      :record="returnRecord"
+      @update:open="isReturnVisible = $event"
+      @saved="fetchHistory"
+    />
 
     <a-modal
       v-model:open="isHandoverVisible"
@@ -124,7 +141,7 @@
         <a-descriptions-item label="Thiết bị">{{ selectedRecord.device }}</a-descriptions-item>
         <a-descriptions-item label="Hạn trả">{{ formatDate(selectedRecord.expectedReturnDate) }}</a-descriptions-item>
         <a-descriptions-item label="Ngày trả thực tế">{{ selectedRecord.actualReturnDate ? formatDate(selectedRecord.actualReturnDate) : 'Chưa trả' }}</a-descriptions-item>
-        <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedRecord.status" type="borrow" :label-override="borrowWorkflowLabel(selectedRecord)" /></a-descriptions-item>
+        <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedRecord.status" type="borrow" :color="selectedRecord.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(selectedRecord)" /></a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.holdExpiresAt" label="Thời hạn giữ chỗ">{{ formatDateTime(selectedRecord.holdExpiresAt) }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.cancellationReason" label="Lý do hủy">{{ selectedRecord.cancellationReason }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.cancelledAt" label="Thời điểm hủy">{{ formatDateTime(selectedRecord.cancelledAt) }}</a-descriptions-item>
@@ -157,17 +174,19 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, watch } from 'vue'
+import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { EyeOutlined } from '@ant-design/icons-vue'
 import { borrowApi } from '../api/borrowApi'
 import { handoverApi } from '../api/handoverApi'
+import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import ReturnInspectionModal from '../components/ReturnInspectionModal.vue'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
-import { STATUS, statusMatches } from '../constants/business'
-import { getApiErrorMessage } from '../utils/apiError'
+import { STATUS, isManagerRole, statusMatches } from '../constants/business'
+import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
 import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 
 const tablePagination = reactive({
@@ -179,6 +198,9 @@ const tablePagination = reactive({
 
 const dataSource = ref([])
 const route = useRoute()
+const authStore = useAuthStore()
+const role = computed(() => authStore.role)
+const isManager = computed(() => isManagerRole(role.value))
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
@@ -192,8 +214,12 @@ const isCancelVisible = ref(false)
 const cancelling = ref(false)
 const cancelReason = ref('')
 const cancelRecord = ref(null)
+const isReturnVisible = ref(false)
+const returnRecord = ref(null)
+const remindingRecordIds = ref(new Set())
 
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
+const isReminding = id => remindingRecordIds.value.has(id)
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170 },
@@ -211,6 +237,10 @@ const columns = [
 ]
 
 const borrowWorkflowLabel = record => {
+  if (record?.isOverdue) {
+    const daysOverdue = Math.max(1, Math.abs(Number(record.daysUntilDue || 0)))
+    return `Quá hạn ${daysOverdue} ngày`
+  }
   if (statusMatches(record.status, STATUS.APPROVED)) {
     return record.handover ? 'Đã bàn giao, chờ người nhận xác nhận' : 'Đã duyệt, chờ lập bàn giao'
   }
@@ -220,6 +250,29 @@ const borrowWorkflowLabel = record => {
 const openDetails = record => {
   selectedRecord.value = record
   isDetailsVisible.value = true
+}
+
+const openReturn = record => {
+  returnRecord.value = record
+  isReturnVisible.value = true
+}
+
+const handleRemind = async record => {
+  if (isReminding(record.id)) return
+
+  remindingRecordIds.value = new Set(remindingRecordIds.value).add(record.id)
+  const messageKey = `remind-${record.id}`
+  try {
+    message.loading({ content: 'Đang gửi nhắc trả...', key: messageKey })
+    const result = await borrowApi.remind(record.id)
+    message.success({ content: getApiSuccessMessage(result, 'Đã gửi email nhắc trả thành công.'), key: messageKey })
+  } catch (error) {
+    message.error({ content: getApiErrorMessage(error, 'Không thể gửi nhắc trả.'), key: messageKey })
+  } finally {
+    const nextIds = new Set(remindingRecordIds.value)
+    nextIds.delete(record.id)
+    remindingRecordIds.value = nextIds
+  }
 }
 
 const openCancelModal = record => {
@@ -351,6 +404,9 @@ h2 {
 
 .muted { color: #8c8c8c; font-size: 13px; }
 .view-action { color: var(--color-primary); }
+.request-actions { display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
+.mobile-request-actions { display: flex; gap: 8px; }
+.mobile-request-actions :deep(.ant-btn) { flex: 1; }
 .handover-items { display: grid; gap: 10px; margin-top: 16px; }
 .handover-items :deep(.ant-card-body) { display: grid; gap: 6px; }
 .mobile-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }

@@ -26,6 +26,8 @@ public class BorrowController : ControllerBase
     private const string Cancelled = BorrowStatuses.Cancelled;
     private const string ProcessingApproval = BorrowStatuses.ProcessingApproval;
     private const string ProcessingReturn = BorrowStatuses.ReturnProcessing;
+    private const string AutomaticOverduePenaltyReasonPrefix = "Tự động phạt trả quá hạn";
+    private const decimal DefaultOverduePenaltyAmountPerDay = 10000m;
 
     private readonly AppDbContext _context;
     private readonly IEmailService _emailService;
@@ -263,9 +265,7 @@ public class BorrowController : ControllerBase
             .Include(item => item.Details)
                 .ThenInclude(item => item.Equipment)
         .Where(item => item.Status == Pending
-            || item.Status == Approved
-            || item.Status == Borrowed
-            || item.Status == ProcessingReturn)
+            || item.Status == Approved)
             .OrderByDescending(item => item.BorrowDate)
             .ToListAsync(cancellationToken);
 
@@ -287,7 +287,7 @@ public class BorrowController : ControllerBase
             borrowerName = item.User!.FullName,
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
-            purpose = item.Purpose,
+            purpose = SeedDisplayText.Clean(item.Purpose),
             status = item.Status,
             holdExpiresAt = item.HoldExpiresAt,
             hasHandover = handovers.ContainsKey(item.Id),
@@ -327,9 +327,7 @@ public class BorrowController : ControllerBase
             .Include(item => item.Details)
                 .ThenInclude(item => item.Equipment)
             .Where(item => item.Status == Pending
-                || item.Status == Approved
-                || item.Status == Borrowed
-                || item.Status == ProcessingReturn)
+                || item.Status == Approved)
             .AsQueryable();
         var search = paging.NormalizedSearch;
         if (search.Length > 0)
@@ -384,7 +382,7 @@ public class BorrowController : ControllerBase
             borrowerName = item.User.FullName,
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
-            purpose = item.Purpose,
+            purpose = SeedDisplayText.Clean(item.Purpose),
             status = item.Status,
             holdExpiresAt = item.HoldExpiresAt,
             hasHandover = handovers.ContainsKey(item.Id),
@@ -433,7 +431,9 @@ public class BorrowController : ControllerBase
         }
         else
         {
-            query = query.Where(item => item.Status != Pending && item.Status != TeacherPending);
+            query = query.Where(item => item.Status != Pending
+                && item.Status != TeacherPending
+                && item.Status != Approved);
         }
 
         var records = await query
@@ -446,22 +446,32 @@ public class BorrowController : ControllerBase
             .Include(item => item.Items)
                 .ThenInclude(item => item.Equipment)
             .ToDictionaryAsync(item => item.BorrowRecordId, cancellationToken);
+        var historyToday = VietnamTime.Today();
 
         var history = records.Select(item =>
         {
             handovers.TryGetValue(item.Id, out var handover);
+            var expectedReturnDate = VietnamTime.Date(item.ExpectedReturnDate);
+            var isOverdue = (item.Status == Borrowed || item.Status == ProcessingReturn)
+                && expectedReturnDate < historyToday;
             return new
             {
                 id = item.Id,
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
                 device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
+                equipmentId = item.EquipmentId,
                 serial = item.Equipment != null ? item.Equipment.Serial : string.Empty,
                 requestDate = item.BorrowDate,
                 returnDate = item.ActualReturnDate ?? item.ExpectedReturnDate,
                 expectedReturnDate = item.ExpectedReturnDate,
                 actualReturnDate = item.ActualReturnDate,
                 status = item.Status,
+                isOverdue,
+                daysUntilDue = (expectedReturnDate - historyToday).Days,
+                overduePenaltyAmount = isOverdue
+                    ? CalculateOverduePenaltyAmount(item.ExpectedReturnDate)
+                    : 0m,
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,
                 warrantyAction = item.WarrantyAction,
@@ -542,7 +552,9 @@ public class BorrowController : ControllerBase
         }
         else
         {
-            query = query.Where(item => item.Status != Pending && item.Status != TeacherPending);
+            query = query.Where(item => item.Status != Pending
+                && item.Status != TeacherPending
+                && item.Status != Approved);
         }
 
         var search = paging.NormalizedSearch;
@@ -563,7 +575,9 @@ public class BorrowController : ControllerBase
             if (string.Equals(status, "OVERDUE", StringComparison.OrdinalIgnoreCase))
             {
                 var today = VietnamTime.Today();
-                query = query.Where(item => item.Status == Borrowed && item.ExpectedReturnDate < today);
+                query = query.Where(item =>
+                    (item.Status == Borrowed || item.Status == ProcessingReturn)
+                    && item.ExpectedReturnDate < today);
             }
             else
             {
@@ -591,6 +605,7 @@ public class BorrowController : ControllerBase
             .Include(item => item.Items)
                 .ThenInclude(item => item.Equipment)
             .ToDictionaryAsync(item => item.BorrowRecordId, cancellationToken);
+        var historyToday = VietnamTime.Today();
         var items = page.Items.Select(item =>
         {
             handovers.TryGetValue(item.Id, out var handover);
@@ -600,12 +615,20 @@ public class BorrowController : ControllerBase
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
                 device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
+                equipmentId = item.EquipmentId,
                 serial = item.Equipment?.Serial ?? string.Empty,
                 requestDate = item.BorrowDate,
                 returnDate = item.ActualReturnDate ?? item.ExpectedReturnDate,
                 expectedReturnDate = item.ExpectedReturnDate,
                 actualReturnDate = item.ActualReturnDate,
                 status = item.Status,
+                isOverdue = (item.Status == Borrowed || item.Status == ProcessingReturn)
+                    && VietnamTime.Date(item.ExpectedReturnDate) < historyToday,
+                daysUntilDue = (VietnamTime.Date(item.ExpectedReturnDate) - historyToday).Days,
+                overduePenaltyAmount = (item.Status == Borrowed || item.Status == ProcessingReturn)
+                    && VietnamTime.Date(item.ExpectedReturnDate) < historyToday
+                    ? CalculateOverduePenaltyAmount(item.ExpectedReturnDate)
+                    : 0m,
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,
                 warrantyAction = item.WarrantyAction,
@@ -678,28 +701,27 @@ public class BorrowController : ControllerBase
             .Include(item => item.Details)
                 .ThenInclude(detail => detail.Equipment)
             .Where(item => item.Status == TeacherPending && item.TeacherId == teacherId)
-            .Select(item => new
-            {
-                id = item.Id,
-                student = item.User!.Username,
-                borrowerName = item.User!.FullName,
-                device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
-                requestDate = item.BorrowDate,
-                returnDate = item.ExpectedReturnDate,
-                purpose = item.Purpose,
-                status = item.Status,
-                details = item.Details.Select(detail => new
-                {
-                    detail.EquipmentId,
-                    equipmentName = detail.Equipment!.Name,
-                    serial = detail.Equipment.Serial,
-                    detail.Note,
-                    detail.Status
-                })
-            })
             .ToListAsync(cancellationToken);
 
-        return Ok(requests);
+        return Ok(requests.Select(item => new
+        {
+            id = item.Id,
+            student = item.User!.Username,
+            borrowerName = item.User!.FullName,
+            device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
+            requestDate = item.BorrowDate,
+            returnDate = item.ExpectedReturnDate,
+            purpose = SeedDisplayText.Clean(item.Purpose),
+            status = item.Status,
+            details = item.Details.Select(detail => new
+            {
+                detail.EquipmentId,
+                equipmentName = detail.Equipment!.Name,
+                serial = detail.Equipment.Serial,
+                detail.Note,
+                detail.Status
+            })
+        }));
     }
 
     [HttpGet("teacher-pending/paged")]
@@ -740,7 +762,7 @@ public class BorrowController : ControllerBase
             device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
-            purpose = item.Purpose,
+            purpose = SeedDisplayText.Clean(item.Purpose),
             status = item.Status,
             details = item.Details.Select(detail => new
             {
@@ -1292,6 +1314,10 @@ public class BorrowController : ControllerBase
             && detail.Equipment!.WarrantyExpiry.HasValue
             && detail.Equipment.WarrantyExpiry.Value >= DateTime.UtcNow);
         record.WarrantyAction = anyDamaged ? "Đã chuyển xử lý hư hỏng/bảo hành" : "Không cần xử lý";
+        if (allReturned)
+        {
+            await SettleOverduePenaltyAsync(record, DateTime.UtcNow, cancellationToken);
+        }
         _context.BorrowStatusHistories.Add(new BorrowStatusHistory
         {
             BorrowRecordId = id,
@@ -1494,6 +1520,81 @@ public class BorrowController : ControllerBase
     private int GetCurrentUserId()
     {
         return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
+    private decimal GetOverduePenaltyAmountPerDay()
+    {
+        return Math.Max(
+            0m,
+            _configuration.GetValue(
+                "Automation:OverduePenaltyAmountPerDay",
+                DefaultOverduePenaltyAmountPerDay));
+    }
+
+    private decimal CalculateOverduePenaltyAmount(DateTime expectedReturnDate)
+    {
+        var daysOverdue = Math.Max(
+            0,
+            (VietnamTime.Today() - VietnamTime.Date(expectedReturnDate)).Days);
+        return daysOverdue * GetOverduePenaltyAmountPerDay();
+    }
+
+    private async Task SettleOverduePenaltyAsync(
+        BorrowRecord record,
+        DateTime paidAt,
+        CancellationToken cancellationToken)
+    {
+        var totalDue = CalculateOverduePenaltyAmount(record.ExpectedReturnDate);
+        if (totalDue <= 0m)
+        {
+            return;
+        }
+
+        var equipmentId = record.EquipmentId
+            ?? record.Details.Select(detail => (int?)detail.EquipmentId).FirstOrDefault();
+        if (!equipmentId.HasValue || equipmentId.Value <= 0)
+        {
+            return;
+        }
+
+        var automaticPenalties = await _context.Penalties
+            .Where(penalty => penalty.BorrowRecordId == record.Id
+                && penalty.Reason.StartsWith(AutomaticOverduePenaltyReasonPrefix))
+            .OrderByDescending(penalty => penalty.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var paidAmount = automaticPenalties
+            .Where(penalty => penalty.Status == PenaltyStatuses.Paid)
+            .Sum(penalty => penalty.Amount);
+        var outstandingAmount = Math.Max(0m, totalDue - paidAmount);
+        var unpaidPenalty = automaticPenalties
+            .FirstOrDefault(penalty => penalty.Status == PenaltyStatuses.Unpaid);
+        var daysOverdue = Math.Max(
+            1,
+            (VietnamTime.Today() - VietnamTime.Date(record.ExpectedReturnDate)).Days);
+        var reason = $"{AutomaticOverduePenaltyReasonPrefix}: {daysOverdue} ngày (phiếu mượn #{record.Id})";
+
+        if (unpaidPenalty is not null)
+        {
+            unpaidPenalty.Amount = outstandingAmount;
+            unpaidPenalty.Reason = reason;
+            unpaidPenalty.EquipmentId = equipmentId.Value;
+            unpaidPenalty.Status = PenaltyStatuses.Paid;
+            unpaidPenalty.PaidAt = paidAt;
+        }
+        else if (outstandingAmount > 0m)
+        {
+            _context.Penalties.Add(new Penalty
+            {
+                UserId = record.UserId,
+                EquipmentId = equipmentId.Value,
+                BorrowRecordId = record.Id,
+                Reason = reason,
+                Amount = outstandingAmount,
+                Status = PenaltyStatuses.Paid,
+                CreatedAt = paidAt,
+                PaidAt = paidAt
+            });
+        }
     }
 
     private static string? NormalizeDecisionNote(DecisionNoteDto? dto, bool required)

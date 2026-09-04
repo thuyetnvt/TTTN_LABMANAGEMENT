@@ -279,6 +279,153 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task Student_paged_history_marks_overdue_with_number_of_days()
+    {
+        await using var context = CreateInMemoryContext();
+        var today = VietnamTime.Today();
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            FullName = "Nguyễn Văn A",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.Borrowed));
+        context.BorrowRecords.Add(new BorrowRecord
+        {
+            Id = 32,
+            UserId = 1,
+            EquipmentId = 1,
+            BorrowDate = DateTime.UtcNow.AddDays(-5),
+            ExpectedReturnDate = VietnamTime.StartOfDayUtc(today.AddDays(-2)),
+            Purpose = "Kiểm tra quá hạn",
+            Status = BorrowStatuses.Borrowed
+        });
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 1, Roles.Student);
+        var result = await controller.GetHistoryPaged(
+            new LabManagementAPI.Dtos.PageQuery(),
+            CancellationToken.None);
+        var json = JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var document = JsonDocument.Parse(json);
+        var item = document.RootElement.GetProperty("items")[0];
+
+        Assert.Equal("Nguyễn Văn A", item.GetProperty("borrowerName").GetString());
+        Assert.True(item.GetProperty("isOverdue").GetBoolean());
+        Assert.Equal(-2, item.GetProperty("daysUntilDue").GetInt32());
+        Assert.Equal(20000, item.GetProperty("overduePenaltyAmount").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Manager_pending_queue_excludes_borrowed_and_return_processing_records()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            FullName = "Nguyễn Văn A",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.AddRange(
+            CreateEquipment(1),
+            CreateEquipment(2),
+            CreateEquipment(3, EquipmentStatuses.Borrowed),
+            CreateEquipment(4, EquipmentStatuses.Borrowed));
+        context.BorrowRecords.AddRange(
+            CreateBorrowRecord(60, 1, BorrowStatuses.Pending, 1),
+            CreateBorrowRecord(61, 1, BorrowStatuses.Approved, 2),
+            CreateBorrowRecord(62, 1, BorrowStatuses.Borrowed, 3),
+            CreateBorrowRecord(63, 1, BorrowStatuses.ReturnProcessing, 4));
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 99, Roles.LabHead);
+        var result = await controller.GetPendingRequestsPaged(
+            new LabManagementAPI.Dtos.PageQuery { PageSize = 100 },
+            CancellationToken.None);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        var ids = json.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("id").GetInt32())
+            .ToArray();
+
+        Assert.Equal([61, 60], ids);
+    }
+
+    [Fact]
+    public async Task Manager_pending_queue_hides_internal_seed_marker_from_purpose()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            FullName = "Nguyễn Văn A",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.Add(CreateEquipment(1));
+        var record = CreateBorrowRecord(66, 1, BorrowStatuses.Pending, 1);
+        record.Purpose = "[SEED-FULL-BORROW-003] Huấn luyện mô hình nhận diện ảnh.";
+        context.BorrowRecords.Add(record);
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 99, Roles.LabHead);
+        var result = await controller.GetPendingRequestsPaged(
+            new LabManagementAPI.Dtos.PageQuery { PageSize = 100 },
+            CancellationToken.None);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+
+        Assert.Equal(
+            "Huấn luyện mô hình nhận diện ảnh.",
+            json.RootElement.GetProperty("items")[0].GetProperty("purpose").GetString());
+    }
+
+    [Fact]
+    public async Task Manager_history_contains_borrowed_records_but_not_approved_records()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            FullName = "Nguyễn Văn A",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.AddRange(
+            CreateEquipment(5, EquipmentStatuses.BorrowPending),
+            CreateEquipment(6, EquipmentStatuses.Borrowed));
+        context.BorrowRecords.AddRange(
+            CreateBorrowRecord(64, 1, BorrowStatuses.Approved, 5),
+            CreateBorrowRecord(65, 1, BorrowStatuses.Borrowed, 6));
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 99, Roles.LabHead);
+        var result = await controller.GetHistoryPaged(
+            new LabManagementAPI.Dtos.PageQuery { PageSize = 100 },
+            CancellationToken.None);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        var ids = json.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("id").GetInt32())
+            .ToArray();
+
+        Assert.Equal([65], ids);
+    }
+
+    [Fact]
     public async Task Manager_can_create_in_app_return_reminder_without_smtp()
     {
         await using var context = CreateInMemoryContext();
@@ -350,6 +497,43 @@ public sealed class BorrowControllerTests
             Assert.Equal(350000, record.CompensationAmount);
             Assert.Single(context.Penalties);
             Assert.Single(context.MaintenanceRecords);
+        }
+    }
+
+    [Fact]
+    public async Task Returning_overdue_record_creates_paid_overdue_penalty()
+    {
+        await using var context = CreateSqliteContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.Borrowed));
+            var record = CreateBorrowRecord(41, 1, BorrowStatuses.Borrowed, 1);
+            record.ExpectedReturnDate = VietnamTime.StartOfDayUtc(VietnamTime.Today().AddDays(-2));
+            context.BorrowRecords.Add(record);
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.LabHead);
+            var result = await controller.ReturnEquipment(
+                41,
+                new BorrowController.ReturnInspectionDto
+                {
+                    Items = [new()
+                    {
+                        EquipmentId = 1,
+                        Condition = EquipmentStatuses.Available
+                    }]
+                },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            var penalty = await context.Penalties.AsNoTracking().SingleAsync();
+            Assert.Equal(20000m, penalty.Amount);
+            Assert.Equal(PenaltyStatuses.Paid, penalty.Status);
+            Assert.NotNull(penalty.PaidAt);
+            Assert.StartsWith("Tự động phạt trả quá hạn", penalty.Reason);
         }
     }
 

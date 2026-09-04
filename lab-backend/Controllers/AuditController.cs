@@ -45,15 +45,18 @@ public class AuditController : ControllerBase
         if (!string.IsNullOrWhiteSpace(search))
         {
             var keyword = search.Trim();
-            var matchingUserIds = (await _context.Users
+            var matchingActors = await _context.Users
                     .AsNoTracking()
-                    .Where(user => user.Username.Contains(keyword))
-                    .Select(user => user.Id)
-                    .ToListAsync(cancellationToken))
-                .Select(id => id.ToString())
-                .ToList();
+                    .Where(user => user.Username.Contains(keyword) || user.FullName.Contains(keyword))
+                    .Select(user => new { user.Id, user.Username })
+                    .ToListAsync(cancellationToken);
+            var matchingUserIds = matchingActors.Select(user => user.Id.ToString()).ToList();
+            var matchingActorIds = matchingActors.Select(user => user.Id).ToList();
+            var matchingActorUsernames = matchingActors.Select(user => user.Username).ToList();
             query = query.Where(log =>
                 log.Username.Contains(keyword)
+                || matchingActorUsernames.Contains(log.Username)
+                || (log.UserId.HasValue && matchingActorIds.Contains(log.UserId.Value))
                 || log.Action.Contains(keyword)
                 || log.EntityType.Contains(keyword)
                 || log.Details.Contains(keyword)
@@ -76,7 +79,7 @@ public class AuditController : ControllerBase
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        // Khôi phục tên người thao tác cho các log cũ được tạo khi đăng nhập chưa có JWT.
+        // Khôi phục tài khoản người thao tác cho các log cũ được tạo khi đăng nhập chưa có JWT.
         var missingActorIds = items
             .Where(log => string.IsNullOrWhiteSpace(log.Username))
             .Select(ResolveActorUserId)
@@ -84,27 +87,93 @@ public class AuditController : ControllerBase
             .Select(id => id!.Value)
             .Distinct()
             .ToList();
-        var actorNames = missingActorIds.Count == 0
-            ? new Dictionary<int, string>()
+        var actorUsersById = missingActorIds.Count == 0
+            ? new Dictionary<int, User>()
             : await _context.Users
                 .AsNoTracking()
                 .Where(user => missingActorIds.Contains(user.Id))
-                .ToDictionaryAsync(user => user.Id, user => user.Username, cancellationToken);
+                .ToDictionaryAsync(user => user.Id, cancellationToken);
 
         foreach (var log in items.Where(item => string.IsNullOrWhiteSpace(item.Username)))
         {
             var actorId = ResolveActorUserId(log);
-            if (actorId.HasValue && actorNames.TryGetValue(actorId.Value, out var username))
+            if (actorId.HasValue && actorUsersById.TryGetValue(actorId.Value, out var actor))
             {
-                log.Username = username;
+                log.Username = actor.Username;
                 continue;
             }
 
             log.Username = ExtractUsername(log.Details) ?? "Không xác định";
         }
 
+        // Tên hiển thị lấy theo UserId để vẫn đúng khi tài khoản đã đổi tên đăng nhập.
+        var actorIds = items
+            .Where(log => log.UserId.HasValue)
+            .Select(log => log.UserId!.Value)
+            .Concat(items.Select(ResolveActorUserId).Where(id => id.HasValue).Select(id => id!.Value))
+            .Distinct()
+            .ToList();
+        var usersById = actorIds.Count == 0
+            ? new Dictionary<int, User>()
+            : await _context.Users
+                .AsNoTracking()
+                .Where(user => actorIds.Contains(user.Id))
+                .ToDictionaryAsync(user => user.Id, cancellationToken);
+        var usernames = items
+            .Select(log => log.Username.Trim())
+            .Where(username => !string.IsNullOrWhiteSpace(username))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var usersByUsername = usernames.Count == 0
+            ? new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase)
+            : (await _context.Users
+                .AsNoTracking()
+                .Where(user => usernames.Contains(user.Username))
+                .ToListAsync(cancellationToken))
+                .ToDictionary(user => user.Username, StringComparer.OrdinalIgnoreCase);
+
+        var responseItems = items.Select(log => new
+        {
+            log.Id,
+            log.UserId,
+            log.Username,
+            actorDisplayName = FormatActorDisplayName(log, usersById, usersByUsername),
+            log.Action,
+            log.EntityType,
+            log.EntityId,
+            log.Details,
+            log.IpAddress,
+            log.CreatedAt
+        });
+
         var totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)pageSize);
-        return Ok(new { page, pageSize, total, totalPages, items });
+        return Ok(new { page, pageSize, total, totalPages, items = responseItems });
+    }
+
+    private static string FormatActorDisplayName(
+        AuditLog log,
+        IReadOnlyDictionary<int, User> usersById,
+        IReadOnlyDictionary<string, User> usersByUsername)
+    {
+        var username = log.Username.Trim();
+        if (string.IsNullOrWhiteSpace(username)) return "Không xác định";
+        if (username.Equals("system", StringComparison.OrdinalIgnoreCase)
+            || username.Equals("Hệ thống", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Hệ thống";
+        }
+
+        User? user = null;
+        if (log.UserId.HasValue)
+        {
+            usersById.TryGetValue(log.UserId.Value, out user);
+        }
+        user ??= usersByUsername.TryGetValue(username, out var matchedUser) ? matchedUser : null;
+
+        var fullName = user?.FullName?.Trim();
+        return string.IsNullOrWhiteSpace(fullName) || fullName.Equals(username, StringComparison.OrdinalIgnoreCase)
+            ? username
+            : $"{fullName} ({username})";
     }
 
     private static int? ResolveActorUserId(AuditLog log)

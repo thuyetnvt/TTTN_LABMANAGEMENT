@@ -8,8 +8,6 @@
           <a-select-option value="">Tất cả</a-select-option>
           <a-select-option :value="STATUS.BORROW_PENDING">Chờ duyệt</a-select-option>
           <a-select-option :value="STATUS.APPROVED">Chờ bàn giao</a-select-option>
-          <a-select-option :value="STATUS.BORROWED">Đang mượn</a-select-option>
-          <a-select-option :value="STATUS.RETURN_PROCESSING">Đang xử lý trả</a-select-option>
         </a-select>
       </div>
     </div>
@@ -52,10 +50,6 @@
                     </a-button>
                   </a-tooltip>
                 </template>
-                <template v-else-if="statusMatches(record.status, STATUS.BORROWED) || statusMatches(record.status, STATUS.RETURN_PROCESSING)">
-                  <a-button type="default" size="small" @click="showReturnModal(record)">Kiểm tra trả</a-button>
-                  <a-button size="small" :loading="isReminding(record.id)" @click="handleRemind(record)">Nhắc trả</a-button>
-                </template>
               </div>
             </template>
             <span v-else class="muted">—</span>
@@ -85,45 +79,10 @@
               <a-button v-if="!item.hasHandover" danger block @click="openCancelModal(item)">Hủy phiếu</a-button>
               <a-button v-else block @click="showExistingHandover(item)"><EyeOutlined /> Xem biên bản</a-button>
             </template>
-            <template v-else-if="statusMatches(item.status, STATUS.BORROWED) || statusMatches(item.status, STATUS.RETURN_PROCESSING)">
-              <a-button @click="showReturnModal(item)">Kiểm tra trả</a-button>
-              <a-button :loading="isReminding(item.id)" @click="handleRemind(item)">Nhắc trả</a-button>
-            </template>
           </div>
         </template>
       </ResponsiveDataList>
     </a-card>
-
-    <a-modal v-model:open="isReturnModalVisible" title="Kiểm tra tài sản khi trả" @ok="submitReturnInspection" @cancel="isReturnModalVisible = false" okText="Lưu kiểm tra" cancelText="Hủy" :confirmLoading="returnSubmitting">
-      <a-form layout="vertical">
-        <a-alert
-          type="info"
-          show-icon
-          message="Kiểm tra theo từng tài sản"
-          description="Có thể ghi nhận riêng tình trạng, ghi chú và bồi thường cho từng món trong phiếu."
-          style="margin-bottom: 16px"
-        />
-        <a-card v-for="item in returnForm.items" :key="item.equipmentId" size="small" :title="`${item.equipmentName || 'Tài sản'} — ${item.serial || ''}`" style="margin-bottom: 12px">
-          <a-form-item label="Tình trạng sau kiểm tra" required>
-            <a-select v-model:value="item.condition">
-              <a-select-option :value="STATUS.AVAILABLE">Rảnh</a-select-option>
-              <a-select-option :value="STATUS.BROKEN">Hỏng</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="Ghi chú kiểm tra">
-            <a-textarea v-model:value="item.note" :rows="2" placeholder="Mô tả lỗi, phụ kiện thiếu..." />
-          </a-form-item>
-          <a-form-item v-if="statusMatches(item.condition, STATUS.BROKEN)" label="Số tiền bồi thường nếu hết bảo hành">
-            <a-input-number v-model:value="item.compensationAmount" style="width: 100%" :min="0" :step="10000" :formatter="value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')" :parser="value => value.replace(/\$\s?|(,*)/g, '')" />
-          </a-form-item>
-          <a-form-item label="Ảnh/file trước hoặc sau khi nhận trả">
-            <a-upload :before-upload="file => selectReturnEvidence(item, file)" :show-upload-list="false" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"><a-button size="small">Chọn minh chứng</a-button></a-upload>
-            <span v-if="item.returnEvidenceFile" class="muted">{{ item.returnEvidenceFile.name }}</span>
-            <a-select v-if="item.returnEvidenceFile" v-model:value="item.returnEvidenceType" style="width: 100%; margin-top: 6px"><a-select-option value="PHOTO_BEFORE">Ảnh trước khi trả</a-select-option><a-select-option value="PHOTO_AFTER">Ảnh sau khi trả</a-select-option><a-select-option value="DOCUMENT">Biên bản</a-select-option><a-select-option value="SIGNATURE">Xác nhận điện tử</a-select-option></a-select>
-          </a-form-item>
-        </a-card>
-      </a-form>
-    </a-modal>
 
     <a-modal
       v-model:open="isHandoverModalVisible"
@@ -293,7 +252,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import { HANDOVER_CONDITIONS, STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { handoverApi } from '../api/handoverApi'
-import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
+import { getApiErrorMessage } from '../utils/apiError'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 
@@ -311,11 +270,8 @@ const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
-const returnSubmitting = ref(false)
-const isReturnModalVisible = ref(false)
 const isHandoverModalVisible = ref(false)
 const handoverSubmitting = ref(false)
-const currentReturnRecord = ref(null)
 const currentHandoverRecord = ref(null)
 const handoverForm = ref({ notes: '', items: [] })
 const handoverEvidenceFile = ref(null)
@@ -329,13 +285,6 @@ const isCancelVisible = ref(false)
 const cancelSubmitting = ref(false)
 const cancelReason = ref('')
 const cancelRecord = ref(null)
-const remindingRecordIds = ref(new Set())
-const returnForm = ref({
-  condition: STATUS.AVAILABLE,
-  note: '',
-  compensationAmount: 0,
-  items: []
-})
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170 },
@@ -360,7 +309,6 @@ const formatFileSize = (bytes) => {
 }
 const borrowRecordCode = computed(() => currentHandoverRecord.value?.id ? `BR-${String(currentHandoverRecord.value.id).padStart(6, '0')}` : '—')
 const completedHandoverItems = computed(() => handoverForm.value.items.filter(item => Boolean(item.condition)).length)
-const isReminding = id => remindingRecordIds.value.has(id)
 
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
 
@@ -466,69 +414,6 @@ const submitCancellation = async () => {
   }
 }
 
-const showReturnModal = (record) => {
-  currentReturnRecord.value = record
-  const details = record.details?.length
-    ? record.details
-    : [{ equipmentId: record.equipmentId, equipmentName: record.device, serial: record.serial }]
-  returnForm.value = {
-    condition: STATUS.AVAILABLE,
-    note: '',
-    compensationAmount: 0,
-    items: details.filter(item => !item.returnedAt).map(item => ({
-      equipmentId: item.equipmentId,
-      equipmentName: item.equipmentName,
-      serial: item.serial,
-      condition: STATUS.AVAILABLE,
-      note: '',
-      compensationAmount: 0
-      ,returnEvidenceFile: null, returnEvidenceType: 'PHOTO_AFTER'
-    }))
-  }
-  isReturnModalVisible.value = true
-}
-
-const submitReturnInspection = async () => {
-  returnSubmitting.value = true
-  try {
-    if (!returnForm.value.items.length) {
-      message.warning('Không còn tài sản chưa nhận trả trong phiếu này!')
-      return
-    }
-    for (const item of returnForm.value.items) {
-      if (item.returnEvidenceFile) {
-        await borrowApi.uploadReturnEvidence(currentReturnRecord.value.id, item.returnEvidenceFile, item.returnEvidenceType, item.equipmentId)
-      }
-    }
-    await borrowApi.returnEquipment(currentReturnRecord.value.id, {
-      items: returnForm.value.items.map(item => ({
-        equipmentId: item.equipmentId,
-        condition: item.condition,
-        note: item.note,
-        compensationAmount: item.compensationAmount
-      }))
-    })
-    message.success('Đã lưu kết quả kiểm tra và cập nhật trạng thái tài sản!')
-    isReturnModalVisible.value = false
-    fetchRequests()
-  } catch {
-    message.error('Lỗi khi lưu kết quả kiểm tra!')
-  } finally {
-    returnSubmitting.value = false
-  }
-}
-
-const selectReturnEvidence = (item, file) => {
-  const allowed = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx']
-  const extension = file.name.split('.').pop()?.toLowerCase()
-  if (!allowed.includes(extension) || file.size > 10 * 1024 * 1024) {
-    message.error('Minh chứng phải là PDF, Word hoặc ảnh và không quá 10 MB.')
-    return Upload.LIST_IGNORE
-  }
-  item.returnEvidenceFile = file
-  return false
-}
-
 const showHandoverModal = record => {
   currentHandoverRecord.value = record
   handoverAt.value = new Date()
@@ -620,24 +505,6 @@ const submitHandover = async () => {
 }
 
 onBeforeUnmount(clearHandoverEvidence)
-
-const handleRemind = async (record) => {
-  if (isReminding(record.id)) return
-
-  remindingRecordIds.value = new Set(remindingRecordIds.value).add(record.id)
-  const messageKey = `remind-${record.id}`
-  try {
-    message.loading({ content: 'Đang gửi nhắc trả...', key: messageKey })
-    const result = await borrowApi.remind(record.id)
-    message.success({ content: getApiSuccessMessage(result, 'Đã gửi email nhắc trả thành công.'), key: messageKey })
-  } catch (error) {
-    message.error({ content: getApiErrorMessage(error, 'Không thể gửi nhắc trả.'), key: messageKey })
-  } finally {
-    const nextIds = new Set(remindingRecordIds.value)
-    nextIds.delete(record.id)
-    remindingRecordIds.value = nextIds
-  }
-}
 </script>
 
 <style scoped>

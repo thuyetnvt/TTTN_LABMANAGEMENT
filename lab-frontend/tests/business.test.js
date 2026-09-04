@@ -151,6 +151,21 @@ test('luồng hủy phiếu có nút và lý do ở cả người mượn và qu
   assert.match(apiSource, /cancel:\s*\(id, reason\)\s*=>\s*axiosClient\.put\(`\/borrow\/\$\{id\}\/cancel`/)
 })
 
+test('tách xử lý trả khỏi phiếu chờ duyệt và đưa sang lịch sử', () => {
+  const historySource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+  const requestsSource = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
+  const modalSource = readFileSync(new URL('../src/components/ReturnInspectionModal.vue', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(requestsSource, /showReturnModal|handleRemind|Kiểm tra tài sản khi trả/)
+  assert.match(historySource, /ReturnInspectionModal/)
+  assert.match(historySource, /Kiểm tra trả/)
+  assert.match(historySource, /Nhắc trả/)
+  assert.match(modalSource, /borrowApi\.returnEquipment/)
+  assert.match(modalSource, /borrowApi\.uploadReturnEvidence/)
+  assert.match(modalSource, /overduePenaltyAmount/)
+  assert.match(modalSource, /tự động chuyển sang Đã thanh toán/)
+})
+
 test('notification store dedupe realtime và chỉ tăng unread một lần', () => {
   setActivePinia(createPinia())
   const store = useNotificationStore()

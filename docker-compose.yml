@@ -51,6 +51,7 @@ services:
       Automation__Enabled: ${AUTOMATION_ENABLED:-true}
       Automation__PollMinutes: ${AUTOMATION_POLL_MINUTES:-5}
       Automation__ReturnReminderDaysBefore: ${RETURN_REMINDER_DAYS_BEFORE:-3}
+      Automation__OverduePenaltyAmountPerDay: ${AUTOMATION_OVERDUE_PENALTY_AMOUNT_PER_DAY:-10000}
       Automation__SendEmailReminders: ${AUTOMATION_SEND_EMAIL_REMINDERS:-false}
       Automation__EmailMaxAttempts: ${AUTOMATION_EMAIL_MAX_ATTEMPTS:-3}
       Automation__EmailRetryMinutes: ${AUTOMATION_EMAIL_RETRY_MINUTES:-60}

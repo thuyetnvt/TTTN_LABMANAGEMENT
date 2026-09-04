@@ -41,7 +41,7 @@
     rowKey="id"
     bordered
     :pagination="tablePagination"
-    :scroll="{ x: 1810 }"
+    :scroll="{ x: tableScrollX }"
     :row-selection="isManager ? rowSelection : undefined"
     @change="handleTableChange"
   >
@@ -359,29 +359,45 @@ const loading = ref(false)
 const submitting = ref(false)
 const borrowSubmitting = ref(false)
 
-const columns = computed(() => [
-  { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 200 },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
-  { title: 'Model', dataIndex: 'model', key: 'model', width: 130 },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 140 },
-  { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', width: 140 },
-  { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 130 },
-  { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 },
-  { title: 'Quyết định', key: 'decisionFile', width: 120 },
-  { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', width: 120 },
-  { title: 'Hạn bảo hành', dataIndex: 'warrantyExpiry', key: 'warrantyExpiry', width: 130 },
-  { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130 },
-  { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
-  {
-    title: 'Hành động',
-    key: 'action',
-    align: 'center',
-    className: 'table-sticky-action-column',
-    customCell: () => ({ class: 'table-sticky-action-column' }),
-    width: isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
-  }
-])
+const columns = computed(() => {
+  const commonColumns = [
+    { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 200 },
+    { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
+    { title: 'Model', dataIndex: 'model', key: 'model', width: 130 },
+    { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 140 },
+    { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', width: 140 },
+    { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 130 }
+  ]
+  const managerColumns = isManager.value ? [
+    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 },
+    { title: 'Quyết định', key: 'decisionFile', width: 120 },
+    { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', width: 120 },
+    { title: 'Hạn bảo hành', dataIndex: 'warrantyExpiry', key: 'warrantyExpiry', width: 130 },
+    { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 }
+  ] : []
+
+  return [
+    ...commonColumns,
+    ...managerColumns,
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130 },
+    { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
+    {
+      title: 'Hành động',
+      key: 'action',
+      align: 'center',
+      className: 'table-sticky-action-column',
+      customCell: () => ({ class: 'table-sticky-action-column' }),
+      width: isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
+    }
+  ]
+})
+
+const tableScrollX = computed(() => {
+  const commonWidth = 880
+  const managerWidth = isManager.value ? 690 : 0
+  const actionWidth = isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
+  return commonWidth + managerWidth + 130 + 80 + actionWidth
+})
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')

@@ -72,7 +72,7 @@
       <ResponsiveDataList :items="dataSource" :loading="loading" :pagination="tablePagination" empty-description="Chưa có yêu cầu cấp phát" @change="handleTableChange">
         <template #default="{ item }">
           <div class="mobile-request-heading">
-            <div><strong>{{ item.consumableName }}</strong><span>{{ item.username }} · {{ item.categoryName || 'Chưa phân loại' }}</span></div>
+            <div><strong>{{ item.consumableName }}</strong><span>{{ item.fullName || item.username || '—' }} · {{ item.categoryName || 'Chưa phân loại' }}</span></div>
             <StatusBadge :status="item.status" type="consumable" />
           </div>
           <dl class="mobile-request-details">
@@ -100,7 +100,7 @@
       <a-descriptions v-if="selectedRequest" bordered :column="1" size="small">
         <a-descriptions-item label="Tên vật tư">{{ selectedRequest.consumableName || '—' }}</a-descriptions-item>
         <a-descriptions-item label="Danh mục">{{ selectedRequest.categoryName || '—' }}</a-descriptions-item>
-        <a-descriptions-item label="Người yêu cầu">{{ selectedRequest.username || '—' }}</a-descriptions-item>
+        <a-descriptions-item label="Người yêu cầu">{{ selectedRequest.fullName || selectedRequest.username || '—' }}</a-descriptions-item>
         <a-descriptions-item label="Số lượng">{{ selectedRequest.quantity }}</a-descriptions-item>
         <a-descriptions-item label="Mục đích">{{ selectedRequest.reason || '—' }}</a-descriptions-item>
         <a-descriptions-item label="Trạng thái">
@@ -242,7 +242,7 @@ const receiptSubmitting = ref(false)
 const columns = [
   { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', width: 220 },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
-  { title: 'Người yêu cầu', dataIndex: 'username', key: 'username', width: 150 },
+  { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', width: 180 },
   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', width: 90, align: 'center' },
   { title: 'Mục đích', dataIndex: 'reason', key: 'reason', width: 280 },
   { title: 'Trạng thái', key: 'status', width: 180, align: 'center' },

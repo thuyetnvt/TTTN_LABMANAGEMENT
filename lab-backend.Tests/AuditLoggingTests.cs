@@ -84,6 +84,53 @@ public class AuditLoggingTests
             new JsonSerializerOptions(JsonSerializerDefaults.Web)));
         var item = json.RootElement.GetProperty("items")[0];
         Assert.Equal("pholab", item.GetProperty("username").GetString());
+        Assert.Equal("Phó phòng lab (pholab)", item.GetProperty("actorDisplayName").GetString());
+    }
+
+    [Fact]
+    public async Task GetLogs_returns_full_name_and_username_for_actor()
+    {
+        await using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        await using var context = CreateContext(connection);
+        context.Users.Add(new User
+        {
+            Id = 5,
+            Username = "sv5",
+            PasswordHash = "not-used",
+            FullName = "Phạm Hà My",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.AuditLogs.AddRange(
+            new AuditLog
+            {
+                UserId = 5,
+                Username = "sv5",
+                Action = "LoginSucceeded",
+                EntityType = nameof(User),
+                EntityId = "5",
+                CreatedAt = DateTime.UtcNow.AddMinutes(-1)
+            },
+            new AuditLog
+            {
+                Username = "system",
+                Action = "Automation",
+                EntityType = "Database",
+                CreatedAt = DateTime.UtcNow
+            });
+        await context.SaveChangesAsync();
+        var controller = new AuditController(context);
+
+        var result = await controller.GetLogs(cancellationToken: CancellationToken.None);
+
+        var response = Assert.IsType<OkObjectResult>(result);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+            response.Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        var items = json.RootElement.GetProperty("items");
+        Assert.Equal("Hệ thống", items[0].GetProperty("actorDisplayName").GetString());
+        Assert.Equal("Phạm Hà My (sv5)", items[1].GetProperty("actorDisplayName").GetString());
     }
 
     private static AppDbContext CreateContext(SqliteConnection connection)
