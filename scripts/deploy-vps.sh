@@ -41,17 +41,39 @@ if [ ! -f "$COMPOSE_ENV_FILE" ]; then
   exit 1
 fi
 
-docker compose \
-  --env-file "$COMPOSE_ENV_FILE" \
-  -f "$COMPOSE_FILE" \
-  config --quiet
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-labmanagement}"
 
-docker compose \
-  --env-file "$COMPOSE_ENV_FILE" \
-  -f "$COMPOSE_FILE" \
-  up -d --build backend frontend
+compose() {
+  docker compose \
+    --project-name "$COMPOSE_PROJECT_NAME" \
+    --env-file "$COMPOSE_ENV_FILE" \
+    -f "$COMPOSE_FILE" \
+    "$@"
+}
 
-docker compose \
-  --env-file "$COMPOSE_ENV_FILE" \
-  -f "$COMPOSE_FILE" \
-  ps
+compose config --quiet
+
+compose_up_log="$(mktemp)"
+trap 'rm -f "$compose_up_log"' EXIT
+
+if ! compose up -d --build --remove-orphans backend frontend 2>&1 | tee "$compose_up_log"; then
+  if ! grep -Eq 'Conflict|already in use' "$compose_up_log"; then
+    exit 1
+  fi
+
+  echo "Found stale LabManagement containers; removing them and retrying deployment."
+  mapfile -t stale_containers < <(
+    docker ps -aq --format '{{.ID}}\t{{.Names}}' |
+      awk -F '\t' '$2 ~ /(^|_)labmanagement-(db|backend|frontend|caddy)-[0-9]+$/ { print $1 }'
+  )
+
+  if [ "${#stale_containers[@]}" -eq 0 ]; then
+    echo "No stale LabManagement containers were found."
+    exit 1
+  fi
+
+  docker rm -f "${stale_containers[@]}"
+  compose up -d --build --remove-orphans backend frontend
+fi
+
+compose ps
