@@ -17,6 +17,14 @@
         description="Có thể ghi nhận riêng tình trạng, ghi chú và bồi thường cho từng món trong phiếu."
         style="margin-bottom: 16px"
       />
+      <a-alert
+        v-if="record?.isOverdue"
+        type="warning"
+        show-icon
+        message="Phiếu mượn đã quá hạn"
+        :description="`Đã quá hạn ${overdueDays(record)} ngày. Tiền phạt trả quá hạn hiện tại: ${formatCurrency(record.overduePenaltyAmount)}. Khi lưu trả toàn bộ, khoản này sẽ tự động chuyển sang Đã thanh toán trong phần Bồi thường.`"
+        style="margin-bottom: 16px"
+      />
       <a-card
         v-for="item in returnForm.items"
         :key="item.equipmentId"
@@ -122,6 +130,9 @@ watch(() => [props.open, props.record], ([open, record]) => {
 
 const close = () => emit('update:open', false)
 
+const overdueDays = record => Math.max(1, Math.abs(Number(record?.daysUntilDue || 0)))
+const formatCurrency = value => `${Number(value || 0).toLocaleString('vi-VN')} ₫`
+
 const selectReturnEvidence = (item, file) => {
   const allowed = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx']
   const extension = file.name.split('.').pop()?.toLowerCase()
@@ -155,7 +166,10 @@ const submitReturnInspection = async () => {
         compensationAmount: item.compensationAmount
       }))
     })
-    message.success('Đã lưu kết quả kiểm tra và cập nhật trạng thái tài sản!')
+    const successMessage = props.record?.isOverdue
+      ? 'Đã lưu kết quả trả. Tiền phạt quá hạn đã tự động xác nhận thu trong phần Bồi thường.'
+      : 'Đã lưu kết quả kiểm tra và cập nhật trạng thái tài sản!'
+    message.success(successMessage)
     emit('update:open', false)
     emit('saved')
   } catch (error) {

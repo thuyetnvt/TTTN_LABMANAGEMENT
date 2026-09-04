@@ -317,6 +317,7 @@ public sealed class BorrowControllerTests
         Assert.Equal("Nguyễn Văn A", item.GetProperty("borrowerName").GetString());
         Assert.True(item.GetProperty("isOverdue").GetBoolean());
         Assert.Equal(-2, item.GetProperty("daysUntilDue").GetInt32());
+        Assert.Equal(20000, item.GetProperty("overduePenaltyAmount").GetDecimal());
     }
 
     [Fact]
@@ -465,6 +466,43 @@ public sealed class BorrowControllerTests
             Assert.Equal(350000, record.CompensationAmount);
             Assert.Single(context.Penalties);
             Assert.Single(context.MaintenanceRecords);
+        }
+    }
+
+    [Fact]
+    public async Task Returning_overdue_record_creates_paid_overdue_penalty()
+    {
+        await using var context = CreateSqliteContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.Borrowed));
+            var record = CreateBorrowRecord(41, 1, BorrowStatuses.Borrowed, 1);
+            record.ExpectedReturnDate = VietnamTime.StartOfDayUtc(VietnamTime.Today().AddDays(-2));
+            context.BorrowRecords.Add(record);
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.LabHead);
+            var result = await controller.ReturnEquipment(
+                41,
+                new BorrowController.ReturnInspectionDto
+                {
+                    Items = [new()
+                    {
+                        EquipmentId = 1,
+                        Condition = EquipmentStatuses.Available
+                    }]
+                },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            var penalty = await context.Penalties.AsNoTracking().SingleAsync();
+            Assert.Equal(20000m, penalty.Amount);
+            Assert.Equal(PenaltyStatuses.Paid, penalty.Status);
+            Assert.NotNull(penalty.PaidAt);
+            Assert.StartsWith("Tự động phạt trả quá hạn", penalty.Reason);
         }
     }
 

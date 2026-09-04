@@ -162,6 +162,8 @@ test('tách xử lý trả khỏi phiếu chờ duyệt và đưa sang lịch s�
   assert.match(historySource, /Nhắc trả/)
   assert.match(modalSource, /borrowApi\.returnEquipment/)
   assert.match(modalSource, /borrowApi\.uploadReturnEvidence/)
+  assert.match(modalSource, /overduePenaltyAmount/)
+  assert.match(modalSource, /tự động chuyển sang Đã thanh toán/)
 })
 
 test('notification store dedupe realtime và chỉ tăng unread một lần', () => {
