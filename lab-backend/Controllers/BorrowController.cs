@@ -492,7 +492,7 @@ public class BorrowController : ControllerBase
                     handover.Id,
                     handover.Code,
                     handover.HandoverAt,
-                    handover.Notes,
+                    notes = SeedDisplayText.Clean(handover.Notes),
                     handover.ConfirmedAt,
                     items = handover.Items.Select(handoverItem => new
                     {
@@ -501,7 +501,7 @@ public class BorrowController : ControllerBase
                         serial = handoverItem.Equipment?.Serial ?? string.Empty,
                         handoverItem.Condition,
                         handoverItem.Accessories,
-                        handoverItem.Note
+                        note = SeedDisplayText.Clean(handoverItem.Note)
                     })
                 },
                 canConfirmHandover = item.UserId == userId

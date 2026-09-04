@@ -129,7 +129,7 @@
                 <h4>{{ item.equipmentName || 'Tài sản' }}</h4>
                 <div class="handover-asset-identifiers">
                   <span>Mã tài sản: <strong>{{ item.assetCode || '—' }}</strong></span>
-                  <span>Serial: <strong>{{ item.serial || '—' }}</strong></span>
+                  <span>Số seri: <strong>{{ item.serial || '—' }}</strong></span>
                 </div>
               </div>
             </div>
@@ -209,7 +209,7 @@
         <div v-if="handoverDetails?.items?.length" class="handover-items-readonly">
           <a-card v-for="item in handoverDetails.items" :key="item.equipmentId" size="small">
             <strong>{{ item.equipmentName }}</strong>
-            <span>Serial: {{ item.serial || '—' }}</span>
+            <span>Số seri: {{ item.serial || '—' }}</span>
             <span>Tình trạng: <StatusBadge :status="item.condition" type="returnCondition" /></span>
             <span>Phụ kiện: {{ item.accessories || 'Không ghi nhận' }}</span>
             <span>Ghi chú: {{ item.note || 'Không có' }}</span>

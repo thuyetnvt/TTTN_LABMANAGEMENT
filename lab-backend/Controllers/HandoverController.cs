@@ -63,14 +63,15 @@ public class HandoverController : ControllerBase
         if (!IsManager() && handover.BorrowRecord?.UserId != userId) return Forbid();
         return Ok(new
         {
-            handover.Id, handover.Code, handover.BorrowRecordId, handover.HandoverAt, handover.Notes, handover.ConfirmedAt,
+            handover.Id, handover.Code, handover.BorrowRecordId, handover.HandoverAt,
+            notes = SeedDisplayText.Clean(handover.Notes), handover.ConfirmedAt,
             canConfirm = handover.BorrowRecord?.UserId == userId
                 && handover.BorrowRecord.Status == BorrowStatuses.Approved
                 && handover.ConfirmedAt is null,
             items = handover.Items.Select(item => new
             {
                 item.EquipmentId, equipmentName = item.Equipment!.Name, serial = item.Equipment.Serial,
-                item.Condition, item.Accessories, item.Note
+                item.Condition, item.Accessories, note = SeedDisplayText.Clean(item.Note)
             }),
             evidence = handover.Evidence.OrderByDescending(item => item.UploadedAt).Select(item => new
             {
