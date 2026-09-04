@@ -419,6 +419,7 @@ public class BorrowController : ControllerBase
         var query = _context.BorrowRecords
             .AsNoTracking()
             .Include(item => item.User)
+            .Include(item => item.Teacher)
             .Include(item => item.Equipment)
             .Include(item => item.Details)
                 .ThenInclude(detail => detail.Equipment)
@@ -459,6 +460,13 @@ public class BorrowController : ControllerBase
                 id = item.Id,
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
+                borrowerRole = item.User.Role,
+                teacherId = item.TeacherId,
+                teacherName = string.IsNullOrWhiteSpace(item.Teacher?.FullName)
+                    ? item.Teacher?.Username
+                    : item.Teacher.FullName,
+                teacherCode = item.Teacher?.UniversityCode,
+                teacherDecisionNote = item.TeacherDecisionNote,
                 device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
                 equipmentId = item.EquipmentId,
                 serial = item.Equipment != null ? item.Equipment.Serial : string.Empty,
@@ -484,7 +492,7 @@ public class BorrowController : ControllerBase
                     handover.Id,
                     handover.Code,
                     handover.HandoverAt,
-                    handover.Notes,
+                    notes = SeedDisplayText.Clean(handover.Notes),
                     handover.ConfirmedAt,
                     items = handover.Items.Select(handoverItem => new
                     {
@@ -493,7 +501,7 @@ public class BorrowController : ControllerBase
                         serial = handoverItem.Equipment?.Serial ?? string.Empty,
                         handoverItem.Condition,
                         handoverItem.Accessories,
-                        handoverItem.Note
+                        note = SeedDisplayText.Clean(handoverItem.Note)
                     })
                 },
                 canConfirmHandover = item.UserId == userId
@@ -541,6 +549,7 @@ public class BorrowController : ControllerBase
         var query = _context.BorrowRecords
             .AsNoTracking()
             .Include(item => item.User)
+            .Include(item => item.Teacher)
             .Include(item => item.Equipment)
             .Include(item => item.Details)
                 .ThenInclude(detail => detail.Equipment)
@@ -614,6 +623,13 @@ public class BorrowController : ControllerBase
                 id = item.Id,
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
+                borrowerRole = item.User.Role,
+                teacherId = item.TeacherId,
+                teacherName = string.IsNullOrWhiteSpace(item.Teacher?.FullName)
+                    ? item.Teacher?.Username
+                    : item.Teacher.FullName,
+                teacherCode = item.Teacher?.UniversityCode,
+                teacherDecisionNote = item.TeacherDecisionNote,
                 device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
                 equipmentId = item.EquipmentId,
                 serial = item.Equipment?.Serial ?? string.Empty,

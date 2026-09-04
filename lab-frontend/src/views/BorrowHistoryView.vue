@@ -27,6 +27,12 @@
           <template v-if="column.key === 'requestDate' || column.key === 'expectedReturnDate' || column.key === 'actualReturnDate'">
             {{ formatDate(record[column.key]) }}
           </template>
+          <template v-else-if="column.key === 'teacher'">
+            <a-tooltip v-if="record.teacherCode" :title="`Mã giảng viên: ${record.teacherCode}`">
+              <span class="teacher-cell">{{ teacherLabel(record) }}</span>
+            </a-tooltip>
+            <span v-else>{{ teacherLabel(record) }}</span>
+          </template>
           <template v-else-if="column.key === 'returnCondition'">
             <StatusBadge v-if="record.returnCondition" :status="record.returnCondition" type="returnCondition" />
           </template>
@@ -74,6 +80,9 @@
             <StatusBadge :status="item.status" type="borrow" :color="item.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(item)" />
           </div>
           <div class="mobile-card-subtitle">{{ borrowerLabel(item) }} · {{ item.serial || 'Không có số seri' }}</div>
+          <div class="mobile-card-teacher">
+            GV bảo lãnh: {{ teacherLabel(item) }}
+          </div>
           <dl class="mobile-card-details">
             <div><dt>Ngày đăng ký</dt><dd>{{ formatDate(item.requestDate) }}</dd></div>
             <div><dt>Hạn trả</dt><dd>{{ formatDate(item.expectedReturnDate) }}</dd></div>
@@ -138,6 +147,11 @@
     <a-modal v-model:open="isDetailsVisible" title="Chi tiết phiếu mượn/trả" :footer="null" width="760px">
       <a-descriptions v-if="selectedRecord" bordered size="small" :column="1">
         <a-descriptions-item label="Người mượn">{{ borrowerLabel(selectedRecord) }}</a-descriptions-item>
+        <a-descriptions-item label="Giảng viên bảo lãnh">{{ teacherLabel(selectedRecord) }}</a-descriptions-item>
+        <a-descriptions-item label="Mã giảng viên">{{ selectedRecord.teacherCode || '—' }}</a-descriptions-item>
+        <a-descriptions-item v-if="selectedRecord.teacherDecisionNote" label="Ghi chú của giảng viên">
+          {{ selectedRecord.teacherDecisionNote }}
+        </a-descriptions-item>
         <a-descriptions-item label="Thiết bị">{{ selectedRecord.device }}</a-descriptions-item>
         <a-descriptions-item label="Hạn trả">{{ formatDate(selectedRecord.expectedReturnDate) }}</a-descriptions-item>
         <a-descriptions-item label="Ngày trả thực tế">{{ selectedRecord.actualReturnDate ? formatDate(selectedRecord.actualReturnDate) : 'Chưa trả' }}</a-descriptions-item>
@@ -185,7 +199,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import ReturnInspectionModal from '../components/ReturnInspectionModal.vue'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
-import { STATUS, isManagerRole, statusMatches } from '../constants/business'
+import { STATUS, isManagerRole, isStudentRole, isTeacherRole, statusMatches } from '../constants/business'
 import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
 import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 
@@ -201,6 +215,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 const isManager = computed(() => isManagerRole(role.value))
+const isStudent = computed(() => isStudentRole(role.value))
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
@@ -219,10 +234,18 @@ const returnRecord = ref(null)
 const remindingRecordIds = ref(new Set())
 
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
+const teacherLabel = record => {
+  const borrowerRole = record?.borrowerRole
+  const isTeacherBorrower = isTeacherRole(borrowerRole)
+    || (!borrowerRole && isTeacherRole(role.value))
+  if (isTeacherBorrower) return 'Không áp dụng'
+  return record?.teacherName?.trim() || 'Chưa có dữ liệu'
+}
 const isReminding = id => remindingRecordIds.value.has(id)
 
-const columns = [
-  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170 },
+const columns = computed(() => [
+  ...(isStudent.value ? [] : [{ title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170 }]),
+  { title: 'Giảng viên bảo lãnh', dataIndex: 'teacherName', key: 'teacher', width: 180 },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },
@@ -234,7 +257,7 @@ const columns = [
   { title: 'Bồi thường', dataIndex: 'compensationAmount', key: 'compensationAmount', width: 130 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 140 },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190 }
-]
+])
 
 const borrowWorkflowLabel = record => {
   if (record?.isOverdue) {
@@ -411,7 +434,8 @@ h2 {
 .handover-items :deep(.ant-card-body) { display: grid; gap: 6px; }
 .mobile-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .mobile-card-heading strong { color: var(--color-ink); font-size: 15px; }
-.mobile-card-subtitle, .mobile-card-note { margin-top: 6px; color: var(--color-text-secondary); font-size: 13px; }
+.mobile-card-subtitle, .mobile-card-teacher, .mobile-card-note { margin-top: 6px; color: var(--color-text-secondary); font-size: 13px; }
+.teacher-cell { cursor: help; }
 .mobile-card-details { display: grid; gap: 7px; margin: 12px 0; }
 .mobile-card-details div { display: flex; justify-content: space-between; gap: 12px; }
 .mobile-card-details dt { color: var(--color-text-secondary); }

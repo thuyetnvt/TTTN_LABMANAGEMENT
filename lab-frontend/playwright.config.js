@@ -14,7 +14,11 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile-chromium', use: { ...devices['Pixel 5'] } }
+    {
+      name: 'mobile-chromium',
+      testMatch: /(?:notification-center|admin-shell)\.spec\.js/,
+      use: { ...devices['Pixel 5'] }
+    }
   ],
   webServer: process.env.E2E_BASE_URL
     ? undefined

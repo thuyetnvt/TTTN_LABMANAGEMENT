@@ -279,6 +279,88 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task Student_history_returns_teacher_guarantor_without_private_data()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.AddRange(
+            new User
+            {
+                Id = 1,
+                Username = "student",
+                FullName = "Nguyễn Văn A",
+                Role = Roles.Student,
+                IsActive = true
+            },
+            new User
+            {
+                Id = 2,
+                Username = "teacher-a",
+                FullName = "Trần Thị B",
+                UniversityCode = "GV001",
+                Email = "teacher@example.com",
+                Phone = "0900000000",
+                Role = Roles.Teacher,
+                IsActive = true
+            });
+        context.Equipments.Add(CreateEquipment(1));
+        var record = CreateBorrowRecord(33, 1, BorrowStatuses.Returned, 1);
+        record.TeacherId = 2;
+        record.TeacherDecisionNote = "Đồng ý bảo lãnh.";
+        context.BorrowRecords.Add(record);
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 1, Roles.Student);
+        var historyResult = await controller.GetHistory(CancellationToken.None);
+        using var historyJson = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(historyResult.Result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        var historyItem = historyJson.RootElement[0];
+
+        Assert.Equal(2, historyItem.GetProperty("teacherId").GetInt32());
+        Assert.Equal("Trần Thị B", historyItem.GetProperty("teacherName").GetString());
+        Assert.Equal("GV001", historyItem.GetProperty("teacherCode").GetString());
+        Assert.Equal("Đồng ý bảo lãnh.", historyItem.GetProperty("teacherDecisionNote").GetString());
+        Assert.False(historyItem.TryGetProperty("email", out _));
+        Assert.False(historyItem.TryGetProperty("phone", out _));
+
+        var pagedResult = await controller.GetHistoryPaged(
+            new LabManagementAPI.Dtos.PageQuery { PageSize = 20 },
+            CancellationToken.None);
+        using var pagedJson = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(pagedResult).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        var pagedItem = pagedJson.RootElement.GetProperty("items")[0];
+
+        Assert.Equal("Trần Thị B", pagedItem.GetProperty("teacherName").GetString());
+        Assert.False(pagedItem.TryGetProperty("email", out _));
+        Assert.False(pagedItem.TryGetProperty("phone", out _));
+    }
+
+    [Fact]
+    public async Task Student_history_falls_back_to_teacher_username_when_full_name_is_missing()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.AddRange(
+            new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+            new User { Id = 2, Username = "teacher-a", FullName = string.Empty, Role = Roles.Teacher, IsActive = true });
+        context.Equipments.Add(CreateEquipment(1));
+        var record = CreateBorrowRecord(34, 1, BorrowStatuses.Returned, 1);
+        record.TeacherId = 2;
+        context.BorrowRecords.Add(record);
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 1, Roles.Student);
+        var result = await controller.GetHistoryPaged(
+            new LabManagementAPI.Dtos.PageQuery { PageSize = 20 },
+            CancellationToken.None);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+
+        Assert.Equal("teacher-a", json.RootElement.GetProperty("items")[0].GetProperty("teacherName").GetString());
+    }
+
+    [Fact]
     public async Task Student_paged_history_marks_overdue_with_number_of_days()
     {
         await using var context = CreateInMemoryContext();
