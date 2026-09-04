@@ -283,7 +283,14 @@ public sealed class BorrowControllerTests
     {
         await using var context = CreateInMemoryContext();
         var today = VietnamTime.Today();
-        context.Users.Add(new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true });
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            FullName = "Nguyễn Văn A",
+            Role = Roles.Student,
+            IsActive = true
+        });
         context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.Borrowed));
         context.BorrowRecords.Add(new BorrowRecord
         {
@@ -307,6 +314,7 @@ public sealed class BorrowControllerTests
         using var document = JsonDocument.Parse(json);
         var item = document.RootElement.GetProperty("items")[0];
 
+        Assert.Equal("Nguyễn Văn A", item.GetProperty("borrowerName").GetString());
         Assert.True(item.GetProperty("isOverdue").GetBoolean());
         Assert.Equal(-2, item.GetProperty("daysUntilDue").GetInt32());
     }

@@ -18,17 +18,22 @@ public static class DbInitializer
 
         var users = new[]
         {
-            new User { Username = "admin", Email = "admin@lab.local", Role = Roles.Admin },
-            new User { Username = "truonglab", Email = "truonglab@lab.local", Role = Roles.LabHead },
-            new User { Username = "pholab", Email = "pholab@lab.local", Role = Roles.DeputyLabHead },
-            new User { Username = "giangvien1", Email = "giangvien1@lab.local", Role = Roles.Teacher },
-            new User { Username = "sv1", Email = "sv1@lab.local", Role = Roles.Student }
+            new User { Username = "admin", Email = "admin@lab.local", FullName = "Nguyễn Văn Thuyết", Role = Roles.Admin },
+            new User { Username = "truonglab", Email = "truonglab@lab.local", FullName = "Trưởng lab", Role = Roles.LabHead },
+            new User { Username = "pholab", Email = "pholab@lab.local", FullName = "Phó lab", Role = Roles.DeputyLabHead },
+            new User { Username = "giangvien1", Email = "giangvien1@lab.local", FullName = "Giảng viên 1", Role = Roles.Teacher },
+            new User { Username = "sv1", Email = "sv1@lab.local", FullName = "Sinh viên 1", Role = Roles.Student }
         };
 
         foreach (var user in users)
         {
-            if (await context.Users.AnyAsync(existing => existing.Username == user.Username))
+            var existing = await context.Users.FirstOrDefaultAsync(item => item.Username == user.Username);
+            if (existing is not null)
             {
+                if (string.IsNullOrWhiteSpace(existing.FullName))
+                {
+                    existing.FullName = user.FullName;
+                }
                 continue;
             }
 
