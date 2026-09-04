@@ -77,8 +77,18 @@ jobs:
           node-version: 22.18.0
           cache: npm
           cache-dependency-path: lab-frontend/package-lock.json
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('lab-frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
       - run: npm ci --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
       - name: Start isolated E2E stack
         run: docker compose -p labmanagement-e2e -f ../docker-compose.e2e.yml up -d --build --wait
       - name: Run E2E for all five roles
