@@ -39,7 +39,7 @@ jobs:
           node-version: 22.18.0
           cache: npm
           cache-dependency-path: lab-frontend/package-lock.json
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - name: Audit frontend dependencies
         shell: bash
         run: |
@@ -47,11 +47,16 @@ jobs:
           audit_log="$(mktemp)"
           trap 'rm -f "$audit_log"' EXIT
 
-          if npm audit --audit-level=high 2>&1 | tee "$audit_log"; then
+          set +e
+          timeout 60s npm audit --audit-level=high 2>&1 | tee "$audit_log"
+          audit_status="${PIPESTATUS[0]}"
+          set -e
+
+          if [ "$audit_status" -eq 0 ]; then
             exit 0
           fi
 
-          if grep -Eiq 'audit endpoint returned an error|Invalid package tree|endpoint is being retired|audit [0-9]{3} (Bad Request|Service Unavailable|Internal Server Error)' "$audit_log"; then
+          if [ "$audit_status" -eq 124 ] || grep -Eiq 'audit endpoint returned an error|Invalid package tree|endpoint is being retired|audit [0-9]{3} (Bad Request|Service Unavailable|Internal Server Error)' "$audit_log"; then
             echo '::warning::npm audit could not reach a usable registry audit endpoint; npm ci, tests, and build remain required.'
             exit 0
           fi
@@ -72,7 +77,7 @@ jobs:
           node-version: 22.18.0
           cache: npm
           cache-dependency-path: lab-frontend/package-lock.json
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - name: Start isolated E2E stack
         run: docker compose -p labmanagement-e2e -f ../docker-compose.e2e.yml up -d --build --wait
