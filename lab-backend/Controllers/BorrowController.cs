@@ -287,7 +287,7 @@ public class BorrowController : ControllerBase
             borrowerName = item.User!.FullName,
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
-            purpose = item.Purpose,
+            purpose = SeedDisplayText.Clean(item.Purpose),
             status = item.Status,
             holdExpiresAt = item.HoldExpiresAt,
             hasHandover = handovers.ContainsKey(item.Id),
@@ -382,7 +382,7 @@ public class BorrowController : ControllerBase
             borrowerName = item.User.FullName,
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
-            purpose = item.Purpose,
+            purpose = SeedDisplayText.Clean(item.Purpose),
             status = item.Status,
             holdExpiresAt = item.HoldExpiresAt,
             hasHandover = handovers.ContainsKey(item.Id),
@@ -701,28 +701,27 @@ public class BorrowController : ControllerBase
             .Include(item => item.Details)
                 .ThenInclude(detail => detail.Equipment)
             .Where(item => item.Status == TeacherPending && item.TeacherId == teacherId)
-            .Select(item => new
-            {
-                id = item.Id,
-                student = item.User!.Username,
-                borrowerName = item.User!.FullName,
-                device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
-                requestDate = item.BorrowDate,
-                returnDate = item.ExpectedReturnDate,
-                purpose = item.Purpose,
-                status = item.Status,
-                details = item.Details.Select(detail => new
-                {
-                    detail.EquipmentId,
-                    equipmentName = detail.Equipment!.Name,
-                    serial = detail.Equipment.Serial,
-                    detail.Note,
-                    detail.Status
-                })
-            })
             .ToListAsync(cancellationToken);
 
-        return Ok(requests);
+        return Ok(requests.Select(item => new
+        {
+            id = item.Id,
+            student = item.User!.Username,
+            borrowerName = item.User!.FullName,
+            device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
+            requestDate = item.BorrowDate,
+            returnDate = item.ExpectedReturnDate,
+            purpose = SeedDisplayText.Clean(item.Purpose),
+            status = item.Status,
+            details = item.Details.Select(detail => new
+            {
+                detail.EquipmentId,
+                equipmentName = detail.Equipment!.Name,
+                serial = detail.Equipment.Serial,
+                detail.Note,
+                detail.Status
+            })
+        }));
     }
 
     [HttpGet("teacher-pending/paged")]
@@ -763,7 +762,7 @@ public class BorrowController : ControllerBase
             device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
-            purpose = item.Purpose,
+            purpose = SeedDisplayText.Clean(item.Purpose),
             status = item.Status,
             details = item.Details.Select(detail => new
             {

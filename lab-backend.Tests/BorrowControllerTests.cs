@@ -360,6 +360,37 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task Manager_pending_queue_hides_internal_seed_marker_from_purpose()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            FullName = "Nguyễn Văn A",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.Add(CreateEquipment(1));
+        var record = CreateBorrowRecord(66, 1, BorrowStatuses.Pending, 1);
+        record.Purpose = "[SEED-FULL-BORROW-003] Huấn luyện mô hình nhận diện ảnh.";
+        context.BorrowRecords.Add(record);
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 99, Roles.LabHead);
+        var result = await controller.GetPendingRequestsPaged(
+            new LabManagementAPI.Dtos.PageQuery { PageSize = 100 },
+            CancellationToken.None);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+
+        Assert.Equal(
+            "Huấn luyện mô hình nhận diện ảnh.",
+            json.RootElement.GetProperty("items")[0].GetProperty("purpose").GetString());
+    }
+
+    [Fact]
     public async Task Manager_history_contains_borrowed_records_but_not_approved_records()
     {
         await using var context = CreateInMemoryContext();
