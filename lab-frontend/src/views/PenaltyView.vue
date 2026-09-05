@@ -92,7 +92,7 @@ const showDetails = record => {
 }
 
 const columns = [
-  { title: 'Người bồi thường', dataIndex: 'fullName', key: 'fullName' },
+  { title: 'Người bồi thường', dataIndex: 'fullName', key: 'fullName', fixed: 'left' },
   { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName' },
   { title: 'Lý do / Tình trạng', dataIndex: 'reason', key: 'reason' },
   { title: 'Số tiền phạt', dataIndex: 'amount', key: 'amount', align: 'right' },

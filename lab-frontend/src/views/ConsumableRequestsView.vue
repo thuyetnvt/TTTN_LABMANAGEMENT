@@ -240,7 +240,7 @@ const receiptRequest = ref(null)
 const receiptSubmitting = ref(false)
 
 const columns = [
-  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', width: 220 },
+  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', width: 220, fixed: 'left' },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', width: 180 },
   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', width: 90, align: 'center' },

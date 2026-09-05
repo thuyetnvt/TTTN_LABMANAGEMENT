@@ -333,8 +333,8 @@ const availableStock = record => Number(record?.availableQuantity ?? Math.max(0,
 
 const columns = computed(() => {
   const commonColumns = [
-  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150 },
-  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240 },
+  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150, fixed: 'left' },
+  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240, fixed: 'left' },
   { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
   { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100 },
   { title: isManagerRole(role.value) ? 'Tổng tồn' : 'Khả dụng', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 110 },

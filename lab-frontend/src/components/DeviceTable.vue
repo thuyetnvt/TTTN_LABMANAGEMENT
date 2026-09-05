@@ -361,7 +361,7 @@ const borrowSubmitting = ref(false)
 
 const columns = computed(() => {
   const commonColumns = [
-    { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 200 },
+    { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 200, fixed: 'left' },
     { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
     { title: 'Model', dataIndex: 'model', key: 'model', width: 130 },
     { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 140 },

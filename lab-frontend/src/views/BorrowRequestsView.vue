@@ -287,8 +287,8 @@ const cancelReason = ref('')
 const cancelRecord = ref(null)
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170 },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160 },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170, fixed: 'left' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160, fixed: 'left' },
   { title: 'Danh mục', dataIndex: 'category', key: 'category', width: 110 },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
   { title: 'Chi tiết yêu cầu', key: 'details', width: 180 },

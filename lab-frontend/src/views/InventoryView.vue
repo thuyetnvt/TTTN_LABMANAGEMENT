@@ -573,7 +573,7 @@ onMounted(fetchAll)
 <style scoped>
 .inventory-container { padding: 0; }
 .inventory-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; }
-.inventory-item-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 220px; gap: 10px; margin-top: 16px; }
+.inventory-item-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 260px; gap: 10px; margin-top: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
 .toolbar h2 { margin: 0; font-weight: 600; }
 .toolbar p { color: #64748b; margin: 6px 0 0; }

@@ -189,8 +189,9 @@ html,
 }
 
 .status-filter .ant-select-arrow {
-  top: 50%;
-  transform: translateY(-50%);
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin-top: 0 !important;
 }
 
 /* Áp dụng thiết kế Claude cho Nút bấm (Buttons) */

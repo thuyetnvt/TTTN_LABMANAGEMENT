@@ -222,8 +222,8 @@ const borrowerLabel = record => record?.borrowerName?.trim() || record?.student 
 const isReminding = id => remindingRecordIds.value.has(id)
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170 },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160 },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170, fixed: 'left' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160, fixed: 'left' },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },
   { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 120 },
