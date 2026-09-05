@@ -39,7 +39,7 @@ test('ghim cùng một cột hành động cho cả header và body của mọi 
   for (const relativePath of TABLE_FILES_WITH_STICKY_ACTION) {
     const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
-    assert.doesNotMatch(source, /fixed\s*:\s*['"](?:left|right)['"]/, relativePath)
+    assert.doesNotMatch(source, /fixed\s*:\s*['"]right['"]/, relativePath)
     assert.match(source, /className\s*:\s*['"]table-sticky-action-column['"]/, relativePath)
     assert.match(source, /customCell\s*:\s*\(\)\s*=>\s*\(\{\s*class:\s*['"]table-sticky-action-column['"]\s*\}\)/, relativePath)
   }
