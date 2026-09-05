@@ -10,6 +10,7 @@ public sealed class OperationalAutomationRunner
 {
     private const string MaintenanceGenerate = "MAINTENANCE_GENERATE";
     private const string MaintenanceBlocked = "MAINTENANCE_BLOCKED";
+    private const string MaintenanceDueSoon = "MAINTENANCE_DUE_SOON";
     private const string ReturnDueSoon = "RETURN_DUE_SOON";
     private const string ReturnDueToday = "RETURN_DUE_TODAY";
     private const string ReturnOverdue = "RETURN_OVERDUE";
@@ -42,12 +43,14 @@ public sealed class OperationalAutomationRunner
     {
         utcNow = DateTime.SpecifyKind(utcNow, DateTimeKind.Utc);
         await ExpireApprovedHoldsAsync(utcNow, cancellationToken);
+        await CheckUpcomingMaintenanceAsync(utcNow, cancellationToken);
         await GenerateDueMaintenanceAsync(utcNow, cancellationToken);
         await CreateOverduePenaltiesAsync(utcNow, cancellationToken);
         await CreateReturnRemindersAsync(utcNow, cancellationToken);
         if (_configuration.GetValue("Automation:SendEmailReminders", false))
         {
             await SendPendingReminderEmailsAsync(utcNow, cancellationToken);
+            await SendPendingMaintenanceEmailsAsync(utcNow, cancellationToken);
         }
     }
 
@@ -315,6 +318,28 @@ public sealed class OperationalAutomationRunner
         return DateTime.SpecifyKind(approvedAt, DateTimeKind.Utc).AddHours(holdDurationHours);
     }
 
+    private async Task CheckUpcomingMaintenanceAsync(DateTime utcNow, CancellationToken cancellationToken)
+    {
+        var targetDate = utcNow.AddDays(3);
+        
+        var upcomingSchedules = await _context.MaintenanceSchedules.AsNoTracking()
+            .Include(s => s.Equipment)
+            .Where(schedule => schedule.IsActive && schedule.NextDueAt > utcNow && schedule.NextDueAt <= targetDate)
+            .OrderBy(schedule => schedule.NextDueAt)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        foreach (var schedule in upcomingSchedules)
+        {
+            var dispatchKey = schedule.NextDueAt.ToString("yyyyMMdd");
+            if (!await DispatchExistsAsync(MaintenanceDueSoon, schedule.Id, dispatchKey, cancellationToken))
+            {
+                AddDispatch(MaintenanceDueSoon, nameof(MaintenanceSchedule), schedule.Id, dispatchKey);
+            }
+        }
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task GenerateDueMaintenanceAsync(DateTime utcNow, CancellationToken cancellationToken)
     {
         var scheduleIds = await _context.MaintenanceSchedules.AsNoTracking()
@@ -533,10 +558,29 @@ public sealed class OperationalAutomationRunner
             {
                 var username = WebUtility.HtmlEncode(record.User.Username);
                 var equipmentNames = WebUtility.HtmlEncode(GetEquipmentNames(record));
+                var isOverdue = dispatch.JobType == ReturnOverdue;
+                var isToday = dispatch.JobType == ReturnDueToday;
+                
+                var subject = isOverdue 
+                    ? $"[KHẨN] Tài sản quá hạn trả - {record.ExpectedReturnDate:dd/MM/yyyy}"
+                    : isToday 
+                        ? $"[Lab] Hạn trả tài sản là hôm nay - {record.ExpectedReturnDate:dd/MM/yyyy}"
+                        : $"[Lab] Sắp đến hạn trả tài sản - {record.ExpectedReturnDate:dd/MM/yyyy}";
+
+                var overdueWarning = isOverdue 
+                    ? $"<p style='color:red;'><strong>LƯU Ý: Tài sản của bạn đã quá hạn trả! Vui lòng hoàn trả ngay lập tức để tránh bị phạt theo quy định.</strong></p>" 
+                    : "<p>Vui lòng sắp xếp thời gian hoàn trả đúng hạn.</p>";
+
+                var htmlBody = $"<h3>Chào {username},</h3>" +
+                               $"<p>Hệ thống LabManagement thông báo về tình trạng mượn tài sản của bạn:</p>" +
+                               $"<ul><li>Tài sản: <strong>{equipmentNames}</strong></li>" +
+                               $"<li>Hạn trả: <strong>{record.ExpectedReturnDate:dd/MM/yyyy}</strong></li></ul>" +
+                               overdueWarning;
+
                 await _emailService.SendEmailAsync(
                     record.User.Email,
-                    $"[Lab] Nhắc trả tài sản - hạn {record.ExpectedReturnDate:dd/MM/yyyy}",
-                    $"<h3>Chào {username},</h3><p>Bạn đang mượn <strong>{equipmentNames}</strong>.</p><p>Hạn trả: <strong>{record.ExpectedReturnDate:dd/MM/yyyy}</strong>.</p><p>Vui lòng hoàn trả đúng hạn.</p>",
+                    subject,
+                    htmlBody,
                     cancellationToken);
                 dispatch.EmailSentAt = utcNow;
                 dispatch.LastError = string.Empty;
@@ -548,8 +592,98 @@ public sealed class OperationalAutomationRunner
                     : exception.Message;
                 _logger.LogWarning(exception, "Automated reminder email failed for borrow record {BorrowRecordId}.", record.Id);
             }
-            await _context.SaveChangesAsync(cancellationToken);
         }
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SendPendingMaintenanceEmailsAsync(DateTime utcNow, CancellationToken cancellationToken)
+    {
+        var maxAttempts = Math.Clamp(_configuration.GetValue("Automation:EmailMaxAttempts", 3), 1, 10);
+        var retryMinutes = Math.Clamp(_configuration.GetValue("Automation:EmailRetryMinutes", 60), 5, 1440);
+        var retryBefore = utcNow.AddMinutes(-retryMinutes);
+        
+        var pending = await _context.AutomationDispatches
+            .Where(item => item.JobType == MaintenanceDueSoon
+                && item.EmailSentAt == null
+                && item.Attempts < maxAttempts
+                && (item.LastAttemptAt == null || item.LastAttemptAt <= retryBefore))
+            .OrderBy(item => item.CreatedAt)
+            .Take(20)
+            .ToListAsync(cancellationToken);
+
+        if (!pending.Any()) return;
+
+        var managers = await _context.Users.AsNoTracking()
+            .Where(u => (u.Role == Roles.LabHead || u.Role == Roles.DeputyLabHead) && !string.IsNullOrWhiteSpace(u.Email))
+            .Select(u => new { u.Email, u.Username })
+            .ToListAsync(cancellationToken);
+
+        if (!managers.Any())
+        {
+            foreach (var dispatch in pending)
+            {
+                dispatch.Attempts = maxAttempts;
+                dispatch.LastAttemptAt = utcNow;
+                dispatch.LastError = "Không tìm thấy quản lý nào có email.";
+            }
+            await _context.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        foreach (var dispatch in pending)
+        {
+            var schedule = await _context.MaintenanceSchedules.AsNoTracking()
+                .Include(s => s.Equipment)
+                .SingleOrDefaultAsync(s => s.Id == dispatch.EntityId, cancellationToken);
+
+            if (schedule?.Equipment == null)
+            {
+                dispatch.Attempts = maxAttempts;
+                dispatch.LastAttemptAt = utcNow;
+                dispatch.LastError = "Không tìm thấy thông tin lịch bảo trì hoặc thiết bị.";
+                await _context.SaveChangesAsync(cancellationToken);
+                continue;
+            }
+
+            dispatch.Attempts++;
+            dispatch.LastAttemptAt = utcNow;
+
+            try
+            {
+                var equipmentName = WebUtility.HtmlEncode(schedule.Equipment.Name);
+                var scheduleName = WebUtility.HtmlEncode(schedule.Name);
+                
+                var subject = $"[Lab] Sắp đến hạn bảo trì: {equipmentName}";
+                var htmlBody = $"<h3>Thông báo Bảo trì</h3>" +
+                               $"<p>Hệ thống ghi nhận lịch bảo trì sắp đến hạn:</p>" +
+                               $"<ul>" +
+                               $"<li>Thiết bị: <strong>{equipmentName}</strong></li>" +
+                               $"<li>Kế hoạch: <strong>{scheduleName}</strong></li>" +
+                               $"<li>Ngày đến hạn: <strong>{schedule.NextDueAt:dd/MM/yyyy}</strong></li>" +
+                               $"</ul>" +
+                               $"<p>Vui lòng chuẩn bị và kiểm tra thiết bị.</p>";
+
+                foreach (var manager in managers)
+                {
+                    await _emailService.SendEmailAsync(
+                        manager.Email!,
+                        subject,
+                        htmlBody,
+                        cancellationToken);
+                }
+
+                dispatch.EmailSentAt = utcNow;
+                dispatch.LastError = string.Empty;
+            }
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                dispatch.LastError = exception.Message.Length > 2000
+                    ? exception.Message[..2000]
+                    : exception.Message;
+                _logger.LogWarning(exception, "Automated maintenance reminder email failed for schedule {ScheduleId}.", schedule.Id);
+            }
+        }
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     private Task<bool> DispatchExistsAsync(string jobType, int entityId, string windowKey, CancellationToken cancellationToken)
