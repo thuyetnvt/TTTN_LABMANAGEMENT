@@ -138,7 +138,10 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
           DEPLOY_BRANCH: ${{ github.ref_name }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: |
           tr -d '\r' < scripts/deploy-vps.sh | \
             ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
-              "DEPLOY_BRANCH='$DEPLOY_BRANCH' bash -s"
+              "DEPLOY_BRANCH='$DEPLOY_BRANCH' SMTP_USERNAME='$SMTP_USERNAME' SMTP_PASSWORD='$SMTP_PASSWORD' GOOGLE_CLIENT_ID='$GOOGLE_CLIENT_ID' bash -s"

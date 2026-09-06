@@ -4,6 +4,11 @@ set -Eeuo pipefail
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/labmanagement}"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:?DEPLOY_BRANCH is required}"
 
+# Secrets injected from GitHub Actions secrets (optional, only patch if provided)
+SMTP_USERNAME="${SMTP_USERNAME:-}"
+SMTP_PASSWORD="${SMTP_PASSWORD:-}"
+GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
+
 cd "$DEPLOY_DIR"
 
 # Keep deployment safe: local edits to tracked files must be handled manually.
@@ -40,6 +45,24 @@ if [ ! -f "$COMPOSE_ENV_FILE" ]; then
   echo "Missing environment file: $DEPLOY_DIR/$COMPOSE_ENV_FILE"
   exit 1
 fi
+
+# Patch .env with secrets from GitHub Actions (only if secret is non-empty)
+patch_env() {
+  local key="$1" value="$2" file="$3"
+  if [ -n "$value" ]; then
+    if grep -q "^${key}=" "$file"; then
+      sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+    else
+      echo "${key}=${value}" >> "$file"
+    fi
+    echo "Patched: $key"
+  fi
+}
+
+patch_env "SMTP_USERNAME"  "$SMTP_USERNAME"  "$COMPOSE_ENV_FILE"
+patch_env "SMTP_PASSWORD"  "$SMTP_PASSWORD"  "$COMPOSE_ENV_FILE"
+patch_env "SMTP_FROM_EMAIL" "$SMTP_USERNAME"  "$COMPOSE_ENV_FILE"
+patch_env "GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_ID" "$COMPOSE_ENV_FILE"
 
 docker compose \
   --env-file "$COMPOSE_ENV_FILE" \
