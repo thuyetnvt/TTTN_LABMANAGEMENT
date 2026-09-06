@@ -35,6 +35,9 @@ public sealed class ManagerEquipmentDto : BorrowerEquipmentDto
     public string Supplier { get; init; } = string.Empty;
     public string FundingSource { get; init; } = string.Empty;
     public decimal? PurchaseValue { get; init; }
+    public int? LifespanMonths { get; init; }
+    public decimal? CurrentValue { get; init; }
+    public double? DepreciationPercentage { get; init; }
     public DateTime? LastInventoryAt { get; init; }
     public string Notes { get; init; } = string.Empty;
     public string ResponsiblePerson { get; init; } = string.Empty;

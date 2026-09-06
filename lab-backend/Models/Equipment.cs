@@ -1,4 +1,4 @@
-﻿namespace LabManagementAPI.Models
+namespace LabManagementAPI.Models
 {
     public class Equipment
     {
@@ -17,6 +17,7 @@
         public string Supplier { get; set; } = string.Empty;
         public string FundingSource { get; set; } = string.Empty;
         public decimal? PurchaseValue { get; set; }
+        public int? LifespanMonths { get; set; }
         public string ImagePath { get; set; } = string.Empty;
         public DateTime? LastInventoryAt { get; set; }
         public string Notes { get; set; } = string.Empty;
