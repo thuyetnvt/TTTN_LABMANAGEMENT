@@ -11,28 +11,26 @@ GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 
 cd "$DEPLOY_DIR"
 
-# Configure Docker registry mirror to bypass Docker Hub network issues on VPS
-DAEMON_JSON="/etc/docker/daemon.json"
-MIRROR="https://mirror.gcr.io"
-if ! grep -q "$MIRROR" "$DAEMON_JSON" 2>/dev/null; then
-  echo "Configuring Docker registry mirror: $MIRROR"
-  if [ -f "$DAEMON_JSON" ]; then
-    # Add mirror to existing config
-    python3 -c "
-import json, sys
-with open('$DAEMON_JSON') as f: cfg = json.load(f)
-cfg.setdefault('registry-mirrors', [])
-if '$MIRROR' not in cfg['registry-mirrors']:
-    cfg['registry-mirrors'].append('$MIRROR')
-with open('$DAEMON_JSON', 'w') as f: json.dump(cfg, f, indent=2)
-print('Mirror added to existing daemon.json')
-"
-  else
-    echo '{"registry-mirrors": ["'"$MIRROR"'"]}' > "$DAEMON_JSON"
-    echo "Created new daemon.json with mirror"
+# Pre-pull node:22-alpine with retry to handle Docker Hub TLS timeouts on VPS
+echo "Pre-pulling node:22-alpine (with retry)..."
+PULLED=false
+for attempt in 1 2 3 4 5; do
+  if docker pull node:22-alpine; then
+    echo "Successfully pulled node:22-alpine on attempt $attempt"
+    PULLED=true
+    break
   fi
-  systemctl reload docker || true
-  echo "Docker daemon reloaded with mirror config"
+  echo "Attempt $attempt failed. Waiting 20s before retry..."
+  sleep 20
+done
+if [ "$PULLED" = false ]; then
+  # Check if image already exists locally (from a previous successful pull)
+  if docker image inspect node:22-alpine &>/dev/null; then
+    echo "Using cached node:22-alpine from local Docker daemon."
+  else
+    echo "ERROR: Could not pull node:22-alpine and no local cache available."
+    exit 1
+  fi
 fi
 
 # Keep deployment safe: local edits to tracked files must be handled manually.
