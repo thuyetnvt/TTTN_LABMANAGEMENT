@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Google.Apis.Auth;
 
 namespace LabManagementAPI.Controllers;
 
@@ -59,6 +60,93 @@ public class AuthController : ControllerBase
 
         [Required, MinLength(8), MaxLength(200)]
         public string NewPassword { get; set; } = string.Empty;
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("login")]
+    [HttpPost("google-login")]
+    public async Task<IActionResult> GoogleLogin(
+        [FromBody] SsoLoginRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var googleClientId = _configuration["GoogleClientId"];
+            if (string.IsNullOrWhiteSpace(googleClientId))
+            {
+                return StatusCode(500, new { message = "Chưa cấu hình Google Client ID." });
+            }
+
+            var settings = new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = new[] { googleClientId }
+            };
+
+            var payload = await GoogleJsonWebSignature.ValidateAsync(request.Token, settings);
+            if (payload == null)
+            {
+                return Unauthorized(new { message = "Token không hợp lệ." });
+            }
+
+            var email = payload.Email?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return BadRequest(new { message = "Không lấy được Email từ Google." });
+            }
+
+            var allowedDomain = _configuration["AllowedSsoDomains"]?.Trim().ToLowerInvariant();
+            if (!string.IsNullOrWhiteSpace(allowedDomain) && allowedDomain != "*")
+            {
+                if (!email.EndsWith(allowedDomain))
+                {
+                    return Unauthorized(new { message = $"Chỉ hỗ trợ email đuôi {allowedDomain}." });
+                }
+            }
+
+            var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == email, cancellationToken);
+            if (user == null)
+            {
+                // Tự động đăng ký
+                var username = email.Split('@')[0];
+                var suffix = "";
+                var counter = 1;
+                while (await _context.Users.AnyAsync(u => u.Username == username + suffix, cancellationToken))
+                {
+                    suffix = counter.ToString();
+                    counter++;
+                }
+
+                user = new User
+                {
+                    Username = username + suffix,
+                    Email = email,
+                    PasswordHash = string.Empty, // Không có password
+                    Role = Roles.Student,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync(cancellationToken);
+                
+                await _auditService.WriteAsync(HttpContext, "SsoRegister", "User", user.Id, cancellationToken: cancellationToken);
+            }
+            else if (!user.IsActive)
+            {
+                return Unauthorized(new { message = "Tài khoản của bạn đã bị khóa." });
+            }
+
+            await _auditService.WriteAsync(HttpContext, "SsoLoginSucceeded", "User", user.Id, cancellationToken: cancellationToken);
+
+            return Ok(CreateLoginResponse(user));
+        }
+        catch (InvalidJwtException)
+        {
+            return Unauthorized(new { message = "Token Google không hợp lệ hoặc đã hết hạn." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Lỗi xử lý SSO.", details = ex.Message });
+        }
     }
 
     [AllowAnonymous]

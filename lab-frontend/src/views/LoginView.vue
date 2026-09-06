@@ -124,6 +124,11 @@
             {{ loading ? $t('login.loggingIn') : $t('login.loginBtn') }} <arrow-right-outlined />
           </a-button>
 
+          <div class="divider" style="text-align: center; margin: 16px 0; color: #888; font-size: 13px;">Hoặc</div>
+
+          <!-- Nút Đăng nhập Google -->
+          <div id="googleButton" class="google-btn-container" style="display: flex; justify-content: center; margin-bottom: 24px;"></div>
+
           <!-- Liên kết phụ -->
           <div class="extra-links">
             {{ $t('login.noAccount') }} <span class="contact-admin">{{ $t('login.contactAdmin') }}</span>
@@ -142,7 +147,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
@@ -181,6 +186,42 @@ const handleLogin = () => {
       loading.value = false
     })
 }
+
+const handleGoogleCallback = (response) => {
+  if (response.credential) {
+    loading.value = true
+    authStore.googleLogin(response.credential)
+      .then(() => {
+        message.success('Đăng nhập bằng Google thành công')
+        router.push('/dashboard')
+      })
+      .catch(err => {
+        message.error(err.message)
+      })
+      .finally(() => {
+        loading.value = false
+      })
+  }
+}
+
+onMounted(() => {
+  if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+    window.google.accounts.id.initialize({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      callback: handleGoogleCallback,
+      auto_select: false,
+      cancel_on_tap_outside: true
+    })
+    
+    const googleButton = document.getElementById('googleButton')
+    if (googleButton) {
+      window.google.accounts.id.renderButton(
+        googleButton,
+        { theme: 'outline', size: 'large', type: 'standard', text: 'signin_with', shape: 'rectangular', logo_alignment: 'left', width: '320' }
+      )
+    }
+  }
+})
 </script>
 
 <style scoped>

@@ -48,6 +48,8 @@ services:
       Email__Password: ${SMTP_PASSWORD:-}
       Email__FromEmail: ${SMTP_FROM_EMAIL:-}
       Email__FromName: ${SMTP_FROM_NAME:-Lab Management}
+      GoogleClientId: ${GOOGLE_CLIENT_ID:-}
+      AllowedSsoDomains: ${ALLOWED_SSO_DOMAINS:-*}
       Automation__Enabled: ${AUTOMATION_ENABLED:-true}
       Automation__PollMinutes: ${AUTOMATION_POLL_MINUTES:-5}
       Automation__ReturnReminderDaysBefore: ${RETURN_REMINDER_DAYS_BEFORE:-3}

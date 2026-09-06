@@ -37,6 +37,21 @@ export const useAuthStore = defineStore('auth', {
         throw new Error(error?.response?.data?.message || error?.response?.data?.detail || error.message || 'Đăng nhập thất bại')
       }
     },
+    async googleLogin(token) {
+      try {
+        const data = await authApi.googleLogin({ token })
+        this.token = data.token
+        this.role = data.role
+        this.user = { username: data.username, role: data.role }
+        
+        clearAuthStorage()
+        localStorage.setItem('token', this.token)
+        localStorage.setItem('role', this.role)
+        return true
+      } catch (error) {
+        throw new Error(error?.response?.data?.message || error?.response?.data?.detail || error.message || 'Đăng nhập Google thất bại')
+      }
+    },
     logout() {
       this.token = null
       this.role = 'Guest'

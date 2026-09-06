@@ -92,6 +92,8 @@ public class EquipmentController : ControllerBase
         [Range(0, double.MaxValue)]
         public decimal? PurchaseValue { get; set; }
 
+        public int? LifespanMonths { get; set; }
+
         [MaxLength(2000)]
         public string Notes { get; set; } = string.Empty;
 
@@ -538,6 +540,7 @@ public class EquipmentController : ControllerBase
             Supplier = dto.Supplier.Trim(),
             FundingSource = dto.FundingSource.Trim(),
             PurchaseValue = dto.PurchaseValue,
+            LifespanMonths = dto.LifespanMonths,
             Notes = dto.Notes.Trim(),
             Location = dto.Location.Trim(),
             LocationNodeId = dto.LocationNodeId,
@@ -699,6 +702,7 @@ public class EquipmentController : ControllerBase
         existing.Supplier = dto.Supplier.Trim();
         existing.FundingSource = dto.FundingSource.Trim();
         existing.PurchaseValue = dto.PurchaseValue;
+        existing.LifespanMonths = dto.LifespanMonths;
         existing.Notes = dto.Notes.Trim();
         existing.Location = dto.Location.Trim();
         existing.LocationNodeId = dto.LocationNodeId;
@@ -1070,6 +1074,19 @@ public class EquipmentController : ControllerBase
 
     private static ManagerEquipmentDto ToManagerDto(Equipment equipment)
     {
+        decimal? currentValue = equipment.PurchaseValue;
+        double? depreciationPercentage = 0;
+
+        if (equipment.PurchaseValue.HasValue && equipment.LifespanMonths.HasValue && equipment.LifespanMonths.Value > 0 && equipment.EntryDate.HasValue)
+        {
+            var monthsUsed = (DateTime.UtcNow - equipment.EntryDate.Value).TotalDays / 30.436875;
+            var depreciationAmount = equipment.PurchaseValue.Value * (decimal)monthsUsed / equipment.LifespanMonths.Value;
+            var calcCurrentValue = equipment.PurchaseValue.Value - depreciationAmount;
+            
+            currentValue = Math.Max(0, Math.Round(calcCurrentValue, 2));
+            depreciationPercentage = Math.Min(100, Math.Round((double)(depreciationAmount / equipment.PurchaseValue.Value) * 100, 2));
+        }
+
         return new ManagerEquipmentDto
         {
             Id = equipment.Id,
@@ -1087,6 +1104,9 @@ public class EquipmentController : ControllerBase
             Supplier = equipment.Supplier,
             FundingSource = equipment.FundingSource,
             PurchaseValue = equipment.PurchaseValue,
+            LifespanMonths = equipment.LifespanMonths,
+            CurrentValue = currentValue,
+            DepreciationPercentage = depreciationPercentage,
             ImagePath = equipment.ImagePath,
             LastInventoryAt = equipment.LastInventoryAt,
             Notes = equipment.Notes,

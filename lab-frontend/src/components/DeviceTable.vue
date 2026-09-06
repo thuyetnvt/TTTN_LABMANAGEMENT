@@ -55,6 +55,12 @@
       <template v-else-if="column.key === 'qrcode'">
         <a-button type="default" size="small" @click="showQR(record)">QR</a-button>
       </template>
+      <template v-else-if="column.key === 'depreciationPercentage'">
+        <span v-if="record.depreciationPercentage !== undefined && record.depreciationPercentage !== null">
+          <a-progress :percent="record.depreciationPercentage" size="small" :status="record.depreciationPercentage >= 100 ? 'exception' : 'active'" />
+        </span>
+        <span v-else class="muted">N/A</span>
+      </template>
       <template v-else-if="column.key === 'decisionFile'">
         <a-button
           v-if="record.hasDecisionFile && isManagerRole(role)"
@@ -277,6 +283,19 @@
         </a-col>
       </a-row>
 
+      <a-row :gutter="16" v-if="isManagerRole(role)">
+        <a-col :span="12">
+          <a-form-item label="Giá mua (VNĐ)">
+            <a-input-number v-model:value="formData.purchaseValue" style="width: 100%" :min="0" :formatter="value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')" :parser="value => value.replace(/\$\s?|(,*)/g, '')" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="Thời gian khấu hao (tháng)">
+            <a-input-number v-model:value="formData.lifespanMonths" style="width: 100%" :min="0" />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
       <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="Số hóa đơn">
@@ -372,8 +391,8 @@ const columns = computed(() => {
     { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 },
     { title: 'Quyết định', key: 'decisionFile', width: 120 },
     { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', width: 120 },
-    { title: 'Hạn bảo hành', dataIndex: 'warrantyExpiry', key: 'warrantyExpiry', width: 130 },
-    { title: 'Số hóa đơn', dataIndex: 'invoiceNumber', key: 'invoiceNumber', width: 140 }
+    { title: 'Khấu hao (%)', dataIndex: 'depreciationPercentage', key: 'depreciationPercentage', width: 120 },
+    { title: 'Hạn bảo hành', dataIndex: 'warrantyExpiry', key: 'warrantyExpiry', width: 130 }
   ] : []
 
   return [
@@ -425,6 +444,8 @@ const emptyForm = () => ({
   entryDate: null,
   warrantyExpiry: null,
   invoiceNumber: '',
+  purchaseValue: null,
+  lifespanMonths: null,
   status: STATUS.AVAILABLE,
   assetCategoryId: null
 })
@@ -623,7 +644,17 @@ const detailSections = computed(() => {
         detailField('entryDate', 'Ngày nhập', detailDate(data.entryDate)),
         detailField('warrantyExpiry', 'Hạn bảo hành', detailDate(data.warrantyExpiry))
       ]
-    }
+    },
+    ...(isManager.value ? [{
+      key: 'finance',
+      title: 'Tài chính & Khấu hao',
+      fields: [
+        detailField('purchaseValue', 'Giá mua (VNĐ)', data.purchaseValue ? data.purchaseValue.toLocaleString() : null),
+        detailField('lifespanMonths', 'Thời gian khấu hao (tháng)', data.lifespanMonths),
+        detailField('currentValue', 'Giá trị hiện tại (VNĐ)', data.currentValue ? data.currentValue.toLocaleString() : null),
+        detailField('depreciationPercentage', 'Đã khấu hao', data.depreciationPercentage !== undefined && data.depreciationPercentage !== null ? `${data.depreciationPercentage}%` : null)
+      ]
+    }] : [])
   ]
   return sections
     .map(section => ({ ...section, fields: section.fields.filter(field => hasDetailValue(field.value)) }))
@@ -662,6 +693,12 @@ const buildEquipmentFormData = () => {
   if (formData.value.assetCategoryId !== null && formData.value.assetCategoryId !== undefined) {
     payload.append('assetCategoryId', formData.value.assetCategoryId)
   }
+  if (formData.value.purchaseValue !== null && formData.value.purchaseValue !== undefined) {
+    payload.append('purchaseValue', formData.value.purchaseValue)
+  }
+  if (formData.value.lifespanMonths !== null && formData.value.lifespanMonths !== undefined) {
+    payload.append('lifespanMonths', formData.value.lifespanMonths)
+  }
   const entryDate = normalizeDate(formData.value.entryDate)
   const warrantyExpiry = normalizeDate(formData.value.warrantyExpiry, true)
   if (entryDate) payload.append('entryDate', entryDate)
@@ -696,8 +733,9 @@ const submitForm = async () => {
     }
     isFormVisible.value = false
     fetchData()
-  } catch {
-    message.error('Lỗi khi lưu thiết bị!')
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Lỗi khi lưu thiết bị!'
+    message.error(msg)
   } finally {
     submitting.value = false
   }
