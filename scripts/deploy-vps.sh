@@ -81,10 +81,15 @@ patch_env() {
   fi
 }
 
-patch_env "SMTP_USERNAME"  "$SMTP_USERNAME"  "$COMPOSE_ENV_FILE"
-patch_env "SMTP_PASSWORD"  "$SMTP_PASSWORD"  "$COMPOSE_ENV_FILE"
+patch_env "SMTP_HOST"      "smtp.gmail.com"   "$COMPOSE_ENV_FILE"
+patch_env "SMTP_PORT"      "587"              "$COMPOSE_ENV_FILE"
+patch_env "SMTP_USE_STARTTLS" "true"          "$COMPOSE_ENV_FILE"
+patch_env "SMTP_USERNAME"  "$SMTP_USERNAME"   "$COMPOSE_ENV_FILE"
+patch_env "SMTP_PASSWORD"  "$SMTP_PASSWORD"   "$COMPOSE_ENV_FILE"
 patch_env "SMTP_FROM_EMAIL" "$SMTP_USERNAME"  "$COMPOSE_ENV_FILE"
+patch_env "SMTP_FROM_NAME" "LabManagement System" "$COMPOSE_ENV_FILE"
 patch_env "GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_ID" "$COMPOSE_ENV_FILE"
+patch_env "AUTOMATION_SEND_EMAIL_REMINDERS" "true" "$COMPOSE_ENV_FILE"
 
 docker compose \
   --env-file "$COMPOSE_ENV_FILE" \
