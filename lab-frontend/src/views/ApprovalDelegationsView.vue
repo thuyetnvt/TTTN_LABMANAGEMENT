@@ -191,10 +191,10 @@ const statusOptions = [
 ]
 
 const columns = [
-  { title: 'Giảng viên được ủy quyền', key: 'delegate', sortKey: 'delegate', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm giảng viên...', width: 220 },
-  { title: 'Người ủy quyền', key: 'delegator', sortKey: 'delegator', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người ủy quyền...', width: 170 },
+  { title: 'Giảng viên được ủy quyền', key: 'delegate', sortKey: 'delegate', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm giảng viên...', width: 270 },
+  { title: 'Người ủy quyền', key: 'delegator', sortKey: 'delegator', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người ủy quyền...', width: 210 },
   { title: 'Phạm vi', key: 'scope', sortKey: 'scope', sortable: true, filterType: 'select', filterKey: 'scope', filterOptions: scopeOptions, width: 190 },
-  { title: 'Quyền bàn giao', key: 'handover', sortKey: 'handover', sortable: true, width: 145, align: 'center' },
+  { title: 'Quyền bàn giao', key: 'handover', sortKey: 'handover', sortable: true, width: 175, align: 'center' },
   { title: 'Thời gian', key: 'period', sortKey: 'startsAt', sortable: true, width: 230 },
   { title: 'Lý do', dataIndex: 'reason', key: 'reason', sortKey: 'reason', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm lý do...', width: 260 },
   { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, filterType: 'select', filterKey: 'status', filterOptions: statusOptions, width: 120, align: 'center' },

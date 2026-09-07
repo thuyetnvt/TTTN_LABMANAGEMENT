@@ -391,7 +391,7 @@ const columns = computed(() => {
     { title: 'Đang giữ', dataIndex: 'reservedQuantity', key: 'reservedQuantity', sortable: true, sortKey: 'reservedQuantity', align: 'center', width: 100 },
     { title: 'Khả dụng', dataIndex: 'availableQuantity', key: 'availableQuantity', sortable: true, sortKey: 'availableQuantity', align: 'center', width: 100 },
     { title: 'Số lô', dataIndex: 'lotCount', key: 'lotCount', sortable: true, sortKey: 'lotCount', align: 'center', width: 90 },
-    { title: 'Người chịu trách nhiệm', dataIndex: 'responsibleName', key: 'responsibleName', sortable: true, sortKey: 'responsiblePerson', width: 180 }
+    { title: 'Người chịu trách nhiệm', dataIndex: 'responsibleName', key: 'responsibleName', sortable: true, sortKey: 'responsiblePerson', width: 260 }
   ] : []
   return [...commonColumns, ...managerColumns,
   { title: 'Trạng thái', key: 'status', sortable: true, sortKey: 'status', align: 'center', width: 120, filterType: 'select', filterKey: 'stock', filterOptions: [

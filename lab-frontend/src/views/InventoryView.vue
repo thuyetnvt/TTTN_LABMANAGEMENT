@@ -295,7 +295,7 @@ const columns = [
   { title: 'Mã đợt', dataIndex: 'code', key: 'code', sortKey: 'code', sortable: true, width: 150, filterType: 'search', filterPlaceholder: 'Tìm mã đợt...' },
   { title: 'Tên đợt', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, width: 230, filterType: 'search', filterPlaceholder: 'Tìm tên đợt...' },
   { title: 'Tiến độ', key: 'progress', sortKey: 'progress', sortable: true, width: 190 },
-  { title: 'Chưa quét / Thất lạc', key: 'missing', sortKey: 'missing', sortable: true, width: 170, customRender: ({ record }) => inventoryDifferenceLabel(record) },
+  { title: 'Chưa quét / Thất lạc', key: 'missing', sortKey: 'missing', sortable: true, width: 210, customRender: ({ record }) => inventoryDifferenceLabel(record) },
   { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 150, filterType: 'select', filterKey: 'status', filterOptions: inventoryStatusOptions },
   { title: 'Bắt đầu', key: 'startedAt', sortKey: 'startedAt', sortable: true, width: 150 },
   { title: 'Thao tác', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 96, align: 'center' }
@@ -308,7 +308,7 @@ const itemColumns = [
   { title: 'SL thực tế', dataIndex: 'actualQuantity', key: 'actualQuantity', sortKey: 'actualQuantity', sortable: true, width: 100, align: 'center' },
   { title: 'Chênh lệch', dataIndex: 'quantityDifference', key: 'quantityDifference', sortKey: 'quantityDifference', sortable: true, width: 100, align: 'center' },
   { title: 'Kết quả', key: 'status', sortKey: 'status', sortable: true, filterType: 'select', filterKey: 'status', filterOptions: inventoryItemStatusOptions },
-  { title: 'Thời gian quét', key: 'scannedAt', sortKey: 'scannedAt', sortable: true },
+  { title: 'Thời gian quét', key: 'scannedAt', sortKey: 'scannedAt', sortable: true, width: 170 },
   { title: 'Minh chứng', key: 'evidence' },
   { title: 'Đối soát', key: 'review', align: 'center', width: 110 }
 ]

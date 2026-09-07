@@ -316,13 +316,13 @@ const cancelReason = ref('')
 const cancelRecord = ref(null)
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 170, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 160, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Danh mục', dataIndex: 'category', key: 'category', sortKey: 'category', sortable: true, width: 110, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 130, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
-  { title: 'Chi tiết yêu cầu', key: 'details', width: 180, filterType: 'search', filterPlaceholder: 'Tìm chi tiết...' },
-  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 120 },
-  { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true, width: 120 },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Danh mục', dataIndex: 'category', key: 'category', sortKey: 'category', sortable: true, width: 145, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
+  { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
+  { title: 'Chi tiết yêu cầu', key: 'details', width: 200, filterType: 'search', filterPlaceholder: 'Tìm chi tiết...' },
+  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 155 },
+  { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true, width: 145 },
   { title: 'Hạn trả', key: 'dueStatus', sortKey: 'dueStatus', sortable: true, align: 'center', width: 130 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', sortKey: 'purpose', sortable: true, width: 180, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 120, filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },

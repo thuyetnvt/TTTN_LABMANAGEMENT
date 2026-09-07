@@ -72,10 +72,13 @@ test('tiêu đề cột của toàn bộ bảng không tự xuống hàng', () =
   const globalStyle = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8')
   const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
   const consumablesSource = readFileSync(new URL('../src/components/ConsumablesTable.vue', import.meta.url), 'utf8')
+  const maintenanceSource = readFileSync(new URL('../src/views/MaintenanceView.vue', import.meta.url), 'utf8')
 
   assert.match(globalStyle, /\.ant-table-wrapper \.ant-table-thead > tr > th\s*\{[\s\S]*?white-space:\s*nowrap;/)
   assert.match(filterSource, /\.table-column-title\s*\{[\s\S]*?white-space:\s*nowrap;/)
   assert.match(consumablesSource, /\.consumables-desktop-table :deep\(\.ant-table-thead > tr > th\)[\s\S]*?white-space:\s*nowrap;/)
+  assert.match(maintenanceSource, /title: 'Ngày thực hiện',[\s\S]*?width: 175/)
+  assert.match(maintenanceSource, /title: 'Người thực hiện',[\s\S]*?width: 220/)
 })
 
 test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {

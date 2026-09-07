@@ -279,13 +279,13 @@ const formData = ref({
 
 const columns = [
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 180, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Ngày thực hiện', dataIndex: 'maintenanceDate', key: 'maintenanceDate', sortKey: 'maintenanceDate', sortable: true, width: 140 },
+  { title: 'Ngày thực hiện', dataIndex: 'maintenanceDate', key: 'maintenanceDate', sortKey: 'maintenanceDate', sortable: true, width: 175 },
   { title: 'Nội dung', dataIndex: 'description', key: 'description', sortKey: 'description', sortable: true, width: 320, filterType: 'search', filterPlaceholder: 'Tìm nội dung...' },
-  { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', sortKey: 'performedBy', sortable: true, width: 170, filterType: 'search', filterPlaceholder: 'Tìm người thực hiện...' },
+  { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', sortKey: 'performedBy', sortable: true, width: 220, filterType: 'search', filterPlaceholder: 'Tìm người thực hiện...' },
   { title: 'Chi phí', dataIndex: 'cost', key: 'cost', sortKey: 'cost', sortable: true, width: 120 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, width: 160, filterType: 'select', filterKey: 'status', filterOptions: maintenanceStatusOptions },
   { title: 'Kết quả', dataIndex: 'result', key: 'result', sortKey: 'result', sortable: true, width: 280, filterType: 'search', filterPlaceholder: 'Tìm kết quả...' },
-  { title: 'Tình trạng sau bảo trì', dataIndex: 'resultStatus', key: 'resultStatus', sortKey: 'resultStatus', sortable: true, width: 180 },
+  { title: 'Tình trạng sau bảo trì', dataIndex: 'resultStatus', key: 'resultStatus', sortKey: 'resultStatus', sortable: true, width: 220 },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 120 }
 ]
 

@@ -409,10 +409,10 @@ const columns = computed(() => {
     { title: 'Vị trí', dataIndex: 'location', key: 'location', sortKey: 'location', sortable: true, width: 130, filterType: 'select', filterKey: 'location', filterOptions: locations.value.map(item => ({ value: item.id, label: `${item.code} — ${item.name}` })) }
   ]
   const managerColumns = isManager.value ? [
-    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', sortKey: 'responsiblePerson', sortable: true, width: 180, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người chịu trách nhiệm...' },
+    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', sortKey: 'responsiblePerson', sortable: true, width: 260, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người chịu trách nhiệm...' },
     { title: 'Quyết định', key: 'decisionFile', width: 120 },
     { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', sortKey: 'entryDate', sortable: true, width: 120 },
-    { title: 'Khấu hao (%)', dataIndex: 'depreciationPercentage', key: 'depreciationPercentage', width: 120 },
+    { title: 'Khấu hao (%)', dataIndex: 'depreciationPercentage', key: 'depreciationPercentage', width: 145 },
   ] : []
 
   return [

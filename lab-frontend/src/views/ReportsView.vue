@@ -383,7 +383,7 @@ const borrowColumns = [
   ] }
 ]
 const responsibleColumns = [
-  { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 220, ellipsis: true, sortable: true, sortKey: 'responsiblePerson', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người phụ trách...' },
+  { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 260, ellipsis: true, sortable: true, sortKey: 'responsiblePerson', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người phụ trách...' },
   { title: 'Số thiết bị', dataIndex: 'equipmentCount', key: 'equipmentCount', width: 130, sortable: true, sortKey: 'equipmentCount' },
   { title: 'Thiết bị phụ trách', dataIndex: 'equipment', key: 'equipment', width: 420, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' }
 ]
