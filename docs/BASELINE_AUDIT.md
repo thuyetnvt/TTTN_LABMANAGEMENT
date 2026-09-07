@@ -26,14 +26,14 @@ Commit gốc: `5f016448b435e166fcd94d5a7490ed3dfccf68d2`
 - ASP.NET Core 9, EF Core, MySQL, Docker Compose và Nginx.
 - 11 controller backend, 16 view frontend.
 - JWT authentication, token version invalidation, RBAC cho 5 vai trò.
-- Tài sản, danh mục, vật tư, yêu cầu cấp phát, mượn trả một tài sản/phiếu, bảo trì, bồi thường, audit log, Excel export và SignalR toast.
+- Tài sản, danh mục, vật tư, yêu cầu cấp phát, mượn trả một tài sản/phiếu, bảo trì, audit log, Excel export và SignalR toast.
 - Transaction/concurrency claim cơ bản khi duyệt mượn và cấp phát vật tư.
 
 ## Lỗi và khoảng trống xác nhận từ code
 
 ### P0
 
-- Nhiều status nghiệp vụ vẫn là chuỗi tiếng Việt rải rác (`Chờ duyệt`, `Đã trả`, `Hoàn tất`, `Bảo hành`...), trong khi frontend/backend có các biến thể khác nhau.
+- Nhiều status nghiệp vụ vẫn là chuỗi tiếng Việt rải rác (`Chờ duyệt`, `Đã trả`, `Hoàn tất`...), trong khi frontend/backend có các biến thể khác nhau.
 - `BorrowRecord` vẫn giữ `EquipmentId` ở header và `Details`, endpoint tạo/duyệt/trả mới xử lý một thiết bị.
 - Sinh viên chưa bị backend bắt buộc chọn giảng viên bảo lãnh.
 - Từ chối bảo lãnh chưa nhận lý do.

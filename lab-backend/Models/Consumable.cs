@@ -20,7 +20,16 @@ namespace LabManagementAPI.Models
 
         public int MinQuantity { get; set; } = 5;
 
+        // Kept for backwards compatibility with legacy records and reports.
         public string ResponsiblePerson { get; set; } = string.Empty;
+
+        // CreatedByUserId is nullable so existing rows created before this
+        // relationship was introduced can continue to be read safely.
+        public int? CreatedByUserId { get; set; }
+        public User? CreatedByUser { get; set; }
+
+        public int? ResponsibleUserId { get; set; }
+        public User? ResponsibleUser { get; set; }
 
         public int? AssetCategoryId { get; set; }
         public AssetCategory? AssetCategory { get; set; }

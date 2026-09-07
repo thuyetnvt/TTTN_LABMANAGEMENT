@@ -18,6 +18,5 @@ namespace LabManagementAPI.Models
         public string ReturnCondition { get; set; } = string.Empty;
         public string ReturnNote { get; set; } = string.Empty;
         public DateTime? ReturnedAt { get; set; }
-        public decimal CompensationAmount { get; set; }
     }
 }

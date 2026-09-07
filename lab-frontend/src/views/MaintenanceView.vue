@@ -194,7 +194,6 @@
           <a-select v-model:value="completeStatus">
             <a-select-option :value="STATUS.AVAILABLE">Hoạt động bình thường — Rảnh</a-select-option>
             <a-select-option :value="STATUS.BROKEN">Chưa sửa được — Hỏng</a-select-option>
-            <a-select-option :value="STATUS.UNDER_WARRANTY">Gửi hãng — Bảo hành</a-select-option>
             <a-select-option :value="STATUS.MAINTENANCE_IN_PROGRESS">Cần tiếp tục bảo trì — tạo phiếu tiếp theo</a-select-option>
           </a-select>
         </a-form-item>

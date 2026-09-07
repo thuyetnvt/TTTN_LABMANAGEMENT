@@ -4,6 +4,7 @@ using LabManagementAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabManagementAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260907083743_RemoveCompensationFeature")]
+    partial class RemoveCompensationFeature
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -302,6 +305,9 @@ namespace LabManagementAPI.Migrations
                     b.Property<int?>("InspectedByUserId")
                         .HasColumnType("int");
 
+                    b.Property<bool?>("IsUnderWarrantyAtReturn")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("ManagerDecisionNote")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -337,6 +343,11 @@ namespace LabManagementAPI.Migrations
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
+
+                    b.Property<string>("WarrantyAction")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
 
@@ -903,6 +914,9 @@ namespace LabManagementAPI.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime?>("WarrantyExpiry")
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 

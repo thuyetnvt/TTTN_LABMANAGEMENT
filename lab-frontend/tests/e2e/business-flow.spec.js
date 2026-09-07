@@ -186,7 +186,6 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
         equipmentId: item.id,
         condition: 'AVAILABLE',
         note: 'Đã nhận đủ, hoạt động bình thường.',
-        compensationAmount: 0
       }))
     }
   })

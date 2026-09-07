@@ -12,7 +12,6 @@ import {
   getEquipmentStatusLabel,
   getInventoryStatusLabel,
   getMaintenanceStatusLabel,
-  getPenaltyStatusLabel,
   getReturnConditionLabel,
   getStatusColor
 } from '../src/utils/statusLabels.js'
@@ -31,7 +30,6 @@ const TABLE_FILES_WITH_STICKY_ACTION = [
   '../src/components/UserTable.vue',
   '../src/views/MaintenanceView.vue',
   '../src/views/MaintenanceSchedulesView.vue',
-  '../src/views/PenaltyView.vue',
   '../src/views/TeacherApprovalView.vue'
 ]
 
@@ -92,7 +90,6 @@ test('mọi bảng nghiệp vụ của các vai trò đều có lọc hoặc s�
     '../src/views/InventoryView.vue',
     '../src/views/MaintenanceView.vue',
     '../src/views/MaintenanceSchedulesView.vue',
-    '../src/views/PenaltyView.vue',
     '../src/views/AuditLogsView.vue',
     '../src/views/ApprovalDelegationsView.vue',
     '../src/views/LocationsView.vue',
@@ -170,8 +167,6 @@ test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', ()
     [getMaintenanceStatusLabel, STATUS.MAINTENANCE_COMPLETING, 'Đang nghiệm thu', 'purple'],
     [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_PENDING, 'Chờ duyệt cấp phát', 'orange'],
     [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_ISSUED, 'Đã cấp phát', 'green'],
-    [getPenaltyStatusLabel, STATUS.UNPAID, 'Chưa thanh toán', 'red'],
-    [getPenaltyStatusLabel, STATUS.PAID, 'Đã thanh toán', 'green'],
     [getInventoryStatusLabel, STATUS.INVENTORY_DAMAGED, 'Hư hỏng', 'red'],
     [getInventoryStatusLabel, STATUS.INVENTORY_WRONG_LOCATION, 'Sai vị trí', 'orange']
   ]
@@ -182,12 +177,11 @@ test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', ()
   }
 })
 
-test('báo cáo gộp toàn bộ tài sản đang mượn và không gộp quá hạn, bảo hành vào thẻ tổng quan', () => {
+test('báo cáo hiển thị đang mượn và tài sản hỏng riêng', () => {
   const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
 
   assert.match(source, /label:\s*['"]Đang mượn['"][^]*?value:\s*formatNumber\(report\.value\.totals\.borrowed\)/)
   assert.match(source, /label:\s*['"]Đang hỏng['"][^]*?value:\s*formatNumber\(report\.value\.totals\.broken\)/)
-  assert.doesNotMatch(source, /label:\s*['"]Đang mượn \/ Quá hạn['"]|label:\s*['"]Đang hỏng \/ Bảo hành['"]|totals\.underWarranty\)/)
 })
 
 test('báo cáo không hiển thị dải bộ lọc đang áp dụng hoặc nút lọc màu cam', () => {
@@ -212,6 +206,15 @@ test('báo cáo đặt chi tiết vận hành lên trước và thay bảo trì 
   assert.match(source, /key="responsible"\s+tab="Người chịu trách nhiệm"/)
   assert.match(source, /responsibleColumns/)
   assert.doesNotMatch(source, /key="maintenance"\s+tab="Bảo trì"/)
+})
+
+test('báo cáo mở danh sách thiết bị đúng trạng thái ngay trong modal', () => {
+  const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /@click="openStatusDetails\(item\)"/)
+  assert.match(source, /const openStatusDetails = async item =>/)
+  assert.match(source, /equipmentApi\.getPaged\(\{ page: 1, pageSize: 100, status: item\.value \}\)/)
+  assert.match(source, /v-model:open="statusDetailsVisible"/)
 })
 
 test('kiểm kê hiển thị đã đối soát cho tài sản đã quét bình thường', () => {
@@ -254,8 +257,6 @@ test('tách xử lý trả khỏi phiếu chờ duyệt và đưa sang lịch s�
   assert.match(historySource, /Nhắc trả/)
   assert.match(modalSource, /borrowApi\.returnEquipment/)
   assert.match(modalSource, /borrowApi\.uploadReturnEvidence/)
-  assert.match(modalSource, /overduePenaltyAmount/)
-  assert.match(modalSource, /tự động chuyển sang Đã thanh toán/)
 })
 
 test('notification store dedupe realtime và chỉ tăng unread một lần', () => {
@@ -304,7 +305,6 @@ test('điều hướng cảnh báo Dashboard đến đúng màn hình', () => {
   assert.deepEqual(getDashboardAlertTarget('low-stock'), { name: 'Devices', query: { tab: 'consumables', stock: 'LOW_STOCK' } })
   assert.deepEqual(getDashboardAlertTarget('pending-borrow-requests'), { name: 'BorrowRequests' })
   assert.deepEqual(getDashboardAlertTarget('pending-consumable-requests'), { name: 'ConsumableRequests' })
-  assert.deepEqual(getDashboardAlertTarget('warranty-soon'), { name: 'Devices', query: { status: 'warranty-soon' } })
   assert.deepEqual(getDashboardAlertTarget('teacher-pending-approvals'), { name: 'TeacherApproval' })
   assert.equal(getDashboardAlertTarget('unknown'), null)
 })

@@ -10,7 +10,7 @@ export const borrowApi = {
   reject: (id) => axiosClient.put(`/borrow/${id}/reject`),
   cancel: (id, reason) => axiosClient.put(`/borrow/${id}/cancel`, { reason }),
   returnEquipment: (id, data = null) => axiosClient.put(`/borrow/${id}/return`, data),
-  reportDamage: (id, data) => axiosClient.put(`/borrow/${id}/report-damage`, data),
+  reportDamage: (id, reason) => axiosClient.put(`/borrow/${id}/report-damage`, { reason }),
   uploadReturnEvidence: (id, file, evidenceType = 'PHOTO_AFTER', equipmentId = null) => {
     const form = new FormData()
     form.append('file', file)

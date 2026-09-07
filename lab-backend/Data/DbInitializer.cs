@@ -84,7 +84,6 @@ public static class DbInitializer
                 Location = "Tủ IoT A1",
                 ResponsiblePerson = "Nguyễn Văn Lab",
                 EntryDate = now.AddMonths(-10),
-                WarrantyExpiry = now.AddMonths(14),
                 InvoiceNumber = "HD-IOT-0001",
                 Status = EquipmentStatuses.Available,
                 AssetCategoryId = categoryIds.GetValueOrDefault("IoT"),
@@ -100,7 +99,6 @@ public static class DbInitializer
                 Location = "Bàn đo lường B2",
                 ResponsiblePerson = "Trần Thị Thiết Bị",
                 EntryDate = now.AddYears(-1),
-                WarrantyExpiry = now.AddMonths(8),
                 InvoiceNumber = "HD-DO-0007",
                 Status = EquipmentStatuses.Borrowed,
                 AssetCategoryId = categoryIds.GetValueOrDefault("Thiết bị đo"),
@@ -116,7 +114,6 @@ public static class DbInitializer
                 Location = "Phòng AI C3",
                 ResponsiblePerson = "Phạm Minh AI",
                 EntryDate = now.AddMonths(-7),
-                WarrantyExpiry = now.AddMonths(17),
                 InvoiceNumber = "HD-AI-0012",
                 Status = EquipmentStatuses.Available,
                 AssetCategoryId = categoryIds.GetValueOrDefault("AI"),
@@ -132,9 +129,8 @@ public static class DbInitializer
                 Location = "Kệ camera C1",
                 ResponsiblePerson = "Phạm Minh AI",
                 EntryDate = now.AddMonths(-15),
-                WarrantyExpiry = now.AddMonths(3),
                 InvoiceNumber = "HD-AI-0004",
-                Status = EquipmentStatuses.Warranty,
+                Status = EquipmentStatuses.Broken,
                 AssetCategoryId = categoryIds.GetValueOrDefault("AI"),
                 BorrowCount = 4,
                 CreatedAt = now.AddDays(-35)
@@ -148,7 +144,6 @@ public static class DbInitializer
                 Location = "Bàn điện tử B1",
                 ResponsiblePerson = "Trần Thị Thiết Bị",
                 EntryDate = now.AddYears(-2),
-                WarrantyExpiry = now.AddMonths(-2),
                 InvoiceNumber = "HD-DO-0002",
                 Status = EquipmentStatuses.Broken,
                 AssetCategoryId = categoryIds.GetValueOrDefault("Thiết bị đo"),
@@ -164,7 +159,6 @@ public static class DbInitializer
                 Location = "Tủ linh kiện A2",
                 ResponsiblePerson = "Nguyễn Văn Lab",
                 EntryDate = now.AddMonths(-4),
-                WarrantyExpiry = now.AddMonths(20),
                 InvoiceNumber = "HD-LK-0018",
                 Status = EquipmentStatuses.Available,
                 AssetCategoryId = categoryIds.GetValueOrDefault("Linh kiện"),
@@ -301,11 +295,9 @@ public static class DbInitializer
                 now.AddDays(-9),
                 EquipmentStatuses.Available,
                 "Đủ phụ kiện, hoạt động bình thường.",
-                "Không cần xử lý",
-                false,
                 users.GetValueOrDefault("pholab"));
 
-            var brokenRecord = await AddBorrowRecordAsync(
+            await AddBorrowRecordAsync(
                 context,
                 studentId,
                 equipments["LAB-MEAS-PSU-001"].Id,
@@ -316,25 +308,8 @@ public static class DbInitializer
                 BorrowStatuses.ReturnedDamaged,
                 now.AddDays(-16),
                 EquipmentStatuses.Broken,
-                "Cổng output lỏng, thiết bị hết bảo hành.",
-                "Hết bảo hành - kiểm tra bồi thường",
-                false,
-                users.GetValueOrDefault("truonglab"),
-                350000);
-
-            if (!await context.Penalties.AnyAsync(penalty => penalty.BorrowRecordId == brokenRecord.Id))
-            {
-                context.Penalties.Add(new Penalty
-                {
-                    UserId = studentId,
-                    EquipmentId = equipments["LAB-MEAS-PSU-001"].Id,
-                    BorrowRecordId = brokenRecord.Id,
-                    Reason = "Cổng output lỏng sau khi trả thiết bị.",
-                    Amount = 350000,
-                    Status = PenaltyStatuses.Unpaid,
-                    CreatedAt = now.AddDays(-16)
-                });
-            }
+                "Cổng output lỏng, cần kiểm tra.",
+                users.GetValueOrDefault("truonglab"));
         }
 
         if (equipments.TryGetValue("LAB-AI-CAM-001", out var camera)
@@ -344,9 +319,9 @@ public static class DbInitializer
             {
                 EquipmentId = camera.Id,
                 MaintenanceDate = now.AddDays(-3),
-                Description = "Camera mất tín hiệu depth, gửi kiểm tra bảo hành.",
+                Description = "Camera mất tín hiệu depth, gửi kiểm tra.",
                 Cost = 0,
-                PerformedBy = "Bảo hành hãng",
+                PerformedBy = "Kỹ thuật viên lab",
                 Status = MaintenanceStatuses.InProgress
             });
         }
@@ -413,10 +388,7 @@ public static class DbInitializer
         DateTime? actualReturnDate = null,
         string returnCondition = "",
         string returnInspectionNote = "",
-        string warrantyAction = "",
-        bool? isUnderWarrantyAtReturn = null,
-        int? inspectedByUserId = null,
-        decimal compensationAmount = 0)
+        int? inspectedByUserId = null)
     {
         var existing = await context.BorrowRecords
             .Include(record => record.Details)
@@ -438,10 +410,7 @@ public static class DbInitializer
             Status = status,
             ReturnCondition = returnCondition,
             ReturnInspectionNote = returnInspectionNote,
-            WarrantyAction = warrantyAction,
-            IsUnderWarrantyAtReturn = isUnderWarrantyAtReturn,
             InspectedByUserId = inspectedByUserId,
-            CompensationAmount = compensationAmount,
             Details =
             [
                 new BorrowRequestDetail

@@ -230,7 +230,6 @@ const entityLabel = (entityType) => ({
   Consumable: 'Vật tư',
   ConsumableRequest: 'Yêu cầu vật tư',
   AssetCategory: 'Danh mục',
-  Penalty: 'Bồi thường',
   Database: 'Cơ sở dữ liệu',
   LocationNode: 'Vị trí',
   InventorySession: 'Đợt kiểm kê',

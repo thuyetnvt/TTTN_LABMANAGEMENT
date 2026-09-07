@@ -360,7 +360,6 @@ public class MaintenanceController : ControllerBase
         }
         if (dto.NextEquipmentStatus is not (EquipmentStatuses.Available
             or EquipmentStatuses.Broken
-            or EquipmentStatuses.UnderWarranty
             or EquipmentStatuses.MaintenanceInProgress))
         {
             return BadRequest(new { message = "Trạng thái sau bảo trì không hợp lệ." });

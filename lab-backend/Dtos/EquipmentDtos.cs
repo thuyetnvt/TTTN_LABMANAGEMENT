@@ -44,7 +44,6 @@ public sealed class ManagerEquipmentDto : BorrowerEquipmentDto
     public string DecisionFileName { get; init; } = string.Empty;
     public bool HasDecisionFile { get; init; }
     public DateTime? EntryDate { get; init; }
-    public DateTime? WarrantyExpiry { get; init; }
     public string InvoiceNumber { get; init; } = string.Empty;
     public int BorrowCount { get; init; }
     public DateTime CreatedAt { get; init; }

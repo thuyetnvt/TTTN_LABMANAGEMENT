@@ -101,11 +101,10 @@ public sealed class DashboardControllerTests
             new Equipment
             {
                 Id = 1,
-                AssetCode = "EQ-WARRANTY",
-                Serial = "SN-WARRANTY",
-                Name = "Thiết bị sắp hết bảo hành",
+                AssetCode = "EQ-AVAILABLE",
+                Serial = "SN-AVAILABLE",
+                Name = "Thiết bị sẵn sàng",
                 Status = EquipmentStatuses.Available,
-                WarrantyExpiry = now.AddDays(10)
             },
             new Equipment
             {
@@ -167,7 +166,6 @@ public sealed class DashboardControllerTests
         Assert.Equal(1, ReadInt(response.Value!, "PendingConsumableRequests"));
         Assert.Equal(1, ReadInt(response.Value!, "OverdueBorrowRecords"));
         Assert.Equal(1, ReadInt(response.Value!, "LowStockConsumables"));
-        Assert.Equal(1, ReadInt(response.Value!, "WarrantyExpiringSoon"));
         Assert.Equal(1, ReadInt(response.Value!, "MaintenanceInProgress"));
     }
 

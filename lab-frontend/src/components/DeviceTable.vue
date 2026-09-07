@@ -74,7 +74,7 @@
       <template v-if="column.key === 'status'">
         <StatusBadge :status="record.status" />
       </template>
-      <template v-else-if="column.key === 'entryDate' || column.key === 'warrantyExpiry'">
+      <template v-else-if="column.key === 'entryDate'">
         {{ formatDate(record[column.key]) }}
       </template>
       <template v-else-if="column.key === 'qrcode'">
@@ -287,7 +287,6 @@
               <a-select-option v-if="statusMatches(formData.status, STATUS.BORROWED)" :value="STATUS.BORROWED" disabled>Đang mượn</a-select-option>
               <a-select-option v-if="statusMatches(formData.status, STATUS.BORROW_PENDING)" :value="STATUS.BORROW_PENDING" disabled>Đã giữ chỗ</a-select-option>
               <a-select-option v-if="statusMatches(formData.status, STATUS.MAINTENANCE_IN_PROGRESS)" :value="STATUS.MAINTENANCE_IN_PROGRESS" disabled>Đang bảo trì</a-select-option>
-              <a-select-option :value="STATUS.UNDER_WARRANTY">Bảo hành</a-select-option>
               <a-select-option :value="STATUS.BROKEN">Hỏng</a-select-option>
               <a-select-option :value="STATUS.MISSING">Thất lạc</a-select-option>
             </a-select>
@@ -299,11 +298,6 @@
         <a-col :span="12">
           <a-form-item label="Ngày nhập">
             <a-date-picker v-model:value="formData.entryDate" style="width: 100%" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="Hạn bảo hành">
-            <a-date-picker v-model:value="formData.warrantyExpiry" style="width: 100%" />
           </a-form-item>
         </a-col>
       </a-row>
@@ -419,7 +413,6 @@ const columns = computed(() => {
     { title: 'Quyết định', key: 'decisionFile', width: 120 },
     { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', sortKey: 'entryDate', sortable: true, width: 120 },
     { title: 'Khấu hao (%)', dataIndex: 'depreciationPercentage', key: 'depreciationPercentage', width: 120 },
-    { title: 'Hạn bảo hành', dataIndex: 'warrantyExpiry', key: 'warrantyExpiry', sortKey: 'warrantyExpiry', sortable: true, width: 130 }
   ] : []
 
   return [
@@ -440,7 +433,7 @@ const columns = computed(() => {
 
 const tableScrollX = computed(() => {
   const commonWidth = 880
-  const managerWidth = isManager.value ? 690 : 0
+  const managerWidth = isManager.value ? 560 : 0
   const actionWidth = isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
   return commonWidth + managerWidth + 130 + 80 + actionWidth
 })
@@ -449,7 +442,7 @@ const locationFilter = ref(undefined)
 const mapRouteStatus = value => value && value !== 'all'
   ? (value === 'problem'
     ? 'PROBLEM'
-    : (value === 'warranty' ? STATUS.UNDER_WARRANTY : (value === 'warranty-soon' ? 'WARRANTY_SOON' : value)))
+    : value)
   : undefined
 const statusFilter = ref(mapRouteStatus(route.query.status))
 const equipmentStatusOptions = [
@@ -457,11 +450,9 @@ const equipmentStatusOptions = [
   { value: STATUS.BORROWED, label: statusLabel(STATUS.BORROWED) },
   { value: STATUS.BORROW_PENDING, label: statusLabel(STATUS.BORROW_PENDING) },
   { value: STATUS.MAINTENANCE_IN_PROGRESS, label: statusLabel(STATUS.MAINTENANCE_IN_PROGRESS) },
-  { value: STATUS.UNDER_WARRANTY, label: statusLabel(STATUS.UNDER_WARRANTY) },
   { value: STATUS.BROKEN, label: statusLabel(STATUS.BROKEN) },
   { value: STATUS.MISSING, label: statusLabel(STATUS.MISSING) },
-  { value: 'PROBLEM', label: 'Có vấn đề' },
-  { value: 'WARRANTY_SOON', label: 'Sắp hết bảo hành' }
+  { value: 'PROBLEM', label: 'Có vấn đề' }
 ]
 
 
@@ -516,7 +507,6 @@ const emptyForm = () => ({
   responsiblePerson: '',
   decisionFileName: '',
   entryDate: null,
-  warrantyExpiry: null,
   invoiceNumber: '',
   purchaseValue: null,
   lifespanMonths: null,
@@ -658,8 +648,7 @@ const showEditModal = (record) => {
   formData.value = {
     ...emptyForm(),
     ...record,
-    entryDate: record.entryDate ? dayjs(record.entryDate) : null,
-    warrantyExpiry: record.warrantyExpiry ? dayjs(record.warrantyExpiry) : null
+    entryDate: record.entryDate ? dayjs(record.entryDate) : null
   }
   decisionFileList.value = []
   isFormVisible.value = true
@@ -692,7 +681,8 @@ const detailSections = computed(() => {
         detailField('model', 'Model', data.model),
         detailField('serial', 'Số seri', data.serial),
         detailField('serialName', 'Tên định danh', data.serialName),
-        detailField('invoiceNumber', 'Số hóa đơn', data.invoiceNumber)
+        detailField('invoiceNumber', 'Số hóa đơn', data.invoiceNumber),
+        detailField('entryDate', 'Ngày nhập', detailDate(data.entryDate))
       ]
     },
     {
@@ -706,14 +696,6 @@ const detailSections = computed(() => {
       fields: [
         detailField('responsiblePerson', 'Người phụ trách', data.responsiblePerson),
         detailField('status', 'Trạng thái', data.status)
-      ]
-    },
-    {
-      key: 'warranty',
-      title: 'Bảo hành',
-      fields: [
-        detailField('entryDate', 'Ngày nhập', detailDate(data.entryDate)),
-        detailField('warrantyExpiry', 'Hạn bảo hành', detailDate(data.warrantyExpiry))
       ]
     },
     ...(isManager.value ? [{
@@ -771,9 +753,7 @@ const buildEquipmentFormData = () => {
     payload.append('lifespanMonths', formData.value.lifespanMonths)
   }
   const entryDate = normalizeDate(formData.value.entryDate)
-  const warrantyExpiry = normalizeDate(formData.value.warrantyExpiry, true)
   if (entryDate) payload.append('entryDate', entryDate)
-  if (warrantyExpiry) payload.append('warrantyExpiry', warrantyExpiry)
   if (decisionFileList.value[0]?.originFileObj || decisionFileList.value[0]) {
     payload.append('decisionFile', decisionFileList.value[0].originFileObj || decisionFileList.value[0])
   }

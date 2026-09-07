@@ -12,9 +12,9 @@
 ## 2026-08-24 — Giai đoạn 1: status và P0 defaults
 
 - Commit `dd2c0b3`: `fix: standardize statuses and harden defaults`.
-- Backend đã dùng status code tập trung cho tài sản, mượn trả, vật tư, bảo trì và bồi thường.
+- Backend đã dùng status code tập trung cho tài sản, mượn trả, vật tư và bảo trì.
 - Đã thêm migration `20260824164926_StandardizeBusinessStatusCodes` để chuyển status tiếng Việt cũ và giữ khả năng rollback.
-- Đã thêm `StatusBadge` và map status/role ở frontend; các màn hình thiết bị, mượn trả, vật tư, bảo trì, bồi thường và audit không còn hiển thị code thô.
+- Đã thêm `StatusBadge` và map status/role ở frontend; các màn hình thiết bị, mượn trả, vật tư, bảo trì và audit không còn hiển thị code thô.
 - Sinh viên đã bị backend bắt buộc chọn giảng viên bảo lãnh.
 - Docker Compose mặc định không publish MySQL, tắt seed và không tin toàn bộ forwarded headers.
 - Kiểm chứng: backend build đạt 0 warning/0 error; frontend build đạt, còn warning chunk lớn và annotation từ dependency SignalR.
@@ -37,7 +37,7 @@
 - Commit `6f070fa`: `feat: refactor multi-asset borrowing workflow`.
 - Phiếu mượn hỗ trợ nhiều tài sản, giữ `EquipmentId` cho client cũ và chống trùng tài sản trong cùng phiếu.
 - Đã thêm trạng thái chi tiết từng món, lịch sử chuyển trạng thái, ghi chú duyệt của giảng viên/quản lý và migration backfill dữ liệu cũ.
-- Duyệt kho claim toàn bộ tài sản trong transaction; trả tài sản cho phép xử lý từng món, cập nhật bảo hành/bảo trì/bồi thường riêng.
+- Duyệt kho claim toàn bộ tài sản trong transaction; trả tài sản cho phép xử lý từng món và cập nhật bảo trì riêng.
 - Frontend đã có giỏ chọn nhiều tài sản, duyệt bảo lãnh bắt buộc ghi chú và form kiểm tra trả theo từng món.
 - Kiểm chứng: backend build đạt 0 warning/0 error; frontend production build đạt, còn warning chunk lớn và annotation từ dependency SignalR.
 
@@ -54,7 +54,7 @@
 - Thông báo mượn/vật tư được lưu database, có API danh sách, unread count, đọc từng thông báo và đọc tất cả; SignalR chỉ còn là kênh realtime.
 - Có chuông thông báo và màn hình lịch sử thông báo.
 - Commit `c5972fa`: `feat: make maintenance outcomes explicit`.
-- Khi hoàn tất bảo trì, người xử lý phải chọn trạng thái tiếp theo: rảnh, hỏng, bảo hành hoặc tiếp tục bảo trì; hệ thống không tự ép về `AVAILABLE`.
+- Khi hoàn tất bảo trì, người xử lý phải chọn trạng thái tiếp theo: rảnh, hỏng hoặc tiếp tục bảo trì; hệ thống không tự ép về `AVAILABLE`.
 
 ## Đang làm tiếp
 

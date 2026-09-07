@@ -109,7 +109,6 @@ public class EquipmentController : ControllerBase
         public string ResponsiblePerson { get; set; } = string.Empty;
 
         public DateTime? EntryDate { get; set; }
-        public DateTime? WarrantyExpiry { get; set; }
 
         [MaxLength(100)]
         public string InvoiceNumber { get; set; } = string.Empty;
@@ -130,7 +129,6 @@ public class EquipmentController : ControllerBase
         public int? LocationNodeId { get; set; }
         [MaxLength(255)] public string ResponsiblePerson { get; set; } = string.Empty;
         public DateTime? EntryDate { get; set; }
-        public DateTime? WarrantyExpiry { get; set; }
         [MaxLength(100)] public string InvoiceNumber { get; set; } = string.Empty;
         [MaxLength(2000)] public string Notes { get; set; } = string.Empty;
     }
@@ -198,16 +196,7 @@ public class EquipmentController : ControllerBase
             if (string.Equals(status, "PROBLEM", StringComparison.OrdinalIgnoreCase))
             {
                 query = query.Where(equipment => equipment.Status == EquipmentStatuses.Broken
-                    || equipment.Status == EquipmentStatuses.UnderWarranty
                     || equipment.Status == EquipmentStatuses.Missing);
-            }
-            else if (string.Equals(status, "WARRANTY_SOON", StringComparison.OrdinalIgnoreCase))
-            {
-                var now = DateTime.UtcNow;
-                var deadline = now.AddDays(30);
-                query = query.Where(equipment => equipment.WarrantyExpiry.HasValue
-                    && equipment.WarrantyExpiry.Value >= now
-                    && equipment.WarrantyExpiry.Value <= deadline);
             }
             else
             {
@@ -272,9 +261,6 @@ public class EquipmentController : ControllerBase
             "entrydate" => descending
                 ? query.OrderByDescending(equipment => equipment.EntryDate).ThenBy(equipment => equipment.Id)
                 : query.OrderBy(equipment => equipment.EntryDate).ThenBy(equipment => equipment.Id),
-            "warrantyexpiry" => descending
-                ? query.OrderByDescending(equipment => equipment.WarrantyExpiry).ThenBy(equipment => equipment.Id)
-                : query.OrderBy(equipment => equipment.WarrantyExpiry).ThenBy(equipment => equipment.Id),
             "status" => descending
                 ? query.OrderByDescending(equipment => equipment.Status).ThenBy(equipment => equipment.Id)
                 : query.OrderBy(equipment => equipment.Status).ThenBy(equipment => equipment.Id),
@@ -492,7 +478,6 @@ public class EquipmentController : ControllerBase
                 LocationNodeId = row.LocationNodeId,
                 ResponsiblePerson = row.ResponsiblePerson,
                 EntryDate = row.EntryDate,
-                WarrantyExpiry = row.WarrantyExpiry,
                 InvoiceNumber = row.InvoiceNumber,
                 Notes = row.Notes,
                 Status = EquipmentStatuses.Available,
@@ -588,7 +573,6 @@ public class EquipmentController : ControllerBase
             LocationNodeId = dto.LocationNodeId,
             ResponsiblePerson = dto.ResponsiblePerson.Trim(),
             EntryDate = dto.EntryDate,
-            WarrantyExpiry = dto.WarrantyExpiry,
             InvoiceNumber = dto.InvoiceNumber.Trim(),
             Status = EquipmentStatuses.Available,
             AssetCategoryId = dto.AssetCategoryId,
@@ -750,7 +734,6 @@ public class EquipmentController : ControllerBase
         existing.LocationNodeId = dto.LocationNodeId;
         existing.ResponsiblePerson = dto.ResponsiblePerson.Trim();
         existing.EntryDate = dto.EntryDate;
-        existing.WarrantyExpiry = dto.WarrantyExpiry;
         existing.InvoiceNumber = dto.InvoiceNumber.Trim();
         existing.Status = dto.Status;
         existing.AssetCategoryId = dto.AssetCategoryId;
@@ -909,9 +892,6 @@ public class EquipmentController : ControllerBase
                 cancellationToken)
             || await _context.MaintenanceRecords.AnyAsync(
                 record => record.EquipmentId == id,
-                cancellationToken)
-            || await _context.Penalties.AnyAsync(
-                record => record.EquipmentId == id,
                 cancellationToken);
         if (hasHistory)
         {
@@ -950,7 +930,7 @@ public class EquipmentController : ControllerBase
         var headers = new[]
         {
             "ID", "Danh mục", "Tên tài sản", "Model", "Số seri", "Tên seri",
-            "Vị trí", "Người chịu trách nhiệm", "Ngày nhập", "Hạn bảo hành",
+            "Vị trí", "Người chịu trách nhiệm", "Ngày nhập",
             "Số hóa đơn", "Trạng thái", "Số lần mượn"
         };
 
@@ -979,10 +959,9 @@ public class EquipmentController : ControllerBase
             worksheet.Cells[row, 7].Value = equipment.Location;
             worksheet.Cells[row, 8].Value = equipment.ResponsiblePerson;
             worksheet.Cells[row, 9].Value = equipment.EntryDate?.ToString("dd/MM/yyyy");
-            worksheet.Cells[row, 10].Value = equipment.WarrantyExpiry?.ToString("dd/MM/yyyy");
-            worksheet.Cells[row, 11].Value = equipment.InvoiceNumber;
-            worksheet.Cells[row, 12].Value = equipment.Status;
-            worksheet.Cells[row, 13].Value = equipment.BorrowCount;
+            worksheet.Cells[row, 10].Value = equipment.InvoiceNumber;
+            worksheet.Cells[row, 11].Value = equipment.Status;
+            worksheet.Cells[row, 12].Value = equipment.BorrowCount;
         }
 
         worksheet.Cells.AutoFitColumns();
@@ -1084,7 +1063,6 @@ public class EquipmentController : ControllerBase
             equipment.LocationNodeId,
             equipment.ResponsiblePerson,
             equipment.EntryDate,
-            equipment.WarrantyExpiry,
             equipment.InvoiceNumber,
             equipment.Status,
             equipment.AssetCategoryId,
@@ -1159,7 +1137,6 @@ public class EquipmentController : ControllerBase
             DecisionFileName = equipment.DecisionFileName,
             HasDecisionFile = !string.IsNullOrEmpty(equipment.DecisionFilePath),
             EntryDate = equipment.EntryDate,
-            WarrantyExpiry = equipment.WarrantyExpiry,
             InvoiceNumber = equipment.InvoiceNumber,
             Status = equipment.Status,
             BorrowCount = equipment.BorrowCount,
@@ -1221,7 +1198,6 @@ public class EquipmentController : ControllerBase
         int rowNumber)
     {
         var entryDate = ParseImportDate(GetImportCell(worksheet, headers, rowNumber, "Ngày nhập", "EntryDate"));
-        var warrantyExpiry = ParseImportDate(GetImportCell(worksheet, headers, rowNumber, "Hạn bảo hành", "WarrantyExpiry"));
         return new ImportEquipmentRowDto
         {
             AssetCode = GetImportCell(worksheet, headers, rowNumber, "Mã tài sản", "AssetCode"),
@@ -1233,7 +1209,6 @@ public class EquipmentController : ControllerBase
             LocationNodeId = null,
             ResponsiblePerson = GetImportCell(worksheet, headers, rowNumber, "Người chịu trách nhiệm", "ResponsiblePerson"),
             EntryDate = entryDate,
-            WarrantyExpiry = warrantyExpiry,
             InvoiceNumber = GetImportCell(worksheet, headers, rowNumber, "Số hóa đơn", "InvoiceNumber"),
             Notes = GetImportCell(worksheet, headers, rowNumber, "Ghi chú", "Notes")
         };

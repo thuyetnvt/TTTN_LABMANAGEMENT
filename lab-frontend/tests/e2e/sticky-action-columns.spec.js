@@ -27,8 +27,6 @@ const responses = {
     returnDate: '2026-09-12T08:00:00Z',
     returnCondition: null,
     returnInspectionNote: '',
-    warrantyAction: '',
-    compensationAmount: 0,
     status: 'APPROVED',
     canConfirmHandover: true
   }]),
@@ -62,15 +60,6 @@ const responses = {
     isDue: false,
     isActive: true
   }]),
-  '/api/penalty/paged': paged([{
-    id: 6,
-    username: 'sv4',
-    equipmentName: 'Nguồn DC lập trình Korad',
-    reason: 'Cổng output lỏng sau khi trả thiết bị',
-    amount: 350000,
-    createdAt: now,
-    status: 'UNPAID'
-  }])
 }
 
 const pages = [
@@ -79,7 +68,6 @@ const pages = [
   '/dashboard/consumable-requests',
   '/dashboard/maintenance',
   '/dashboard/maintenance-schedules',
-  '/dashboard/penalty'
 ]
 
 test.beforeEach(async ({ page }) => {

@@ -200,7 +200,15 @@
         <a-card :bordered="false" class="report-card status-card">
           <template #title>Tình hình tài sản</template>
           <div v-if="statusRows.length" class="status-list">
-            <div v-for="item in statusRows" :key="item.value" class="status-row">
+            <button
+              v-for="item in statusRows"
+              :key="item.value"
+              type="button"
+              class="status-row"
+              :disabled="item.count === 0"
+              :aria-label="`Xem ${getEquipmentStatusLabel(item.value)}: ${item.count} thiết bị`"
+              @click="openStatusDetails(item)"
+            >
               <div class="status-heading">
                 <span class="status-name">{{ getEquipmentStatusLabel(item.value) }}</span>
                 <strong>{{ formatNumber(item.count) }}</strong>
@@ -212,7 +220,7 @@
                   :style="{ width: `${statusPercent(item.count)}%` }"
                 />
               </div>
-            </div>
+            </button>
           </div>
           <a-empty v-else description="Chưa có dữ liệu" />
         </a-card>
@@ -239,6 +247,41 @@
         </a-card>
       </section>
     </a-spin>
+
+    <a-modal
+      v-model:open="statusDetailsVisible"
+      :title="statusDetailsTitle"
+      :footer="null"
+      width="900px"
+      @cancel="closeStatusDetails"
+    >
+      <a-spin :spinning="statusDetailsLoading">
+        <p class="status-details-description">
+          Danh sách thiết bị thuộc trạng thái “{{ selectedStatusLabel }}”.
+        </p>
+        <a-table
+          v-if="statusDetails.length"
+          :data-source="statusDetails"
+          :columns="statusDetailsColumns"
+          :pagination="{ pageSize: 10, hideOnSinglePage: true, showSizeChanger: false }"
+          row-key="id"
+          size="small"
+          :scroll="{ x: 700 }"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'status'">
+              <a-tag :color="getStatusColor(record.status)">
+                {{ getEquipmentStatusLabel(record.status) }}
+              </a-tag>
+            </template>
+            <span v-else class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
+              {{ cellText(record[column.dataIndex]) }}
+            </span>
+          </template>
+        </a-table>
+        <a-empty v-else-if="!statusDetailsLoading" description="Không có thiết bị thuộc trạng thái này" />
+      </a-spin>
+    </a-modal>
   </div>
 </template>
 
@@ -258,6 +301,7 @@ import {
 } from '@ant-design/icons-vue'
 import PageHeader from '../components/PageHeader.vue'
 import { assetCategoryApi } from '../api/assetCategoryApi'
+import { equipmentApi } from '../api/equipmentApi'
 import { locationApi } from '../api/locationApi'
 import { reportsApi } from '../api/reportsApi'
 import { STATUS, normalizeStatus } from '../constants/business'
@@ -298,7 +342,6 @@ const report = ref({
   byLocation: [],
   borrowed: [],
   lowStock: [],
-  warrantySoon: [],
   maintenance: [],
   responsible: [],
   consumables: []
@@ -309,7 +352,6 @@ const assetStatusOrder = [
   STATUS.BORROW_PENDING,
   STATUS.BORROWED,
   STATUS.MAINTENANCE_IN_PROGRESS,
-  STATUS.UNDER_WARRANTY,
   STATUS.BROKEN,
   STATUS.MISSING
 ]
@@ -409,6 +451,49 @@ const statusRows = computed(() => {
   return [...assetStatusOrder, ...extraStatuses].map(value => ({ value, count: counts.get(value) || 0 }))
 })
 
+const statusDetailsVisible = ref(false)
+const statusDetailsLoading = ref(false)
+const selectedStatus = ref('')
+const selectedStatusCount = ref(0)
+const statusDetails = ref([])
+const statusDetailsColumns = [
+  { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 220, ellipsis: true },
+  { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode', width: 140, ellipsis: true },
+  { title: 'Model', dataIndex: 'model', key: 'model', width: 180, ellipsis: true },
+  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 150, ellipsis: true },
+  { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 150, ellipsis: true },
+  { title: 'Trạng thái', key: 'status', width: 130 }
+]
+const selectedStatusLabel = computed(() => selectedStatus.value ? getEquipmentStatusLabel(selectedStatus.value) : '')
+const statusDetailsTitle = computed(() => selectedStatusLabel.value
+  ? `${selectedStatusLabel.value} (${formatNumber(selectedStatusCount.value)} thiết bị)`
+  : 'Danh sách thiết bị')
+
+const openStatusDetails = async item => {
+  if (!item || item.count === 0) return
+  selectedStatus.value = item.value
+  selectedStatusCount.value = item.count
+  statusDetails.value = []
+  statusDetailsVisible.value = true
+  statusDetailsLoading.value = true
+  try {
+    const result = await equipmentApi.getPaged({ page: 1, pageSize: 100, status: item.value })
+    statusDetails.value = Array.isArray(result?.items) ? result.items : []
+    selectedStatusCount.value = Number(result?.total ?? item.count)
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không tải được danh sách thiết bị.'))
+  } finally {
+    statusDetailsLoading.value = false
+  }
+}
+
+const closeStatusDetails = () => {
+  statusDetailsVisible.value = false
+  statusDetails.value = []
+  selectedStatus.value = ''
+  selectedStatusCount.value = 0
+}
+
 const statusTotal = computed(() => statusRows.value.reduce((total, item) => total + item.count, 0))
 
 const maintenanceInProgressCount = computed(() => Number(
@@ -503,7 +588,6 @@ const load = async () => {
       byLocation: Array.isArray(result?.byLocation) ? result.byLocation : [],
       borrowed: Array.isArray(result?.borrowed) ? result.borrowed : [],
       lowStock: Array.isArray(result?.lowStock) ? result.lowStock : [],
-      warrantySoon: Array.isArray(result?.warrantySoon) ? result.warrantySoon : [],
       maintenance: Array.isArray(result?.maintenance) ? result.maintenance : [],
       responsible: Array.isArray(result?.responsible) ? result.responsible : [],
       consumables: Array.isArray(result?.consumables) ? result.consumables : []
@@ -615,6 +699,11 @@ onMounted(async () => {
 .report-card :deep(.ant-card-head-title) { padding: 16px 0; color: var(--color-ink); font-size: 17px; }
 .report-card :deep(.ant-card-body) { padding: 18px 20px; }
 .status-list { display: flex; flex-direction: column; gap: 14px; }
+.status-row { display: block; width: 100%; padding: 0; border: 0; color: inherit; text-align: left; background: transparent; border-radius: 7px; cursor: pointer; }
+.status-row:not(:disabled):hover { background: rgba(77, 145, 216, .06); }
+.status-row:not(:disabled):hover .status-name { color: var(--color-primary); }
+.status-row:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+.status-row:disabled { cursor: default; }
 .status-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
 .status-name { color: var(--color-ink); font-size: 14px; }
 .status-heading strong { color: var(--color-ink); font-size: 14px; }
@@ -650,6 +739,7 @@ onMounted(async () => {
 .detail-card :deep(.ant-table-thead > tr > th) { color: var(--color-ink); background: #fafafa; font-weight: 600; }
 .detail-card :deep(.ant-empty) { margin: 12px 0; }
 .cell-ellipsis { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-details-description { margin: 0 0 14px; color: var(--color-secondary); }
 
 @media (max-width: 1199px) {
   .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

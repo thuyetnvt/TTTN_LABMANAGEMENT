@@ -8,7 +8,7 @@ Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có
 ### Quản lý tài sản
 
 - Quản lý danh mục, mã tài sản, serial, model và thông tin thiết bị IoT.
-- Theo dõi nhà sản xuất, firmware, MAC, IMEI, nhà cung cấp và hạn bảo hành.
+- Theo dõi nhà sản xuất, firmware, MAC, IMEI và nhà cung cấp.
 - Tổ chức vị trí theo cấu trúc cây: khu vực → phòng → tủ/kệ → vị trí cụ thể.
 - Sinh và in mã QR riêng cho từng tài sản hoặc in hàng loạt.
 - Import tài sản từ Excel với bước xem trước và kiểm tra dữ liệu trùng.
@@ -22,9 +22,8 @@ Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có
 - Lập biên bản bàn giao, ghi nhận tình trạng và phụ kiện từng tài sản.
 - Đính kèm ảnh, tài liệu hoặc bằng chứng bàn giao/nhận trả.
 - Xử lý đồng thời bằng transaction, không cho một tài sản bị mượn trùng.
-- Tự động cập nhật trạng thái khi trả tốt, trả hỏng, bảo hành hoặc bồi thường.
-- Tự động nhận diện phiếu quá hạn và tạo phạt **10.000đ/ngày** trong mục Đền bù & Phạt.
-- Khoản phạt quá hạn được cộng dồn theo ngày và không tạo bản ghi trùng khi worker chạy lại.
+- Tự động cập nhật trạng thái khi trả tốt hoặc trả hỏng.
+- Tự động nhận diện phiếu quá hạn và gửi thông báo nhắc trả.
 
 ### Kiểm kê bằng QR
 
@@ -196,20 +195,16 @@ Backend có worker chạy nền ngay khi khởi động và kiểm tra định k
 
 - Tự sinh phiếu bảo trì khi kế hoạch đến hạn.
 - Gửi thông báo nhắc trả trước hạn, đến hạn và quá hạn.
-- Tạo phạt trả quá hạn **10.000đ cho mỗi ngày quá hạn**, mỗi phiếu mượn một khoản phạt và tự cộng dồn theo ngày.
-- Ghi nhận lần xử lý trong `AutomationDispatches` để không gửi thông báo hoặc tạo phạt trùng.
+- Ghi nhận lần xử lý trong `AutomationDispatches` để không gửi thông báo trùng.
 
 Có thể cấu hình trong `.env` hoặc `.env.production`:
 
 ```dotenv
 AUTOMATION_ENABLED=true
 AUTOMATION_POLL_MINUTES=5
-AUTOMATION_OVERDUE_PENALTY_AMOUNT_PER_DAY=10000
 RETURN_REMINDER_DAYS_BEFORE=3
 AUTOMATION_SEND_EMAIL_REMINDERS=false
 ```
-
-Đặt `AUTOMATION_OVERDUE_PENALTY_AMOUNT_PER_DAY=0` nếu muốn tạm tắt riêng việc tự tạo phạt quá hạn.
 
 ## Kiểm thử
 

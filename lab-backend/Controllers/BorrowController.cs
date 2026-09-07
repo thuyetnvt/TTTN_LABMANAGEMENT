@@ -26,8 +26,6 @@ public class BorrowController : ControllerBase
     private const string Cancelled = BorrowStatuses.Cancelled;
     private const string ProcessingApproval = BorrowStatuses.ProcessingApproval;
     private const string ProcessingReturn = BorrowStatuses.ReturnProcessing;
-    private const string AutomaticOverduePenaltyReasonPrefix = "Tự động phạt trả quá hạn";
-    private const decimal DefaultOverduePenaltyAmountPerDay = 10000m;
 
     private readonly AppDbContext _context;
     private readonly IEmailService _emailService;
@@ -89,7 +87,6 @@ public class BorrowController : ControllerBase
     {
         public string Condition { get; set; } = EquipmentStatuses.Available;
         public string Note { get; set; } = string.Empty;
-        public decimal CompensationAmount { get; set; }
         public List<ReturnItemDto> Items { get; set; } = new();
     }
 
@@ -98,13 +95,11 @@ public class BorrowController : ControllerBase
         public int EquipmentId { get; set; }
         public string Condition { get; set; } = EquipmentStatuses.Available;
         public string Note { get; set; } = string.Empty;
-        public decimal CompensationAmount { get; set; }
     }
 
     public sealed class ReportDamageDto
     {
         public string Reason { get; set; } = string.Empty;
-        public decimal Amount { get; set; }
     }
 
     [HttpPost]
@@ -472,13 +467,8 @@ public class BorrowController : ControllerBase
                 status = item.Status,
                 isOverdue,
                 daysUntilDue = (expectedReturnDate - historyToday).Days,
-                overduePenaltyAmount = isOverdue
-                    ? CalculateOverduePenaltyAmount(item.ExpectedReturnDate)
-                    : 0m,
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,
-                warrantyAction = item.WarrantyAction,
-                compensationAmount = item.CompensationAmount,
                 holdExpiresAt = item.HoldExpiresAt,
                 cancellationReason = item.CancellationReason,
                 cancelledAt = item.CancelledAt,
@@ -516,8 +506,7 @@ public class BorrowController : ControllerBase
                     detail.Status,
                     detail.ReturnCondition,
                     detail.ReturnNote,
-                    detail.ReturnedAt,
-                    detail.CompensationAmount
+                    detail.ReturnedAt
                 }),
                 statusHistory = item.StatusHistory
                     .OrderBy(history => history.CreatedAt)
@@ -626,14 +615,8 @@ public class BorrowController : ControllerBase
                 isOverdue = (item.Status == Borrowed || item.Status == ProcessingReturn)
                     && VietnamTime.Date(item.ExpectedReturnDate) < historyToday,
                 daysUntilDue = (VietnamTime.Date(item.ExpectedReturnDate) - historyToday).Days,
-                overduePenaltyAmount = (item.Status == Borrowed || item.Status == ProcessingReturn)
-                    && VietnamTime.Date(item.ExpectedReturnDate) < historyToday
-                    ? CalculateOverduePenaltyAmount(item.ExpectedReturnDate)
-                    : 0m,
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,
-                warrantyAction = item.WarrantyAction,
-                compensationAmount = item.CompensationAmount,
                 holdExpiresAt = item.HoldExpiresAt,
                 cancellationReason = item.CancellationReason,
                 cancelledAt = item.CancelledAt,
@@ -671,8 +654,7 @@ public class BorrowController : ControllerBase
                     detail.Status,
                     detail.ReturnCondition,
                     detail.ReturnNote,
-                    detail.ReturnedAt,
-                    detail.CompensationAmount
+                    detail.ReturnedAt
                 }),
                 statusHistory = item.StatusHistory
                     .OrderBy(history => history.CreatedAt)
@@ -1209,8 +1191,7 @@ public class BorrowController : ControllerBase
             dto.Items.Add(new ReturnItemDto
             {
                 Condition = dto.Condition,
-                Note = dto.Note,
-                CompensationAmount = dto.CompensationAmount
+                Note = dto.Note
             });
         }
 
@@ -1219,8 +1200,7 @@ public class BorrowController : ControllerBase
             item.Condition = NormalizeReturnCondition(item.Condition);
             item.Note = item.Note.Trim();
             if (item.Condition is not (EquipmentStatuses.Available or EquipmentStatuses.Broken)
-                || item.Note.Length > 2000
-                || item.CompensationAmount < 0)
+                || item.Note.Length > 2000)
             {
                 return BadRequest(new { message = "Tình trạng trả hoặc thông tin kiểm tra không hợp lệ." });
             }
@@ -1258,13 +1238,10 @@ public class BorrowController : ControllerBase
             var itemDto = dto.Items.FirstOrDefault(item => item.EquipmentId == detail.EquipmentId)
                 ?? dto.Items[0];
             var equipment = detail.Equipment!;
-            var isWarrantyActive = equipment.WarrantyExpiry.HasValue
-                && equipment.WarrantyExpiry.Value >= DateTime.UtcNow;
             var note = itemDto.Note;
             detail.ReturnCondition = itemDto.Condition;
             detail.ReturnNote = note;
             detail.ReturnedAt = DateTime.UtcNow;
-            detail.CompensationAmount = 0;
             detail.Status = itemDto.Condition == EquipmentStatuses.Available
                 ? BorrowStatuses.Returned
                 : BorrowStatuses.ReturnedDamaged;
@@ -1273,29 +1250,10 @@ public class BorrowController : ControllerBase
             {
                 equipment.Status = EquipmentStatuses.Available;
             }
-            else if (isWarrantyActive)
-            {
-                equipment.Status = EquipmentStatuses.UnderWarranty;
-                AddMaintenance(detail.EquipmentId, note, "Bảo hành");
-            }
             else
             {
                 equipment.Status = EquipmentStatuses.Broken;
                 AddMaintenance(detail.EquipmentId, note, "Kiểm tra trả");
-                detail.CompensationAmount = itemDto.CompensationAmount;
-                if (itemDto.CompensationAmount > 0)
-                {
-                    _context.Penalties.Add(new Penalty
-                    {
-                        UserId = record.UserId,
-                        EquipmentId = detail.EquipmentId,
-                        BorrowRecordId = record.Id,
-                        Reason = string.IsNullOrWhiteSpace(note) ? "Tài sản hỏng khi trả" : note,
-                        Amount = itemDto.CompensationAmount,
-                        Status = PenaltyStatuses.Unpaid,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
             }
         }
 
@@ -1308,17 +1266,7 @@ public class BorrowController : ControllerBase
         record.InspectedByUserId = inspectorId;
         record.ReturnCondition = targetDetails.First().ReturnCondition;
         record.ReturnInspectionNote = targetDetails.First().ReturnNote;
-        record.CompensationAmount = record.Details.Sum(detail => detail.CompensationAmount);
         record.ActualReturnDate = allReturned ? DateTime.UtcNow : null;
-        record.IsUnderWarrantyAtReturn = targetDetails.Any(detail =>
-            detail.ReturnCondition == EquipmentStatuses.Broken
-            && detail.Equipment!.WarrantyExpiry.HasValue
-            && detail.Equipment.WarrantyExpiry.Value >= DateTime.UtcNow);
-        record.WarrantyAction = anyDamaged ? "Đã chuyển xử lý hư hỏng/bảo hành" : "Không cần xử lý";
-        if (allReturned)
-        {
-            await SettleOverduePenaltyAsync(record, DateTime.UtcNow, cancellationToken);
-        }
         _context.BorrowStatusHistories.Add(new BorrowStatusHistory
         {
             BorrowRecordId = id,
@@ -1367,8 +1315,7 @@ public class BorrowController : ControllerBase
             new ReturnInspectionDto
             {
                 Condition = EquipmentStatuses.Broken,
-                Note = dto.Reason,
-                CompensationAmount = dto.Amount
+                Note = dto.Reason
             },
             cancellationToken);
     }
@@ -1532,81 +1479,6 @@ public class BorrowController : ControllerBase
             cancellationToken);
     }
 
-    private decimal GetOverduePenaltyAmountPerDay()
-    {
-        return Math.Max(
-            0m,
-            _configuration.GetValue(
-                "Automation:OverduePenaltyAmountPerDay",
-                DefaultOverduePenaltyAmountPerDay));
-    }
-
-    private decimal CalculateOverduePenaltyAmount(DateTime expectedReturnDate)
-    {
-        var daysOverdue = Math.Max(
-            0,
-            (VietnamTime.Today() - VietnamTime.Date(expectedReturnDate)).Days);
-        return daysOverdue * GetOverduePenaltyAmountPerDay();
-    }
-
-    private async Task SettleOverduePenaltyAsync(
-        BorrowRecord record,
-        DateTime paidAt,
-        CancellationToken cancellationToken)
-    {
-        var totalDue = CalculateOverduePenaltyAmount(record.ExpectedReturnDate);
-        if (totalDue <= 0m)
-        {
-            return;
-        }
-
-        var equipmentId = record.EquipmentId
-            ?? record.Details.Select(detail => (int?)detail.EquipmentId).FirstOrDefault();
-        if (!equipmentId.HasValue || equipmentId.Value <= 0)
-        {
-            return;
-        }
-
-        var automaticPenalties = await _context.Penalties
-            .Where(penalty => penalty.BorrowRecordId == record.Id
-                && penalty.Reason.StartsWith(AutomaticOverduePenaltyReasonPrefix))
-            .OrderByDescending(penalty => penalty.CreatedAt)
-            .ToListAsync(cancellationToken);
-        var paidAmount = automaticPenalties
-            .Where(penalty => penalty.Status == PenaltyStatuses.Paid)
-            .Sum(penalty => penalty.Amount);
-        var outstandingAmount = Math.Max(0m, totalDue - paidAmount);
-        var unpaidPenalty = automaticPenalties
-            .FirstOrDefault(penalty => penalty.Status == PenaltyStatuses.Unpaid);
-        var daysOverdue = Math.Max(
-            1,
-            (VietnamTime.Today() - VietnamTime.Date(record.ExpectedReturnDate)).Days);
-        var reason = $"{AutomaticOverduePenaltyReasonPrefix}: {daysOverdue} ngày (phiếu mượn #{record.Id})";
-
-        if (unpaidPenalty is not null)
-        {
-            unpaidPenalty.Amount = outstandingAmount;
-            unpaidPenalty.Reason = reason;
-            unpaidPenalty.EquipmentId = equipmentId.Value;
-            unpaidPenalty.Status = PenaltyStatuses.Paid;
-            unpaidPenalty.PaidAt = paidAt;
-        }
-        else if (outstandingAmount > 0m)
-        {
-            _context.Penalties.Add(new Penalty
-            {
-                UserId = record.UserId,
-                EquipmentId = equipmentId.Value,
-                BorrowRecordId = record.Id,
-                Reason = reason,
-                Amount = outstandingAmount,
-                Status = PenaltyStatuses.Paid,
-                CreatedAt = paidAt,
-                PaidAt = paidAt
-            });
-        }
-    }
-
     private static IQueryable<BorrowRecord> ApplySorting(
         IQueryable<BorrowRecord> query,
         PageQuery paging)
@@ -1651,12 +1523,6 @@ public class BorrowController : ControllerBase
             "returninspectionnote" => descending
                 ? query.OrderByDescending(item => item.ReturnInspectionNote).ThenBy(item => item.Id)
                 : query.OrderBy(item => item.ReturnInspectionNote).ThenBy(item => item.Id),
-            "warrantyaction" => descending
-                ? query.OrderByDescending(item => item.WarrantyAction).ThenBy(item => item.Id)
-                : query.OrderBy(item => item.WarrantyAction).ThenBy(item => item.Id),
-            "compensationamount" => descending
-                ? query.OrderByDescending(item => item.CompensationAmount).ThenBy(item => item.Id)
-                : query.OrderBy(item => item.CompensationAmount).ThenBy(item => item.Id),
             _ => query.OrderByDescending(item => item.BorrowDate).ThenByDescending(item => item.Id)
         };
     }

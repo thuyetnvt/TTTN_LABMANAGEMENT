@@ -21,7 +21,6 @@ namespace LabManagementAPI.Data
         public DbSet<ConsumableRequest> ConsumableRequests { get; set; }
         public DbSet<ConsumableRequestLotAllocation> ConsumableRequestLotAllocations { get; set; }
         public DbSet<ConsumableTransaction> ConsumableTransactions { get; set; }
-        public DbSet<Penalty> Penalties { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<LocationNode> LocationNodes { get; set; }
@@ -147,6 +146,16 @@ namespace LabManagementAPI.Data
                 entity.Property(item => item.LotNumber).HasMaxLength(100);
                 entity.HasIndex(item => item.Code).IsUnique();
                 entity.HasIndex(item => item.AssetCategoryId);
+                entity.HasIndex(item => item.CreatedByUserId);
+                entity.HasIndex(item => item.ResponsibleUserId);
+                entity.HasOne(item => item.CreatedByUser)
+                    .WithMany()
+                    .HasForeignKey(item => item.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(item => item.ResponsibleUser)
+                    .WithMany()
+                    .HasForeignKey(item => item.ResponsibleUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
                 entity.ToTable(table =>
                 {
                     table.HasCheckConstraint("CK_Consumables_Quantity", "Quantity >= 0");
@@ -194,8 +203,6 @@ namespace LabManagementAPI.Data
                 entity.Property(record => record.CancellationReason).HasMaxLength(1000);
                 entity.Property(record => record.ReturnCondition).HasMaxLength(50);
                 entity.Property(record => record.ReturnInspectionNote).HasMaxLength(2000);
-                entity.Property(record => record.WarrantyAction).HasMaxLength(255);
-                entity.Property(record => record.CompensationAmount).HasPrecision(18, 2);
                 entity.HasIndex(record => record.Status);
                 entity.HasIndex(record => record.ExpectedReturnDate);
                 entity.HasIndex(record => new { record.UserId, record.Status, record.BorrowDate });
@@ -230,7 +237,6 @@ namespace LabManagementAPI.Data
                 entity.Property(detail => detail.Status).HasMaxLength(50);
                 entity.Property(detail => detail.ReturnCondition).HasMaxLength(50);
                 entity.Property(detail => detail.ReturnNote).HasMaxLength(2000);
-                entity.Property(detail => detail.CompensationAmount).HasPrecision(18, 2);
                 entity.HasIndex(detail => new { detail.BorrowRecordId, detail.EquipmentId }).IsUnique();
                 entity.HasOne(detail => detail.Equipment)
                     .WithMany()
@@ -529,28 +535,6 @@ namespace LabManagementAPI.Data
                 entity.HasOne(schedule => schedule.CreatedByUser)
                     .WithMany()
                     .HasForeignKey(schedule => schedule.CreatedByUserId)
-                    .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            modelBuilder.Entity<Penalty>(entity =>
-            {
-                entity.Property(penalty => penalty.Reason).HasMaxLength(2000);
-                entity.Property(penalty => penalty.Status).HasMaxLength(50);
-                entity.Property(penalty => penalty.Amount).HasPrecision(18, 2);
-                entity.HasIndex(penalty => penalty.Status);
-                entity.HasIndex(penalty => new { penalty.UserId, penalty.CreatedAt });
-                entity.HasIndex(penalty => new { penalty.Status, penalty.CreatedAt });
-                entity.HasOne(penalty => penalty.User)
-                    .WithMany()
-                    .HasForeignKey(penalty => penalty.UserId)
-                    .OnDelete(DeleteBehavior.Restrict);
-                entity.HasOne(penalty => penalty.Equipment)
-                    .WithMany()
-                    .HasForeignKey(penalty => penalty.EquipmentId)
-                    .OnDelete(DeleteBehavior.Restrict);
-                entity.HasOne(penalty => penalty.BorrowRecord)
-                    .WithMany()
-                    .HasForeignKey(penalty => penalty.BorrowRecordId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 

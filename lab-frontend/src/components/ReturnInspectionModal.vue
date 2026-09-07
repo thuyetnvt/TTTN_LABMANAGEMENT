@@ -14,7 +14,7 @@
         type="info"
         show-icon
         message="Kiểm tra theo từng tài sản"
-        description="Có thể ghi nhận riêng tình trạng, ghi chú và bồi thường cho từng món trong phiếu."
+        description="Có thể ghi nhận riêng tình trạng, ghi chú và minh chứng cho từng món trong phiếu."
         style="margin-bottom: 16px"
       />
       <a-alert
@@ -22,7 +22,7 @@
         type="warning"
         show-icon
         message="Phiếu mượn đã quá hạn"
-        :description="`Đã quá hạn ${overdueDays(record)} ngày. Tiền phạt trả quá hạn hiện tại: ${formatCurrency(record.overduePenaltyAmount)}. Khi lưu trả toàn bộ, khoản này sẽ tự động chuyển sang Đã thanh toán trong phần Bồi thường.`"
+        :description="`Đã quá hạn ${overdueDays(record)} ngày. Vui lòng ghi nhận tình trạng từng tài sản khi trả.`"
         style="margin-bottom: 16px"
       />
       <a-card
@@ -40,16 +40,6 @@
         </a-form-item>
         <a-form-item label="Ghi chú kiểm tra">
           <a-textarea v-model:value="item.note" :rows="2" placeholder="Mô tả lỗi, phụ kiện thiếu..." />
-        </a-form-item>
-        <a-form-item v-if="statusMatches(item.condition, STATUS.BROKEN)" label="Số tiền bồi thường nếu hết bảo hành">
-          <a-input-number
-            v-model:value="item.compensationAmount"
-            style="width: 100%"
-            :min="0"
-            :step="10000"
-            :formatter="value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
-            :parser="value => value.replace(/\$\s?|(,*)/g, '')"
-          />
         </a-form-item>
         <a-form-item label="Ảnh/file trước hoặc sau khi nhận trả">
           <a-upload
@@ -80,7 +70,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { message, Upload } from 'ant-design-vue'
 import { borrowApi } from '../api/borrowApi'
-import { STATUS, statusMatches } from '../constants/business'
+import { STATUS } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
 
 const props = defineProps({
@@ -93,13 +83,12 @@ const returnSubmitting = ref(false)
 const returnForm = ref({
   condition: STATUS.AVAILABLE,
   note: '',
-  compensationAmount: 0,
   items: []
 })
 
 const initialize = record => {
   if (!record) {
-    returnForm.value = { condition: STATUS.AVAILABLE, note: '', compensationAmount: 0, items: [] }
+    returnForm.value = { condition: STATUS.AVAILABLE, note: '', items: [] }
     return
   }
 
@@ -110,14 +99,12 @@ const initialize = record => {
   returnForm.value = {
     condition: STATUS.AVAILABLE,
     note: '',
-    compensationAmount: 0,
     items: details.filter(item => !item.returnedAt && item.equipmentId).map(item => ({
       equipmentId: item.equipmentId,
       equipmentName: item.equipmentName,
       serial: item.serial,
       condition: STATUS.AVAILABLE,
       note: '',
-      compensationAmount: 0,
       returnEvidenceFile: null,
       returnEvidenceType: 'PHOTO_AFTER'
     }))
@@ -131,7 +118,6 @@ watch(() => [props.open, props.record], ([open, record]) => {
 const close = () => emit('update:open', false)
 
 const overdueDays = record => Math.max(1, Math.abs(Number(record?.daysUntilDue || 0)))
-const formatCurrency = value => `${Number(value || 0).toLocaleString('vi-VN')} ₫`
 
 const selectReturnEvidence = (item, file) => {
   const allowed = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx']
@@ -162,14 +148,10 @@ const submitReturnInspection = async () => {
       items: returnForm.value.items.map(item => ({
         equipmentId: item.equipmentId,
         condition: item.condition,
-        note: item.note,
-        compensationAmount: item.compensationAmount
+        note: item.note
       }))
     })
-    const successMessage = props.record?.isOverdue
-      ? 'Đã lưu kết quả trả. Tiền phạt quá hạn đã tự động xác nhận thu trong phần Bồi thường.'
-      : 'Đã lưu kết quả kiểm tra và cập nhật trạng thái tài sản!'
-    message.success(successMessage)
+    message.success('Đã lưu kết quả kiểm tra và cập nhật trạng thái tài sản!')
     emit('update:open', false)
     emit('saved')
   } catch (error) {

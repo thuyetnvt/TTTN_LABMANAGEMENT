@@ -39,8 +39,13 @@ public class ConsumableController : ControllerBase
         [Range(0, int.MaxValue)]
         public int MinQuantity { get; set; }
 
+        // Kept for backwards compatibility with older clients. New clients
+        // must use ResponsibleUserId; the server never trusts this text as an
+        // identity or as the creator of the consumable.
         [MaxLength(255)]
         public string ResponsiblePerson { get; set; } = string.Empty;
+
+        public int? ResponsibleUserId { get; set; }
 
         public int? AssetCategoryId { get; set; }
         public DateTime? EntryDate { get; set; }
@@ -74,6 +79,8 @@ public class ConsumableController : ControllerBase
         var assets = await _context.Consumables
             .AsNoTracking()
             .Include(item => item.AssetCategory)
+            .Include(item => item.CreatedByUser)
+            .Include(item => item.ResponsibleUser)
             .Include(item => item.Lots)
             .OrderByDescending(item => item.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -97,6 +104,8 @@ public class ConsumableController : ControllerBase
         var query = _context.Consumables
             .AsNoTracking()
             .Include(item => item.AssetCategory)
+            .Include(item => item.CreatedByUser)
+            .Include(item => item.ResponsibleUser)
             .Include(item => item.Lots)
             .AsQueryable();
         var search = paging.NormalizedSearch;
@@ -265,6 +274,20 @@ public class ConsumableController : ControllerBase
             return validationResult;
         }
 
+        var createdByUserId = GetCurrentUserIdOrNull();
+        if (!createdByUserId.HasValue)
+        {
+            return Unauthorized(new { message = "Không xác định được tài khoản đang đăng nhập." });
+        }
+
+        var responsibleUser = await FindResponsibleUserAsync(
+            dto.ResponsibleUserId ?? createdByUserId.Value,
+            cancellationToken);
+        if (responsibleUser is null)
+        {
+            return BadRequest(new { message = "Người chịu trách nhiệm phải là tài khoản quản lý đang hoạt động." });
+        }
+
         await using var transaction = await _context.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.Serializable,
             cancellationToken);
@@ -275,7 +298,11 @@ public class ConsumableController : ControllerBase
             Unit = dto.Unit.Trim(),
             Quantity = dto.Quantity,
             MinQuantity = dto.MinQuantity,
-            ResponsiblePerson = dto.ResponsiblePerson.Trim(),
+            CreatedByUserId = createdByUserId.Value,
+            CreatedByUser = null,
+            ResponsibleUserId = responsibleUser.Id,
+            ResponsibleUser = responsibleUser,
+            ResponsiblePerson = GetUserDisplayName(responsibleUser, dto.ResponsiblePerson),
             AssetCategoryId = dto.AssetCategoryId,
             EntryDate = dto.EntryDate,
             InvoiceNumber = dto.InvoiceNumber.Trim(),
@@ -316,7 +343,7 @@ public class ConsumableController : ControllerBase
                 BeforeQuantity = 0,
                 AfterQuantity = consumable.Quantity,
                 Reason = "Tạo vật tư ban đầu",
-                UserId = GetCurrentUserIdOrNull(),
+                UserId = createdByUserId,
                 CreatedAt = DateTime.UtcNow
             });
             await _context.SaveChangesAsync(cancellationToken);
@@ -327,10 +354,16 @@ public class ConsumableController : ControllerBase
             "Create",
             nameof(Consumable),
             consumable.Id,
-            new { consumable.Name, consumable.Quantity },
+            new
+            {
+                consumable.Name,
+                consumable.Quantity,
+                consumable.CreatedByUserId,
+                consumable.ResponsibleUserId
+            },
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return Ok(consumable);
+        return Ok(ToManagerDto(consumable));
     }
 
     [HttpPut("{id:int}")]
@@ -365,11 +398,29 @@ public class ConsumableController : ControllerBase
             return BadRequest(new { message = "Số lượng tồn kho được quản lý theo lô. Hãy dùng chức năng Quản lý lô để nhập hoặc điều chỉnh." });
         }
 
+        var currentUserId = GetCurrentUserIdOrNull();
+        if (!currentUserId.HasValue)
+        {
+            return Unauthorized(new { message = "Không xác định được tài khoản đang đăng nhập." });
+        }
+
+        var responsibleUserId = dto.ResponsibleUserId
+            ?? existing.ResponsibleUserId
+            ?? existing.CreatedByUserId
+            ?? currentUserId.Value;
+        var responsibleUser = await FindResponsibleUserAsync(responsibleUserId, cancellationToken);
+        if (responsibleUser is null)
+        {
+            return BadRequest(new { message = "Người chịu trách nhiệm phải là tài khoản quản lý đang hoạt động." });
+        }
+
         existing.Name = dto.Name.Trim();
         existing.Code = await ResolveCodeAsync(dto.Code, id, cancellationToken);
         existing.Unit = dto.Unit.Trim();
         existing.MinQuantity = dto.MinQuantity;
-        existing.ResponsiblePerson = dto.ResponsiblePerson.Trim();
+        existing.ResponsibleUserId = responsibleUser.Id;
+        existing.ResponsibleUser = responsibleUser;
+        existing.ResponsiblePerson = GetUserDisplayName(responsibleUser, dto.ResponsiblePerson);
         existing.AssetCategoryId = dto.AssetCategoryId;
         existing.EntryDate = dto.EntryDate;
         existing.InvoiceNumber = dto.InvoiceNumber.Trim();
@@ -622,6 +673,8 @@ public class ConsumableController : ControllerBase
             consumable.Quantity,
             consumable.MinQuantity,
             consumable.ResponsiblePerson,
+            consumable.CreatedByUserId,
+            consumable.ResponsibleUserId,
             consumable.AssetCategoryId,
             consumable.EntryDate,
             consumable.InvoiceNumber
@@ -652,6 +705,29 @@ public class ConsumableController : ControllerBase
         }
 
         return code;
+    }
+
+    private async Task<User?> FindResponsibleUserAsync(
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var managerRoles = new[] { Roles.Admin, Roles.LabHead, Roles.DeputyLabHead };
+        return await _context.Users
+            .SingleOrDefaultAsync(user => user.Id == userId
+                && user.IsActive
+                && managerRoles.Contains(user.Role), cancellationToken);
+    }
+
+    private static string GetUserDisplayName(User? user, string fallback = "")
+    {
+        if (user is null)
+        {
+            return fallback.Trim();
+        }
+
+        return !string.IsNullOrWhiteSpace(user.FullName)
+            ? user.FullName.Trim()
+            : user.Username.Trim();
     }
 
     private int? GetCurrentUserIdOrNull()
@@ -690,7 +766,13 @@ public class ConsumableController : ControllerBase
             ReservedQuantity = item.ReservedQuantity,
             AvailableQuantity = Math.Max(0, item.Quantity - item.ReservedQuantity),
             MinQuantity = item.MinQuantity,
-            ResponsiblePerson = item.ResponsiblePerson,
+            ResponsiblePerson = GetUserDisplayName(item.ResponsibleUser, item.ResponsiblePerson),
+            CreatedByUserId = item.CreatedByUserId,
+            CreatedByName = GetUserDisplayName(item.CreatedByUser),
+            CreatedByCode = item.CreatedByUser?.UniversityCode,
+            ResponsibleUserId = item.ResponsibleUserId,
+            ResponsibleName = GetUserDisplayName(item.ResponsibleUser, item.ResponsiblePerson),
+            ResponsibleCode = item.ResponsibleUser?.UniversityCode,
             AssetCategoryId = item.AssetCategoryId,
             CategoryName = item.AssetCategory?.Name,
             EntryDate = item.EntryDate,

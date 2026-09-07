@@ -12,7 +12,6 @@ import {
   getEquipmentStatusLabel,
   getInventoryStatusLabel,
   getMaintenanceStatusLabel,
-  getPenaltyStatusLabel,
   getReturnConditionLabel,
   getStatusColor
 } from '../utils/statusLabels'
@@ -42,7 +41,6 @@ const labelers = {
   maintenance: getMaintenanceStatusLabel,
   inventory: getInventoryStatusLabel,
   consumable: getConsumableRequestStatusLabel,
-  penalty: getPenaltyStatusLabel,
   returnCondition: getReturnConditionLabel
 }
 

@@ -17,6 +17,12 @@ public sealed class ManagerConsumableDto : BorrowerConsumableDto
 {
     public int ReservedQuantity { get; init; }
     public string ResponsiblePerson { get; init; } = string.Empty;
+    public int? CreatedByUserId { get; init; }
+    public string? CreatedByName { get; init; }
+    public string? CreatedByCode { get; init; }
+    public int? ResponsibleUserId { get; init; }
+    public string? ResponsibleName { get; init; }
+    public string? ResponsibleCode { get; init; }
     public DateTime? EntryDate { get; init; }
     public string InvoiceNumber { get; init; } = string.Empty;
     public string Supplier { get; init; } = string.Empty;

@@ -42,7 +42,6 @@ public sealed class EquipmentControllerTests
         Assert.DoesNotContain("invoiceNumber", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("fundingSource", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("responsiblePerson", json, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("warrantyExpiry", json, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -62,7 +61,6 @@ public sealed class EquipmentControllerTests
         Assert.Equal("secret-qr-token", item.QrToken);
         Assert.Equal(12500000, item.PurchaseValue);
         Assert.Equal("NCC nội bộ", item.Supplier);
-        Assert.Equal(new DateTime(2028, 3, 2), item.WarrantyExpiry);
     }
 
     [Fact]
@@ -226,7 +224,6 @@ public sealed class EquipmentControllerTests
         PurchaseValue = 12500000,
         InvoiceNumber = "INV-SECRET",
         ResponsiblePerson = "CBNV01",
-        WarrantyExpiry = new DateTime(2028, 3, 2),
         Notes = "Ghi chú quản trị"
     };
 

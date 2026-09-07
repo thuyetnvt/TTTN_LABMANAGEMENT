@@ -48,6 +48,12 @@
         <template v-else-if="column.key === 'expiryDate'">
           {{ formatVietnamDate(record.expiryDate, 'Không áp dụng') }}
         </template>
+        <template v-else-if="column.key === 'responsibleName'">
+          <a-tooltip v-if="record.responsibleUserCode" :title="`Mã tài khoản: ${record.responsibleUserCode}`">
+            {{ record.responsibleName || record.responsiblePerson || 'Chưa có dữ liệu' }}
+          </a-tooltip>
+          <span v-else>{{ record.responsibleName || record.responsiblePerson || 'Chưa có dữ liệu' }}</span>
+        </template>
         <template v-else-if="column.key === 'status'">
           <a-tag :color="availableStock(record) <= record.minQuantity ? 'red' : 'green'">
             {{ availableStock(record) <= record.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
@@ -100,7 +106,7 @@
               <div v-if="isManagerRole(role)"><dt>Đang giữ</dt><dd>{{ item.reservedQuantity || 0 }} {{ item.unit }}</dd></div>
               <div><dt>Khả dụng</dt><dd>{{ availableStock(item) }} {{ item.unit }}</dd></div>
               <div><dt>Tồn tối thiểu</dt><dd>{{ item.minQuantity }} {{ item.unit }}</dd></div>
-              <div v-if="item.responsiblePerson"><dt>Người phụ trách</dt><dd>{{ item.responsiblePerson }}</dd></div>
+              <div v-if="isManagerRole(role)"><dt>Người chịu trách nhiệm</dt><dd>{{ item.responsibleName || item.responsiblePerson || 'Chưa có dữ liệu' }}</dd></div>
             </dl>
             <a-tag :color="availableStock(item) <= item.minQuantity ? 'red' : 'green'">
               {{ availableStock(item) <= item.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
@@ -175,7 +181,24 @@
           </a-col>
           <a-col :xs="24" :sm="12">
             <a-form-item label="Người chịu trách nhiệm">
-              <a-input v-model:value="formData.responsiblePerson" />
+              <a-select
+                v-model:value="formData.responsibleUserId"
+                show-search
+                allow-clear
+                option-filter-prop="label"
+                placeholder="Mặc định là người thêm vật tư"
+                style="width: 100%"
+              >
+                <a-select-option
+                  v-for="person in responsibleUsers"
+                  :key="person.id"
+                  :value="person.id"
+                  :label="responsibleUserLabel(person)"
+                >
+                  {{ responsibleUserLabel(person) }}
+                </a-select-option>
+              </a-select>
+              <div class="form-help">Mặc định là tài khoản đang đăng nhập.</div>
             </a-form-item>
           </a-col>
           <a-col v-if="!isEditMode" :xs="24" :sm="12">
@@ -322,6 +345,7 @@ import { message, Modal } from 'ant-design-vue'
 import { consumableApi } from '../api/consumableApi'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
+import { userApi } from '../api/userApi'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole, isBorrowerRole, isManagerRole } from '../constants/business'
 import { DatabaseOutlined, DeleteOutlined, EditOutlined, HistoryOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
@@ -345,6 +369,7 @@ const route = useRoute()
 
 const dataSource = ref([])
 const categories = ref([])
+const responsibleUsers = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 const searchQuery = ref('')
@@ -366,7 +391,7 @@ const columns = computed(() => {
     { title: 'Đang giữ', dataIndex: 'reservedQuantity', key: 'reservedQuantity', sortable: true, sortKey: 'reservedQuantity', align: 'center', width: 100 },
     { title: 'Khả dụng', dataIndex: 'availableQuantity', key: 'availableQuantity', sortable: true, sortKey: 'availableQuantity', align: 'center', width: 100 },
     { title: 'Số lô', dataIndex: 'lotCount', key: 'lotCount', sortable: true, sortKey: 'lotCount', align: 'center', width: 90 },
-    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', sortable: true, sortKey: 'responsiblePerson', width: 180 }
+    { title: 'Người chịu trách nhiệm', dataIndex: 'responsibleName', key: 'responsibleName', sortable: true, sortKey: 'responsiblePerson', width: 180 }
   ] : []
   return [...commonColumns, ...managerColumns,
   { title: 'Trạng thái', key: 'status', sortable: true, sortKey: 'status', align: 'center', width: 120, filterType: 'select', filterKey: 'stock', filterOptions: [
@@ -420,6 +445,7 @@ const emptyForm = () => ({
   quantity: 0,
   minQuantity: 5,
   responsiblePerson: '',
+  responsibleUserId: null,
   assetCategoryId: null,
   entryDate: null,
   invoiceNumber: '',
@@ -468,6 +494,7 @@ onMounted(() => {
   stockFilter.value = typeof route.query.stock === 'string' ? route.query.stock : undefined
   fetchData()
   fetchCategories()
+  if (isManagerRole(role.value)) fetchResponsibleUsers()
 })
 
 watch(() => route.query.stock, value => {
@@ -482,6 +509,23 @@ const fetchCategories = async () => {
     message.error('Lỗi khi tải danh mục phân loại!')
   }
 }
+
+const fetchResponsibleUsers = async () => {
+  try {
+    responsibleUsers.value = await userApi.getResponsibleUsers() || []
+  } catch {
+    message.error('Lỗi khi tải danh sách người chịu trách nhiệm!')
+  }
+}
+
+const responsibleUserLabel = (user) => {
+  const name = user?.fullName?.trim() || user?.username || 'Chưa có tên'
+  return user?.universityCode ? `${name} (${user.universityCode})` : name
+}
+
+const currentUserId = () => authStore.user?.id
+  || responsibleUsers.value.find(user => user.username === authStore.user?.username)?.id
+  || null
 
 const fetchData = async () => {
   loading.value = true
@@ -520,7 +564,10 @@ const applyColumnSort = (column, order) => {
 
 const showAddModal = () => {
   isEditMode.value = false
-  formData.value = emptyForm()
+  formData.value = {
+    ...emptyForm(),
+    responsibleUserId: currentUserId()
+  }
   isFormVisible.value = true
 }
 
@@ -530,6 +577,7 @@ const showEditModal = (record) => {
   formData.value = {
     ...emptyForm(),
     ...record,
+    responsibleUserId: record.responsibleUserId || null,
     entryDate: record.entryDate ? dayjs(record.entryDate) : null,
     expiryDate: record.expiryDate ? dayjs(record.expiryDate) : null
   }
@@ -754,6 +802,12 @@ const handleDelete = (id) => {
 .left-actions { display: flex; flex: 1 1 620px; flex-wrap: wrap; min-width: 0; gap: 10px; }
 
 .right-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; gap: 8px; }
+
+.form-help {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
 
 .consumables-mobile-list,
 .consumables-mobile-empty,

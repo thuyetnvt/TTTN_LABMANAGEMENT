@@ -37,7 +37,6 @@ public static class FullSampleDataSeeder
         await EnsureMaintenanceSchedulesAsync(context, users, equipment, now);
         await EnsureInventorySessionsAsync(context, users, categories, locations, equipment, now);
         await EnsureHandoversAsync(context, users, equipment, borrowRecords, now);
-        await EnsurePenaltiesAsync(context, users, equipment, borrowRecords, now);
         await EnsureConsumableTransactionsAsync(context, users, consumables, now);
         await EnsureBorrowStatusHistoryAsync(context, users, borrowRecords, now);
         await EnsureLocationHistoryAsync(context, users, locations, equipment, now);
@@ -209,18 +208,18 @@ public static class FullSampleDataSeeder
             new EquipmentSeed("TS-DEMO-007", "Camera OpenMV H7 Plus", "OpenMV H7 Plus", "DEMO-SN-0007", "Phòng AI C", "LAB-AI-C", "AI", EquipmentStatuses.Available, 3500000, 10),
             new EquipmentSeed("TS-DEMO-008", "Jetson Nano 4GB", "Jetson Nano", "DEMO-SN-0008", "Phòng AI C", "LAB-AI-C", "AI", EquipmentStatuses.Borrowed, 3200000, 8),
             new EquipmentSeed("TS-DEMO-009", "Intel NUC i5", "NUC 12 Pro", "DEMO-SN-0009", "Phòng AI C", "LAB-AI-C", "AI", EquipmentStatuses.MaintenanceInProgress, 12500000, 6),
-            new EquipmentSeed("TS-DEMO-010", "Máy hiện sóng Hantek 6022BE", "6022BE", "DEMO-SN-0010", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.UnderWarranty, 2100000, 12),
+            new EquipmentSeed("TS-DEMO-010", "Máy hiện sóng Hantek 6022BE", "6022BE", "DEMO-SN-0010", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Broken, 2100000, 12),
             new EquipmentSeed("TS-DEMO-011", "Đồng hồ vạn năng Keysight", "34465A", "DEMO-SN-0011", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Broken, 28000000, 5),
             new EquipmentSeed("TS-DEMO-012", "Máy phân tích logic Saleae", "Logic 8", "DEMO-SN-0012", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Available, 6200000, 8),
             new EquipmentSeed("TS-DEMO-013", "Máy phát tín hiệu Siglent", "SDG1032X", "DEMO-SN-0013", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Borrowed, 11500000, 7),
             new EquipmentSeed("TS-DEMO-014", "Nguồn DC Rigol DP832", "DP832", "DEMO-SN-0014", "Bàn điện tử B1", "LAB-ELEC-B", "Điện tử", EquipmentStatuses.Available, 15000000, 13),
-            new EquipmentSeed("TS-DEMO-015", "Camera nhiệt FLIR C5", "FLIR C5", "DEMO-SN-0015", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.UnderWarranty, 22000000, 4),
+            new EquipmentSeed("TS-DEMO-015", "Camera nhiệt FLIR C5", "FLIR C5", "DEMO-SN-0015", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Broken, 22000000, 4),
             new EquipmentSeed("TS-DEMO-016", "Trạm hàn Hakko FX-888D", "FX-888D", "DEMO-SN-0016", "Phòng Điện tử B", "LAB-ELEC-B", "Điện tử", EquipmentStatuses.MaintenanceInProgress, 4200000, 15),
             new EquipmentSeed("TS-DEMO-017", "Máy in 3D Bambu A1", "Bambu Lab A1", "DEMO-SN-0017", "Phòng Điện tử B", "LAB-ELEC-B", "Robotics", EquipmentStatuses.Available, 9500000, 3),
             new EquipmentSeed("TS-DEMO-018", "Cánh tay robot Dobot Magician", "Dobot Magician", "DEMO-SN-0018", "Phòng IoT A", "LAB-IOT-A", "Robotics", EquipmentStatuses.Broken, 28000000, 2),
             new EquipmentSeed("TS-DEMO-019", "Cảm biến LiDAR RPLIDAR A1", "RPLIDAR A1", "DEMO-SN-0019", "Phòng AI C", "LAB-AI-C", "Robotics", EquipmentStatuses.Available, 4200000, 6),
             new EquipmentSeed("TS-DEMO-020", "Đầu đọc RFID MFRC522", "MFRC522", "DEMO-SN-0020", "Phòng IoT A", "LAB-IOT-A", "IoT", EquipmentStatuses.Available, 150000, 10),
-            new EquipmentSeed("TS-DEMO-021", "Tủ nhiệt mini", "MH-30", "DEMO-SN-0021", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.UnderWarranty, 6800000, 1),
+            new EquipmentSeed("TS-DEMO-021", "Tủ nhiệt mini", "MH-30", "DEMO-SN-0021", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Broken, 6800000, 1),
             new EquipmentSeed("TS-DEMO-022", "Router WiFi MikroTik", "hAP ax3", "DEMO-SN-0022", "Phòng Mạng D", "LAB-NET-D", "Mạng & máy chủ", EquipmentStatuses.Available, 3300000, 5),
             new EquipmentSeed("TS-DEMO-023", "NAS Synology DS224+", "DS224+", "DEMO-SN-0023", "Phòng Mạng D", "LAB-NET-D", "Mạng & máy chủ", EquipmentStatuses.Broken, 11000000, 2),
             new EquipmentSeed("TS-DEMO-024", "UPS APC 1200VA", "BX1200MI", "DEMO-SN-0024", "Phòng Mạng D", "LAB-NET-D", "Mạng & máy chủ", EquipmentStatuses.Available, 4200000, 4),
@@ -251,7 +250,6 @@ public static class FullSampleDataSeeder
                 LocationNodeId = locations[seed.LocationCode],
                 ResponsiblePerson = "Nguyễn Minh Quản",
                 EntryDate = now.AddMonths(-seed.AgeMonths),
-                WarrantyExpiry = now.AddMonths(seed.WarrantyMonths),
                 InvoiceNumber = $"HD-SEED-{seed.AssetCode[^3..]}",
                 Status = seed.Status,
                 BorrowCount = seed.BorrowCount,
@@ -398,9 +396,6 @@ public static class FullSampleDataSeeder
                 Status = seed.Status,
                 ReturnCondition = seed.Status == BorrowStatuses.ReturnedDamaged ? EquipmentStatuses.Broken : EquipmentStatuses.Available,
                 ReturnInspectionNote = seed.Status == BorrowStatuses.ReturnedDamaged ? "Vỏ thiết bị có vết nứt, cần kiểm tra." : seed.IsReturned ? "Đã kiểm tra, đủ phụ kiện." : string.Empty,
-                WarrantyAction = seed.Status == BorrowStatuses.ReturnedDamaged ? "Kiểm tra bồi thường" : string.Empty,
-                IsUnderWarrantyAtReturn = seed.Status == BorrowStatuses.ReturnedDamaged ? false : seed.IsReturned,
-                CompensationAmount = seed.Status == BorrowStatuses.ReturnedDamaged ? 1800000 : 0,
                 InspectedByUserId = users.GetValueOrDefault("pholab"),
                 Details =
                 [
@@ -412,8 +407,7 @@ public static class FullSampleDataSeeder
                         Status = seed.Status,
                         ReturnCondition = seed.Status == BorrowStatuses.ReturnedDamaged ? EquipmentStatuses.Broken : EquipmentStatuses.Available,
                         ReturnNote = seed.IsReturned ? "Đã nhận lại thiết bị." : string.Empty,
-                        ReturnedAt = returnedAt,
-                        CompensationAmount = seed.Status == BorrowStatuses.ReturnedDamaged ? 1800000 : 0
+                        ReturnedAt = returnedAt
                     }
                 ]
             };
@@ -721,47 +715,6 @@ public static class FullSampleDataSeeder
         await context.SaveChangesAsync();
     }
 
-    private static async Task EnsurePenaltiesAsync(
-        AppDbContext context,
-        IReadOnlyDictionary<string, int> users,
-        IReadOnlyDictionary<string, Equipment> equipment,
-        IReadOnlyCollection<BorrowRecord> borrowRecords,
-        DateTime now)
-    {
-        var damaged = borrowRecords.FirstOrDefault(record => record.Status == BorrowStatuses.ReturnedDamaged);
-        if (damaged?.EquipmentId is not int equipmentId || !users.TryGetValue("sv9", out var userId)) return;
-        if (await context.Penalties.AnyAsync(item => item.BorrowRecordId == damaged.Id)) return;
-
-        context.Penalties.Add(new Penalty
-        {
-            UserId = userId,
-            EquipmentId = equipmentId,
-            BorrowRecordId = damaged.Id,
-            Reason = $"{Prefix} Hư hỏng vỏ thiết bị sau khi trả.",
-            Amount = 1800000,
-            Status = PenaltyStatuses.Unpaid,
-            CreatedAt = now.AddDays(-20)
-        });
-
-        var returned = borrowRecords.FirstOrDefault(record => record.Status == BorrowStatuses.Returned && record.EquipmentId.HasValue);
-        if (returned?.EquipmentId is int returnedEquipmentId && users.TryGetValue("sv8", out var paidUserId))
-        {
-            context.Penalties.Add(new Penalty
-            {
-                UserId = paidUserId,
-                EquipmentId = returnedEquipmentId,
-                BorrowRecordId = returned.Id,
-                Reason = $"{Prefix} Trả thiết bị quá hạn.",
-                Amount = 150000,
-                Status = PenaltyStatuses.Paid,
-                CreatedAt = now.AddDays(-25),
-                PaidAt = now.AddDays(-23)
-            });
-        }
-
-        await context.SaveChangesAsync();
-    }
-
     private static async Task EnsureConsumableTransactionsAsync(
         AppDbContext context,
         IReadOnlyDictionary<string, int> users,
@@ -943,7 +896,7 @@ public static class FullSampleDataSeeder
     private sealed record UserSeed(string Username, string Email, string FullName, string UniversityCode, string Department, string? ClassName, string Role);
     private sealed record CategorySeed(string Name, string Description);
     private sealed record LocationSeed(string Code, string Name, string Type, string? ParentCode, string Description);
-    private sealed record EquipmentSeed(string AssetCode, string Name, string Model, string Serial, string LocationName, string LocationCode, string Category, string Status, decimal PurchaseValue, int BorrowCount, int AgeMonths = 6, int WarrantyMonths = 18);
+    private sealed record EquipmentSeed(string AssetCode, string Name, string Model, string Serial, string LocationName, string LocationCode, string Category, string Status, decimal PurchaseValue, int BorrowCount, int AgeMonths = 6);
     private sealed record ConsumableSeed(string Code, string Name, string Unit, int Quantity, int MinQuantity, string Category, string StorageLocation);
     private sealed record BorrowSeed(string Username, string AssetCode, string? TeacherUsername, string Status, int BorrowOffset, int ExpectedReturnOffset, string Purpose, bool IsReturned = false);
     private sealed record ConsumableRequestSeed(string Username, string Code, int Quantity, string Status, string Reason);

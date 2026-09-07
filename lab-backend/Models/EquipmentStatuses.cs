@@ -9,8 +9,6 @@ public static class EquipmentStatuses
     public const string ReturnedDamaged = "RETURNED_DAMAGED";
     public const string Broken = "BROKEN";
     public const string Missing = "MISSING";
-    public const string UnderWarranty = "UNDER_WARRANTY";
-    public const string Warranty = UnderWarranty;
     public const string MaintenanceInProgress = "MAINTENANCE_IN_PROGRESS";
     public const string MaintenanceCompleted = "MAINTENANCE_COMPLETED";
 
@@ -23,7 +21,6 @@ public static class EquipmentStatuses
         ReturnedDamaged,
         Broken,
         Missing,
-        UnderWarranty,
         MaintenanceInProgress,
         MaintenanceCompleted
     ];
@@ -35,7 +32,6 @@ public static class EquipmentStatuses
             ["Sẵn sàng"] = Available,
             ["Đang mượn"] = Borrowed,
             ["Hỏng"] = Broken,
-            ["Bảo hành"] = UnderWarranty,
             ["Bảo trì"] = MaintenanceInProgress
         };
 

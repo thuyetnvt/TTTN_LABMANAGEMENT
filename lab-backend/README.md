@@ -19,7 +19,7 @@ Backend ASP.NET Core Web API cho hệ thống quản lý phòng lab.
 - Xóa tài khoản là khóa mềm, không xóa lịch sử nghiệp vụ.
 - Duyệt mượn và cấp vật tư dùng transaction + atomic update, tránh duyệt trùng và tồn kho âm.
 - Upload quyết định có giới hạn kích thước, whitelist phần mở rộng, tên lưu ngẫu nhiên và đường dẫn tải an toàn.
-- Bảo trì có vòng đời `MAINTENANCE_IN_PROGRESS` → `MAINTENANCE_COMPLETED`; khi hoàn tất người xử lý phải chọn trạng thái thiết bị tiếp theo (`AVAILABLE`, `BROKEN`, `UNDER_WARRANTY` hoặc tiếp tục bảo trì).
+- Bảo trì có vòng đời `MAINTENANCE_IN_PROGRESS` → `MAINTENANCE_COMPLETED`; khi hoàn tất người xử lý phải chọn trạng thái thiết bị tiếp theo (`AVAILABLE`, `BROKEN` hoặc tiếp tục bảo trì).
 - Phiếu mượn hỗ trợ nhiều tài sản, lịch sử trạng thái, trả từng món và kiểm kê QR theo đợt.
 - Thông báo được lưu database; SignalR chỉ dùng để đẩy cập nhật realtime.
 - Có audit log, rate limit đăng nhập, health check MySQL và SignalR theo đúng người/nhóm quyền.
@@ -124,12 +124,12 @@ File quyết định được lưu trong `/app/uploads`; volume này phải đư
 
 ## Quy tắc nghiệp vụ cần giữ
 
-- Trạng thái thiết bị chỉ gồm: `Rảnh`, `Đang mượn`, `Hỏng`, `Bảo hành`.
+- Trạng thái thiết bị chỉ gồm: `Rảnh`, `Đang mượn`, `Hỏng`, `Thất lạc` và trạng thái bảo trì.
 - Thiết bị đang mượn chỉ đổi trạng thái qua quy trình trả.
 - Thiết bị đang có phiếu bảo trì chỉ về `Rảnh` qua thao tác hoàn tất bảo trì.
 - Thiết bị/vật tư đã có lịch sử nghiệp vụ không được xóa cứng.
-- Sinh viên và giảng viên chỉ xem phiếu mượn, cấp phát và bồi thường của mình.
-- Chỉ Admin/Trưởng lab/Phó lab được duyệt mượn, cấp vật tư, bảo trì và xác nhận bồi thường.
+- Sinh viên và giảng viên chỉ xem phiếu mượn và cấp phát của mình.
+- Chỉ Admin/Trưởng lab/Phó lab được duyệt mượn, cấp vật tư và bảo trì.
 
 ## Checklist trước khi nghiệm thu
 

@@ -265,6 +265,28 @@ public class UsersController : ControllerBase
             .ToListAsync(cancellationToken);
     }
 
+    [HttpGet("responsible")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<ActionResult<IEnumerable<object>>> GetResponsibleUsers(
+        CancellationToken cancellationToken)
+    {
+        var managerRoles = new[] { Roles.Admin, Roles.LabHead, Roles.DeputyLabHead };
+        return await _context.Users
+            .AsNoTracking()
+            .Where(user => user.IsActive && managerRoles.Contains(user.Role))
+            .OrderBy(user => user.FullName)
+            .ThenBy(user => user.Username)
+            .Select(user => new
+            {
+                user.Id,
+                user.Username,
+                user.FullName,
+                user.UniversityCode,
+                user.Role
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     [HttpGet("me")]
     public async Task<ActionResult<UserDto>> GetOwnProfile(CancellationToken cancellationToken)
     {

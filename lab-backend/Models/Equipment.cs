@@ -29,7 +29,6 @@ namespace LabManagementAPI.Models
         public string DecisionFilePath { get; set; } = string.Empty;
         public DateTime? DecisionUploadedAt { get; set; }
         public DateTime? EntryDate { get; set; }
-        public DateTime? WarrantyExpiry { get; set; }
         public string InvoiceNumber { get; set; } = string.Empty;
         public string Status { get; set; } = EquipmentStatuses.Available;
         public int BorrowCount { get; set; } = 0;

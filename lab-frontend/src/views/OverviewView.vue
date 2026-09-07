@@ -355,7 +355,6 @@ import {
   PlusOutlined,
   ReloadOutlined,
   TeamOutlined,
-  ToolOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
 import { dashboardApi } from '../api/dashboardApi'
@@ -386,9 +385,8 @@ const stats = ref({
   consumableRequestsToProcess: 0,
   overdueBorrowRecords: 0,
   lowStockConsumables: 0,
-  warrantyExpiringSoon: 0,
   maintenanceInProgress: 0,
-  counts: { total: 0, available: 0, borrowPending: 0, maintenance: 0, borrowed: 0, broken: 0, missing: 0, warranty: 0 },
+  counts: { total: 0, available: 0, borrowPending: 0, maintenance: 0, borrowed: 0, broken: 0, missing: 0 },
   activities: [],
   alerts: [],
   advanced: { pendingRequests: 0, lowStockConsumables: [], borrowTrends: [] },
@@ -430,10 +428,10 @@ const managerKpis = computed(() => [
     tone: 'warning'
   },
   {
-    key: 'broken-warranty',
-    label: 'Hỏng/Bảo hành',
-    value: formatNumber(Number(stats.value.counts.broken || 0) + Number(stats.value.counts.warranty || 0)),
-    icon: ToolOutlined,
+    key: 'broken-equipment',
+    label: 'Thiết bị hỏng',
+    value: formatNumber(stats.value.counts.broken),
+    icon: WarningOutlined,
     tone: 'danger'
   }
 ])
@@ -443,7 +441,6 @@ const managerStatusRows = computed(() => [
   { key: 'borrow-pending', label: 'Đã giữ chỗ', value: Number(stats.value.counts.borrowPending || 0), tone: 'warning' },
   { key: 'borrowed', label: 'Đang mượn', value: Number(stats.value.counts.borrowed || 0), tone: 'info' },
   { key: 'maintenance', label: 'Bảo trì', value: Number(stats.value.counts.maintenance || 0), tone: 'purple' },
-  { key: 'warranty', label: 'Bảo hành', value: Number(stats.value.counts.warranty || 0), tone: 'warning' },
   { key: 'broken', label: 'Hỏng', value: Number(stats.value.counts.broken || 0), tone: 'danger' },
   { key: 'missing', label: 'Thất lạc', value: Number(stats.value.counts.missing || 0), tone: 'danger' }
 ])
@@ -508,11 +505,6 @@ const managerAttentionItems = computed(() => [
     value: formatNumber(stats.value.lowStockConsumables),
     icon: AppstoreOutlined, tone: 'warning', route: { name: 'Devices', query: { tab: 'consumables', stock: 'LOW_STOCK' } }
   },
-  {
-    key: 'warranty-expiring-soon', label: 'Bảo hành sắp hết',
-    value: formatNumber(stats.value.warrantyExpiringSoon),
-    icon: ToolOutlined, tone: 'info', route: { name: 'Devices', query: { status: 'warranty-soon' } }
-  }
 ])
 
 const borrowTrendItems = computed(() => stats.value.advanced?.borrowTrends || [])
@@ -739,7 +731,6 @@ const normalizeDashboardStats = result => {
     consumableRequestsToProcess: Number(payload.consumableRequestsToProcess ?? payload.pendingConsumableRequests ?? 0),
     overdueBorrowRecords: Number(payload.overdueBorrowRecords ?? alerts.filter(alert => alert?.type === 'overdue').length),
     lowStockConsumables: Number(payload.lowStockConsumables ?? lowStockItems.length),
-    warrantyExpiringSoon: Number(payload.warrantyExpiringSoon ?? alerts.filter(alert => alert?.type === 'warranty-soon').length),
     maintenanceInProgress: Number(payload.maintenanceInProgress ?? payload.counts?.maintenance ?? 0)
   }
 }

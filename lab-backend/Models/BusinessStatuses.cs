@@ -33,12 +33,6 @@ public static class MaintenanceStatuses
     public const string Completed = "MAINTENANCE_COMPLETED";
 }
 
-public static class PenaltyStatuses
-{
-    public const string Unpaid = "UNPAID";
-    public const string Paid = "PAID";
-}
-
 public static class InventoryStatuses
 {
     public const string Open = "INVENTORY_OPEN";
@@ -76,14 +70,11 @@ public static class StatusCodeMap
             ["Đang mượn"] = BorrowStatuses.Borrowed,
             ["Đã trả"] = BorrowStatuses.Returned,
             ["Đã trả (Hỏng)"] = BorrowStatuses.ReturnedDamaged,
-            ["Đã trả (Bảo hành)"] = BorrowStatuses.ReturnedDamaged,
             ["Từ chối"] = BorrowStatuses.Rejected,
             ["Đang xử lý"] = MaintenanceStatuses.InProgress,
             ["Hoàn tất"] = MaintenanceStatuses.Completed,
             ["Hoàn thành"] = MaintenanceStatuses.Completed,
-            ["Đã cấp phát"] = ConsumableRequestStatuses.Received,
-            ["Chưa thanh toán"] = PenaltyStatuses.Unpaid,
-            ["Đã thanh toán"] = PenaltyStatuses.Paid
+            ["Đã cấp phát"] = ConsumableRequestStatuses.Received
         };
 
     public static readonly IReadOnlyDictionary<string, string> Labels =
@@ -109,8 +100,6 @@ public static class StatusCodeMap
             [MaintenanceStatuses.InProgress] = "Đang bảo trì",
             [MaintenanceStatuses.Completing] = "Đang nghiệm thu",
             [MaintenanceStatuses.Completed] = "Đã hoàn thành bảo trì",
-            [PenaltyStatuses.Unpaid] = "Chưa thanh toán",
-            [PenaltyStatuses.Paid] = "Đã thanh toán",
             [InventoryStatuses.Open] = "Đang kiểm kê",
             [InventoryStatuses.Reviewing] = "Đang đối soát",
             [InventoryStatuses.Completed] = "Đã kết thúc kiểm kê",
@@ -119,7 +108,6 @@ public static class StatusCodeMap
             [EquipmentStatuses.MaintenanceInProgress] = "Đang bảo trì",
             [EquipmentStatuses.Broken] = "Hỏng",
             [EquipmentStatuses.Missing] = "Thất lạc",
-            [EquipmentStatuses.UnderWarranty] = "Đang bảo hành"
         };
 
     public static string Normalize(string? value)

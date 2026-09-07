@@ -191,7 +191,7 @@
               <desktop-outlined class="feature-icon" />
             </div>
             <h3>Định danh IoT</h3>
-            <p>Theo dõi vòng đời thiết bị, firmware, MAC, IMEI, bảo hành và toàn bộ lịch sử sử dụng.</p>
+            <p>Theo dõi vòng đời thiết bị, firmware, MAC, IMEI và toàn bộ lịch sử sử dụng.</p>
           </div>
         </div>
         

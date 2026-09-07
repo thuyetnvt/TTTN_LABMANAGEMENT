@@ -64,9 +64,6 @@
             <a-menu-item v-if="isManagerRole(role)" key="m_delegations" @click="$router.push({ name: 'ApprovalDelegations' })">
               <team-outlined /><span>Ủy quyền duyệt</span>
             </a-menu-item>
-            <a-menu-item key="m4" @click="$router.push({ name: 'Penalty' })">
-              <pay-circle-outlined /><span>{{ $t('menu.penalty') }}</span>
-            </a-menu-item>
             <a-menu-item v-if="isManagerRole(role)" key="m_reports" @click="$router.push({ name: 'Reports' })">
               <bar-chart-outlined /><span>Báo cáo</span>
             </a-menu-item>
@@ -393,7 +390,6 @@ const routeMenuKeys = {
   Locations: 'm_location',
   Inventory: 'm_inventory',
   Notifications: 'notifications',
-  Penalty: 'm4',
   BorrowRequests: 'g1_1',
   AdminUsers: 'g1_3',
   AuditLogs: 'g1_4',

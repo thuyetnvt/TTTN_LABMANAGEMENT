@@ -87,19 +87,6 @@ public class ReportsController : ControllerBase
             .Where(item => item.availableQuantity <= item.MinQuantity)
             .OrderBy(item => item.availableQuantity - item.MinQuantity)
             .ToList();
-        var warrantySoon = equipments
-            .Where(equipment => equipment.WarrantyExpiry.HasValue
-                && equipment.WarrantyExpiry.Value >= now
-                && equipment.WarrantyExpiry.Value <= now.AddDays(30))
-            .OrderBy(equipment => equipment.WarrantyExpiry)
-            .Select(equipment => new
-            {
-                equipment.Id,
-                equipment.Name,
-                equipment.Serial,
-                equipment.WarrantyExpiry
-            })
-            .ToList();
         var responsible = equipments
             .GroupBy(equipment => string.IsNullOrWhiteSpace(equipment.ResponsiblePerson)
                 ? "Chưa phân công"
@@ -125,7 +112,6 @@ public class ReportsController : ControllerBase
                 borrowed = borrowedAssets.Count,
                 overdue = borrowedAssets.Count(item => item.ExpectedReturnDate < now),
                 broken = equipments.Count(item => item.Status == EquipmentStatuses.Broken),
-                underWarranty = equipments.Count(item => item.Status == EquipmentStatuses.Warranty),
                 maintenanceInProgress = equipments.Count(item => item.Status == EquipmentStatuses.MaintenanceInProgress),
                 lowStock = lowStock.Count,
                 maintenanceCost
@@ -141,7 +127,6 @@ public class ReportsController : ControllerBase
                 .OrderByDescending(item => item.count),
             borrowed,
             lowStock,
-            warrantySoon,
             maintenance,
             consumables,
             responsible
@@ -178,7 +163,7 @@ public class ReportsController : ControllerBase
 
         using var package = new ExcelPackage();
         var assetsSheet = package.Workbook.Worksheets.Add("TaiSan");
-        WriteHeaders(assetsSheet, ["Mã tài sản", "Tên", "Model", "Số seri", "Danh mục", "Vị trí", "Trạng thái", "Hạn bảo hành"]);
+        WriteHeaders(assetsSheet, ["Mã tài sản", "Tên", "Model", "Số seri", "Danh mục", "Vị trí", "Trạng thái"]);
         for (var index = 0; index < equipments.Count; index++)
         {
             var item = equipments[index];
@@ -190,7 +175,6 @@ public class ReportsController : ControllerBase
             WriteCell(assetsSheet, row, 5, item.AssetCategory?.Name);
             WriteCell(assetsSheet, row, 6, item.LocationNode?.Name ?? item.Location);
             WriteCell(assetsSheet, row, 7, StatusCodeMap.Label(item.Status));
-            WriteCell(assetsSheet, row, 8, item.WarrantyExpiry?.ToString("dd/MM/yyyy"));
         }
 
         var maintenanceSheet = package.Workbook.Worksheets.Add("BaoTri");
@@ -287,7 +271,7 @@ public class ReportsController : ControllerBase
             {
                 column.Spacing(10);
                 column.Item().Text($"Tổng tài sản: {equipments.Count}    |    Đang mượn: {borrowedCount}    |    Quá hạn: {overdueCount}").Bold();
-                column.Item().Text($"Hỏng: {equipments.Count(item => item.Status == EquipmentStatuses.Broken)}    |    Bảo hành: {equipments.Count(item => item.Status == EquipmentStatuses.Warranty)}    |    Chi phí bảo trì: {maintenanceCost:N0} VNĐ");
+                column.Item().Text($"Hỏng: {equipments.Count(item => item.Status == EquipmentStatuses.Broken)}    |    Chi phí bảo trì: {maintenanceCost:N0} VNĐ");
                 column.Item().Text($"Vật tư sắp hết: {lowStockCount}");
                 column.Item().Text("Danh sách tài sản").Bold().FontSize(13);
                 column.Item().Table(table =>

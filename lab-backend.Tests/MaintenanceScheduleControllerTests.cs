@@ -200,7 +200,6 @@ public sealed class MaintenanceScheduleControllerTests
     {
         Assert.Equal(BorrowStatuses.Pending, StatusCodeMap.LegacyMap["Chờ duyệt"]);
         Assert.Equal(MaintenanceStatuses.Completed, StatusCodeMap.LegacyMap["Hoàn tất"]);
-        Assert.Equal(PenaltyStatuses.Paid, StatusCodeMap.LegacyMap["Đã thanh toán"]);
     }
 
     [Fact]

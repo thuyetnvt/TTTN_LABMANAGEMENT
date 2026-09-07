@@ -21,7 +21,7 @@
 - Bổ sung Dockerfile, cấu hình Nginx và hướng dẫn chạy.
 - Tự động import component Ant Design Vue để giảm bundle tải ban đầu.
 - Thêm giao diện đổi mật khẩu và hoàn tất phiếu bảo trì.
-- Sửa xử lý ngày trả/hạn bảo hành và giá trị DatePicker khi sửa dữ liệu.
+- Sửa xử lý ngày trả và giá trị DatePicker khi sửa dữ liệu.
 - Thêm CSP/security headers và bỏ phụ thuộc Google Fonts khi chạy production.
 
 ## Đã đồng bộ với backend

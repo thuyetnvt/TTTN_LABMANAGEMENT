@@ -40,6 +40,5 @@ public class VietnamTimeTests
         Assert.Equal(EquipmentStatuses.Broken, EquipmentStatuses.Normalize("broken"));
         Assert.Equal("Đã duyệt, chờ bàn giao", StatusCodeMap.Label(BorrowStatuses.Approved));
         Assert.Equal("Hỏng", StatusCodeMap.Label(EquipmentStatuses.Broken));
-        Assert.Equal("Đang bảo hành", StatusCodeMap.Label("Bảo hành"));
     }
 }

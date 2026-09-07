@@ -27,7 +27,6 @@ const routes = [
       { path: 'maintenance', name: 'Maintenance', component: () => import('../views/MaintenanceView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
       { path: 'maintenance-schedules', name: 'MaintenanceSchedules', component: () => import('../views/MaintenanceSchedulesView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
       { path: 'consumable-requests', name: 'ConsumableRequests', component: () => import('../views/ConsumableRequestsView.vue'), meta: { allowedRoles: [...MANAGER_ROLES, ...BORROWER_ROLES] } },
-      { path: 'penalty', name: 'Penalty', component: () => import('../views/PenaltyView.vue'), meta: { allowedRoles: [...MANAGER_ROLES, ...BORROWER_ROLES] } },
       { path: 'teacher-approval', name: 'TeacherApproval', component: () => import('../views/TeacherApprovalView.vue'), meta: { allowedRoles: [ROLE.TEACHER] } },
       { path: 'approval-delegations', name: 'ApprovalDelegations', component: () => import('../views/ApprovalDelegationsView.vue'), meta: { allowedRoles: MANAGER_ROLES } }
     ]

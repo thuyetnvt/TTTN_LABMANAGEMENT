@@ -49,9 +49,6 @@
           <template v-else-if="column.key === 'status'">
             <StatusBadge :status="record.status" type="borrow" :color="record.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(record)" />
           </template>
-          <template v-else-if="column.key === 'compensationAmount'">
-            {{ record.compensationAmount ? record.compensationAmount.toLocaleString('vi-VN') + ' VNĐ' : '' }}
-          </template>
           <template v-else-if="column.key === 'action'">
             <template v-if="isManager && (statusMatches(record.status, STATUS.BORROWED) || statusMatches(record.status, STATUS.RETURN_PROCESSING))">
               <div class="request-actions">
@@ -95,7 +92,6 @@
             <div><dt>Hạn trả</dt><dd>{{ formatDate(item.expectedReturnDate) }}</dd></div>
             <div><dt>Ngày trả thực tế</dt><dd>{{ item.actualReturnDate ? formatDate(item.actualReturnDate) : '—' }}</dd></div>
             <div v-if="item.returnCondition"><dt>Tình trạng trả</dt><dd><StatusBadge :status="item.returnCondition" type="returnCondition" /></dd></div>
-            <div v-if="item.compensationAmount"><dt>Bồi thường</dt><dd>{{ item.compensationAmount.toLocaleString('vi-VN') }} VNĐ</dd></div>
           </dl>
           <div v-if="isManager && (statusMatches(item.status, STATUS.BORROWED) || statusMatches(item.status, STATUS.RETURN_PROCESSING))" class="mobile-request-actions">
             <a-button @click="openReturn(item)">Kiểm tra trả</a-button>
@@ -162,7 +158,6 @@
         <a-descriptions-item v-if="selectedRecord.cancellationReason" label="Lý do hủy">{{ selectedRecord.cancellationReason }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.cancelledAt" label="Thời điểm hủy">{{ formatDateTime(selectedRecord.cancelledAt) }}</a-descriptions-item>
         <a-descriptions-item label="Ghi chú kiểm tra">{{ selectedRecord.returnInspectionNote || 'Chưa có' }}</a-descriptions-item>
-        <a-descriptions-item label="Xử lý bảo hành">{{ selectedRecord.warrantyAction || 'Không có' }}</a-descriptions-item>
       </a-descriptions>
     </a-modal>
 
@@ -261,8 +256,6 @@ const columns = [
   { title: 'Ngày trả thực tế', dataIndex: 'actualReturnDate', key: 'actualReturnDate', sortKey: 'actualReturnDate', sortable: true, width: 130 },
   { title: 'Tình trạng trả', dataIndex: 'returnCondition', key: 'returnCondition', sortKey: 'returnCondition', sortable: true, width: 130 },
   { title: 'Ghi chú kiểm tra', dataIndex: 'returnInspectionNote', key: 'returnInspectionNote', sortKey: 'returnInspectionNote', sortable: true, width: 200 },
-  { title: 'Xử lý bảo hành', dataIndex: 'warrantyAction', key: 'warrantyAction', sortKey: 'warrantyAction', sortable: true, width: 180 },
-  { title: 'Bồi thường', dataIndex: 'compensationAmount', key: 'compensationAmount', sortKey: 'compensationAmount', sortable: true, width: 130 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 140, filterType: 'select', filterKey: 'status', filterOptions: borrowStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190 }
 ]

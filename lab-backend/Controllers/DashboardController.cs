@@ -59,7 +59,6 @@ public class DashboardController : ControllerBase
                     Borrowed = group.Count(item => item.Status == EquipmentStatuses.Borrowed),
                     Broken = group.Count(item => item.Status == EquipmentStatuses.Broken),
                     Missing = group.Count(item => item.Status == EquipmentStatuses.Missing),
-                    Warranty = group.Count(item => item.Status == EquipmentStatuses.Warranty),
                     Maintenance = group.Count(item => item.Status == EquipmentStatuses.MaintenanceInProgress)
                 })
                 .SingleOrDefaultAsync(cancellationToken);
@@ -178,14 +177,12 @@ public class DashboardController : ControllerBase
         }).ToList();
 
         var totalUsers = 0;
-        decimal totalPenalties = 0;
         var pendingRequests = 0;
         var pendingBorrowRequests = 0;
         var pendingConsumableRequests = 0;
         var borrowRequestsToProcess = 0;
         var consumableRequestsToProcess = 0;
         var lowStockConsumableCount = 0;
-        var warrantyExpiringSoon = 0;
         var lowStockConsumables = new List<object>();
         var borrowTrends = new List<object>();
         var teacherPendingApprovals = 0;
@@ -206,9 +203,6 @@ public class DashboardController : ControllerBase
             totalUsers = await _context.Users.CountAsync(
                 user => user.IsActive,
                 cancellationToken);
-            totalPenalties = await _context.Penalties
-                .Where(penalty => penalty.Status == PenaltyStatuses.Unpaid)
-                .SumAsync(penalty => penalty.Amount, cancellationToken);
             var borrowWork = await _context.BorrowRecords
                 .AsNoTracking()
                 .GroupBy(_ => 1)
@@ -283,32 +277,6 @@ public class DashboardController : ControllerBase
                     Title = "Yêu cầu cấp phát chờ duyệt",
                     Message = $"Có {pendingConsumableRequests} yêu cầu cấp phát cần xử lý.",
                     Level = "info"
-                });
-            }
-
-            var warrantySoonQuery = _context.Equipments
-                .AsNoTracking()
-                .Where(equipment => equipment.WarrantyExpiry.HasValue
-                    && equipment.WarrantyExpiry.Value >= now
-                    && equipment.WarrantyExpiry.Value <= now.AddDays(30));
-            var warrantySoon = await warrantySoonQuery
-                .OrderBy(equipment => equipment.WarrantyExpiry)
-                .Select(equipment => new
-                {
-                    equipment.Name,
-                    equipment.WarrantyExpiry
-                })
-                .ToListAsync(cancellationToken);
-            warrantyExpiringSoon = warrantySoon.Count;
-
-            foreach (var equipment in warrantySoon.Take(5))
-            {
-                alerts.Add(new
-                {
-                    Type = "warranty-soon",
-                    Title = "Thiết bị sắp hết bảo hành",
-                    Message = $"{equipment.Name} hết bảo hành ngày {equipment.WarrantyExpiry:dd/MM/yyyy}.",
-                    Level = "warning"
                 });
             }
 
@@ -458,7 +426,6 @@ public class DashboardController : ControllerBase
                     Borrowed = equipmentCounts?.Borrowed ?? 0,
                     Broken = equipmentCounts?.Broken ?? 0,
                     Missing = equipmentCounts?.Missing ?? 0,
-                    Warranty = equipmentCounts?.Warranty ?? 0
                 }
                 : null,
             Activities = recentActivities,
@@ -466,7 +433,6 @@ public class DashboardController : ControllerBase
             Advanced = new
             {
                 TotalUsers = totalUsers,
-                TotalPenalties = totalPenalties,
                 PendingRequests = pendingRequests,
                 LowStockConsumables = lowStockConsumables,
                 BorrowTrends = borrowTrends
@@ -504,7 +470,6 @@ public class DashboardController : ControllerBase
             ConsumableRequestsToProcess = consumableRequestsToProcess,
             OverdueBorrowRecords = overdueBorrowRecords,
             LowStockConsumables = lowStockConsumableCount,
-            WarrantyExpiringSoon = warrantyExpiringSoon,
             MaintenanceInProgress = equipmentCounts?.Maintenance ?? 0
         };
 

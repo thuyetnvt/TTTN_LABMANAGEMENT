@@ -4,6 +4,7 @@ export const userApi = {
   getAll: () => axiosClient.get('/users'),
   getPaged: (params = {}) => axiosClient.get('/users/paged', { params }),
   getTeachers: () => axiosClient.get('/users/teachers'),
+  getResponsibleUsers: () => axiosClient.get('/users/responsible'),
   getMe: () => axiosClient.get('/users/me'),
   updateMe: (data) => axiosClient.put('/users/me/profile', data),
   uploadAvatar: (file) => {
