@@ -123,6 +123,95 @@ public sealed class HandoverControllerTests
     }
 
     [Fact]
+    public async Task Borrower_can_report_handover_issue_and_cannot_confirm_while_it_is_pending()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            await SeedApprovedBorrow(context);
+            var manager = CreateController(context, 9, Roles.LabHead);
+            await manager.Create(new HandoverController.CreateHandoverDto
+            {
+                BorrowRecordId = 10,
+                Items =
+                [
+                    new HandoverController.HandoverItemDto
+                    {
+                        EquipmentId = 20,
+                        Condition = EquipmentStatuses.Available,
+                        Accessories = "Nguồn"
+                    }
+                ]
+            }, CancellationToken.None);
+
+            var borrower = CreateController(context, 1, Roles.Student);
+            var reportResult = await borrower.CreateIssueReport(
+                10,
+                new HandoverController.CreateIssueReportDto
+                {
+                    EquipmentId = 20,
+                    IssueType = HandoverIssueTypes.Accessories,
+                    Description = "Thực tế thiếu cáp USB."
+                },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(reportResult.Result);
+            var report = await context.HandoverIssueReports.AsNoTracking().SingleAsync();
+            Assert.Equal(HandoverIssueReportStatuses.Pending, report.Status);
+
+            var confirmResult = await borrower.ConfirmReceipt(10, CancellationToken.None);
+            Assert.IsType<ConflictObjectResult>(confirmResult);
+            Assert.Equal(BorrowStatuses.Approved, (await context.BorrowRecords.AsNoTracking().SingleAsync()).Status);
+        }
+    }
+
+    [Fact]
+    public async Task Manager_can_resolve_handover_issue_before_borrower_confirms()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            await SeedApprovedBorrow(context);
+            var manager = CreateController(context, 9, Roles.LabHead);
+            await manager.Create(new HandoverController.CreateHandoverDto
+            {
+                BorrowRecordId = 10,
+                Items = [new HandoverController.HandoverItemDto { EquipmentId = 20, Condition = EquipmentStatuses.Available }]
+            }, CancellationToken.None);
+
+            var borrower = CreateController(context, 1, Roles.Student);
+            await borrower.CreateIssueReport(
+                10,
+                new HandoverController.CreateIssueReportDto
+                {
+                    EquipmentId = 20,
+                    IssueType = HandoverIssueTypes.Condition,
+                    Description = "Có vết xước ở mặt trước."
+                },
+                CancellationToken.None);
+            var reportId = (await context.HandoverIssueReports.AsNoTracking().SingleAsync()).Id;
+
+            var resolveResult = await manager.ResolveIssueReport(
+                reportId,
+                new HandoverController.ResolveIssueReportDto
+                {
+                    Action = HandoverIssueReportActions.Acknowledge,
+                    Note = "Đã kiểm tra và ghi nhận tình trạng thực tế tại Lab."
+                },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(resolveResult);
+            var report = await context.HandoverIssueReports.AsNoTracking().SingleAsync();
+            Assert.Equal(HandoverIssueReportStatuses.Resolved, report.Status);
+            Assert.Equal(9, report.ResolvedByUserId);
+
+            var confirmResult = await borrower.ConfirmReceipt(10, CancellationToken.None);
+            Assert.IsType<OkObjectResult>(confirmResult);
+            Assert.Equal(BorrowStatuses.Borrowed, (await context.BorrowRecords.AsNoTracking().SingleAsync()).Status);
+        }
+    }
+
+    [Fact]
     public async Task Delegated_teacher_with_handover_permission_can_create_borrow_handover()
     {
         await using var context = CreateContext(out var connection);

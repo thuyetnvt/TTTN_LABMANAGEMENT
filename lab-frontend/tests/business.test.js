@@ -241,6 +241,29 @@ test('báo cáo hiển thị đúng ngày hạn trả và không lệch sang c�
   assert.ok(source.includes("title: 'Trạng thái', dataIndex: 'status', key: 'status'"))
 })
 
+test('phiếu chờ duyệt hiển thị ngày hạn trả thay vì trạng thái trống', () => {
+  const source = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes("{ title: 'Hạn trả', dataIndex: 'returnDate', key: 'returnDate'"))
+  assert.match(source, /column\.key === 'requestDate' \|\| column\.key === 'returnDate'/)
+  assert.doesNotMatch(source, /key: 'dueStatus'/)
+})
+
+test('luồng bàn giao cho phép báo sai lệch và khóa xác nhận khi đang chờ xử lý', () => {
+  const historySource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+  const handoverApiSource = readFileSync(new URL('../src/api/handoverApi.js', import.meta.url), 'utf8')
+  const issueViewSource = readFileSync(new URL('../src/views/HandoverIssuesView.vue', import.meta.url), 'utf8')
+  const routerSource = readFileSync(new URL('../src/router/index.js', import.meta.url), 'utf8')
+
+  assert.match(historySource, /Báo sai lệch/)
+  assert.match(historySource, /selectedHandover\?\.canConfirm/)
+  assert.match(historySource, /hasPendingIssueReports/)
+  assert.match(handoverApiSource, /createIssueReport/)
+  assert.match(handoverApiSource, /resolveIssueReport/)
+  assert.match(issueViewSource, /Báo cáo sai lệch bàn giao/)
+  assert.match(routerSource, /name: 'HandoverIssues'/)
+})
+
 test('kiểm kê hiển thị đã đối soát cho tài sản đã quét bình thường', () => {
   const source = readFileSync(new URL('../src/views/InventoryView.vue', import.meta.url), 'utf8')
 

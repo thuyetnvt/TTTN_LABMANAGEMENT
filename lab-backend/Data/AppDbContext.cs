@@ -33,6 +33,7 @@ namespace LabManagementAPI.Data
         public DbSet<HandoverRecord> HandoverRecords { get; set; }
         public DbSet<HandoverItem> HandoverItems { get; set; }
         public DbSet<HandoverEvidence> HandoverEvidence { get; set; }
+        public DbSet<HandoverIssueReport> HandoverIssueReports { get; set; }
         public DbSet<EquipmentLocationHistory> EquipmentLocationHistories { get; set; }
         public DbSet<AutomationDispatch> AutomationDispatches { get; set; }
         public DbSet<ApprovalDelegation> ApprovalDelegations { get; set; }
@@ -366,6 +367,25 @@ namespace LabManagementAPI.Data
                 entity.HasOne(item => item.BorrowRecord).WithMany().HasForeignKey(item => item.BorrowRecordId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(item => item.HandedOverByUser).WithMany().HasForeignKey(item => item.HandedOverByUserId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(item => item.ReceivedByUser).WithMany().HasForeignKey(item => item.ReceivedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<HandoverIssueReport>(entity =>
+            {
+                entity.Property(item => item.IssueType).HasMaxLength(50);
+                entity.Property(item => item.Description).HasMaxLength(2000);
+                entity.Property(item => item.Status).HasMaxLength(50);
+                entity.Property(item => item.ResolutionAction).HasMaxLength(50);
+                entity.Property(item => item.ResolutionNote).HasMaxLength(2000);
+                entity.HasIndex(item => new { item.HandoverRecordId, item.Status });
+                entity.HasIndex(item => new { item.HandoverRecordId, item.EquipmentId, item.Status });
+                entity.HasOne(item => item.HandoverRecord).WithMany(record => record.IssueReports)
+                    .HasForeignKey(item => item.HandoverRecordId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.Equipment).WithMany()
+                    .HasForeignKey(item => item.EquipmentId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.ReportedByUser).WithMany()
+                    .HasForeignKey(item => item.ReportedByUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.ResolvedByUser).WithMany()
+                    .HasForeignKey(item => item.ResolvedByUserId).OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<HandoverItem>(entity =>

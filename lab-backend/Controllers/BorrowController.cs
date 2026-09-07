@@ -443,6 +443,7 @@ public class BorrowController : ControllerBase
             .Where(item => recordIds.Contains(item.BorrowRecordId))
             .Include(item => item.Items)
                 .ThenInclude(item => item.Equipment)
+            .Include(item => item.IssueReports)
             .ToDictionaryAsync(item => item.BorrowRecordId, cancellationToken);
         var historyToday = VietnamTime.Today();
 
@@ -492,7 +493,8 @@ public class BorrowController : ControllerBase
                 canConfirmHandover = item.UserId == userId
                     && item.Status == Approved
                     && handover is not null
-                    && handover.ConfirmedAt is null,
+                    && handover.ConfirmedAt is null
+                    && !handover.IssueReports.Any(issue => issue.Status == HandoverIssueReportStatuses.Pending),
                 canCancel = (role is Roles.Student or Roles.Teacher)
                     && item.UserId == userId
                     && item.Status is Pending or TeacherPending,
@@ -594,6 +596,7 @@ public class BorrowController : ControllerBase
             .Where(item => recordIds.Contains(item.BorrowRecordId))
             .Include(item => item.Items)
                 .ThenInclude(item => item.Equipment)
+            .Include(item => item.IssueReports)
             .ToDictionaryAsync(item => item.BorrowRecordId, cancellationToken);
         var historyToday = VietnamTime.Today();
         var items = page.Items.Select(item =>
@@ -640,7 +643,8 @@ public class BorrowController : ControllerBase
                 canConfirmHandover = item.UserId == userId
                     && item.Status == Approved
                     && handover is not null
-                    && handover.ConfirmedAt is null,
+                    && handover.ConfirmedAt is null
+                    && !handover.IssueReports.Any(issue => issue.Status == HandoverIssueReportStatuses.Pending),
                 canCancel = (role is Roles.Student or Roles.Teacher)
                     && item.UserId == userId
                     && item.Status is Pending or TeacherPending,

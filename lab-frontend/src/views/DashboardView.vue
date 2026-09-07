@@ -67,6 +67,9 @@
             <a-menu-item v-if="isManagerRole(role)" key="m_reports" @click="$router.push({ name: 'Reports' })">
               <bar-chart-outlined /><span>Báo cáo</span>
             </a-menu-item>
+            <a-menu-item v-if="isManagerRole(role)" key="m_handover_issues" @click="$router.push({ name: 'HandoverIssues' })">
+              <warning-outlined /><span>Báo cáo sai lệch</span>
+            </a-menu-item>
             <a-menu-item v-if="isTeacherRole(role)" key="m_teacher" @click="$router.push({ name: 'TeacherApproval' })">
               <solution-outlined /><span>{{ $t('menu.teacherApproval') }}</span>
             </a-menu-item>
@@ -334,7 +337,8 @@ import {
   MenuUnfoldOutlined,
   ScanOutlined,
   CalendarOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  WarningOutlined
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
 import { notification } from 'ant-design-vue'
@@ -393,7 +397,8 @@ const routeMenuKeys = {
   BorrowRequests: 'g1_1',
   AdminUsers: 'g1_3',
   AuditLogs: 'g1_4',
-  ApprovalDelegations: 'm_delegations'
+  ApprovalDelegations: 'm_delegations',
+  HandoverIssues: 'm_handover_issues'
 }
 const selectedKey = computed(() => {
   if (route.name === 'ConsumableRequests') {

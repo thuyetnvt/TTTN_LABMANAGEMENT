@@ -15,6 +15,8 @@ const TYPE_LABELS = {
   BORROW_REJECTED: 'Mượn trả',
   BORROW_RETURNED: 'Mượn trả',
   HANDOVER_CREATED: 'Bàn giao',
+  HANDOVER_ISSUE_REPORTED: 'Bàn giao',
+  HANDOVER_ISSUE_RESOLVED: 'Bàn giao',
   CONSUMABLE_PENDING: 'Vật tư',
   CONSUMABLE_ISSUED: 'Vật tư',
   CONSUMABLE_REJECTED: 'Vật tư',
@@ -31,7 +33,7 @@ export const notificationIcon = type => {
   if (type?.startsWith('MAINTENANCE')) return ToolOutlined
   if (type?.startsWith('INVENTORY')) return AuditOutlined
   if (type?.startsWith('CONSUMABLE')) return InboxOutlined
-  if (type?.startsWith('BORROW') || type === 'HANDOVER_CREATED') return CheckCircleOutlined
+  if (type?.startsWith('BORROW') || type === 'HANDOVER_CREATED' || type?.startsWith('HANDOVER_ISSUE')) return CheckCircleOutlined
   if (type === 'WARNING') return WarningOutlined
   return BellOutlined
 }

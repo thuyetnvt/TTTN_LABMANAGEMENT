@@ -34,10 +34,6 @@
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
           </template>
-          <template v-else-if="column.key === 'dueStatus'">
-            <a-tag v-if="dueState(record).color" :color="dueState(record).color">{{ dueState(record).label }}</a-tag>
-            <span v-else class="muted">—</span>
-          </template>
           <template v-else-if="column.key === 'status'">
             <StatusBadge :status="record.status" type="borrow" :label-override="borrowWorkflowLabel(record)" />
           </template>
@@ -322,8 +318,7 @@ const columns = [
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
   { title: 'Chi tiết yêu cầu', key: 'details', width: 200, filterType: 'search', filterPlaceholder: 'Tìm chi tiết...' },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 155 },
-  { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true, width: 145 },
-  { title: 'Hạn trả', key: 'dueStatus', sortKey: 'dueStatus', sortable: true, align: 'center', width: 130 },
+  { title: 'Hạn trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true, width: 145 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', sortKey: 'purpose', sortable: true, width: 180, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 120, filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220 }
@@ -349,13 +344,6 @@ const borrowWorkflowLabel = record => {
     return record.hasHandover ? 'Đã bàn giao, chờ người nhận xác nhận' : 'Đã duyệt, chờ lập bàn giao'
   }
   return ''
-}
-
-const dueState = record => {
-  if (!statusMatches(record.status, STATUS.BORROWED)) return { label: '', color: '' }
-  if (record.isOverdue) return { label: `Quá hạn ${Math.abs(record.daysUntilDue)} ngày`, color: 'red' }
-  if (record.daysUntilDue <= 2) return { label: 'Sắp tới hạn', color: 'orange' }
-  return { label: 'Trong hạn', color: 'green' }
 }
 
 const showExistingHandover = async record => {

@@ -53,6 +53,19 @@ public class HandoverController : ControllerBase
         [MinLength(1)] public List<HandoverItemDto> Items { get; set; } = new();
     }
 
+    public sealed class CreateIssueReportDto
+    {
+        [Range(1, int.MaxValue)] public int EquipmentId { get; set; }
+        [Required, MaxLength(50)] public string IssueType { get; set; } = string.Empty;
+        [Required, MaxLength(2000)] public string Description { get; set; } = string.Empty;
+    }
+
+    public sealed class ResolveIssueReportDto
+    {
+        [Required, MaxLength(50)] public string Action { get; set; } = string.Empty;
+        [Required, MaxLength(2000)] public string Note { get; set; } = string.Empty;
+    }
+
     [HttpGet("{borrowRecordId:int}")]
     public async Task<ActionResult<object>> Get(int borrowRecordId, CancellationToken cancellationToken)
     {
@@ -60,6 +73,7 @@ public class HandoverController : ControllerBase
             .Include(item => item.BorrowRecord)
             .Include(item => item.Items).ThenInclude(item => item.Equipment)
             .Include(item => item.Evidence)
+            .Include(item => item.IssueReports)
             .SingleOrDefaultAsync(item => item.BorrowRecordId == borrowRecordId, cancellationToken);
         if (handover is null) return NotFound(new { message = "Phiếu chưa có biên bản bàn giao." });
         var userId = GetCurrentUserId();
@@ -69,7 +83,24 @@ public class HandoverController : ControllerBase
             handover.Id, handover.Code, handover.BorrowRecordId, handover.HandoverAt, handover.Notes, handover.ConfirmedAt,
             canConfirm = handover.BorrowRecord?.UserId == userId
                 && handover.BorrowRecord.Status == BorrowStatuses.Approved
+                && handover.ConfirmedAt is null
+                && !handover.IssueReports.Any(issue => issue.Status == HandoverIssueReportStatuses.Pending),
+            canReportIssue = handover.BorrowRecord?.UserId == userId
+                && handover.BorrowRecord.Status == BorrowStatuses.Approved
                 && handover.ConfirmedAt is null,
+            hasPendingIssueReports = handover.IssueReports.Any(issue => issue.Status == HandoverIssueReportStatuses.Pending),
+            issueReports = handover.IssueReports.OrderByDescending(issue => issue.ReportedAt).Select(issue => new
+            {
+                issue.Id,
+                issue.EquipmentId,
+                issue.IssueType,
+                issue.Description,
+                issue.Status,
+                issue.ResolutionAction,
+                issue.ResolutionNote,
+                issue.ReportedAt,
+                issue.ResolvedAt
+            }),
             items = handover.Items.Select(item => new
             {
                 item.EquipmentId, equipmentName = item.Equipment!.Name, serial = item.Equipment.Serial,
@@ -81,6 +112,167 @@ public class HandoverController : ControllerBase
                 item.ContentType, item.FileSize, item.UploadedAt
             })
         });
+    }
+
+    [HttpPost("{borrowRecordId:int}/issue-reports")]
+    [Authorize(Roles = Roles.Borrowers)]
+    public async Task<ActionResult<object>> CreateIssueReport(
+        int borrowRecordId,
+        [FromBody] CreateIssueReportDto dto,
+        CancellationToken cancellationToken)
+    {
+        dto.IssueType = dto.IssueType.Trim().ToUpperInvariant();
+        dto.Description = dto.Description.Trim();
+        if (!HandoverIssueTypes.All.Contains(dto.IssueType))
+            return BadRequest(new { message = "Loại sai lệch không hợp lệ." });
+        if (string.IsNullOrWhiteSpace(dto.Description))
+            return BadRequest(new { message = "Vui lòng mô tả sai lệch thực tế." });
+
+        var userId = GetCurrentUserId();
+        var handover = await _context.HandoverRecords
+            .Include(item => item.BorrowRecord)
+            .Include(item => item.Items)
+            .SingleOrDefaultAsync(item => item.BorrowRecordId == borrowRecordId, cancellationToken);
+        if (handover?.BorrowRecord is null)
+            return NotFound(new { message = "Không tìm thấy biên bản bàn giao." });
+        if (handover.BorrowRecord.UserId != userId) return Forbid();
+        if (handover.ConfirmedAt.HasValue || handover.BorrowRecord.Status != BorrowStatuses.Approved)
+            return Conflict(new { message = "Chỉ được báo sai lệch trước khi xác nhận nhận tài sản." });
+        if (!handover.Items.Any(item => item.EquipmentId == dto.EquipmentId))
+            return BadRequest(new { message = "Tài sản không thuộc biên bản bàn giao." });
+        if (await _context.HandoverIssueReports.AnyAsync(
+                issue => issue.HandoverRecordId == handover.Id
+                    && issue.EquipmentId == dto.EquipmentId
+                    && issue.Status == HandoverIssueReportStatuses.Pending,
+                cancellationToken))
+            return Conflict(new { message = "Tài sản này đã có báo cáo sai lệch đang chờ xử lý." });
+
+        var report = new HandoverIssueReport
+        {
+            HandoverRecordId = handover.Id,
+            EquipmentId = dto.EquipmentId,
+            ReportedByUserId = userId,
+            IssueType = dto.IssueType,
+            Description = dto.Description,
+            Status = HandoverIssueReportStatuses.Pending,
+            ReportedAt = DateTime.UtcNow
+        };
+        _context.HandoverIssueReports.Add(report);
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(
+            HttpContext,
+            "CreateIssueReport",
+            nameof(HandoverIssueReport),
+            report.Id,
+            new { report.HandoverRecordId, report.EquipmentId, report.IssueType },
+            cancellationToken);
+        await _notificationService.NotifyManagersAsync(
+            "HANDOVER_ISSUE_REPORTED",
+            "Có báo cáo sai lệch bàn giao",
+            $"{handover.BorrowRecord.User?.FullName ?? "Người mượn"} đã báo sai lệch cho biên bản {handover.Code}. Vui lòng kiểm tra tại Lab.",
+            "/dashboard/handover-issues",
+            cancellationToken);
+
+        return Ok(new { report.Id, message = "Đã gửi báo cáo sai lệch. Vui lòng chờ quản lý kiểm tra tại Lab." });
+    }
+
+    [HttpGet("issue-reports")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<ActionResult<IEnumerable<object>>> GetIssueReports(
+        [FromQuery] string? status,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.HandoverIssueReports
+            .AsNoTracking()
+            .Include(issue => issue.HandoverRecord)
+                .ThenInclude(handover => handover!.BorrowRecord)
+                    .ThenInclude(record => record!.User)
+            .Include(issue => issue.Equipment)
+            .Include(issue => issue.ReportedByUser)
+            .Include(issue => issue.ResolvedByUser)
+            .AsQueryable();
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(issue => issue.Status == status.Trim());
+
+        var reports = await query
+            .OrderByDescending(issue => issue.Status == HandoverIssueReportStatuses.Pending)
+            .ThenByDescending(issue => issue.ReportedAt)
+            .Select(issue => new
+            {
+                issue.Id,
+                issue.HandoverRecordId,
+                borrowRecordId = issue.HandoverRecord!.BorrowRecordId,
+                handoverCode = issue.HandoverRecord.Code,
+                borrowerName = issue.HandoverRecord.BorrowRecord!.User!.FullName,
+                borrowerUsername = issue.HandoverRecord.BorrowRecord.User.Username,
+                equipmentId = issue.EquipmentId,
+                equipmentName = issue.Equipment!.Name,
+                assetCode = issue.Equipment.AssetCode,
+                serial = issue.Equipment.Serial,
+                issue.IssueType,
+                issue.Description,
+                issue.Status,
+                issue.ResolutionAction,
+                issue.ResolutionNote,
+                reportedAt = issue.ReportedAt,
+                resolvedAt = issue.ResolvedAt,
+                resolvedByName = issue.ResolvedByUser == null ? null : issue.ResolvedByUser.FullName
+            })
+            .ToListAsync(cancellationToken);
+        return Ok(reports);
+    }
+
+    [HttpPut("issue-reports/{id:int}/resolve")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> ResolveIssueReport(
+        int id,
+        [FromBody] ResolveIssueReportDto dto,
+        CancellationToken cancellationToken)
+    {
+        dto.Action = dto.Action.Trim().ToUpperInvariant();
+        dto.Note = dto.Note.Trim();
+        if (!HandoverIssueReportActions.All.Contains(dto.Action))
+            return BadRequest(new { message = "Hướng xử lý sai lệch không hợp lệ." });
+        if (string.IsNullOrWhiteSpace(dto.Note))
+            return BadRequest(new { message = "Vui lòng nhập ghi chú xử lý." });
+
+        var report = await _context.HandoverIssueReports
+            .Include(issue => issue.HandoverRecord)
+                .ThenInclude(handover => handover!.BorrowRecord)
+            .SingleOrDefaultAsync(issue => issue.Id == id, cancellationToken);
+        if (report is null) return NotFound(new { message = "Không tìm thấy báo cáo sai lệch." });
+        if (report.Status != HandoverIssueReportStatuses.Pending)
+            return Conflict(new { message = "Báo cáo này đã được xử lý trước đó." });
+
+        report.Status = dto.Action == HandoverIssueReportActions.Reject
+            ? HandoverIssueReportStatuses.Rejected
+            : HandoverIssueReportStatuses.Resolved;
+        report.ResolutionAction = dto.Action;
+        report.ResolutionNote = dto.Note;
+        report.ResolvedByUserId = GetCurrentUserId();
+        report.ResolvedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(
+            HttpContext,
+            "ResolveIssueReport",
+            nameof(HandoverIssueReport),
+            report.Id,
+            new { report.Status, report.ResolutionAction, report.ResolutionNote },
+            cancellationToken);
+        if (report.HandoverRecord?.BorrowRecord is not null)
+        {
+            var message = report.Status == HandoverIssueReportStatuses.Rejected
+                ? "Báo cáo sai lệch của bạn đã được quản lý kiểm tra và từ chối."
+                : "Báo cáo sai lệch của bạn đã được quản lý kiểm tra và ghi nhận. Vui lòng kiểm tra lại thiết bị tại Lab rồi xác nhận nhận tài sản.";
+            await _notificationService.NotifyUserAsync(
+                report.HandoverRecord.BorrowRecord.UserId,
+                "HANDOVER_ISSUE_RESOLVED",
+                "Đã xử lý báo cáo sai lệch",
+                message,
+                "/dashboard/borrow-history",
+                cancellationToken);
+        }
+        return Ok(new { message = "Đã cập nhật kết quả xử lý báo cáo sai lệch." });
     }
 
     [HttpPost]
@@ -151,6 +343,11 @@ public class HandoverController : ControllerBase
         if (handover.BorrowRecord.UserId != userId) return Forbid();
         if (handover.ConfirmedAt.HasValue)
             return Conflict(new { message = "Biên bản đã được xác nhận trước đó." });
+        if (await _context.HandoverIssueReports.AnyAsync(
+                issue => issue.HandoverRecordId == handover.Id
+                    && issue.Status == HandoverIssueReportStatuses.Pending,
+                cancellationToken))
+            return Conflict(new { message = "Có báo cáo sai lệch đang chờ quản lý xử lý; chưa thể xác nhận nhận tài sản." });
         if (handover.BorrowRecord.Status is not (BorrowStatuses.Approved or BorrowStatuses.Borrowed))
             return Conflict(new { message = "Phiếu không ở trạng thái chờ xác nhận nhận tài sản." });
 

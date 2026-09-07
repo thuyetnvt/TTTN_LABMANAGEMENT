@@ -117,11 +117,18 @@
       width="720px"
     >
       <a-spin :spinning="handoverLoading">
-        <a-alert v-if="selectedRecord?.canConfirmHandover"
+        <a-alert v-if="selectedHandover?.canConfirm"
           type="warning"
           show-icon
           message="Chỉ xác nhận sau khi đã nhận và kiểm tra thực tế"
           description="Khi xác nhận, phiếu sẽ chuyển sang Đang mượn và tài sản được ghi nhận đang do bạn quản lý."
+          style="margin-bottom: 16px"
+        />
+        <a-alert v-if="selectedHandover?.hasPendingIssueReports"
+          type="error"
+          show-icon
+          message="Có báo cáo sai lệch đang chờ quản lý xử lý"
+          description="Chưa thể xác nhận nhận tài sản. Vui lòng phối hợp kiểm tra trực tiếp tại Lab."
           style="margin-bottom: 16px"
         />
         <a-descriptions v-if="selectedHandover" bordered size="small" :column="1">
@@ -136,15 +143,68 @@
             <div>Tình trạng: <StatusBadge :status="item.condition" type="returnCondition" /></div>
             <div>Phụ kiện: {{ item.accessories || 'Không ghi nhận' }}</div>
             <div>Ghi chú: {{ item.note || 'Không có' }}</div>
+            <div v-if="selectedHandover?.canReportIssue" class="handover-item-actions">
+              <a-button
+                v-if="issueReportFor(item.equipmentId)?.status !== 'HANDOVER_ISSUE_PENDING'"
+                size="small"
+                danger
+                @click="openIssueReport(item)"
+              >
+                Báo sai lệch
+              </a-button>
+              <a-tag v-else color="orange">Đã báo, chờ xử lý</a-tag>
+            </div>
+            <div v-else-if="issueReportFor(item.equipmentId)" class="handover-issue-summary">
+              <a-tag :color="issueReportFor(item.equipmentId).status === 'HANDOVER_ISSUE_REJECTED' ? 'red' : 'green'">
+                {{ issueReportFor(item.equipmentId).status === 'HANDOVER_ISSUE_REJECTED' ? 'Báo cáo bị từ chối' : 'Đã xử lý sai lệch' }}
+              </a-tag>
+              <span>{{ issueReportFor(item.equipmentId).resolutionNote || 'Đã có kết quả xử lý.' }}</span>
+            </div>
           </a-card>
         </div>
       </a-spin>
       <template #footer>
         <a-button @click="isHandoverVisible = false">Đóng</a-button>
-        <a-button v-if="selectedRecord?.canConfirmHandover" type="primary" :loading="confirming" @click="confirmReceipt">
+        <a-button v-if="selectedHandover?.canConfirm" type="primary" :loading="confirming" @click="confirmReceipt">
           Xác nhận đã nhận đủ
         </a-button>
       </template>
+    </a-modal>
+
+    <a-modal
+      v-model:open="issueReportVisible"
+      title="Báo cáo sai lệch bàn giao"
+      ok-text="Gửi báo cáo"
+      cancel-text="Hủy"
+      :confirm-loading="issueSubmitting"
+      @ok="submitIssueReport"
+    >
+      <a-alert
+        v-if="issueReportItem"
+        type="warning"
+        show-icon
+        :message="`Thiết bị: ${issueReportItem.equipmentName}`"
+        :description="`Serial: ${issueReportItem.serial || 'Không có serial'}`"
+        style="margin-bottom: 16px"
+      />
+      <a-form layout="vertical">
+        <a-form-item label="Loại sai lệch" required>
+          <a-select v-model:value="issueForm.issueType" placeholder="Chọn loại sai lệch">
+            <a-select-option v-for="option in issueTypeOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="Mô tả thực tế" required>
+          <a-textarea
+            v-model:value="issueForm.description"
+            :rows="5"
+            maxlength="2000"
+            show-count
+            placeholder="Mô tả rõ điểm khác với biên bản: thiếu phụ kiện, trầy xước, không hoạt động..."
+          />
+        </a-form-item>
+      </a-form>
     </a-modal>
 
     <a-modal v-model:open="isDetailsVisible" title="Chi tiết phiếu mượn/trả" :footer="null" width="760px">
@@ -230,6 +290,18 @@ const cancelRecord = ref(null)
 const isReturnVisible = ref(false)
 const returnRecord = ref(null)
 const remindingRecordIds = ref(new Set())
+const issueReportVisible = ref(false)
+const issueSubmitting = ref(false)
+const issueReportItem = ref(null)
+const issueForm = reactive({ issueType: 'CONDITION', description: '' })
+
+const issueTypeOptions = [
+  { value: 'CONDITION', label: 'Tình trạng khác mô tả' },
+  { value: 'ACCESSORIES', label: 'Thiếu hoặc sai phụ kiện' },
+  { value: 'WRONG_ASSET', label: 'Sai thiết bị, mã tài sản hoặc serial' },
+  { value: 'NOT_WORKING', label: 'Thiết bị không hoạt động' },
+  { value: 'OTHER', label: 'Khác' }
+]
 
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
 const isReminding = id => remindingRecordIds.value.has(id)
@@ -401,6 +473,39 @@ const applyColumnFilter = (column, value) => {
   applyFilters()
 }
 
+const issueReportFor = equipmentId => selectedHandover.value?.issueReports?.find(issue => issue.equipmentId === equipmentId) || null
+
+const openIssueReport = item => {
+  issueReportItem.value = item
+  issueForm.issueType = 'CONDITION'
+  issueForm.description = ''
+  issueReportVisible.value = true
+}
+
+const submitIssueReport = async () => {
+  const description = issueForm.description.trim()
+  if (!issueReportItem.value || !description) {
+    message.warning('Vui lòng mô tả sai lệch thực tế.')
+    return
+  }
+
+  issueSubmitting.value = true
+  try {
+    await handoverApi.createIssueReport(selectedRecord.value.id, {
+      equipmentId: issueReportItem.value.equipmentId,
+      issueType: issueForm.issueType,
+      description
+    })
+    message.success('Đã gửi báo cáo sai lệch cho quản lý Lab.')
+    issueReportVisible.value = false
+    await openHandover(selectedRecord.value)
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể gửi báo cáo sai lệch.'))
+  } finally {
+    issueSubmitting.value = false
+  }
+}
+
 const applyColumnSort = (column, order) => {
   sortState.field = order ? column.sortKey : undefined
   sortState.order = order
@@ -416,6 +521,8 @@ const handleTableChange = (pager) => {
 </script>
 
 <style scoped>
+.handover-item-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.handover-issue-summary { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; color: var(--color-secondary); font-size: 13px; }
 .borrow-history-container {
   padding: 0;
 }

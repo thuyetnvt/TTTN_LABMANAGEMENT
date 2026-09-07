@@ -20,6 +20,7 @@ const routes = [
       { path: 'notifications', name: 'Notifications', component: () => import('../views/NotificationsView.vue') },
       { path: 'profile', name: 'Profile', component: () => import('../views/ProfileView.vue') },
       { path: 'reports', name: 'Reports', component: () => import('../views/ReportsView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
+      { path: 'handover-issues', name: 'HandoverIssues', component: () => import('../views/HandoverIssuesView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
       { path: 'admin/users', name: 'AdminUsers', component: () => import('../views/AdminUsersView.vue'), meta: { allowedRoles: [ROLE.ADMIN] } },
       { path: 'admin/audit-logs', name: 'AuditLogs', component: () => import('../views/AuditLogsView.vue'), meta: { allowedRoles: [ROLE.ADMIN] } },
       { path: 'borrow-requests', name: 'BorrowRequests', component: () => import('../views/BorrowRequestsView.vue'), meta: { allowedRoles: [...MANAGER_ROLES, ROLE.TEACHER] } },

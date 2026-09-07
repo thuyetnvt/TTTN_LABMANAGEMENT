@@ -15,4 +15,5 @@ public class HandoverRecord
     public DateTime? ConfirmedAt { get; set; }
     public ICollection<HandoverItem> Items { get; set; } = new List<HandoverItem>();
     public ICollection<HandoverEvidence> Evidence { get; set; } = new List<HandoverEvidence>();
+    public ICollection<HandoverIssueReport> IssueReports { get; set; } = new List<HandoverIssueReport>();
 }

@@ -58,6 +58,43 @@ public static class InventoryItemStatuses
     public const string Missing = "INVENTORY_MISSING";
 }
 
+public static class HandoverIssueReportStatuses
+{
+    public const string Pending = "HANDOVER_ISSUE_PENDING";
+    public const string Resolved = "HANDOVER_ISSUE_RESOLVED";
+    public const string Rejected = "HANDOVER_ISSUE_REJECTED";
+}
+
+public static class HandoverIssueReportActions
+{
+    public const string Acknowledge = "ACKNOWLEDGE";
+    public const string Reject = "REJECT";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        Acknowledge,
+        Reject
+    };
+}
+
+public static class HandoverIssueTypes
+{
+    public const string Condition = "CONDITION";
+    public const string Accessories = "ACCESSORIES";
+    public const string WrongAsset = "WRONG_ASSET";
+    public const string NotWorking = "NOT_WORKING";
+    public const string Other = "OTHER";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        Condition,
+        Accessories,
+        WrongAsset,
+        NotWorking,
+        Other
+    };
+}
+
 public static class StatusCodeMap
 {
     public static readonly IReadOnlyDictionary<string, string> LegacyMap =
