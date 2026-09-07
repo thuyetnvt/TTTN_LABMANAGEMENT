@@ -37,6 +37,7 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailO
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IApprovalDelegationService, ApprovalDelegationService>();
 builder.Services.AddScoped<OperationalAutomationRunner>();
 builder.Services.AddHostedService<OperationalAutomationWorker>();
 if (string.Equals(builder.Configuration["Storage:Provider"], "S3", StringComparison.OrdinalIgnoreCase))

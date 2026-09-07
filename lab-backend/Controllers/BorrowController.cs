@@ -36,6 +36,7 @@ public class BorrowController : ControllerBase
     private readonly IFileStorage _fileStorage;
     private readonly IConfiguration _configuration;
     private readonly ILogger<BorrowController> _logger;
+    private readonly IApprovalDelegationService _approvalDelegationService;
 
     public BorrowController(
         AppDbContext context,
@@ -44,7 +45,8 @@ public class BorrowController : ControllerBase
         IAuditService auditService,
         IFileStorage fileStorage,
         IConfiguration configuration,
-        ILogger<BorrowController>? logger = null)
+        ILogger<BorrowController>? logger = null,
+        IApprovalDelegationService? approvalDelegationService = null)
     {
         _context = context;
         _emailService = emailService;
@@ -53,6 +55,7 @@ public class BorrowController : ControllerBase
         _fileStorage = fileStorage;
         _configuration = configuration;
         _logger = logger ?? NullLogger<BorrowController>.Instance;
+        _approvalDelegationService = approvalDelegationService ?? new ApprovalDelegationService(context);
     }
 
     public sealed class BorrowRequestDto
@@ -253,10 +256,11 @@ public class BorrowController : ControllerBase
     }
 
     [HttpGet("pending")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<ActionResult<IEnumerable<object>>> GetPendingRequests(
         CancellationToken cancellationToken)
     {
+        if (!await CanApproveBorrowAsync(cancellationToken)) return Forbid();
+
         var requests = await _context.BorrowRecords
             .AsNoTracking()
             .Include(item => item.User)
@@ -314,11 +318,12 @@ public class BorrowController : ControllerBase
     }
 
     [HttpGet("pending/paged")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> GetPendingRequestsPaged(
         [FromQuery] PageQuery paging,
         CancellationToken cancellationToken)
     {
+        if (!await CanApproveBorrowAsync(cancellationToken)) return Forbid();
+
         var query = _context.BorrowRecords
             .AsNoTracking()
             .Include(item => item.User)
@@ -902,11 +907,12 @@ public class BorrowController : ControllerBase
     }
 
     [HttpPut("{id:int}/approve")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> ApproveRequest(
         int id,
         CancellationToken cancellationToken)
     {
+        if (!await CanApproveBorrowAsync(cancellationToken)) return Forbid();
+
         var record = await _context.BorrowRecords
             .AsNoTracking()
             .Include(item => item.Equipment)
@@ -990,12 +996,13 @@ public class BorrowController : ControllerBase
     }
 
     [HttpPut("{id:int}/reject")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> RejectRequest(
         int id,
         [FromBody] DecisionNoteDto? dto,
         CancellationToken cancellationToken)
     {
+        if (!await CanApproveBorrowAsync(cancellationToken)) return Forbid();
+
         var record = await _context.BorrowRecords
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -1520,6 +1527,15 @@ public class BorrowController : ControllerBase
     private int GetCurrentUserId()
     {
         return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
+    private Task<bool> CanApproveBorrowAsync(CancellationToken cancellationToken)
+    {
+        return _approvalDelegationService.CanApproveAsync(
+            GetCurrentUserId(),
+            User.FindFirstValue(ClaimTypes.Role),
+            ApprovalDelegationScopes.BorrowRequest,
+            cancellationToken);
     }
 
     private decimal GetOverduePenaltyAmountPerDay()

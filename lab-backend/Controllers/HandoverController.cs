@@ -20,19 +20,22 @@ public class HandoverController : ControllerBase
     private readonly INotificationService _notificationService;
     private readonly IFileStorage _fileStorage;
     private readonly IConfiguration _configuration;
+    private readonly IApprovalDelegationService _approvalDelegationService;
 
     public HandoverController(
         AppDbContext context,
         IAuditService auditService,
         INotificationService notificationService,
         IFileStorage fileStorage,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IApprovalDelegationService? approvalDelegationService = null)
     {
         _context = context;
         _auditService = auditService;
         _notificationService = notificationService;
         _fileStorage = fileStorage;
         _configuration = configuration;
+        _approvalDelegationService = approvalDelegationService ?? new ApprovalDelegationService(context);
     }
 
     public sealed class HandoverItemDto
@@ -60,7 +63,7 @@ public class HandoverController : ControllerBase
             .SingleOrDefaultAsync(item => item.BorrowRecordId == borrowRecordId, cancellationToken);
         if (handover is null) return NotFound(new { message = "Phiếu chưa có biên bản bàn giao." });
         var userId = GetCurrentUserId();
-        if (!IsManager() && handover.BorrowRecord?.UserId != userId) return Forbid();
+        if (!await CanHandoverBorrowAsync(cancellationToken) && handover.BorrowRecord?.UserId != userId) return Forbid();
         return Ok(new
         {
             handover.Id, handover.Code, handover.BorrowRecordId, handover.HandoverAt, handover.Notes, handover.ConfirmedAt,
@@ -81,9 +84,10 @@ public class HandoverController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<ActionResult<object>> Create([FromBody] CreateHandoverDto dto, CancellationToken cancellationToken)
     {
+        if (!await CanHandoverBorrowAsync(cancellationToken)) return Forbid();
+
         dto.Notes = dto.Notes.Trim();
         foreach (var item in dto.Items)
         {
@@ -238,13 +242,14 @@ public class HandoverController : ControllerBase
 
     [HttpPost("{borrowRecordId:int}/evidence")]
     [EnableRateLimiting("sensitive")]
-    [Authorize(Roles = Roles.Managers)]
     [RequestSizeLimit(11_000_000)]
     public async Task<IActionResult> UploadEvidence(
         int borrowRecordId,
         [FromForm] UploadEvidenceDto dto,
         CancellationToken cancellationToken)
     {
+        if (!await CanHandoverBorrowAsync(cancellationToken)) return Forbid();
+
         if (dto.File is null) return BadRequest(new { message = "Vui lòng chọn file minh chứng." });
         dto.EvidenceType = dto.EvidenceType.Trim().ToUpperInvariant();
         if (dto.EvidenceType is not ("PHOTO" or "DOCUMENT" or "SIGNATURE"))
@@ -301,7 +306,8 @@ public class HandoverController : ControllerBase
                 .ThenInclude(item => item!.BorrowRecord)
             .SingleOrDefaultAsync(item => item.Id == evidenceId && item.HandoverRecord!.BorrowRecordId == borrowRecordId, cancellationToken);
         if (evidence is null) return NotFound();
-        if (!IsManager() && evidence.HandoverRecord?.BorrowRecord?.UserId != GetCurrentUserId()) return Forbid();
+        if (!await CanHandoverBorrowAsync(cancellationToken)
+            && evidence.HandoverRecord?.BorrowRecord?.UserId != GetCurrentUserId()) return Forbid();
         var stream = await _fileStorage.OpenReadAsync(evidence.StoredPath, cancellationToken);
         if (stream is null) return NotFound();
         return File(stream, evidence.ContentType, evidence.OriginalFileName, enableRangeProcessing: true);
@@ -325,6 +331,15 @@ public class HandoverController : ControllerBase
     }
 
     private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private Task<bool> CanHandoverBorrowAsync(CancellationToken cancellationToken)
+    {
+        return _approvalDelegationService.CanHandoverAsync(
+            GetCurrentUserId(),
+            User.FindFirstValue(ClaimTypes.Role),
+            ApprovalDelegationScopes.BorrowRequest,
+            cancellationToken);
+    }
 
     private bool IsManager() => User.IsInRole(Roles.Admin)
         || User.IsInRole(Roles.LabHead)

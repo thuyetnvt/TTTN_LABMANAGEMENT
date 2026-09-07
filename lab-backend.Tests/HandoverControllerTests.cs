@@ -122,6 +122,86 @@ public sealed class HandoverControllerTests
         }
     }
 
+    [Fact]
+    public async Task Delegated_teacher_with_handover_permission_can_create_borrow_handover()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            await SeedApprovedBorrow(context);
+            context.Users.Add(new User { Id = 7, Username = "teacher", Role = Roles.Teacher, IsActive = true });
+            context.ApprovalDelegations.Add(new ApprovalDelegation
+            {
+                DelegatorUserId = 9,
+                DelegateUserId = 7,
+                Scope = ApprovalDelegationScopes.BorrowRequest,
+                CanHandover = true,
+                StartsAt = DateTime.UtcNow.AddMinutes(-5),
+                EndsAt = DateTime.UtcNow.AddMinutes(30),
+                Reason = "Quản lý vắng mặt"
+            });
+            await context.SaveChangesAsync();
+
+            var teacher = CreateController(context, 7, Roles.Teacher);
+            var result = await teacher.Create(new HandoverController.CreateHandoverDto
+            {
+                BorrowRecordId = 10,
+                Items =
+                [
+                    new HandoverController.HandoverItemDto
+                    {
+                        EquipmentId = 20,
+                        Condition = EquipmentStatuses.Available
+                    }
+                ]
+            }, CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result.Result);
+            var handover = await context.HandoverRecords.AsNoTracking().SingleAsync();
+            Assert.Equal(7, handover.HandedOverByUserId);
+            Assert.Equal(1, handover.ReceivedByUserId);
+        }
+    }
+
+    [Fact]
+    public async Task Delegated_teacher_without_handover_permission_cannot_create_borrow_handover()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            await SeedApprovedBorrow(context);
+            context.Users.Add(new User { Id = 7, Username = "teacher", Role = Roles.Teacher, IsActive = true });
+            context.ApprovalDelegations.Add(new ApprovalDelegation
+            {
+                DelegatorUserId = 9,
+                DelegateUserId = 7,
+                Scope = ApprovalDelegationScopes.BorrowRequest,
+                CanHandover = false,
+                StartsAt = DateTime.UtcNow.AddMinutes(-5),
+                EndsAt = DateTime.UtcNow.AddMinutes(30),
+                Reason = "Chỉ được duyệt"
+            });
+            await context.SaveChangesAsync();
+
+            var teacher = CreateController(context, 7, Roles.Teacher);
+            var result = await teacher.Create(new HandoverController.CreateHandoverDto
+            {
+                BorrowRecordId = 10,
+                Items =
+                [
+                    new HandoverController.HandoverItemDto
+                    {
+                        EquipmentId = 20,
+                        Condition = EquipmentStatuses.Available
+                    }
+                ]
+            }, CancellationToken.None);
+
+            Assert.IsType<ForbidResult>(result.Result);
+            Assert.Empty(await context.HandoverRecords.AsNoTracking().ToListAsync());
+        }
+    }
+
     private static AppDbContext CreateContext(out SqliteConnection connection)
     {
         connection = new SqliteConnection("Data Source=:memory:");

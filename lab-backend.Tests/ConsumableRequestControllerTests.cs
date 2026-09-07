@@ -134,6 +134,182 @@ public sealed class ConsumableRequestControllerTests
     }
 
     [Fact]
+    public async Task Delegated_teacher_can_approve_consumable_request()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 2, Username = "lab-head", Role = Roles.LabHead, IsActive = true },
+                new User { Id = 99, Username = "teacher", Role = Roles.Teacher, IsActive = true });
+            context.ApprovalDelegations.Add(new ApprovalDelegation
+            {
+                DelegatorUserId = 2,
+                DelegateUserId = 99,
+                Scope = ApprovalDelegationScopes.ConsumableRequest,
+                StartsAt = DateTime.UtcNow.AddMinutes(-5),
+                EndsAt = DateTime.UtcNow.AddMinutes(30),
+                Reason = "Quản lý vắng mặt"
+            });
+            context.Consumables.Add(new Consumable { Id = 1, Code = "VT-001", Name = "Điện trở", Unit = "cái", Quantity = 5 });
+            context.ConsumableRequests.Add(new ConsumableRequest
+            {
+                Id = 20,
+                ConsumableId = 1,
+                UserId = 1,
+                Quantity = 2,
+                Reason = "Thực hành",
+                Status = ConsumableRequestStatuses.Pending
+            });
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.Teacher);
+            var result = await controller.ApproveRequest(20, CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            var request = await context.ConsumableRequests.AsNoTracking().SingleAsync();
+            var stock = await context.Consumables.AsNoTracking().SingleAsync();
+            Assert.Equal(ConsumableRequestStatuses.Approved, request.Status);
+            Assert.Equal(2, stock.ReservedQuantity);
+        }
+    }
+
+    [Fact]
+    public async Task Delegated_teacher_with_handover_permission_can_hand_over_consumable_request()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 2, Username = "lab-head", Role = Roles.LabHead, IsActive = true },
+                new User { Id = 99, Username = "teacher", Role = Roles.Teacher, IsActive = true });
+            context.ApprovalDelegations.Add(new ApprovalDelegation
+            {
+                DelegatorUserId = 2,
+                DelegateUserId = 99,
+                Scope = ApprovalDelegationScopes.ConsumableRequest,
+                CanHandover = true,
+                StartsAt = DateTime.UtcNow.AddMinutes(-5),
+                EndsAt = DateTime.UtcNow.AddMinutes(30),
+                Reason = "Quản lý vắng mặt"
+            });
+            context.Consumables.Add(new Consumable
+            {
+                Id = 1,
+                Code = "VT-001",
+                Name = "Điện trở",
+                Unit = "cái",
+                Quantity = 5,
+                ReservedQuantity = 2
+            });
+            context.ConsumableLots.Add(new ConsumableLot
+            {
+                Id = 20,
+                ConsumableId = 1,
+                LotNumber = "LOT-001",
+                InitialQuantity = 5,
+                Quantity = 5,
+                EntryDate = DateTime.UtcNow.AddDays(-1)
+            });
+            context.ConsumableRequests.Add(new ConsumableRequest
+            {
+                Id = 21,
+                ConsumableId = 1,
+                UserId = 1,
+                Quantity = 2,
+                Reason = "Thực hành",
+                Status = ConsumableRequestStatuses.Approved
+            });
+            await context.SaveChangesAsync();
+
+            var teacher = CreateController(context, 99, Roles.Teacher);
+            var result = await teacher.HandoverRequest(
+                21,
+                new ConsumableRequestController.HandoverConsumableDto
+                {
+                    Allocations =
+                    [
+                        new ConsumableRequestController.LotAllocationDto { LotId = 20, Quantity = 2 }
+                    ]
+                },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            var request = await context.ConsumableRequests.AsNoTracking().SingleAsync();
+            Assert.Equal(ConsumableRequestStatuses.HandedOver, request.Status);
+            Assert.Equal(99, request.HandedOverByUserId);
+        }
+    }
+
+    [Fact]
+    public async Task Delegated_teacher_without_handover_permission_cannot_hand_over_consumable_request()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 2, Username = "lab-head", Role = Roles.LabHead, IsActive = true },
+                new User { Id = 99, Username = "teacher", Role = Roles.Teacher, IsActive = true });
+            context.ApprovalDelegations.Add(new ApprovalDelegation
+            {
+                DelegatorUserId = 2,
+                DelegateUserId = 99,
+                Scope = ApprovalDelegationScopes.ConsumableRequest,
+                CanHandover = false,
+                StartsAt = DateTime.UtcNow.AddMinutes(-5),
+                EndsAt = DateTime.UtcNow.AddMinutes(30),
+                Reason = "Chỉ được duyệt"
+            });
+            context.Consumables.Add(new Consumable
+            {
+                Id = 1,
+                Code = "VT-001",
+                Name = "Điện trở",
+                Unit = "cái",
+                Quantity = 5,
+                ReservedQuantity = 2
+            });
+            context.ConsumableLots.Add(new ConsumableLot
+            {
+                Id = 20,
+                ConsumableId = 1,
+                LotNumber = "LOT-001",
+                InitialQuantity = 5,
+                Quantity = 5,
+                EntryDate = DateTime.UtcNow.AddDays(-1)
+            });
+            context.ConsumableRequests.Add(new ConsumableRequest
+            {
+                Id = 22,
+                ConsumableId = 1,
+                UserId = 1,
+                Quantity = 2,
+                Reason = "Thực hành",
+                Status = ConsumableRequestStatuses.Approved
+            });
+            await context.SaveChangesAsync();
+
+            var teacher = CreateController(context, 99, Roles.Teacher);
+            var result = await teacher.HandoverRequest(
+                22,
+                new ConsumableRequestController.HandoverConsumableDto
+                {
+                    Allocations =
+                    [
+                        new ConsumableRequestController.LotAllocationDto { LotId = 20, Quantity = 2 }
+                    ]
+                },
+                CancellationToken.None);
+
+            Assert.IsType<ForbidResult>(result);
+            Assert.Equal(ConsumableRequestStatuses.Approved, (await context.ConsumableRequests.AsNoTracking().SingleAsync()).Status);
+        }
+    }
+
+    [Fact]
     public async Task Handover_deducts_selected_lot_and_borrower_confirms_receipt()
     {
         await using var context = CreateContext(out var connection);

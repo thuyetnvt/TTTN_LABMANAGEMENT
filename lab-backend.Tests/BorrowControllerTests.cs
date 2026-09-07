@@ -112,6 +112,37 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task Delegated_teacher_can_approve_borrow_request_but_uses_teacher_role()
+    {
+        await using var context = CreateSqliteContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 2, Username = "lab-head", Role = Roles.LabHead, IsActive = true },
+                new User { Id = 99, Username = "teacher", Role = Roles.Teacher, IsActive = true });
+            context.ApprovalDelegations.Add(new ApprovalDelegation
+            {
+                DelegatorUserId = 2,
+                DelegateUserId = 99,
+                Scope = ApprovalDelegationScopes.BorrowRequest,
+                StartsAt = DateTime.UtcNow.AddMinutes(-5),
+                EndsAt = DateTime.UtcNow.AddMinutes(30),
+                Reason = "Quản lý vắng mặt"
+            });
+            context.Equipments.Add(CreateEquipment(1));
+            context.BorrowRecords.Add(CreateBorrowRecord(30, 1, BorrowStatuses.Pending, 1));
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.Teacher);
+            var result = await controller.ApproveRequest(30, CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(BorrowStatuses.Approved, (await context.BorrowRecords.AsNoTracking().SingleAsync()).Status);
+        }
+    }
+
+    [Fact]
     public async Task Manager_approval_rolls_back_when_one_item_is_no_longer_available()
     {
         await using var context = CreateSqliteContext(out var connection);

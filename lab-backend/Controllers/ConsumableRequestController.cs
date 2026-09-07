@@ -26,15 +26,18 @@ public class ConsumableRequestController : ControllerBase
     private readonly AppDbContext _context;
     private readonly INotificationService _notificationService;
     private readonly IAuditService _auditService;
+    private readonly IApprovalDelegationService _approvalDelegationService;
 
     public ConsumableRequestController(
         AppDbContext context,
         INotificationService notificationService,
-        IAuditService auditService)
+        IAuditService auditService,
+        IApprovalDelegationService? approvalDelegationService = null)
     {
         _context = context;
         _notificationService = notificationService;
         _auditService = auditService;
+        _approvalDelegationService = approvalDelegationService ?? new ApprovalDelegationService(context);
     }
 
     public sealed class CreateConsumableRequestDto
@@ -67,6 +70,7 @@ public class ConsumableRequestController : ControllerBase
     {
         var role = User.FindFirstValue(ClaimTypes.Role);
         var userId = GetCurrentUserId();
+        var canApprove = await CanApproveConsumableAsync(userId, role, cancellationToken);
 
         var query = _context.ConsumableRequests
             .AsNoTracking()
@@ -77,7 +81,7 @@ public class ConsumableRequestController : ControllerBase
                 .ThenInclude(allocation => allocation.ConsumableLot)
             .AsQueryable();
 
-        if (role is Roles.Student or Roles.Teacher)
+        if (!canApprove && (role is Roles.Student or Roles.Teacher))
         {
             query = query.Where(request => request.UserId == userId);
         }
@@ -119,6 +123,7 @@ public class ConsumableRequestController : ControllerBase
     {
         var role = User.FindFirstValue(ClaimTypes.Role);
         var userId = GetCurrentUserId();
+        var canApprove = await CanApproveConsumableAsync(userId, role, cancellationToken);
         var query = _context.ConsumableRequests
             .AsNoTracking()
             .Include(request => request.Consumable)
@@ -127,7 +132,7 @@ public class ConsumableRequestController : ControllerBase
             .Include(request => request.LotAllocations)
                 .ThenInclude(allocation => allocation.ConsumableLot)
             .AsQueryable();
-        if (role is Roles.Student or Roles.Teacher)
+        if (!canApprove && (role is Roles.Student or Roles.Teacher))
         {
             query = query.Where(request => request.UserId == userId);
         }
@@ -257,11 +262,15 @@ public class ConsumableRequestController : ControllerBase
     }
 
     [HttpPut("{id:int}/approve")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> ApproveRequest(
         int id,
         CancellationToken cancellationToken)
     {
+        if (!await CanApproveConsumableAsync(GetCurrentUserId(), User.FindFirstValue(ClaimTypes.Role), cancellationToken))
+        {
+            return Forbid();
+        }
+
         var request = await _context.ConsumableRequests
             .AsNoTracking()
             .Include(item => item.Consumable)
@@ -321,16 +330,17 @@ public class ConsumableRequestController : ControllerBase
             request.UserId,
             "CONSUMABLE_APPROVED",
             "Yêu cầu vật tư đã được duyệt",
-            "Yêu cầu vật tư đã được duyệt và giữ hàng. Vui lòng chờ quản lý bàn giao.",
+            "Yêu cầu vật tư đã được duyệt và giữ hàng. Vui lòng chờ người có quyền bàn giao.",
             "/dashboard/consumable-requests",
             cancellationToken);
         return Ok(new { message = "Đã duyệt và giữ số lượng vật tư. Bước tiếp theo là bàn giao theo lô." });
     }
 
     [HttpGet("{id:int}/available-lots")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> GetAvailableLots(int id, CancellationToken cancellationToken)
     {
+        if (!await CanHandoverConsumableAsync(cancellationToken)) return Forbid();
+
         var request = await _context.ConsumableRequests.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (request is null) return NotFound(new { message = "Không tìm thấy yêu cầu." });
@@ -359,12 +369,13 @@ public class ConsumableRequestController : ControllerBase
     }
 
     [HttpPut("{id:int}/handover")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> HandoverRequest(
         int id,
         [FromBody] HandoverConsumableDto dto,
         CancellationToken cancellationToken)
     {
+        if (!await CanHandoverConsumableAsync(cancellationToken)) return Forbid();
+
         dto.Allocations ??= new();
         var allocations = dto.Allocations
             .Where(item => item.LotId > 0 && item.Quantity > 0)
@@ -514,11 +525,15 @@ public class ConsumableRequestController : ControllerBase
     }
 
     [HttpPut("{id:int}/reject")]
-    [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> RejectRequest(
         int id,
         CancellationToken cancellationToken)
     {
+        if (!await CanApproveConsumableAsync(GetCurrentUserId(), User.FindFirstValue(ClaimTypes.Role), cancellationToken))
+        {
+            return Forbid();
+        }
+
         var request = await _context.ConsumableRequests
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -578,5 +593,26 @@ public class ConsumableRequestController : ControllerBase
     private int GetCurrentUserId()
     {
         return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
+    private Task<bool> CanApproveConsumableAsync(
+        int userId,
+        string? role,
+        CancellationToken cancellationToken)
+    {
+        return _approvalDelegationService.CanApproveAsync(
+            userId,
+            role,
+            ApprovalDelegationScopes.ConsumableRequest,
+            cancellationToken);
+    }
+
+    private Task<bool> CanHandoverConsumableAsync(CancellationToken cancellationToken)
+    {
+        return _approvalDelegationService.CanHandoverAsync(
+            GetCurrentUserId(),
+            User.FindFirstValue(ClaimTypes.Role),
+            ApprovalDelegationScopes.ConsumableRequest,
+            cancellationToken);
     }
 }

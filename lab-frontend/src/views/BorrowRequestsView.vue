@@ -43,28 +43,27 @@
             </div>
           </template>
           <template v-else-if="column.key === 'action'">
-            <template v-if="isManagerRole(role)">
-              <div class="request-actions">
-                <template v-if="statusMatches(record.status, STATUS.BORROW_PENDING)">
-                  <a-button type="primary" size="small" @click="handleApprove(record)">Duyệt</a-button>
-                  <a-button danger size="small" @click="handleReject(record)">Từ chối</a-button>
-                </template>
-                <template v-else-if="statusMatches(record.status, STATUS.APPROVED)">
-                  <a-button v-if="!record.hasHandover" type="primary" size="small" @click="showHandoverModal(record)">
-                    Lập bàn giao
+            <div class="request-actions">
+              <template v-if="canApprove && statusMatches(record.status, STATUS.BORROW_PENDING)">
+                <a-button type="primary" size="small" @click="handleApprove(record)">Duyệt</a-button>
+                <a-button danger size="small" @click="handleReject(record)">Từ chối</a-button>
+              </template>
+              <template v-else-if="canHandover && statusMatches(record.status, STATUS.APPROVED)">
+                <a-button v-if="!record.hasHandover" type="primary" size="small" @click="showHandoverModal(record)">
+                  Lập bàn giao
+                </a-button>
+                <a-button v-if="isManager && !record.hasHandover" danger size="small" @click="openCancelModal(record)">
+                  Hủy
+                </a-button>
+                <a-tooltip v-if="record.hasHandover" :title="`Xem biên bản ${record.handoverCode || ''}`">
+                  <a-button type="text" class="view-action" aria-label="Xem biên bản bàn giao" @click="showExistingHandover(record)">
+                    <template #icon><EyeOutlined /></template>
                   </a-button>
-                  <a-button v-if="!record.hasHandover" danger size="small" @click="openCancelModal(record)">
-                    Hủy
-                  </a-button>
-                  <a-tooltip v-else :title="`Xem biên bản ${record.handoverCode || ''}`">
-                    <a-button type="text" class="view-action" aria-label="Xem biên bản bàn giao" @click="showExistingHandover(record)">
-                      <template #icon><EyeOutlined /></template>
-                    </a-button>
-                  </a-tooltip>
-                </template>
-              </div>
-            </template>
-            <span v-else class="muted">—</span>
+                </a-tooltip>
+              </template>
+              <span v-else-if="canApprove && statusMatches(record.status, STATUS.APPROVED)" class="muted">Chờ người có quyền bàn giao</span>
+              <span v-else class="muted">—</span>
+            </div>
           </template>
         </template>
       </a-table>
@@ -82,15 +81,16 @@
             <span v-for="detail in item.details" :key="detail.id">{{ detail.equipmentName }} ×{{ detail.quantity }}</span>
           </div>
           <div class="mobile-request-actions">
-            <template v-if="statusMatches(item.status, STATUS.BORROW_PENDING)">
+            <template v-if="canApprove && statusMatches(item.status, STATUS.BORROW_PENDING)">
               <a-button type="primary" @click="handleApprove(item)">Duyệt</a-button>
               <a-button danger @click="handleReject(item)">Từ chối</a-button>
             </template>
-            <template v-else-if="statusMatches(item.status, STATUS.APPROVED)">
+            <template v-else-if="canHandover && statusMatches(item.status, STATUS.APPROVED)">
               <a-button v-if="!item.hasHandover" type="primary" block @click="showHandoverModal(item)">Lập bàn giao</a-button>
-              <a-button v-if="!item.hasHandover" danger block @click="openCancelModal(item)">Hủy phiếu</a-button>
-              <a-button v-else block @click="showExistingHandover(item)"><EyeOutlined /> Xem biên bản</a-button>
+              <a-button v-if="isManager && !item.hasHandover" danger block @click="openCancelModal(item)">Hủy phiếu</a-button>
+              <a-button v-if="item.hasHandover" block @click="showExistingHandover(item)"><EyeOutlined /> Xem biên bản</a-button>
             </template>
+            <span v-else-if="canApprove && statusMatches(item.status, STATUS.APPROVED)" class="muted">Chờ người có quyền bàn giao</span>
           </div>
         </template>
       </ResponsiveDataList>
@@ -278,6 +278,9 @@ const tablePagination = reactive({
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
+const isManager = computed(() => isManagerRole(role.value))
+const canApprove = computed(() => isManager.value || Boolean(authStore.approvalPermissions?.canApproveBorrow))
+const canHandover = computed(() => isManager.value || Boolean(authStore.approvalPermissions?.canHandoverBorrow))
 
 const dataSource = ref([])
 const loading = ref(false)
@@ -321,7 +324,10 @@ const columns = [
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220 }
 ]
 
-onMounted(() => fetchRequests())
+onMounted(async () => {
+  await authStore.loadApprovalPermissions().catch(() => {})
+  fetchRequests()
+})
 
 const formatFileSize = (bytes) => {
   if (!bytes) return '0 B'

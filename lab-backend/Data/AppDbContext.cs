@@ -36,6 +36,7 @@ namespace LabManagementAPI.Data
         public DbSet<HandoverEvidence> HandoverEvidence { get; set; }
         public DbSet<EquipmentLocationHistory> EquipmentLocationHistories { get; set; }
         public DbSet<AutomationDispatch> AutomationDispatches { get; set; }
+        public DbSet<ApprovalDelegation> ApprovalDelegations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -63,6 +64,26 @@ namespace LabManagementAPI.Data
                 entity.HasIndex(u => u.Email).IsUnique();
                 entity.HasIndex(u => u.UniversityCode).IsUnique();
                 entity.HasIndex(u => new { u.Role, u.IsActive });
+            });
+
+            modelBuilder.Entity<ApprovalDelegation>(entity =>
+            {
+                entity.Property(item => item.Scope).HasMaxLength(50);
+                entity.Property(item => item.Reason).HasMaxLength(1000);
+                entity.HasIndex(item => new { item.DelegateUserId, item.IsActive, item.StartsAt, item.EndsAt });
+                entity.HasIndex(item => new { item.DelegatorUserId, item.IsActive });
+                entity.HasOne(item => item.DelegatorUser)
+                    .WithMany()
+                    .HasForeignKey(item => item.DelegatorUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.DelegateUser)
+                    .WithMany()
+                    .HasForeignKey(item => item.DelegateUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.RevokedByUser)
+                    .WithMany()
+                    .HasForeignKey(item => item.RevokedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<Equipment>(entity =>

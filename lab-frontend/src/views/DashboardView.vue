@@ -43,10 +43,10 @@
             <a-menu-item key="3" @click="$router.push({ name: 'BorrowHistory' })">
               <history-outlined /><span>{{ $t('menu.borrowHistory') }}</span>
             </a-menu-item>
-            <a-menu-item v-if="isManagerRole(role)" key="g1_1" @click="$router.push({ name: 'BorrowRequests' })">
+            <a-menu-item v-if="isManagerRole(role) || (isTeacherRole(role) && approvalPermissions.canApproveBorrow)" key="g1_1" @click="$router.push({ name: 'BorrowRequests' })">
               <solution-outlined /><span>Phiếu chờ duyệt</span>
             </a-menu-item>
-            <a-menu-item v-if="isBorrowerRole(role)" key="g2_2" @click="$router.push({ name: 'ConsumableRequests' })">
+            <a-menu-item v-if="isBorrowerRole(role) && !(isTeacherRole(role) && approvalPermissions.canApproveConsumable)" key="g2_2" @click="$router.push({ name: 'ConsumableRequests' })">
               <history-outlined /><span>{{ $t('menu.studentConsumableHistory') }}</span>
             </a-menu-item>
           </a-menu-item-group>
@@ -58,8 +58,11 @@
             <a-menu-item v-if="isManagerRole(role)" key="m_schedule" @click="$router.push({ name: 'MaintenanceSchedules' })">
               <calendar-outlined /><span>Lịch bảo trì</span>
             </a-menu-item>
-            <a-menu-item v-if="isManagerRole(role)" key="g1_2" @click="$router.push({ name: 'ConsumableRequests' })">
+            <a-menu-item v-if="isManagerRole(role) || (isTeacherRole(role) && approvalPermissions.canApproveConsumable)" key="g1_2" @click="$router.push({ name: 'ConsumableRequests' })">
               <experiment-outlined /><span>Yêu cầu cấp phát</span>
+            </a-menu-item>
+            <a-menu-item v-if="isManagerRole(role)" key="m_delegations" @click="$router.push({ name: 'ApprovalDelegations' })">
+              <team-outlined /><span>Ủy quyền duyệt</span>
             </a-menu-item>
             <a-menu-item key="m4" @click="$router.push({ name: 'Penalty' })">
               <pay-circle-outlined /><span>{{ $t('menu.penalty') }}</span>
@@ -371,6 +374,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
 const role = computed(() => authStore.role)
+const approvalPermissions = computed(() => authStore.approvalPermissions || {})
 const collapsed = ref(false)
 const searchShortcut = computed(() => {
   if (typeof navigator === 'undefined') return 'Ctrl K'
@@ -392,11 +396,12 @@ const routeMenuKeys = {
   Penalty: 'm4',
   BorrowRequests: 'g1_1',
   AdminUsers: 'g1_3',
-  AuditLogs: 'g1_4'
+  AuditLogs: 'g1_4',
+  ApprovalDelegations: 'm_delegations'
 }
 const selectedKey = computed(() => {
   if (route.name === 'ConsumableRequests') {
-    return isManagerRole(role.value) ? 'g1_2' : 'g2_2'
+    return isManagerRole(role.value) || approvalPermissions.value.canApproveConsumable ? 'g1_2' : 'g2_2'
   }
   return routeMenuKeys[route.name] || '0'
 })
@@ -499,6 +504,7 @@ let hubConnection = null
 
 onMounted(() => {
   notificationStore.fetchRecent().catch(() => {})
+  authStore.loadApprovalPermissions().catch(() => {})
   loadAccountProfile()
   // Kết nối SignalR
   const signalRUrl = import.meta.env.VITE_SIGNALR_URL || '/notificationHub'

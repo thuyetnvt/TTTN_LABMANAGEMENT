@@ -1,11 +1,15 @@
 <template>
   <div class="asset-requests-container">
     <div class="toolbar">
-      <h2>{{ isManager ? 'Duyệt và bàn giao vật tư' : 'Yêu cầu cấp phát vật tư của tôi' }}</h2>
+      <h2>{{ isManager ? 'Duyệt và bàn giao vật tư' : canApprove ? 'Duyệt yêu cầu vật tư được ủy quyền' : 'Yêu cầu cấp phát vật tư của tôi' }}</h2>
       <p>
         {{ isManager
           ? 'Thực hiện đúng quy trình: duyệt giữ kho, chọn lô bàn giao, người nhận xác nhận.'
-          : 'Theo dõi yêu cầu và xác nhận sau khi đã nhận đủ vật tư.' }}
+          : canApprove
+            ? (canHandover
+              ? 'Bạn có thể duyệt, từ chối và bàn giao yêu cầu trong thời gian được ủy quyền.'
+              : 'Bạn có thể duyệt hoặc từ chối yêu cầu trong thời gian được ủy quyền; việc bàn giao do người có quyền bàn giao thực hiện.')
+            : 'Theo dõi yêu cầu và xác nhận sau khi đã nhận đủ vật tư.' }}
       </p>
       <div class="toolbar-filters">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Vật tư, người yêu cầu..." class="filter-search" @search="applyFilters" />
@@ -53,18 +57,19 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <div class="action-cell">
-              <template v-if="isManager && statusMatches(record.status, STATUS.CONSUMABLE_PENDING)">
+              <template v-if="canApprove && statusMatches(record.status, STATUS.CONSUMABLE_PENDING)">
                 <a-button type="primary" size="small" @click="handleApprove(record.id)">Duyệt</a-button>
                 <a-button danger size="small" @click="handleReject(record.id)">Từ chối</a-button>
               </template>
 
-              <template v-else-if="isManager && statusMatches(record.status, STATUS.CONSUMABLE_APPROVED)">
-                <a-button type="primary" size="small" @click="openHandover(record)">Bàn giao</a-button>
-                <a-button danger size="small" @click="handleReject(record.id)">Từ chối</a-button>
+              <template v-else-if="statusMatches(record.status, STATUS.CONSUMABLE_APPROVED)">
+                <a-button v-if="canHandover" type="primary" size="small" @click="openHandover(record)">Bàn giao</a-button>
+                <a-button v-if="canApprove" danger size="small" @click="handleReject(record.id)">Từ chối</a-button>
+                <span v-if="canApprove && !canHandover" class="waiting-text">Chờ người có quyền bàn giao</span>
               </template>
 
               <a-button
-                v-else-if="!isManager && statusMatches(record.status, STATUS.CONSUMABLE_HANDED_OVER)"
+                v-else-if="!canApprove && statusMatches(record.status, STATUS.CONSUMABLE_HANDED_OVER)"
                 type="primary"
                 size="small"
                 @click="openReceiptConfirmation(record)"
@@ -93,15 +98,16 @@
             <div><dt>Mục đích</dt><dd>{{ item.reason || '—' }}</dd></div>
           </dl>
           <div class="mobile-request-actions">
-            <template v-if="isManager && statusMatches(item.status, STATUS.CONSUMABLE_PENDING)">
+            <template v-if="canApprove && statusMatches(item.status, STATUS.CONSUMABLE_PENDING)">
               <a-button type="primary" @click="handleApprove(item.id)">Duyệt</a-button>
               <a-button danger @click="handleReject(item.id)">Từ chối</a-button>
             </template>
-            <template v-else-if="isManager && statusMatches(item.status, STATUS.CONSUMABLE_APPROVED)">
-              <a-button type="primary" @click="openHandover(item)">Bàn giao</a-button>
-              <a-button danger @click="handleReject(item.id)">Từ chối</a-button>
+            <template v-else-if="statusMatches(item.status, STATUS.CONSUMABLE_APPROVED)">
+              <a-button v-if="canHandover" type="primary" @click="openHandover(item)">Bàn giao</a-button>
+              <a-button v-if="canApprove" danger @click="handleReject(item.id)">Từ chối</a-button>
+              <span v-if="canApprove && !canHandover" class="waiting-text">Chờ người có quyền bàn giao</span>
             </template>
-            <a-button v-else-if="!isManager && statusMatches(item.status, STATUS.CONSUMABLE_HANDED_OVER)" type="primary" block @click="openReceiptConfirmation(item)">Xem & xác nhận</a-button>
+            <a-button v-else-if="!canApprove && statusMatches(item.status, STATUS.CONSUMABLE_HANDED_OVER)" type="primary" block @click="openReceiptConfirmation(item)">Xem & xác nhận</a-button>
             <a-button v-else block @click="showDetails(item)"><EyeOutlined /> Xem chi tiết</a-button>
           </div>
         </template>
@@ -235,6 +241,8 @@ const tablePagination = reactive({
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 const isManager = computed(() => isManagerRole(role.value))
+const canApprove = computed(() => isManager.value || Boolean(authStore.approvalPermissions?.canApproveConsumable))
+const canHandover = computed(() => isManager.value || Boolean(authStore.approvalPermissions?.canHandoverConsumable))
 
 const dataSource = ref([])
 const loading = ref(false)
@@ -409,7 +417,10 @@ const confirmReceipt = async () => {
   }
 }
 
-onMounted(fetchData)
+onMounted(async () => {
+  await authStore.loadApprovalPermissions().catch(() => {})
+  fetchData()
+})
 </script>
 
 <style scoped>
