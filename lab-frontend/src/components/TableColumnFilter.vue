@@ -1,8 +1,32 @@
 <template>
   <div class="table-column-header">
     <span class="table-column-title">{{ title }}</span>
-    <span class="table-column-filter-control">
-      <a-popover v-model:open="open" trigger="click" placement="bottomRight">
+    <span class="table-column-controls table-column-filter-control">
+      <span v-if="sortable" class="table-column-sort-control" :aria-label="`Sắp xếp cột ${title}`">
+        <button
+          type="button"
+          class="table-column-sort-button"
+          :class="{ 'is-active': sortOrder === 'ascend' }"
+          :aria-label="`Sắp xếp ${title} tăng dần`"
+          :aria-pressed="sortOrder === 'ascend'"
+          title="Tăng dần"
+          @click.stop="applySort('ascend')"
+        >
+          <CaretUpOutlined />
+        </button>
+        <button
+          type="button"
+          class="table-column-sort-button"
+          :class="{ 'is-active': sortOrder === 'descend' }"
+          :aria-label="`Sắp xếp ${title} giảm dần`"
+          :aria-pressed="sortOrder === 'descend'"
+          title="Giảm dần"
+          @click.stop="applySort('descend')"
+        >
+          <CaretDownOutlined />
+        </button>
+      </span>
+      <a-popover v-if="filterable" v-model:open="open" trigger="click" placement="bottomRight">
         <template #content>
           <div class="table-column-filter-panel">
             <a-input-search
@@ -51,17 +75,20 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { FilterOutlined, SearchOutlined } from '@ant-design/icons-vue'
+import { CaretDownOutlined, CaretUpOutlined, FilterOutlined, SearchOutlined } from '@ant-design/icons-vue'
 
 const props = defineProps({
   title: { type: String, required: true },
   type: { type: String, default: 'search' },
   value: { type: [String, Number], default: undefined },
   options: { type: Array, default: () => [] },
-  placeholder: { type: String, default: '' }
+  placeholder: { type: String, default: '' },
+  filterable: { type: Boolean, default: true },
+  sortable: { type: Boolean, default: false },
+  sortOrder: { type: String, default: undefined }
 })
 
-const emit = defineEmits(['apply'])
+const emit = defineEmits(['apply', 'sort'])
 const open = ref(false)
 const draftValue = ref(props.value)
 
@@ -84,6 +111,10 @@ const clear = () => {
 const handleInputChange = event => {
   if (!event?.target?.value) clear()
 }
+
+const applySort = order => {
+  emit('sort', props.sortOrder === order ? undefined : order)
+}
 </script>
 
 <style scoped>
@@ -102,10 +133,46 @@ const handleInputChange = event => {
   text-overflow: ellipsis;
 }
 
+.table-column-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
 .table-column-filter-control {
   display: inline-flex;
   flex: 0 0 auto;
-  margin-left: auto;
+}
+
+.table-column-sort-control {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 22px;
+}
+
+.table-column-sort-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 11px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 11px;
+}
+
+.table-column-sort-button:hover,
+.table-column-sort-button.is-active {
+  color: var(--color-primary, #d97757);
 }
 
 .table-column-filter-button {

@@ -223,10 +223,7 @@ public class EquipmentController : ControllerBase
             query = query.Where(equipment => equipment.LocationNodeId == paging.LocationNodeId.Value);
         }
 
-        var page = await query
-            .AsSingleQuery()
-            .OrderByDescending(equipment => equipment.CreatedAt)
-            .ThenBy(equipment => equipment.Id)
+        var page = await ApplySorting(query.AsSingleQuery(), paging)
             .ToPagedResultAsync(paging, cancellationToken);
 
         var isManager = User.IsInRole(Roles.Admin)
@@ -238,6 +235,51 @@ public class EquipmentController : ControllerBase
         }
 
         return Ok(page.Map(ToBorrowerDto));
+    }
+
+    private static IQueryable<Equipment> ApplySorting(
+        IQueryable<Equipment> query,
+        PageQuery paging)
+    {
+        var descending = string.Equals(
+            paging.SortDirection?.Trim(),
+            "desc",
+            StringComparison.OrdinalIgnoreCase);
+
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "name" => descending
+                ? query.OrderByDescending(equipment => equipment.Name).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.Name).ThenBy(equipment => equipment.Id),
+            "category" => descending
+                ? query.OrderByDescending(equipment => equipment.AssetCategory == null ? string.Empty : equipment.AssetCategory.Name).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.AssetCategory == null ? string.Empty : equipment.AssetCategory.Name).ThenBy(equipment => equipment.Id),
+            "model" => descending
+                ? query.OrderByDescending(equipment => equipment.Model).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.Model).ThenBy(equipment => equipment.Id),
+            "serial" => descending
+                ? query.OrderByDescending(equipment => equipment.Serial).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.Serial).ThenBy(equipment => equipment.Id),
+            "serialname" => descending
+                ? query.OrderByDescending(equipment => equipment.SerialName).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.SerialName).ThenBy(equipment => equipment.Id),
+            "location" => descending
+                ? query.OrderByDescending(equipment => equipment.Location).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.Location).ThenBy(equipment => equipment.Id),
+            "responsibleperson" => descending
+                ? query.OrderByDescending(equipment => equipment.ResponsiblePerson).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.ResponsiblePerson).ThenBy(equipment => equipment.Id),
+            "entrydate" => descending
+                ? query.OrderByDescending(equipment => equipment.EntryDate).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.EntryDate).ThenBy(equipment => equipment.Id),
+            "warrantyexpiry" => descending
+                ? query.OrderByDescending(equipment => equipment.WarrantyExpiry).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.WarrantyExpiry).ThenBy(equipment => equipment.Id),
+            "status" => descending
+                ? query.OrderByDescending(equipment => equipment.Status).ThenBy(equipment => equipment.Id)
+                : query.OrderBy(equipment => equipment.Status).ThenBy(equipment => equipment.Id),
+            _ => query.OrderByDescending(equipment => equipment.CreatedAt).ThenBy(equipment => equipment.Id)
+        };
     }
 
     [HttpGet("lookup")]

@@ -17,6 +17,12 @@ public sealed class PageQuery
     [MaxLength(50)]
     public string? Status { get; set; }
 
+    [MaxLength(50)]
+    public string? SortBy { get; set; }
+
+    [MaxLength(10)]
+    public string? SortDirection { get; set; }
+
     public int? CategoryId { get; set; }
     public int? LocationNodeId { get; set; }
     public DateTime? From { get; set; }

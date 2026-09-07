@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading;
@@ -114,6 +115,25 @@ public sealed class EquipmentControllerTests
         Assert.Equal(5, payload.Items.Count);
         Assert.Equal(2, payload.Page);
         Assert.All(payload.Items, item => Assert.Contains("Cảm biến", item.Name));
+    }
+
+    [Fact]
+    public async Task Paged_list_sorts_by_requested_column_and_direction()
+    {
+        await using var context = CreateContext();
+        context.Equipments.AddRange(
+            new Equipment { Id = 1, AssetCode = "EQ-001", Name = "Zeta", Model = "M1", Serial = "SN-001", Location = "Lab", Status = EquipmentStatuses.Available },
+            new Equipment { Id = 2, AssetCode = "EQ-002", Name = "Alpha", Model = "M1", Serial = "SN-002", Location = "Lab", Status = EquipmentStatuses.Available },
+            new Equipment { Id = 3, AssetCode = "EQ-003", Name = "Beta", Model = "M1", Serial = "SN-003", Location = "Lab", Status = EquipmentStatuses.Available });
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context, Roles.Admin).GetEquipmentsPaged(
+            new PageQuery { PageSize = 10, SortBy = "name", SortDirection = "asc" },
+            CancellationToken.None);
+
+        var payload = Assert.IsType<PagedResult<ManagerEquipmentDto>>(
+            Assert.IsType<OkObjectResult>(result).Value);
+        Assert.Equal(["Alpha", "Beta", "Zeta"], payload.Items.Select(item => item.Name).ToArray());
     }
 
     [Fact]

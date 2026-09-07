@@ -65,9 +65,22 @@ test('bộ lọc cột hiển thị đúng biểu tượng và nằm sát mép p
 
   assert.match(source, /<SearchOutlined v-if="type === 'search'" \/>/)
   assert.match(source, /<FilterOutlined v-else \/>/)
-  assert.match(source, /class="table-column-filter-control"/)
+  assert.match(source, /class="table-column-controls table-column-filter-control"/)
   assert.match(source, /placement="bottomRight"/)
-  assert.match(source, /\.table-column-filter-control\s*\{[\s\S]*?margin-left:\s*auto;/)
+  assert.match(source, /\.table-column-controls\s*\{[\s\S]*?margin-left:\s*auto;/)
+})
+
+test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {
+  const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
+  const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
+
+  assert.match(filterSource, /CaretUpOutlined/)
+  assert.match(filterSource, /CaretDownOutlined/)
+  assert.match(filterSource, /@click\.stop="applySort\('ascend'\)"/)
+  assert.match(filterSource, /@click\.stop="applySort\('descend'\)"/)
+  assert.match(deviceSource, /sortBy:\s*sortState\.field/)
+  assert.match(deviceSource, /sortDirection:\s*sortState\.order === 'descend'/)
+  assert.match(deviceSource, /sortKey:\s*'name',\s*sortable:\s*true/)
 })
 
 test('thanh thao tác không làm tràn khung nội dung khi màn hình hẹp', () => {

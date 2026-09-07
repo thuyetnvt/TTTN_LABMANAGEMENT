@@ -56,13 +56,17 @@
   >
     <template #headerCell="{ column }">
       <TableColumnFilter
-        v-if="column.filterType"
+        v-if="column.filterType || column.sortable"
         :title="column.title"
         :type="column.filterType"
         :options="column.filterOptions"
-        :value="column.filterKey === 'search' ? searchQuery : (column.filterKey === 'category' ? categoryFilter : (column.filterKey === 'location' ? locationFilter : statusFilter))"
+        :filterable="Boolean(column.filterType)"
+        :sortable="Boolean(column.sortable)"
+        :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
+        :value="column.filterType && (column.filterKey === 'search' ? searchQuery : (column.filterKey === 'category' ? categoryFilter : (column.filterKey === 'location' ? locationFilter : statusFilter)))"
         :placeholder="column.filterPlaceholder"
         @apply="value => applyColumnFilter(column, value)"
+        @sort="value => applyColumnSort(column, value)"
       />
       <span v-else>{{ column.title }}</span>
     </template>
@@ -399,28 +403,29 @@ const teachers = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 const borrowSubmitting = ref(false)
+const sortState = reactive({ field: undefined, order: undefined })
 
 const columns = computed(() => {
   const commonColumns = [
-    { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 200, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên thiết bị...' },
-    { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140, filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
-    { title: 'Model', dataIndex: 'model', key: 'model', width: 130, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm model...' },
-    { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 140, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số seri...' },
-    { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', width: 140, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên seri...' },
-    { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 130, filterType: 'select', filterKey: 'location', filterOptions: locations.value.map(item => ({ value: item.id, label: `${item.code} — ${item.name}` })) }
+    { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, width: 200, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên thiết bị...' },
+    { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', sortKey: 'category', sortable: true, width: 140, filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
+    { title: 'Model', dataIndex: 'model', key: 'model', sortKey: 'model', sortable: true, width: 130, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm model...' },
+    { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 140, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số seri...' },
+    { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', sortKey: 'serialName', sortable: true, width: 140, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên seri...' },
+    { title: 'Vị trí', dataIndex: 'location', key: 'location', sortKey: 'location', sortable: true, width: 130, filterType: 'select', filterKey: 'location', filterOptions: locations.value.map(item => ({ value: item.id, label: `${item.code} — ${item.name}` })) }
   ]
   const managerColumns = isManager.value ? [
-    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người chịu trách nhiệm...' },
+    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', sortKey: 'responsiblePerson', sortable: true, width: 180, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người chịu trách nhiệm...' },
     { title: 'Quyết định', key: 'decisionFile', width: 120 },
-    { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', width: 120 },
+    { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', sortKey: 'entryDate', sortable: true, width: 120 },
     { title: 'Khấu hao (%)', dataIndex: 'depreciationPercentage', key: 'depreciationPercentage', width: 120 },
-    { title: 'Hạn bảo hành', dataIndex: 'warrantyExpiry', key: 'warrantyExpiry', width: 130 }
+    { title: 'Hạn bảo hành', dataIndex: 'warrantyExpiry', key: 'warrantyExpiry', sortKey: 'warrantyExpiry', sortable: true, width: 130 }
   ] : []
 
   return [
     ...commonColumns,
     ...managerColumns,
-    { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130, filterType: 'select', filterKey: 'status', filterOptions: equipmentStatusOptions },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, width: 130, filterType: 'select', filterKey: 'status', filterOptions: equipmentStatusOptions },
     { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
     {
       title: 'Hành động',
@@ -473,6 +478,14 @@ const applyColumnFilter = (column, value) => {
     debouncedSearchQuery.value = searchQuery.value
   }
   tablePagination.current = 1
+  fetchData()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+  tablePagination.current = 1
+  selectedBatchKeys.value = []
   fetchData()
 }
 
@@ -606,7 +619,9 @@ const fetchData = async () => {
       search: debouncedSearchQuery.value.trim() || undefined,
       status: statusFilter.value || undefined,
       categoryId: categoryFilter.value || undefined,
-      locationNodeId: locationFilter.value || undefined
+      locationNodeId: locationFilter.value || undefined,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     dataSource.value = response.items || []
     tablePagination.total = response.total || 0
