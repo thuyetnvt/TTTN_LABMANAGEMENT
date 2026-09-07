@@ -60,6 +60,16 @@ test('dùng chung phân trang 20 dòng và cho phép đổi số dòng', () => {
   assert.deepEqual(pagination.position, ['bottomRight'])
 })
 
+test('bộ lọc cột hiển thị đúng biểu tượng và nằm sát mép phải tiêu đề', () => {
+  const source = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /<SearchOutlined v-if="type === 'search'" \/>/)
+  assert.match(source, /<FilterOutlined v-else \/>/)
+  assert.match(source, /class="table-column-filter-control"/)
+  assert.match(source, /placement="bottomRight"/)
+  assert.match(source, /\.table-column-filter-control\s*\{[\s\S]*?margin-left:\s*auto;/)
+})
+
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
   assert.equal(statusLabel(STATUS.BORROWED), 'Đang mượn')
