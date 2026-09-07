@@ -68,6 +68,16 @@ test('bộ lọc cột hiển thị đúng biểu tượng và nằm sát mép p
   assert.match(source, /\.table-column-controls\s*\{[\s\S]*?margin-left:\s*auto;/)
 })
 
+test('tiêu đề cột của toàn bộ bảng không tự xuống hàng', () => {
+  const globalStyle = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8')
+  const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
+  const consumablesSource = readFileSync(new URL('../src/components/ConsumablesTable.vue', import.meta.url), 'utf8')
+
+  assert.match(globalStyle, /\.ant-table-wrapper \.ant-table-thead > tr > th\s*\{[\s\S]*?white-space:\s*nowrap;/)
+  assert.match(filterSource, /\.table-column-title\s*\{[\s\S]*?white-space:\s*nowrap;/)
+  assert.match(consumablesSource, /\.consumables-desktop-table :deep\(\.ant-table-thead > tr > th\)[\s\S]*?white-space:\s*nowrap;/)
+})
+
 test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {
   const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
   const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')

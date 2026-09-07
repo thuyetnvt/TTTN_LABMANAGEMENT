@@ -57,6 +57,15 @@ html,
   background: #e6f4ff !important;
 }
 
+/* Giữ tiêu đề cột trên một hàng; bảng vẫn cuộn ngang khi màn hình hẹp. */
+.ant-table-wrapper .ant-table-thead > tr > th {
+  white-space: nowrap;
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th > * {
+  white-space: nowrap;
+}
+
 @media (max-width: 800px) {
   .responsive-modal .ant-modal {
     width: 95% !important;

@@ -830,6 +830,12 @@ const handleDelete = (id) => {
   overflow-wrap: anywhere;
 }
 
+.consumables-desktop-table :deep(.ant-table-thead > tr > th),
+.consumables-desktop-table :deep(.ant-table-thead > tr > th .table-column-title) {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
 .consumable-mobile-item {
   display: block;
   padding: 16px 4px;

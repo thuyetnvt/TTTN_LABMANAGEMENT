@@ -124,6 +124,7 @@ const applySort = order => {
   width: 100%;
   min-width: 0;
   gap: 8px;
+  white-space: nowrap;
 }
 
 .table-column-title {
@@ -131,6 +132,7 @@ const applySort = order => {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-column-controls {
