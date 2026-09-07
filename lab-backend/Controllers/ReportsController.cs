@@ -35,6 +35,7 @@ public class ReportsController : ControllerBase
             .ToListAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var equipmentIds = equipments.Select(item => item.Id).ToHashSet();
+        var reservedEquipment = await GetReservedEquipmentAsync(equipments, now, cancellationToken);
         var maintenanceQuery = FilterMaintenance(from, to, equipmentIds).AsNoTracking();
         var maintenanceCost = await maintenanceQuery.SumAsync(record => (decimal?)record.Cost, cancellationToken) ?? 0;
         var maintenance = await maintenanceQuery
@@ -126,6 +127,19 @@ public class ReportsController : ControllerBase
                 .Select(group => new { location = group.Key, count = group.Count() })
                 .OrderByDescending(item => item.count),
             borrowed,
+            reservedEquipment = reservedEquipment.Select(item => new
+            {
+                id = item.EquipmentId,
+                name = item.EquipmentName,
+                assetCode = item.AssetCode,
+                model = item.Model,
+                serial = item.Serial,
+                location = item.Location,
+                status = item.Status,
+                reservedByName = item.ReservedByName,
+                reservedByCode = item.ReservedByCode,
+                holdExpiresAt = item.HoldExpiresAt
+            }).ToList(),
             lowStock,
             maintenance,
             consumables,
@@ -392,7 +406,7 @@ public class ReportsController : ControllerBase
                 result.AddRange(details.Select(detail => new BorrowedAssetRow(
                     record.Id,
                     detail.EquipmentId,
-                    record.User?.Username ?? "—",
+                    GetUserDisplayName(record.User) ?? "—",
                     detail.Equipment!.Name,
                     detail.Equipment.Serial,
                     record.ExpectedReturnDate,
@@ -403,7 +417,7 @@ public class ReportsController : ControllerBase
                 result.Add(new BorrowedAssetRow(
                     record.Id,
                     record.Equipment.Id,
-                    record.User?.Username ?? "—",
+                    GetUserDisplayName(record.User) ?? "—",
                     record.Equipment.Name,
                     record.Equipment.Serial,
                     record.ExpectedReturnDate,
@@ -416,6 +430,90 @@ public class ReportsController : ControllerBase
             .ToList();
     }
 
+    private async Task<List<ReservedEquipmentRow>> GetReservedEquipmentAsync(
+        IReadOnlyCollection<Equipment> equipments,
+        DateTime nowUtc,
+        CancellationToken cancellationToken)
+    {
+        var pendingEquipments = equipments
+            .Where(item => item.Status == EquipmentStatuses.BorrowPending)
+            .ToList();
+        if (pendingEquipments.Count == 0) return [];
+
+        var equipmentIds = pendingEquipments.Select(item => item.Id).ToArray();
+        var records = await _context.BorrowRecords.AsNoTracking()
+            .Include(record => record.User)
+            .Include(record => record.Equipment)
+            .Include(record => record.Details)
+                .ThenInclude(detail => detail.Equipment)
+            .Where(record => record.Status == BorrowStatuses.Approved
+                && (!record.HoldExpiresAt.HasValue || record.HoldExpiresAt.Value > nowUtc)
+                && ((record.EquipmentId.HasValue && equipmentIds.Contains(record.EquipmentId.Value))
+                    || record.Details.Any(detail => equipmentIds.Contains(detail.EquipmentId)
+                        && detail.Status == BorrowStatuses.Approved)))
+            .OrderByDescending(record => record.BorrowDate)
+            .ToListAsync(cancellationToken);
+
+        var holders = new Dictionary<int, ReservedHolder>();
+        foreach (var record in records)
+        {
+            var holder = new ReservedHolder(
+                GetUserDisplayName(record.User),
+                GetUserCode(record.User),
+                record.HoldExpiresAt);
+
+            foreach (var detail in record.Details.Where(detail =>
+                         detail.Status == BorrowStatuses.Approved
+                         && equipmentIds.Contains(detail.EquipmentId)
+                         && detail.Equipment?.Status == EquipmentStatuses.BorrowPending))
+            {
+                holders.TryAdd(detail.EquipmentId, holder);
+            }
+
+            if (record.Details.Count == 0
+                && record.EquipmentId.HasValue
+                && equipmentIds.Contains(record.EquipmentId.Value)
+                && record.Equipment?.Status == EquipmentStatuses.BorrowPending)
+            {
+                holders.TryAdd(record.EquipmentId.Value, holder);
+            }
+        }
+
+        return pendingEquipments
+            .OrderBy(item => item.Name)
+            .Select(item =>
+            {
+                holders.TryGetValue(item.Id, out var holder);
+                return new ReservedEquipmentRow(
+                    item.Id,
+                    item.Name,
+                    item.AssetCode,
+                    item.Model,
+                    item.Serial,
+                    item.LocationNode?.Name ?? item.Location,
+                    item.Status,
+                    holder?.Name,
+                    holder?.Code,
+                    holder?.HoldExpiresAt);
+            })
+            .ToList();
+    }
+
+    private static string? GetUserDisplayName(User? user)
+    {
+        if (user is null) return null;
+        var fullName = user.FullName?.Trim();
+        if (!string.IsNullOrWhiteSpace(fullName)) return fullName;
+        var username = user.Username?.Trim();
+        return string.IsNullOrWhiteSpace(username) ? null : username;
+    }
+
+    private static string? GetUserCode(User? user)
+    {
+        var code = user?.UniversityCode?.Trim();
+        return string.IsNullOrWhiteSpace(code) ? null : code;
+    }
+
     private sealed record BorrowedAssetRow(
         int BorrowRecordId,
         int EquipmentId,
@@ -424,6 +522,23 @@ public class ReportsController : ControllerBase
         string Serial,
         DateTime ExpectedReturnDate,
         string Status);
+
+    private sealed record ReservedEquipmentRow(
+        int EquipmentId,
+        string EquipmentName,
+        string AssetCode,
+        string Model,
+        string Serial,
+        string Location,
+        string Status,
+        string? ReservedByName,
+        string? ReservedByCode,
+        DateTime? HoldExpiresAt);
+
+    private sealed record ReservedHolder(
+        string? Name,
+        string? Code,
+        DateTime? HoldExpiresAt);
 
     private static void WriteHeaders(ExcelWorksheet worksheet, string[] headers)
     {

@@ -98,6 +98,58 @@ public sealed class ReportsControllerTests
     }
 
     [Fact]
+    public async Task Summary_reserved_equipment_includes_holder_identity_without_private_contact_data()
+    {
+        await using var context = CreateContext();
+        var now = DateTime.UtcNow;
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student01",
+            FullName = "Nguyễn Văn A",
+            UniversityCode = "SV001",
+            Email = "student@example.com",
+            Phone = "0900000000",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.Add(new Equipment
+        {
+            Id = 1,
+            AssetCode = "EQ-001",
+            QrToken = "qr-001",
+            Name = "Thiết bị đang giữ chỗ",
+            Serial = "SN-001",
+            Model = "M1",
+            Location = "Lab",
+            Status = EquipmentStatuses.BorrowPending,
+            CreatedAt = now
+        });
+        context.BorrowRecords.Add(new BorrowRecord
+        {
+            Id = 1,
+            UserId = 1,
+            BorrowDate = now.AddMinutes(-10),
+            ExpectedReturnDate = now.AddDays(2),
+            HoldExpiresAt = now.AddHours(12),
+            Purpose = "Kiểm thử giữ chỗ",
+            Status = BorrowStatuses.Approved,
+            Details = [new BorrowRequestDetail { EquipmentId = 1, Status = BorrowStatuses.Approved }]
+        });
+        await context.SaveChangesAsync();
+
+        var result = Assert.IsType<OkObjectResult>(await new ReportsController(context)
+            .Summary(null, null, null, null, CancellationToken.None));
+        var row = JsonSerializer.SerializeToElement(result.Value)
+            .GetProperty("reservedEquipment")[0];
+
+        Assert.Equal("Nguyễn Văn A", row.GetProperty("reservedByName").GetString());
+        Assert.Equal("SV001", row.GetProperty("reservedByCode").GetString());
+        Assert.False(row.TryGetProperty("email", out _));
+        Assert.False(row.TryGetProperty("phone", out _));
+    }
+
+    [Fact]
     public async Task Summary_includes_overdue_return_processing_assets_in_borrowed_list()
     {
         await using var context = CreateContext();
@@ -134,6 +186,51 @@ public sealed class ReportsControllerTests
         Assert.Equal(1, json.GetProperty("totals").GetProperty("borrowed").GetInt32());
         Assert.Equal(1, json.GetProperty("totals").GetProperty("overdue").GetInt32());
         Assert.True(json.GetProperty("borrowed")[0].GetProperty("processingReturn").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Summary_borrowed_list_prefers_borrower_full_name_over_username()
+    {
+        await using var context = CreateContext();
+        var now = DateTime.UtcNow;
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "sv01",
+            FullName = "Nguyễn Văn B",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.Add(new Equipment
+        {
+            Id = 1,
+            AssetCode = "EQ-001",
+            QrToken = "qr-001",
+            Name = "Thiết bị đang mượn",
+            Serial = "SN-001",
+            Model = "M1",
+            Location = "Lab",
+            Status = EquipmentStatuses.Borrowed,
+            CreatedAt = now
+        });
+        context.BorrowRecords.Add(new BorrowRecord
+        {
+            Id = 1,
+            UserId = 1,
+            BorrowDate = now.AddDays(-1),
+            ExpectedReturnDate = now.AddDays(1),
+            Purpose = "Kiểm thử tên người mượn",
+            Status = BorrowStatuses.Borrowed,
+            Details = [new BorrowRequestDetail { EquipmentId = 1, Status = BorrowStatuses.Borrowed }]
+        });
+        await context.SaveChangesAsync();
+
+        var result = Assert.IsType<OkObjectResult>(await new ReportsController(context)
+            .Summary(null, null, null, null, CancellationToken.None));
+        var row = JsonSerializer.SerializeToElement(result.Value)
+            .GetProperty("borrowed")[0];
+
+        Assert.Equal("Nguyễn Văn B", row.GetProperty("user").GetString());
     }
 
     [Fact]
