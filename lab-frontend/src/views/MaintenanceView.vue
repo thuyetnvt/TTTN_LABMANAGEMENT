@@ -16,6 +16,18 @@
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <div class="maintenance-desktop-table">
         <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1450 }" :pagination="tablePagination" @change="handleTableChange">
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType"
+            :title="column.title"
+            :type="column.filterType"
+            :options="column.filterOptions"
+            :value="column.filterKey === 'status' ? statusFilter : searchQuery"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'maintenanceDate'">
              {{ formatDate(record[column.key]) }}
@@ -211,6 +223,7 @@ import { consumableApi } from '../api/consumableApi'
 import StatusBadge from '../components/StatusBadge.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { STATUS, isAdminRole, isManagerRole, statusMatches } from '../constants/business'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { formatVietnamDate as formatDate } from '../utils/dateTime'
@@ -232,6 +245,10 @@ const loading = ref(false)
 const lookupLoading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const maintenanceStatusOptions = [
+  { value: STATUS.MAINTENANCE_IN_PROGRESS, label: 'Đang bảo trì' },
+  { value: STATUS.MAINTENANCE_COMPLETED, label: 'Đã hoàn tất' }
+]
 const submitting = ref(false)
 const isFormVisible = ref(false)
 const isCompleteVisible = ref(false)
@@ -257,13 +274,13 @@ const formData = ref({
 })
 
 const columns = [
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 180, fixed: 'left' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 180, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Ngày thực hiện', dataIndex: 'maintenanceDate', key: 'maintenanceDate', width: 140 },
-  { title: 'Nội dung', dataIndex: 'description', key: 'description', width: 320 },
-  { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', width: 170 },
+  { title: 'Nội dung', dataIndex: 'description', key: 'description', width: 320, filterType: 'search', filterPlaceholder: 'Tìm nội dung...' },
+  { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', width: 170, filterType: 'search', filterPlaceholder: 'Tìm người thực hiện...' },
   { title: 'Chi phí', dataIndex: 'cost', key: 'cost', width: 120 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160 },
-  { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 280 },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160, filterType: 'select', filterKey: 'status', filterOptions: maintenanceStatusOptions },
+  { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 280, filterType: 'search', filterPlaceholder: 'Tìm kết quả...' },
   { title: 'Tình trạng sau bảo trì', dataIndex: 'resultStatus', key: 'resultStatus', width: 180 },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 120 }
 ]
@@ -294,6 +311,12 @@ const fetchData = async () => {
 const applyFilters = () => {
   tablePagination.current = 1
   fetchData()
+}
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'status') statusFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
 }
 
 const handleTableChange = (pager) => {

@@ -1,10 +1,22 @@
 <template>
   <div>
-    <div class="table-actions" v-if="isManagerRole(role)">
-      <a-button type="primary" @click="showAddModal">+ Thêm danh mục</a-button>
+    <div class="table-actions">
+      <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm tên, mô tả..." style="width: 240px" />
+      <a-button v-if="isManagerRole(role)" type="primary" @click="showAddModal">+ Thêm danh mục</a-button>
     </div>
 
-    <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination">
+    <a-table :dataSource="filteredDataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination">
+      <template #headerCell="{ column }">
+        <TableColumnFilter
+          v-if="column.filterType"
+          :title="column.title"
+          :type="column.filterType"
+          :value="searchQuery"
+          :placeholder="column.filterPlaceholder"
+          @apply="searchQuery = $event || ''"
+        />
+        <span v-else>{{ column.title }}</span>
+      </template>
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'createdAt'">
           {{ formatVietnamDate(record.createdAt) }}
@@ -49,6 +61,7 @@ import { isAdminRole, isManagerRole } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
 import { createTablePagination } from '../utils/tablePagination'
 import { formatVietnamDate } from '../utils/dateTime'
+import TableColumnFilter from './TableColumnFilter.vue'
 
 const tablePagination = createTablePagination()
 
@@ -62,10 +75,17 @@ const isFormVisible = ref(false)
 const isEditMode = ref(false)
 const currentEditId = ref(null)
 const formData = ref({ name: '', description: '' })
+const searchQuery = ref('')
+
+const filteredDataSource = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+  if (!keyword) return dataSource.value
+  return dataSource.value.filter(item => [item.name, item.description].some(value => String(value || '').toLowerCase().includes(keyword)))
+})
 
 const columns = [
-  { title: 'Tên danh mục', dataIndex: 'name', key: 'name' },
-  { title: 'Mô tả', dataIndex: 'description', key: 'description' },
+  { title: 'Tên danh mục', dataIndex: 'name', key: 'name', filterType: 'search', filterPlaceholder: 'Tìm tên danh mục...' },
+  { title: 'Mô tả', dataIndex: 'description', key: 'description', filterType: 'search', filterPlaceholder: 'Tìm mô tả...' },
   { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'createdAt', width: 140 },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), align: 'center', width: 160 }
 ]

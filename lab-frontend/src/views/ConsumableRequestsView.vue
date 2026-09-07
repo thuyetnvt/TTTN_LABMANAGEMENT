@@ -32,6 +32,18 @@
         :pagination="tablePagination"
         @change="handleTableChange"
       >
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType"
+            :title="column.title"
+            :type="column.filterType"
+            :options="column.filterOptions"
+            :value="column.filterKey === 'status' ? statusFilter : searchQuery"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <StatusBadge :status="record.status" type="consumable" />
@@ -208,6 +220,7 @@ import { consumableRequestApi } from '../api/consumableRequestApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
@@ -238,14 +251,21 @@ const handoverSubmitting = ref(false)
 const receiptVisible = ref(false)
 const receiptRequest = ref(null)
 const receiptSubmitting = ref(false)
+const consumableRequestStatusOptions = [
+  { value: STATUS.CONSUMABLE_PENDING, label: 'Chờ duyệt cấp phát' },
+  { value: STATUS.CONSUMABLE_APPROVED, label: 'Chờ bàn giao' },
+  { value: STATUS.CONSUMABLE_HANDED_OVER, label: 'Chờ xác nhận nhận' },
+  { value: STATUS.CONSUMABLE_RECEIVED, label: 'Đã nhận' },
+  { value: STATUS.REJECTED, label: 'Từ chối' }
+]
 
 const columns = [
-  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', width: 220, fixed: 'left' },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
-  { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', width: 180 },
+  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', width: 220, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
+  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
+  { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', width: 180, filterType: 'search', filterPlaceholder: 'Tìm người yêu cầu...' },
   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', width: 90, align: 'center' },
-  { title: 'Mục đích', dataIndex: 'reason', key: 'reason', width: 280 },
-  { title: 'Trạng thái', key: 'status', width: 180, align: 'center' },
+  { title: 'Mục đích', dataIndex: 'reason', key: 'reason', width: 280, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
+  { title: 'Trạng thái', key: 'status', width: 180, align: 'center', filterType: 'select', filterKey: 'status', filterOptions: consumableRequestStatusOptions },
   { title: 'Ngày gửi', dataIndex: 'requestDate', key: 'requestDate', width: 170 },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220, align: 'center' }
 ]
@@ -283,6 +303,12 @@ const fetchData = async () => {
 const applyFilters = () => {
   tablePagination.current = 1
   fetchData()
+}
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'status') statusFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
 }
 
 const handleTableChange = (pager) => {

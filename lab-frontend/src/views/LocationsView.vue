@@ -9,7 +9,29 @@
     </div>
 
     <a-card :bordered="false">
-      <a-table bordered :data-source="locations" :columns="columns" :loading="loading" row-key="id" :scroll="{ x: 900 }" :pagination="tablePagination">
+      <div class="location-filters">
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm mã, tên vị trí..." style="width: 260px" @search="applyFilters" />
+        <a-select v-model:value="typeFilter" allow-clear placeholder="Loại vị trí" style="width: 180px" @change="applyFilters">
+          <a-select-option v-for="option in typeOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
+        </a-select>
+        <a-select v-model:value="activeFilter" allow-clear placeholder="Trạng thái" style="width: 170px" @change="applyFilters">
+          <a-select-option value="ACTIVE">Đang sử dụng</a-select-option>
+          <a-select-option value="INACTIVE">Ngừng sử dụng</a-select-option>
+        </a-select>
+      </div>
+      <a-table bordered :data-source="filteredLocations" :columns="columns" :loading="loading" row-key="id" :scroll="{ x: 900 }" :pagination="tablePagination" @change="handleTableChange">
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType"
+            :title="column.title"
+            :type="column.filterType"
+            :options="column.filterOptions"
+            :value="column.filterKey === 'type' ? typeFilter : (column.filterKey === 'status' ? activeFilter : searchQuery)"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'parent'">
             {{ parentName(record.parentId) }}
@@ -70,15 +92,23 @@ import { message, Modal } from 'ant-design-vue'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { locationApi } from '../api/locationApi'
 import { getApiErrorMessage } from '../utils/apiError'
-import { createTablePagination } from '../utils/tablePagination'
+import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 
-const tablePagination = createTablePagination()
+const tablePagination = reactive({
+  ...createTablePagination(),
+  current: 1,
+  pageSize: TABLE_PAGE_SIZE
+})
 
 const locations = ref([])
 const loading = ref(false)
 const saving = ref(false)
 const modalOpen = ref(false)
 const editing = ref(null)
+const searchQuery = ref('')
+const typeFilter = ref(undefined)
+const activeFilter = ref(undefined)
 const form = reactive({ code: '', name: '', type: 'ROOM', parentId: null, description: '', isActive: true })
 const typeOptions = [
   { value: 'ROOM', label: 'Phòng lab' },
@@ -96,12 +126,15 @@ const locationTypeLabels = {
   LEGACY: 'Chưa phân loại'
 }
 const columns = [
-  { title: 'Mã', dataIndex: 'code', key: 'code' },
-  { title: 'Tên vị trí', dataIndex: 'name', key: 'name' },
-  { title: 'Loại', key: 'type' },
-  { title: 'Vị trí cha', key: 'parent' },
+  { title: 'Mã', dataIndex: 'code', key: 'code', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vị trí...' },
+  { title: 'Tên vị trí', dataIndex: 'name', key: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vị trí...' },
+  { title: 'Loại', key: 'type', filterType: 'select', filterKey: 'type', filterOptions: typeOptions },
+  { title: 'Vị trí cha', key: 'parent', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm vị trí cha...' },
   { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount' },
-  { title: 'Trạng thái', key: 'status' },
+  { title: 'Trạng thái', key: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
+    { value: 'ACTIVE', label: 'Đang sử dụng' },
+    { value: 'INACTIVE', label: 'Ngừng sử dụng' }
+  ] },
   { title: 'Thao tác', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 120, align: 'center' }
 ]
 
@@ -111,6 +144,33 @@ const canDeleteLocation = (record) => Number(record.equipmentCount || 0) === 0
 const deleteLocationLabel = (record) => canDeleteLocation(record)
   ? 'Xóa vị trí'
   : `Không thể xóa: vị trí còn ${record.equipmentCount} tài sản`
+
+const filteredLocations = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+  return locations.value.filter(location => {
+    const parent = parentName(location.parentId).toLowerCase()
+    const matchesSearch = !keyword || [location.code, location.name, parent].some(value => String(value || '').toLowerCase().includes(keyword))
+    const matchesType = !typeFilter.value || location.type === typeFilter.value
+    const matchesStatus = !activeFilter.value || (activeFilter.value === 'ACTIVE' ? location.isActive : !location.isActive)
+    return matchesSearch && matchesType && matchesStatus
+  })
+})
+
+const applyFilters = () => {
+  tablePagination.current = 1
+}
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'type') typeFilter.value = value
+  else if (column.filterKey === 'status') activeFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
+}
+
+const handleTableChange = pager => {
+  tablePagination.current = pager.current
+  tablePagination.pageSize = pager.pageSize
+}
 
 const fetchLocations = async () => {
   loading.value = true

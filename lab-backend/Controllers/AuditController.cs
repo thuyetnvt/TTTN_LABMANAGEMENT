@@ -59,6 +59,7 @@ public class AuditController : ControllerBase
                 || (log.UserId.HasValue && matchingActorIds.Contains(log.UserId.Value))
                 || log.Action.Contains(keyword)
                 || log.EntityType.Contains(keyword)
+                || log.IpAddress.Contains(keyword)
                 || log.Details.Contains(keyword)
                 || matchingUserIds.Contains(log.EntityId));
         }

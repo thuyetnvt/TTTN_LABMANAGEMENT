@@ -14,6 +14,18 @@
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1600 }" :pagination="tablePagination" @change="handleTableChange">
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType"
+            :title="column.title"
+            :type="column.filterType"
+            :options="column.filterOptions"
+            :value="column.filterKey === 'status' ? statusFilter : searchQuery"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
@@ -250,6 +262,7 @@ import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { HANDOVER_CONDITIONS, STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { handoverApi } from '../api/handoverApi'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -270,6 +283,14 @@ const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const borrowRequestStatusOptions = [
+  { value: STATUS.BORROW_PENDING, label: 'Chờ duyệt' },
+  { value: STATUS.APPROVED, label: 'Chờ bàn giao' },
+  { value: STATUS.BORROWED, label: 'Đang mượn' },
+  { value: STATUS.RETURN_PROCESSING, label: 'Đang xử lý trả' }
+]
+const returnSubmitting = ref(false)
+const isReturnModalVisible = ref(false)
 const isHandoverModalVisible = ref(false)
 const handoverSubmitting = ref(false)
 const currentHandoverRecord = ref(null)
@@ -287,16 +308,16 @@ const cancelReason = ref('')
 const cancelRecord = ref(null)
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170, fixed: 'left' },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160, fixed: 'left' },
-  { title: 'Danh mục', dataIndex: 'category', key: 'category', width: 110 },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
-  { title: 'Chi tiết yêu cầu', key: 'details', width: 180 },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Danh mục', dataIndex: 'category', key: 'category', width: 110, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
+  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
+  { title: 'Chi tiết yêu cầu', key: 'details', width: 180, filterType: 'search', filterPlaceholder: 'Tìm chi tiết...' },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },
   { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', width: 120 },
   { title: 'Hạn trả', key: 'dueStatus', align: 'center', width: 130 },
-  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 180 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 120 },
+  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 180, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 120, filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220 }
 ]
 
@@ -361,6 +382,12 @@ const fetchRequests = async () => {
 const applyFilters = () => {
   tablePagination.current = 1
   fetchRequests()
+}
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'status') statusFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
 }
 
 const handleTableChange = (pager) => {

@@ -23,6 +23,18 @@
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1640 }" :pagination="tablePagination" @change="handleTableChange">
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType"
+            :title="column.title"
+            :type="column.filterType"
+            :options="column.filterOptions"
+            :value="column.filterKey === 'status' ? statusFilter : searchQuery"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'expectedReturnDate' || column.key === 'actualReturnDate'">
             {{ formatDate(record[column.key]) }}
@@ -184,6 +196,7 @@ import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import ReturnInspectionModal from '../components/ReturnInspectionModal.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
@@ -221,10 +234,23 @@ const remindingRecordIds = ref(new Set())
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
 const isReminding = id => remindingRecordIds.value.has(id)
 
+const borrowStatusOptions = [
+  { value: STATUS.TEACHER_PENDING, label: 'Chờ giảng viên duyệt' },
+  { value: STATUS.BORROW_PENDING, label: 'Chờ quản lý duyệt' },
+  { value: STATUS.APPROVED, label: 'Chờ nhận' },
+  { value: STATUS.BORROWED, label: 'Đang mượn' },
+  { value: STATUS.RETURN_PROCESSING, label: 'Đang xử lý trả' },
+  { value: STATUS.RETURNED, label: 'Đã trả' },
+  { value: STATUS.REJECTED, label: 'Từ chối' },
+  { value: STATUS.CANCELLED, label: 'Đã hủy' },
+  { value: STATUS.EXPIRED, label: 'Hết hạn giữ chỗ' },
+  { value: 'OVERDUE', label: 'Quá hạn' }
+]
+
 const columns = [
-  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170, fixed: 'left' },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160, fixed: 'left' },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130 },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },
   { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 120 },
   { title: 'Ngày trả thực tế', dataIndex: 'actualReturnDate', key: 'actualReturnDate', width: 130 },
@@ -232,7 +258,7 @@ const columns = [
   { title: 'Ghi chú kiểm tra', dataIndex: 'returnInspectionNote', key: 'returnInspectionNote', width: 200 },
   { title: 'Xử lý bảo hành', dataIndex: 'warrantyAction', key: 'warrantyAction', width: 180 },
   { title: 'Bồi thường', dataIndex: 'compensationAmount', key: 'compensationAmount', width: 130 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 140 },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 140, filterType: 'select', filterKey: 'status', filterOptions: borrowStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190 }
 ]
 
@@ -367,6 +393,12 @@ const fetchHistory = async () => {
 const applyFilters = () => {
   tablePagination.current = 1
   fetchHistory()
+}
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'status') statusFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
 }
 
 const handleTableChange = (pager) => {

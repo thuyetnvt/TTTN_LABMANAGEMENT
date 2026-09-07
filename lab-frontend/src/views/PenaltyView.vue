@@ -15,6 +15,18 @@
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType"
+            :title="column.title"
+            :type="column.filterType"
+            :options="column.filterOptions"
+            :value="column.filterKey === 'status' ? statusFilter : searchQuery"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'amount'">
             <span style="color: #ef4444; font-weight: 600;">{{ record.amount.toLocaleString('vi-VN') }} ₫</span>
@@ -65,6 +77,7 @@ import { penaltyApi } from '../api/penaltyApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { formatVietnamDate } from '../utils/dateTime'
@@ -83,6 +96,10 @@ const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const penaltyStatusOptions = [
+  { value: STATUS.UNPAID, label: 'Chưa thanh toán' },
+  { value: STATUS.PAID, label: 'Đã thanh toán' }
+]
 const detailsVisible = ref(false)
 const selectedPenalty = ref(null)
 const penaltyUserLabel = record => record?.fullName?.trim() || record?.username || 'Không xác định'
@@ -92,12 +109,12 @@ const showDetails = record => {
 }
 
 const columns = [
-  { title: 'Người bồi thường', dataIndex: 'fullName', key: 'fullName', fixed: 'left' },
-  { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName' },
-  { title: 'Lý do / Tình trạng', dataIndex: 'reason', key: 'reason' },
+  { title: 'Người bồi thường', dataIndex: 'fullName', key: 'fullName', fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người bồi thường...' },
+  { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Lý do / Tình trạng', dataIndex: 'reason', key: 'reason', filterType: 'search', filterPlaceholder: 'Tìm lý do...' },
   { title: 'Số tiền phạt', dataIndex: 'amount', key: 'amount', align: 'right' },
   { title: 'Ngày lập', dataIndex: 'createdAt', key: 'createdAt', align: 'center' },
-  { title: 'Trạng thái', key: 'status', align: 'center' },
+  { title: 'Trạng thái', key: 'status', align: 'center', filterType: 'select', filterKey: 'status', filterOptions: penaltyStatusOptions },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190, align: 'center' }
 ]
 
@@ -126,6 +143,12 @@ const fetchPenalties = async () => {
 const applyFilters = () => {
   tablePagination.current = 1
   fetchPenalties()
+}
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'status') statusFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
 }
 
 const handleTableChange = pager => {

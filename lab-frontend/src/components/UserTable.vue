@@ -1,5 +1,17 @@
 <template>
   <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" bordered rowKey="id" :scroll="{ x: 'max-content' }" :pagination="pagination" @change="$emit('change', $event)">
+    <template #headerCell="{ column }">
+      <TableColumnFilter
+        v-if="column.filterType"
+        :title="column.title"
+        :type="column.filterType"
+        :options="column.filterOptions"
+        :value="filterValues[column.filterKey || column.key]"
+        :placeholder="column.filterPlaceholder"
+        @apply="value => emit('column-filter', { key: column.filterKey || column.key, value })"
+      />
+      <span v-else>{{ column.title }}</span>
+    </template>
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'role'">
         <a-tag :color="isAdminRole(record.role) ? 'gold' : 'blue'">{{ roleLabel(record.role) }}</a-tag>
@@ -55,8 +67,9 @@ import { useAuthStore } from '../stores/authStore'
 import { EditOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons-vue'
 import { isAdminRole, roleLabel } from '../constants/business'
 import ResponsiveDataList from './ResponsiveDataList.vue'
+import TableColumnFilter from './TableColumnFilter.vue'
 
-defineProps({
+const props = defineProps({
   dataSource: {
     type: Array,
     required: true
@@ -64,20 +77,35 @@ defineProps({
   pagination: {
     type: Object,
     required: true
+  },
+  filterValues: {
+    type: Object,
+    default: () => ({})
   }
 })
 
-const emit = defineEmits(['edit', 'delete', 'activate', 'change'])
+const filterValues = computed(() => props.filterValues || {})
+
+const emit = defineEmits(['edit', 'delete', 'activate', 'change', 'column-filter'])
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 
 const columns = [
-  { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName' },
-  { title: 'Mã định danh', dataIndex: 'universityCode', key: 'universityCode' },
-  { title: 'Email', dataIndex: 'email', key: 'email' },
-  { title: 'Vai trò', dataIndex: 'role', key: 'role' },
-  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 120 },
+  { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm họ và tên...' },
+  { title: 'Mã định danh', dataIndex: 'universityCode', key: 'universityCode', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã định danh...' },
+  { title: 'Email', dataIndex: 'email', key: 'email', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm email...' },
+  { title: 'Vai trò', dataIndex: 'role', key: 'role', filterType: 'select', filterKey: 'role', filterOptions: [
+    { value: 'Admin', label: 'Quản trị viên' },
+    { value: 'Trưởng lab', label: 'Trưởng lab' },
+    { value: 'Phó lab', label: 'Phó lab' },
+    { value: 'Giảng viên', label: 'Giảng viên' },
+    { value: 'Sinh viên', label: 'Sinh viên' }
+  ] },
+  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 120, filterType: 'select', filterKey: 'status', filterOptions: [
+    { value: 'ACTIVE', label: 'Hoạt động' },
+    { value: 'INACTIVE', label: 'Đã khóa' }
+  ] },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 150, align: 'center' }
 ]
 </script>

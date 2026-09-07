@@ -22,7 +22,16 @@
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <a-spin :spinning="loading">
-        <UserTable :dataSource="users" :pagination="pagination" @change="handleTableChange" @edit="showEditModal" @delete="handleDelete" @activate="handleActivate" />
+        <UserTable
+          :dataSource="users"
+          :pagination="pagination"
+          :filter-values="{ search: searchQuery, role: roleFilter, status: statusFilter }"
+          @change="handleTableChange"
+          @column-filter="handleColumnFilter"
+          @edit="showEditModal"
+          @delete="handleDelete"
+          @activate="handleActivate"
+        />
       </a-spin>
     </a-card>
 
@@ -99,6 +108,13 @@ const fetchUsers = async () => {
 const applyFilters = () => {
   pagination.current = 1
   fetchUsers()
+}
+
+const handleColumnFilter = ({ key, value }) => {
+  if (key === 'role') roleFilter.value = value
+  else if (key === 'status') statusFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
 }
 
 const handleTableChange = (pager) => {

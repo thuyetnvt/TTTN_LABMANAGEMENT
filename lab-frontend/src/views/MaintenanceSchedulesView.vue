@@ -19,6 +19,18 @@
 
     <a-card :bordered="false">
       <a-table class="desktop-table" :data-source="schedules" :columns="columns" :loading="loading" row-key="id" bordered :scroll="{ x: 1200 }" :pagination="tablePagination" @change="handleTableChange">
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType"
+            :title="column.title"
+            :type="column.filterType"
+            :options="column.filterOptions"
+            :value="column.filterKey === 'status' ? statusFilter : searchQuery"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'nextDueAt'">
             <div class="due-date-cell">
@@ -137,6 +149,7 @@ import { isAdminRole } from '../constants/business'
 import { equipmentApi } from '../api/equipmentApi'
 import { maintenanceScheduleApi } from '../api/maintenanceScheduleApi'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { formatVietnamDate as formatDate, formatVietnamDateInput, vietnamDateInputToUtc } from '../utils/dateTime'
 
@@ -159,12 +172,17 @@ const saving = ref(false)
 const modalOpen = ref(false)
 const editing = ref(null)
 const form = ref({ equipmentId: null, name: '', intervalDays: 90, intervalUnit: 'DAY', nextDueAt: '', notes: '', checklist: '', isActive: true })
+const scheduleStatusOptions = [
+  { value: 'DUE', label: 'Đã đến hạn' },
+  { value: 'ACTIVE', label: 'Đang bật' },
+  { value: 'INACTIVE', label: 'Tạm tắt' }
+]
 const columns = [
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 260 },
-  { title: 'Kế hoạch', dataIndex: 'name', key: 'name', width: 380 },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 260, filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Kế hoạch', dataIndex: 'name', key: 'name', width: 380, filterType: 'search', filterPlaceholder: 'Tìm kế hoạch...' },
   { title: 'Chu kỳ', dataIndex: 'intervalDays', key: 'intervalDays', width: 120, customRender: ({ record }) => `${record.intervalDays} ${({ DAY: 'ngày', WEEK: 'tuần', MONTH: 'tháng', QUARTER: 'quý', YEAR: 'năm' })[record.intervalUnit] || 'ngày'}` },
-  { title: 'Hạn bảo trì', dataIndex: 'nextDueAt', key: 'nextDueAt', width: 170 },
-  { title: 'Hoạt động', dataIndex: 'isActive', key: 'isActive', width: 120 },
+  { title: 'Hạn bảo trì', dataIndex: 'nextDueAt', key: 'nextDueAt', width: 170, filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions },
+  { title: 'Hoạt động', dataIndex: 'isActive', key: 'isActive', width: 120, filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions.slice(1) },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 150, align: 'center' }
 ]
 
@@ -185,6 +203,11 @@ const load = async () => {
 }
 
 const applyFilters = () => { tablePagination.current = 1; load() }
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'status') statusFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
+}
 const handleTableChange = pager => {
   tablePagination.current = pager.pageSize === tablePagination.pageSize ? pager.current : 1
   tablePagination.pageSize = pager.pageSize

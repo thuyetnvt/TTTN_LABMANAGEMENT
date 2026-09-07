@@ -44,6 +44,18 @@
         :scroll="{ x: 'max-content' }"
         @change="handleTableChange"
       >
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType"
+            :title="column.title"
+            :type="column.filterType"
+            :options="column.filterOptions"
+            :value="filters[column.filterKey]"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
             <AuditActionLabel :action="record.action" />
@@ -87,6 +99,7 @@ import { auditApi } from '../api/auditApi'
 import AuditActionLabel from '../components/AuditActionLabel.vue'
 import FilterBar from '../components/FilterBar.vue'
 import DataTable from '../components/DataTable.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { formatVietnamDateTime } from '../utils/dateTime.js'
 import { TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePagination'
 
@@ -109,12 +122,28 @@ const pagination = reactive({
   position: ['bottomRight']
 })
 
+const auditActionOptions = [
+  { value: 'Create', label: 'Tạo mới' },
+  { value: 'Update', label: 'Cập nhật' },
+  { value: 'Delete', label: 'Xóa' },
+  { value: 'Approve', label: 'Duyệt' },
+  { value: 'Reject', label: 'Từ chối' },
+  { value: 'Return', label: 'Trả thiết bị' }
+]
+const auditEntityOptions = [
+  { value: 'Equipment', label: 'Thiết bị' },
+  { value: 'Consumable', label: 'Vật tư' },
+  { value: 'BorrowRecord', label: 'Phiếu mượn' },
+  { value: 'ConsumableRequest', label: 'Yêu cầu vật tư' },
+  { value: 'AssetCategory', label: 'Danh mục' }
+]
+
 const columns = [
   { title: 'Thời gian', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
-  { title: 'Người thao tác', dataIndex: 'username', key: 'username', width: 150 },
-  { title: 'Hành động', dataIndex: 'action', key: 'action', width: 130 },
-  { title: 'Đối tượng', dataIndex: 'entityType', key: 'entityType', width: 150 },
-  { title: 'IP', dataIndex: 'ipAddress', key: 'ipAddress', width: 150 },
+  { title: 'Người thao tác', dataIndex: 'username', key: 'username', width: 150, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người thao tác...' },
+  { title: 'Hành động', dataIndex: 'action', key: 'action', width: 130, filterType: 'select', filterKey: 'action', filterOptions: auditActionOptions },
+  { title: 'Đối tượng', dataIndex: 'entityType', key: 'entityType', width: 150, filterType: 'select', filterKey: 'entityType', filterOptions: auditEntityOptions },
+  { title: 'IP', dataIndex: 'ipAddress', key: 'ipAddress', width: 150, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm địa chỉ IP...' },
   { title: 'Chi tiết', key: 'details', width: 120, align: 'center' }
 ]
 
@@ -151,6 +180,15 @@ const resetFilters = () => {
 const applySearch = () => {
   pagination.current = 1
   fetchLogs()
+}
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'action' || column.filterKey === 'entityType') {
+    filters[column.filterKey] = value
+    return
+  }
+  filters.search = value || ''
+  applySearch()
 }
 
 const handleTableChange = (pager) => {

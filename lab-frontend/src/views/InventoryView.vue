@@ -17,6 +17,18 @@
     <a-card :bordered="false">
       <div class="inventory-desktop-table">
         <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered :scroll="{ x: 1100 }" :pagination="tablePagination" @change="handleTableChange">
+          <template #headerCell="{ column }">
+            <TableColumnFilter
+              v-if="column.filterType"
+              :title="column.title"
+              :type="column.filterType"
+              :options="column.filterOptions"
+              :value="column.filterKey === 'status' ? statusFilter : searchQuery"
+              :placeholder="column.filterPlaceholder"
+              @apply="value => applyColumnFilter(column, value)"
+            />
+            <span v-else>{{ column.title }}</span>
+          </template>
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'"><StatusBadge :status="record.status" type="inventory" /></template>
             <template v-else-if="column.key === 'progress'">
@@ -130,6 +142,18 @@
           </a-select>
         </div>
         <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="itemPagination" @change="handleItemTableChange">
+          <template #headerCell="{ column }">
+            <TableColumnFilter
+              v-if="column.filterType"
+              :title="column.title"
+              :type="column.filterType"
+              :options="column.filterOptions"
+              :value="column.filterKey === 'status' ? itemStatusFilter : itemSearchQuery"
+              :placeholder="column.filterPlaceholder"
+              @apply="value => applyItemColumnFilter(column, value)"
+            />
+            <span v-else>{{ column.title }}</span>
+          </template>
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'bookQuantity'">{{ record.bookQuantity ?? '—' }}</template>
             <template v-else-if="column.key === 'actualQuantity'">{{ record.actualQuantity ?? '—' }}</template>
@@ -192,6 +216,7 @@ import QRScanner from '../components/QRScanner.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { inventoryApi } from '../api/inventoryApi'
 import { locationApi } from '../api/locationApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
@@ -220,6 +245,18 @@ const searchQuery = ref('')
 const statusFilter = ref(undefined)
 const itemSearchQuery = ref('')
 const itemStatusFilter = ref(undefined)
+const inventoryStatusOptions = [
+  { value: STATUS.INVENTORY_OPEN, label: 'Đang kiểm kê' },
+  { value: STATUS.INVENTORY_REVIEWING, label: 'Đang đối soát' },
+  { value: STATUS.INVENTORY_COMPLETED, label: 'Đã kết thúc' }
+]
+const inventoryItemStatusOptions = [
+  { value: STATUS.INVENTORY_PENDING, label: 'Chưa quét' },
+  { value: STATUS.INVENTORY_FOUND, label: 'Đã tìm thấy' },
+  { value: STATUS.INVENTORY_WRONG_LOCATION, label: 'Sai vị trí' },
+  { value: STATUS.INVENTORY_DAMAGED, label: 'Hư hỏng' },
+  { value: STATUS.INVENTORY_MISSING, label: 'Thất lạc' }
+]
 const creating = ref(false)
 const showCreate = ref(false)
 const createForm = ref({ name: '', locationNodeId: null, assetCategoryId: null })
@@ -245,22 +282,22 @@ let processingScanQueue = false
 const duplicateScanWindowMs = 2500
 
 const columns = [
-  { title: 'Mã đợt', dataIndex: 'code', key: 'code', width: 150 },
-  { title: 'Tên đợt', dataIndex: 'name', key: 'name', width: 230 },
+  { title: 'Mã đợt', dataIndex: 'code', key: 'code', width: 150, filterType: 'search', filterPlaceholder: 'Tìm mã đợt...' },
+  { title: 'Tên đợt', dataIndex: 'name', key: 'name', width: 230, filterType: 'search', filterPlaceholder: 'Tìm tên đợt...' },
   { title: 'Tiến độ', key: 'progress', width: 190 },
   { title: 'Chưa quét / Thất lạc', key: 'missing', width: 170, customRender: ({ record }) => inventoryDifferenceLabel(record) },
-  { title: 'Trạng thái', key: 'status', width: 150 },
+  { title: 'Trạng thái', key: 'status', width: 150, filterType: 'select', filterKey: 'status', filterOptions: inventoryStatusOptions },
   { title: 'Bắt đầu', key: 'startedAt', width: 150 },
   { title: 'Thao tác', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 96, align: 'center' }
 ]
 const itemColumns = [
-  { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName' },
-  { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode' },
-  { title: 'Vị trí dự kiến', dataIndex: 'expectedLocation', key: 'expectedLocation' },
+  { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName', filterType: 'search', filterPlaceholder: 'Tìm tài sản...' },
+  { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode', filterType: 'search', filterPlaceholder: 'Tìm mã tài sản...' },
+  { title: 'Vị trí dự kiến', dataIndex: 'expectedLocation', key: 'expectedLocation', filterType: 'search', filterPlaceholder: 'Tìm vị trí...' },
   { title: 'SL sổ sách', dataIndex: 'bookQuantity', key: 'bookQuantity', width: 100, align: 'center' },
   { title: 'SL thực tế', dataIndex: 'actualQuantity', key: 'actualQuantity', width: 100, align: 'center' },
   { title: 'Chênh lệch', dataIndex: 'quantityDifference', key: 'quantityDifference', width: 100, align: 'center' },
-  { title: 'Kết quả', key: 'status' },
+  { title: 'Kết quả', key: 'status', filterType: 'select', filterKey: 'status', filterOptions: inventoryItemStatusOptions },
   { title: 'Thời gian quét', key: 'scannedAt' },
   { title: 'Minh chứng', key: 'evidence' },
   { title: 'Đối soát', key: 'review', align: 'center', width: 110 }
@@ -308,6 +345,12 @@ const fetchAll = async () => {
 const applyFilters = () => {
   tablePagination.current = 1
   fetchAll()
+}
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'status') statusFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
 }
 
 const handleTableChange = pager => {
@@ -374,6 +417,12 @@ const loadSessionDetail = async (sessionId, resetItems = false) => {
 const applyItemFilters = async () => {
   if (!selectedSession.value) return
   await loadSessionDetail(selectedSession.value.id, true)
+}
+
+const applyItemColumnFilter = (column, value) => {
+  if (column.filterKey === 'status') itemStatusFilter.value = value
+  else itemSearchQuery.value = value || ''
+  applyItemFilters()
 }
 
 const handleItemTableChange = async pager => {

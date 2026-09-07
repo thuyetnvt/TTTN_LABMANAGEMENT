@@ -13,6 +13,15 @@
         style="width: 250px"
         @input="handleSearchChange"
       />
+      <a-select v-model:value="categoryFilter" allow-clear placeholder="Danh mục" style="width: 170px" @change="applyFilters">
+        <a-select-option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</a-select-option>
+      </a-select>
+      <a-select v-model:value="locationFilter" allow-clear placeholder="Vị trí" style="width: 170px" @change="applyFilters">
+        <a-select-option v-for="location in locations" :key="location.id" :value="location.id">{{ location.code }} — {{ location.name }}</a-select-option>
+      </a-select>
+      <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" style="width: 160px" @change="applyFilters">
+        <a-select-option v-for="option in equipmentStatusOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
+      </a-select>
     </div>
     <div class="right-actions">
       <a-button
@@ -45,6 +54,18 @@
     :row-selection="isManager ? rowSelection : undefined"
     @change="handleTableChange"
   >
+    <template #headerCell="{ column }">
+      <TableColumnFilter
+        v-if="column.filterType"
+        :title="column.title"
+        :type="column.filterType"
+        :options="column.filterOptions"
+        :value="column.filterKey === 'search' ? searchQuery : (column.filterKey === 'category' ? categoryFilter : (column.filterKey === 'location' ? locationFilter : statusFilter))"
+        :placeholder="column.filterPlaceholder"
+        @apply="value => applyColumnFilter(column, value)"
+      />
+      <span v-else>{{ column.title }}</span>
+    </template>
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'status'">
         <StatusBadge :status="record.status" />
@@ -356,6 +377,7 @@ import { assetCategoryApi } from '../api/assetCategoryApi'
 import { locationApi } from '../api/locationApi'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { formatVietnamDate } from '../utils/dateTime'
+import TableColumnFilter from './TableColumnFilter.vue'
 
 const tablePagination = reactive({
   ...createTablePagination(),
@@ -380,15 +402,15 @@ const borrowSubmitting = ref(false)
 
 const columns = computed(() => {
   const commonColumns = [
-    { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 200, fixed: 'left' },
-    { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
-    { title: 'Model', dataIndex: 'model', key: 'model', width: 130 },
-    { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 140 },
-    { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', width: 140 },
-    { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 130 }
+    { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 200, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên thiết bị...' },
+    { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140, filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
+    { title: 'Model', dataIndex: 'model', key: 'model', width: 130, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm model...' },
+    { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 140, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số seri...' },
+    { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', width: 140, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên seri...' },
+    { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 130, filterType: 'select', filterKey: 'location', filterOptions: locations.value.map(item => ({ value: item.id, label: `${item.code} — ${item.name}` })) }
   ]
   const managerColumns = isManager.value ? [
-    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 },
+    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người chịu trách nhiệm...' },
     { title: 'Quyết định', key: 'decisionFile', width: 120 },
     { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', width: 120 },
     { title: 'Khấu hao (%)', dataIndex: 'depreciationPercentage', key: 'depreciationPercentage', width: 120 },
@@ -398,7 +420,7 @@ const columns = computed(() => {
   return [
     ...commonColumns,
     ...managerColumns,
-    { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130 },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130, filterType: 'select', filterKey: 'status', filterOptions: equipmentStatusOptions },
     { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
     {
       title: 'Hành động',
@@ -417,10 +439,49 @@ const tableScrollX = computed(() => {
   const actionWidth = isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
   return commonWidth + managerWidth + 130 + 80 + actionWidth
 })
+const categoryFilter = ref(undefined)
+const locationFilter = ref(undefined)
+const mapRouteStatus = value => value && value !== 'all'
+  ? (value === 'problem'
+    ? 'PROBLEM'
+    : (value === 'warranty' ? STATUS.UNDER_WARRANTY : (value === 'warranty-soon' ? 'WARRANTY_SOON' : value)))
+  : undefined
+const statusFilter = ref(mapRouteStatus(route.query.status))
+const equipmentStatusOptions = [
+  { value: STATUS.AVAILABLE, label: statusLabel(STATUS.AVAILABLE) },
+  { value: STATUS.BORROWED, label: statusLabel(STATUS.BORROWED) },
+  { value: STATUS.BORROW_PENDING, label: statusLabel(STATUS.BORROW_PENDING) },
+  { value: STATUS.MAINTENANCE_IN_PROGRESS, label: statusLabel(STATUS.MAINTENANCE_IN_PROGRESS) },
+  { value: STATUS.UNDER_WARRANTY, label: statusLabel(STATUS.UNDER_WARRANTY) },
+  { value: STATUS.BROKEN, label: statusLabel(STATUS.BROKEN) },
+  { value: STATUS.MISSING, label: statusLabel(STATUS.MISSING) },
+  { value: 'PROBLEM', label: 'Có vấn đề' },
+  { value: 'WARRANTY_SOON', label: 'Sắp hết bảo hành' }
+]
+
 
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
 let searchTimeout = null
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'category') categoryFilter.value = value
+  else if (column.filterKey === 'location') locationFilter.value = value
+  else if (column.filterKey === 'status') statusFilter.value = value
+  else {
+    searchQuery.value = value || ''
+    debouncedSearchQuery.value = searchQuery.value
+  }
+  tablePagination.current = 1
+  fetchData()
+}
+
+const applyFilters = () => {
+  clearTimeout(searchTimeout)
+  debouncedSearchQuery.value = searchQuery.value.trim()
+  tablePagination.current = 1
+  fetchData()
+}
 
 const handleSearchChange = (e) => {
   clearTimeout(searchTimeout)
@@ -539,19 +600,13 @@ const fetchTeachers = async () => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const routeStatus = route.query.status
-    const status = routeStatus && routeStatus !== 'all'
-      ? (routeStatus === 'problem'
-        ? 'PROBLEM'
-        : (routeStatus === 'warranty'
-          ? STATUS.UNDER_WARRANTY
-          : (routeStatus === 'warranty-soon' ? 'WARRANTY_SOON' : routeStatus)))
-      : undefined
     const response = await equipmentApi.getPaged({
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: debouncedSearchQuery.value.trim() || undefined,
-      status
+      status: statusFilter.value || undefined,
+      categoryId: categoryFilter.value || undefined,
+      locationNodeId: locationFilter.value || undefined
     })
     dataSource.value = response.items || []
     tablePagination.total = response.total || 0
@@ -570,6 +625,7 @@ const handleTableChange = (pager) => {
 }
 
 watch(() => route.query.status, () => {
+  statusFilter.value = mapRouteStatus(route.query.status)
   tablePagination.current = 1
   fetchData()
 })

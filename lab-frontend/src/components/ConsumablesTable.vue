@@ -8,12 +8,27 @@
           <a-select-option value="AVAILABLE">Đủ dùng</a-select-option>
           <a-select-option value="LOW_STOCK">Cần nhập thêm</a-select-option>
         </a-select>
+        <a-select v-model:value="categoryFilter" allow-clear placeholder="Danh mục" style="width: 170px" @change="applyFilters">
+          <a-select-option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</a-select-option>
+        </a-select>
       </div>
       <a-button v-if="isManagerRole(role)" type="primary" @click="showAddModal">+ Thêm vật tư</a-button>
     </div>
 
     <div class="consumables-desktop-table">
       <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: tableScrollX }" :pagination="tablePagination" @change="handleTableChange">
+      <template #headerCell="{ column }">
+        <TableColumnFilter
+          v-if="column.filterType"
+          :title="column.title"
+          :type="column.filterType"
+          :options="column.filterOptions"
+          :value="column.filterKey === 'category' ? categoryFilter : (column.filterKey === 'stock' ? stockFilter : searchQuery)"
+          :placeholder="column.filterPlaceholder"
+          @apply="value => applyColumnFilter(column, value)"
+        />
+        <span v-else>{{ column.title }}</span>
+      </template>
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'quantity'">
           <span :style="{ color: availableStock(record) <= record.minQuantity ? '#dc2626' : '#16a34a', fontWeight: 700 }">
@@ -309,6 +324,7 @@ import { DatabaseOutlined, DeleteOutlined, EditOutlined, HistoryOutlined, Shoppi
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatVietnamDate, formatVietnamDateTime as formatVietnamDateTimeValue } from '../utils/dateTime'
+import TableColumnFilter from './TableColumnFilter.vue'
 
 const tablePagination = reactive({
   ...createTablePagination(),
@@ -329,14 +345,15 @@ const loading = ref(false)
 const submitting = ref(false)
 const searchQuery = ref('')
 const stockFilter = ref(undefined)
+const categoryFilter = ref(undefined)
 const availableStock = record => Number(record?.availableQuantity ?? Math.max(0, Number(record?.quantity || 0) - Number(record?.reservedQuantity || 0)))
 
 const columns = computed(() => {
   const commonColumns = [
-  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150, fixed: 'left' },
-  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240, fixed: 'left' },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140 },
-  { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100 },
+  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vật tư...' },
+  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
+  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140, filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
+  { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm đơn vị...' },
   { title: isManagerRole(role.value) ? 'Tổng tồn' : 'Khả dụng', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 110 },
   { title: 'Tồn tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', align: 'center', width: 120 }
   ]
@@ -347,7 +364,10 @@ const columns = computed(() => {
     { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 }
   ] : []
   return [...commonColumns, ...managerColumns,
-  { title: 'Trạng thái', key: 'status', align: 'center', width: 120 },
+  { title: 'Trạng thái', key: 'status', align: 'center', width: 120, filterType: 'select', filterKey: 'stock', filterOptions: [
+    { value: 'AVAILABLE', label: 'Đủ dùng' },
+    { value: 'LOW_STOCK', label: 'Cần nhập thêm' }
+  ] },
   { 
     title: 'Hành động', 
     key: 'action', 
@@ -465,7 +485,8 @@ const fetchData = async () => {
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: stockFilter.value
+      status: stockFilter.value,
+      categoryId: categoryFilter.value || undefined
     })
     dataSource.value = response.items || []
     tablePagination.total = response.total || 0
@@ -474,6 +495,13 @@ const fetchData = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'category') categoryFilter.value = value
+  else if (column.filterKey === 'stock') stockFilter.value = value
+  else searchQuery.value = value || ''
+  applyFilters()
 }
 
 const showAddModal = () => {

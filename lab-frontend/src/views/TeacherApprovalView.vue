@@ -8,6 +8,17 @@
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
       <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType"
+            :title="column.title"
+            :type="column.filterType"
+            :value="searchQuery"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
@@ -69,6 +80,7 @@ import { message } from 'ant-design-vue'
 import { borrowApi } from '../api/borrowApi'
 import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import { formatVietnamDate } from '../utils/dateTime'
 
@@ -91,11 +103,11 @@ const selectedRecord = ref(null)
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
 
 const columns = [
-  { title: 'Sinh viên', dataIndex: 'borrowerName', key: 'borrowerName' },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device' },
+  { title: 'Sinh viên', dataIndex: 'borrowerName', key: 'borrowerName', filterType: 'search', filterPlaceholder: 'Tìm sinh viên...' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate' },
   { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate' },
-  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose' },
+  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center' },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190, align: 'center' }
 ]
@@ -124,6 +136,11 @@ const fetchRequests = async () => {
 const applySearch = () => {
   tablePagination.current = 1
   fetchRequests()
+}
+
+const applyColumnFilter = (column, value) => {
+  searchQuery.value = value || ''
+  applySearch()
 }
 
 const handleTableChange = pager => {
