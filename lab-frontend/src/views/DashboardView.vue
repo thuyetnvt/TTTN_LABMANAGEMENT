@@ -595,6 +595,10 @@ const submitChangePassword = async () => {
   background: var(--color-canvas-cream);
 }
 
+.dashboard-shell > :deep(.ant-layout) {
+  min-width: 0;
+}
+
 .ladi-sider :deep(.ant-layout-sider-children) {
   display: flex;
   flex-direction: column;
@@ -912,6 +916,7 @@ const submitChangePassword = async () => {
   background: var(--color-canvas-cream);
   height: calc(100vh - 64px);
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
 }
 

@@ -1045,6 +1045,7 @@ const onScanSuccess = async (decodedText) => {
 <style scoped>
 .table-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
@@ -1053,11 +1054,18 @@ const onScanSuccess = async (decodedText) => {
 
 .left-actions {
   display: flex;
-  gap: 8px;
+  flex: 1 1 760px;
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 10px;
 }
 
 .right-actions {
   display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
   gap: 8px;
 }
 
@@ -1167,6 +1175,33 @@ const onScanSuccess = async (decodedText) => {
   font-size: 14px;
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 1280px) {
+  .table-actions {
+    align-items: stretch;
+  }
+
+  .left-actions,
+  .right-actions {
+    flex-basis: 100%;
+  }
+
+  .right-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 767px) {
+  .left-actions,
+  .right-actions {
+    flex-direction: column;
+  }
+
+  .left-actions > *,
+  .right-actions > * {
+    width: 100% !important;
+  }
 }
 
 @media (max-width: 640px) {

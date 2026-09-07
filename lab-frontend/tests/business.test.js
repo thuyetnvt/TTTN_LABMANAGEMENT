@@ -70,6 +70,16 @@ test('bộ lọc cột hiển thị đúng biểu tượng và nằm sát mép p
   assert.match(source, /\.table-column-filter-control\s*\{[\s\S]*?margin-left:\s*auto;/)
 })
 
+test('thanh thao tác không làm tràn khung nội dung khi màn hình hẹp', () => {
+  const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
+  const shellSource = readFileSync(new URL('../src/views/DashboardView.vue', import.meta.url), 'utf8')
+
+  assert.match(deviceSource, /\.table-actions\s*\{[\s\S]*?flex-wrap:\s*wrap;/)
+  assert.match(deviceSource, /\.left-actions\s*\{[\s\S]*?min-width:\s*0;/)
+  assert.match(deviceSource, /@media \(max-width: 767px\)[\s\S]*?\.left-actions > \*,[\s\S]*?width: 100% !important;/)
+  assert.match(shellSource, /\.dashboard-content\s*\{[\s\S]*?overflow-x:\s*hidden;/)
+})
+
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
   assert.equal(statusLabel(STATUS.BORROWED), 'Đang mượn')

@@ -732,11 +732,14 @@ const handleDelete = (id) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
 }
 
-.left-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.left-actions { display: flex; flex: 1 1 620px; flex-wrap: wrap; min-width: 0; gap: 10px; }
+
+.right-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; gap: 8px; }
 
 .consumables-mobile-list,
 .consumables-mobile-empty,
@@ -829,6 +832,8 @@ const handleDelete = (id) => {
 
   .table-actions { align-items: stretch; flex-direction: column; }
   .left-actions > * { width: 100% !important; }
+  .right-actions { width: 100%; flex-direction: column; }
+  .right-actions > * { width: 100% !important; }
 }
 
 @media (max-width: 420px) {
