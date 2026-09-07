@@ -257,7 +257,12 @@
     >
       <a-spin :spinning="statusDetailsLoading">
         <p class="status-details-description">
-          Danh sách thiết bị thuộc trạng thái “{{ selectedStatusLabel }}”.
+          <template v-if="selectedStatus === STATUS.BORROW_PENDING">
+            Danh sách thiết bị thuộc trạng thái “{{ selectedStatusLabel }}”, kèm người đang giữ chỗ và hạn giữ chỗ.
+          </template>
+          <template v-else>
+            Danh sách thiết bị thuộc trạng thái “{{ selectedStatusLabel }}”.
+          </template>
         </p>
         <a-table
           v-if="statusDetails.length"
@@ -266,17 +271,27 @@
           :pagination="{ pageSize: 10, hideOnSinglePage: true, showSizeChanger: false }"
           row-key="id"
           size="small"
-          :scroll="{ x: 700 }"
+          :scroll="{ x: selectedStatus === STATUS.BORROW_PENDING ? 1050 : 700 }"
         >
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'">
+            <template v-if="column.key === 'reservedByName'">
+              <span class="cell-ellipsis" :title="reservedByTitle(record)">
+                {{ reservedByLabel(record) }}
+              </span>
+            </template>
+            <template v-else-if="column.key === 'holdExpiresAt'">
+              {{ formatDateTime(record.holdExpiresAt) }}
+            </template>
+            <template v-else-if="column.key === 'status'">
               <a-tag :color="getStatusColor(record.status)">
                 {{ getEquipmentStatusLabel(record.status) }}
               </a-tag>
             </template>
-            <span v-else class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
-              {{ cellText(record[column.dataIndex]) }}
-            </span>
+            <template v-else>
+              <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
+                {{ cellText(record[column.dataIndex]) }}
+              </span>
+            </template>
           </template>
         </a-table>
         <a-empty v-else-if="!statusDetailsLoading" description="Không có thiết bị thuộc trạng thái này" />
@@ -309,7 +324,7 @@ import { getEquipmentStatusLabel, getStatusColor } from '../utils/statusLabels'
 import { getApiErrorMessage } from '../utils/apiError'
 import router from '../router'
 import { createTablePagination } from '../utils/tablePagination'
-import { formatVietnamDate } from '../utils/dateTime'
+import { formatVietnamDate, formatVietnamDateTime } from '../utils/dateTime'
 import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { sortTableRows } from '../utils/tableSort'
 
@@ -344,7 +359,8 @@ const report = ref({
   lowStock: [],
   maintenance: [],
   responsible: [],
-  consumables: []
+  consumables: [],
+  reservedEquipment: []
 })
 
 const assetStatusOrder = [
@@ -359,8 +375,8 @@ const assetStatusOrder = [
 const borrowColumns = [
   { title: 'Người mượn', dataIndex: 'user', key: 'user', width: 150, ellipsis: true, sortable: true, sortKey: 'user', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người mượn...' },
   { title: 'Thiết bị', dataIndex: 'equipment', key: 'equipment', width: 220, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Hạn trả', key: 'expectedReturnDate', width: 130, sortable: true, sortKey: 'expectedReturnDate' },
-  { title: 'Trạng thái', key: 'status', width: 130, sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
+  { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 130, sortable: true, sortKey: 'expectedReturnDate' },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130, sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'BORROWED', label: 'Đang mượn' },
     { value: 'OVERDUE', label: 'Quá hạn' },
     { value: 'RETURN_PROCESSING', label: 'Đang xử lý trả' }
@@ -456,14 +472,20 @@ const statusDetailsLoading = ref(false)
 const selectedStatus = ref('')
 const selectedStatusCount = ref(0)
 const statusDetails = ref([])
-const statusDetailsColumns = [
+const statusDetailsColumns = computed(() => [
   { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 220, ellipsis: true },
   { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode', width: 140, ellipsis: true },
   { title: 'Model', dataIndex: 'model', key: 'model', width: 180, ellipsis: true },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 150, ellipsis: true },
   { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 150, ellipsis: true },
+  ...(selectedStatus.value === STATUS.BORROW_PENDING
+    ? [
+        { title: 'Người giữ chỗ', dataIndex: 'reservedByName', key: 'reservedByName', width: 190, ellipsis: true },
+        { title: 'Hạn giữ chỗ', dataIndex: 'holdExpiresAt', key: 'holdExpiresAt', width: 155 }
+      ]
+    : []),
   { title: 'Trạng thái', key: 'status', width: 130 }
-]
+])
 const selectedStatusLabel = computed(() => selectedStatus.value ? getEquipmentStatusLabel(selectedStatus.value) : '')
 const statusDetailsTitle = computed(() => selectedStatusLabel.value
   ? `${selectedStatusLabel.value} (${formatNumber(selectedStatusCount.value)} thiết bị)`
@@ -477,9 +499,16 @@ const openStatusDetails = async item => {
   statusDetailsVisible.value = true
   statusDetailsLoading.value = true
   try {
-    const result = await equipmentApi.getPaged({ page: 1, pageSize: 100, status: item.value })
-    statusDetails.value = Array.isArray(result?.items) ? result.items : []
-    selectedStatusCount.value = Number(result?.total ?? item.count)
+    if (item.value === STATUS.BORROW_PENDING) {
+      statusDetails.value = Array.isArray(report.value.reservedEquipment)
+        ? report.value.reservedEquipment
+        : []
+      selectedStatusCount.value = item.count
+    } else {
+      const result = await equipmentApi.getPaged({ page: 1, pageSize: 100, status: item.value })
+      statusDetails.value = Array.isArray(result?.items) ? result.items : []
+      selectedStatusCount.value = Number(result?.total ?? item.count)
+    }
   } catch (error) {
     message.error(getApiErrorMessage(error, 'Không tải được danh sách thiết bị.'))
   } finally {
@@ -549,9 +578,17 @@ const attentionCards = computed(() => [
 
 const hasAttention = computed(() => attentionCards.value.some(item => item.count > 0))
 
+const formatDate = value => formatVietnamDate(value)
+const formatDateTime = value => formatVietnamDateTime(value)
 const formatNumber = value => Number(value || 0).toLocaleString('vi-VN')
 const formatCurrency = value => `${Number(value || 0).toLocaleString('vi-VN')} ₫`
 const cellText = value => value === null || value === undefined || value === '' ? '—' : String(value)
+const reservedByLabel = record => {
+  const name = cellText(record?.reservedByName)
+  if (name === '—') return 'Chưa có dữ liệu'
+  return record?.reservedByCode ? `${name} (${record.reservedByCode})` : name
+}
+const reservedByTitle = record => reservedByLabel(record)
 const statusPercent = count => statusTotal.value ? (Number(count || 0) / statusTotal.value) * 100 : 0
 
 const applyReportFilter = (group, column, value) => {
@@ -590,7 +627,8 @@ const load = async () => {
       lowStock: Array.isArray(result?.lowStock) ? result.lowStock : [],
       maintenance: Array.isArray(result?.maintenance) ? result.maintenance : [],
       responsible: Array.isArray(result?.responsible) ? result.responsible : [],
-      consumables: Array.isArray(result?.consumables) ? result.consumables : []
+      consumables: Array.isArray(result?.consumables) ? result.consumables : [],
+      reservedEquipment: Array.isArray(result?.reservedEquipment) ? result.reservedEquipment : []
     }
   } catch (error) {
     message.error(getApiErrorMessage(error, 'Không tải được báo cáo.'))

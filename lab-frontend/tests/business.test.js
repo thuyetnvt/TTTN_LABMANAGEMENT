@@ -214,7 +214,18 @@ test('báo cáo mở danh sách thiết bị đúng trạng thái ngay trong mod
   assert.match(source, /@click="openStatusDetails\(item\)"/)
   assert.match(source, /const openStatusDetails = async item =>/)
   assert.match(source, /equipmentApi\.getPaged\(\{ page: 1, pageSize: 100, status: item\.value \}\)/)
+  assert.match(source, /report\.value\.reservedEquipment/)
+  assert.match(source, /reservedByName/)
+  assert.match(source, /holdExpiresAt/)
   assert.match(source, /v-model:open="statusDetailsVisible"/)
+})
+
+test('báo cáo hiển thị đúng ngày hạn trả và không lệch sang cột trạng thái', () => {
+  const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.includes("title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate'"))
+  assert.ok(source.includes('const formatDate = value => formatVietnamDate(value)'))
+  assert.ok(source.includes("title: 'Trạng thái', dataIndex: 'status', key: 'status'"))
 })
 
 test('kiểm kê hiển thị đã đối soát cho tài sản đã quét bình thường', () => {
