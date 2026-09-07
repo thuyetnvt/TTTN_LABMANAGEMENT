@@ -19,13 +19,17 @@
         <a-table :data-source="sessions" :columns="columns" :loading="loading" row-key="id" bordered :scroll="{ x: 1100 }" :pagination="tablePagination" @change="handleTableChange">
           <template #headerCell="{ column }">
             <TableColumnFilter
-              v-if="column.filterType"
+              v-if="column.filterType || column.sortable"
               :title="column.title"
               :type="column.filterType"
               :options="column.filterOptions"
+              :filterable="Boolean(column.filterType)"
+              :sortable="Boolean(column.sortable)"
+              :sort-order="sessionSortState.field === column.sortKey ? sessionSortState.order : undefined"
               :value="column.filterKey === 'status' ? statusFilter : searchQuery"
               :placeholder="column.filterPlaceholder"
               @apply="value => applyColumnFilter(column, value)"
+              @sort="value => applyColumnSort(column, value)"
             />
             <span v-else>{{ column.title }}</span>
           </template>
@@ -144,13 +148,17 @@
         <a-table :data-source="selectedSession.items" :columns="itemColumns" row-key="id" size="small" style="margin-top: 16px" :pagination="itemPagination" @change="handleItemTableChange">
           <template #headerCell="{ column }">
             <TableColumnFilter
-              v-if="column.filterType"
+              v-if="column.filterType || column.sortable"
               :title="column.title"
               :type="column.filterType"
               :options="column.filterOptions"
+              :filterable="Boolean(column.filterType)"
+              :sortable="Boolean(column.sortable)"
+              :sort-order="itemSortState.field === column.sortKey ? itemSortState.order : undefined"
               :value="column.filterKey === 'status' ? itemStatusFilter : itemSearchQuery"
               :placeholder="column.filterPlaceholder"
               @apply="value => applyItemColumnFilter(column, value)"
+              @sort="value => applyItemColumnSort(column, value)"
             />
             <span v-else>{{ column.title }}</span>
           </template>
@@ -243,8 +251,10 @@ const categories = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const sessionSortState = reactive({ field: undefined, order: undefined })
 const itemSearchQuery = ref('')
 const itemStatusFilter = ref(undefined)
+const itemSortState = reactive({ field: undefined, order: undefined })
 const inventoryStatusOptions = [
   { value: STATUS.INVENTORY_OPEN, label: 'Đang kiểm kê' },
   { value: STATUS.INVENTORY_REVIEWING, label: 'Đang đối soát' },
@@ -282,23 +292,23 @@ let processingScanQueue = false
 const duplicateScanWindowMs = 2500
 
 const columns = [
-  { title: 'Mã đợt', dataIndex: 'code', key: 'code', width: 150, filterType: 'search', filterPlaceholder: 'Tìm mã đợt...' },
-  { title: 'Tên đợt', dataIndex: 'name', key: 'name', width: 230, filterType: 'search', filterPlaceholder: 'Tìm tên đợt...' },
-  { title: 'Tiến độ', key: 'progress', width: 190 },
-  { title: 'Chưa quét / Thất lạc', key: 'missing', width: 170, customRender: ({ record }) => inventoryDifferenceLabel(record) },
-  { title: 'Trạng thái', key: 'status', width: 150, filterType: 'select', filterKey: 'status', filterOptions: inventoryStatusOptions },
-  { title: 'Bắt đầu', key: 'startedAt', width: 150 },
+  { title: 'Mã đợt', dataIndex: 'code', key: 'code', sortKey: 'code', sortable: true, width: 150, filterType: 'search', filterPlaceholder: 'Tìm mã đợt...' },
+  { title: 'Tên đợt', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, width: 230, filterType: 'search', filterPlaceholder: 'Tìm tên đợt...' },
+  { title: 'Tiến độ', key: 'progress', sortKey: 'progress', sortable: true, width: 190 },
+  { title: 'Chưa quét / Thất lạc', key: 'missing', sortKey: 'missing', sortable: true, width: 170, customRender: ({ record }) => inventoryDifferenceLabel(record) },
+  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 150, filterType: 'select', filterKey: 'status', filterOptions: inventoryStatusOptions },
+  { title: 'Bắt đầu', key: 'startedAt', sortKey: 'startedAt', sortable: true, width: 150 },
   { title: 'Thao tác', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 96, align: 'center' }
 ]
 const itemColumns = [
-  { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName', filterType: 'search', filterPlaceholder: 'Tìm tài sản...' },
-  { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode', filterType: 'search', filterPlaceholder: 'Tìm mã tài sản...' },
-  { title: 'Vị trí dự kiến', dataIndex: 'expectedLocation', key: 'expectedLocation', filterType: 'search', filterPlaceholder: 'Tìm vị trí...' },
-  { title: 'SL sổ sách', dataIndex: 'bookQuantity', key: 'bookQuantity', width: 100, align: 'center' },
-  { title: 'SL thực tế', dataIndex: 'actualQuantity', key: 'actualQuantity', width: 100, align: 'center' },
-  { title: 'Chênh lệch', dataIndex: 'quantityDifference', key: 'quantityDifference', width: 100, align: 'center' },
-  { title: 'Kết quả', key: 'status', filterType: 'select', filterKey: 'status', filterOptions: inventoryItemStatusOptions },
-  { title: 'Thời gian quét', key: 'scannedAt' },
+  { title: 'Tài sản', dataIndex: 'equipmentName', key: 'equipmentName', sortKey: 'equipment', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm tài sản...' },
+  { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode', sortKey: 'assetCode', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm mã tài sản...' },
+  { title: 'Vị trí dự kiến', dataIndex: 'expectedLocation', key: 'expectedLocation', sortKey: 'expectedLocation', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm vị trí...' },
+  { title: 'SL sổ sách', dataIndex: 'bookQuantity', key: 'bookQuantity', sortKey: 'bookQuantity', sortable: true, width: 100, align: 'center' },
+  { title: 'SL thực tế', dataIndex: 'actualQuantity', key: 'actualQuantity', sortKey: 'actualQuantity', sortable: true, width: 100, align: 'center' },
+  { title: 'Chênh lệch', dataIndex: 'quantityDifference', key: 'quantityDifference', sortKey: 'quantityDifference', sortable: true, width: 100, align: 'center' },
+  { title: 'Kết quả', key: 'status', sortKey: 'status', sortable: true, filterType: 'select', filterKey: 'status', filterOptions: inventoryItemStatusOptions },
+  { title: 'Thời gian quét', key: 'scannedAt', sortKey: 'scannedAt', sortable: true },
   { title: 'Minh chứng', key: 'evidence' },
   { title: 'Đối soát', key: 'review', align: 'center', width: 110 }
 ]
@@ -331,7 +341,9 @@ const fetchAll = async () => {
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value
+      status: statusFilter.value,
+      sortBy: sessionSortState.field,
+      sortDirection: sessionSortState.order === 'descend' ? 'desc' : (sessionSortState.order === 'ascend' ? 'asc' : undefined)
     })
     sessions.value = response.items || []
     tablePagination.total = response.total || 0
@@ -351,6 +363,13 @@ const applyColumnFilter = (column, value) => {
   if (column.filterKey === 'status') statusFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const applyColumnSort = (column, order) => {
+  sessionSortState.field = order ? column.sortKey : undefined
+  sessionSortState.order = order
+  tablePagination.current = 1
+  fetchAll()
 }
 
 const handleTableChange = pager => {
@@ -377,7 +396,9 @@ const refreshSessions = async () => {
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value
+      status: statusFilter.value,
+      sortBy: sessionSortState.field,
+      sortDirection: sessionSortState.order === 'descend' ? 'desc' : (sessionSortState.order === 'ascend' ? 'asc' : undefined)
     })
     sessions.value = response.items || []
     tablePagination.total = response.total || 0
@@ -407,7 +428,9 @@ const loadSessionDetail = async (sessionId, resetItems = false) => {
       page: itemPagination.current,
       pageSize: itemPagination.pageSize,
       search: itemSearchQuery.value.trim() || undefined,
-      status: itemStatusFilter.value
+      status: itemStatusFilter.value,
+      sortBy: itemSortState.field,
+      sortDirection: itemSortState.order === 'descend' ? 'desc' : (itemSortState.order === 'ascend' ? 'asc' : undefined)
     })
   ])
   selectedSession.value = { ...metadata, items: itemResponse.items || [] }
@@ -422,6 +445,13 @@ const applyItemFilters = async () => {
 const applyItemColumnFilter = (column, value) => {
   if (column.filterKey === 'status') itemStatusFilter.value = value
   else itemSearchQuery.value = value || ''
+  applyItemFilters()
+}
+
+const applyItemColumnSort = (column, order) => {
+  itemSortState.field = order ? column.sortKey : undefined
+  itemSortState.order = order
+  itemPagination.current = 1
   applyItemFilters()
 }
 

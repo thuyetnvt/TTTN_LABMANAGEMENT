@@ -38,13 +38,17 @@
       >
         <template #headerCell="{ column }">
           <TableColumnFilter
-            v-if="column.filterType"
+            v-if="column.filterType || column.sortable"
             :title="column.title"
             :type="column.filterType"
             :options="column.filterOptions"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
             :value="column.filterKey === 'status' ? statusFilter : searchQuery"
             :placeholder="column.filterPlaceholder"
             @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
           />
           <span v-else>{{ column.title }}</span>
         </template>
@@ -248,6 +252,7 @@ const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
 const detailsVisible = ref(false)
 const selectedRequest = ref(null)
 const handoverVisible = ref(false)
@@ -268,13 +273,13 @@ const consumableRequestStatusOptions = [
 ]
 
 const columns = [
-  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', width: 220, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
-  { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', width: 180, filterType: 'search', filterPlaceholder: 'Tìm người yêu cầu...' },
-  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', width: 90, align: 'center' },
-  { title: 'Mục đích', dataIndex: 'reason', key: 'reason', width: 280, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
-  { title: 'Trạng thái', key: 'status', width: 180, align: 'center', filterType: 'select', filterKey: 'status', filterOptions: consumableRequestStatusOptions },
-  { title: 'Ngày gửi', dataIndex: 'requestDate', key: 'requestDate', width: 170 },
+  { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', sortKey: 'consumable', sortable: true, width: 220, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
+  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', sortKey: 'category', sortable: true, width: 140, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
+  { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', sortKey: 'requester', sortable: true, width: 180, filterType: 'search', filterPlaceholder: 'Tìm người yêu cầu...' },
+  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', sortKey: 'quantity', sortable: true, width: 90, align: 'center' },
+  { title: 'Mục đích', dataIndex: 'reason', key: 'reason', sortKey: 'reason', sortable: true, width: 280, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
+  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 180, align: 'center', filterType: 'select', filterKey: 'status', filterOptions: consumableRequestStatusOptions },
+  { title: 'Ngày gửi', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 170 },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220, align: 'center' }
 ]
 
@@ -297,7 +302,9 @@ const fetchData = async () => {
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value
+      status: statusFilter.value,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     dataSource.value = response.items || []
     tablePagination.total = response.total || 0
@@ -317,6 +324,13 @@ const applyColumnFilter = (column, value) => {
   if (column.filterKey === 'status') statusFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+  tablePagination.current = 1
+  fetchData()
 }
 
 const handleTableChange = (pager) => {

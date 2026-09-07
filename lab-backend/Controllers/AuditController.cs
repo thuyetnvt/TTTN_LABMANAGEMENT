@@ -28,6 +28,8 @@ public class AuditController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDirection = null,
         CancellationToken cancellationToken = default)
     {
         page = Math.Max(1, page);
@@ -74,8 +76,7 @@ public class AuditController : ControllerBase
         }
 
         var total = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(log => log.CreatedAt)
+        var items = await ApplySorting(query, sortBy, sortDirection)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -149,6 +150,33 @@ public class AuditController : ControllerBase
 
         var totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)pageSize);
         return Ok(new { page, pageSize, total, totalPages, items = responseItems });
+    }
+
+    private static IQueryable<AuditLog> ApplySorting(
+        IQueryable<AuditLog> query,
+        string? sortBy,
+        string? sortDirection)
+    {
+        var descending = string.Equals(sortDirection?.Trim(), "desc", StringComparison.OrdinalIgnoreCase);
+        return sortBy?.Trim().ToLowerInvariant() switch
+        {
+            "username" => descending
+                ? query.OrderByDescending(log => log.Username).ThenByDescending(log => log.Id)
+                : query.OrderBy(log => log.Username).ThenBy(log => log.Id),
+            "action" => descending
+                ? query.OrderByDescending(log => log.Action).ThenByDescending(log => log.Id)
+                : query.OrderBy(log => log.Action).ThenBy(log => log.Id),
+            "entitytype" => descending
+                ? query.OrderByDescending(log => log.EntityType).ThenByDescending(log => log.Id)
+                : query.OrderBy(log => log.EntityType).ThenBy(log => log.Id),
+            "ipaddress" => descending
+                ? query.OrderByDescending(log => log.IpAddress).ThenByDescending(log => log.Id)
+                : query.OrderBy(log => log.IpAddress).ThenBy(log => log.Id),
+            "createdat" => descending
+                ? query.OrderByDescending(log => log.CreatedAt).ThenByDescending(log => log.Id)
+                : query.OrderBy(log => log.CreatedAt).ThenBy(log => log.Id),
+            _ => query.OrderByDescending(log => log.CreatedAt).ThenByDescending(log => log.Id)
+        };
     }
 
     private static string FormatActorDisplayName(

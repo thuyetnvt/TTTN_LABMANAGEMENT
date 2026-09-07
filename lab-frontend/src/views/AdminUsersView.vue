@@ -26,8 +26,10 @@
           :dataSource="users"
           :pagination="pagination"
           :filter-values="{ search: searchQuery, role: roleFilter, status: statusFilter }"
+          :sort-state="sortState"
           @change="handleTableChange"
           @column-filter="handleColumnFilter"
+          @sort="handleColumnSort"
           @edit="showEditModal"
           @delete="handleDelete"
           @activate="handleActivate"
@@ -70,6 +72,7 @@ const submitting = ref(false)
 const searchQuery = ref('')
 const roleFilter = ref(undefined)
 const statusFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
 const pagination = reactive({
   ...createTablePagination(),
   current: 1,
@@ -94,7 +97,9 @@ const fetchUsers = async () => {
       pageSize: pagination.pageSize,
       search: searchQuery.value.trim() || undefined,
       role: roleFilter.value,
-      status: statusFilter.value
+      status: statusFilter.value,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     users.value = res.items || []
     pagination.total = res.total || 0
@@ -115,6 +120,13 @@ const handleColumnFilter = ({ key, value }) => {
   else if (key === 'status') statusFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const handleColumnSort = ({ column, value }) => {
+  sortState.field = value ? column.sortKey : undefined
+  sortState.order = value
+  pagination.current = 1
+  fetchUsers()
 }
 
 const handleTableChange = (pager) => {

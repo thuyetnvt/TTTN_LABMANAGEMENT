@@ -197,8 +197,7 @@ public class UsersController : ControllerBase
             query = query.Where(user => user.Role == normalizedRole);
         }
 
-        return await query
-            .OrderBy(user => user.Username)
+        return await ApplySorting(query, paging)
             .Select(user => new UserDto
             {
                 Id = user.Id,
@@ -215,6 +214,37 @@ public class UsersController : ControllerBase
                 AvatarUpdatedAt = user.AvatarUpdatedAt
             })
             .ToPagedResultAsync(paging, cancellationToken);
+    }
+
+    private static IQueryable<User> ApplySorting(IQueryable<User> query, PageQuery paging)
+    {
+        var descending = string.Equals(
+            paging.SortDirection?.Trim(),
+            "desc",
+            StringComparison.OrdinalIgnoreCase);
+
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "fullname" => descending
+                ? query.OrderByDescending(user => user.FullName).ThenBy(user => user.Id)
+                : query.OrderBy(user => user.FullName).ThenBy(user => user.Id),
+            "universitycode" => descending
+                ? query.OrderByDescending(user => user.UniversityCode).ThenBy(user => user.Id)
+                : query.OrderBy(user => user.UniversityCode).ThenBy(user => user.Id),
+            "email" => descending
+                ? query.OrderByDescending(user => user.Email).ThenBy(user => user.Id)
+                : query.OrderBy(user => user.Email).ThenBy(user => user.Id),
+            "role" => descending
+                ? query.OrderByDescending(user => user.Role).ThenBy(user => user.Id)
+                : query.OrderBy(user => user.Role).ThenBy(user => user.Id),
+            "isactive" => descending
+                ? query.OrderByDescending(user => user.IsActive).ThenBy(user => user.Id)
+                : query.OrderBy(user => user.IsActive).ThenBy(user => user.Id),
+            "username" => descending
+                ? query.OrderByDescending(user => user.Username).ThenBy(user => user.Id)
+                : query.OrderBy(user => user.Username).ThenBy(user => user.Id),
+            _ => query.OrderBy(user => user.Username).ThenBy(user => user.Id)
+        };
     }
 
     [HttpGet("teachers")]

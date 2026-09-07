@@ -43,19 +43,11 @@
             </a-select>
           </div>
           <div class="filter-actions">
-            <a-button type="primary" :loading="loading" @click="applyFilters">
-              <template #icon><FilterOutlined /></template>
-              Lọc
-            </a-button>
             <a-button :disabled="loading" @click="resetFilters">
               <template #icon><ReloadOutlined /></template>
               Đặt lại
             </a-button>
           </div>
-        </div>
-        <div class="applied-filters" aria-live="polite">
-          <span class="applied-filters-label">Bộ lọc đang áp dụng:</span>
-          <a-tag v-for="item in appliedFilterLabels" :key="item">{{ item }}</a-tag>
         </div>
       </a-card>
     </section>
@@ -74,6 +66,135 @@
           </a-card>
         </div>
       </section>
+
+      <a-card :bordered="false" class="report-card detail-card">
+        <template #title>Chi tiết vận hành</template>
+        <a-tabs v-model:active-key="activeTab" class="operation-tabs">
+          <a-tab-pane key="borrow" tab="Mượn trả">
+            <a-table
+              v-if="borrowedDisplay.length"
+              :data-source="borrowedDisplay"
+              :columns="borrowColumns"
+              :pagination="borrowPagination"
+              :scroll="{ x: 680 }"
+              row-key="id"
+              size="small"
+            >
+              <template #headerCell="{ column }">
+                <TableColumnFilter
+                  v-if="column.filterType || column.sortable"
+                  :title="column.title"
+                  :type="column.filterType"
+                  :options="column.filterOptions"
+                  :value="column.filterKey === 'status' ? reportTableFilters.borrowStatus : reportTableFilters.borrowSearch"
+                  :placeholder="column.filterPlaceholder"
+                  :filterable="Boolean(column.filterType)"
+                  :sortable="Boolean(column.sortable)"
+                  :sort-order="borrowSortState.field === column.sortKey ? borrowSortState.order : undefined"
+                  @apply="value => applyReportFilter('borrow', column, value)"
+                  @sort="value => applyReportSort(borrowSortState, column, value)"
+                />
+                <span v-else>{{ column.title }}</span>
+              </template>
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'expectedReturnDate'">
+                  {{ formatDate(record.expectedReturnDate) }}
+                </template>
+                <template v-else-if="column.key === 'status'">
+                  <a-tag :color="record.overdue ? 'red' : (record.processingReturn ? 'orange' : 'blue')">
+                    {{ record.overdue ? 'Quá hạn' : (record.processingReturn ? 'Đang xử lý trả' : 'Đang mượn') }}
+                  </a-tag>
+                </template>
+                <template v-else>
+                  <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
+                    {{ cellText(record[column.dataIndex]) }}
+                  </span>
+                </template>
+              </template>
+            </a-table>
+            <a-empty v-else description="Chưa có dữ liệu mượn trả" />
+          </a-tab-pane>
+
+          <a-tab-pane key="responsible" tab="Người chịu trách nhiệm">
+            <a-table
+              v-if="responsibleDisplay.length"
+              :data-source="responsibleDisplay"
+              :columns="responsibleColumns"
+              :pagination="responsiblePagination"
+              :scroll="{ x: 680 }"
+              row-key="responsiblePerson"
+              size="small"
+            >
+              <template #headerCell="{ column }">
+                <TableColumnFilter
+                  v-if="column.filterType || column.sortable"
+                  :title="column.title"
+                  :type="column.filterType"
+                  :value="reportTableFilters.responsibleSearch"
+                  :placeholder="column.filterPlaceholder"
+                  :filterable="Boolean(column.filterType)"
+                  :sortable="Boolean(column.sortable)"
+                  :sort-order="responsibleSortState.field === column.sortKey ? responsibleSortState.order : undefined"
+                  @apply="value => applyReportFilter('responsible', column, value)"
+                  @sort="value => applyReportSort(responsibleSortState, column, value)"
+                />
+                <span v-else>{{ column.title }}</span>
+              </template>
+              <template #bodyCell="{ column, record }">
+                <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
+                  {{ cellText(record[column.dataIndex]) }}
+                </span>
+              </template>
+            </a-table>
+            <a-empty v-else description="Chưa có dữ liệu người chịu trách nhiệm" />
+          </a-tab-pane>
+
+          <a-tab-pane key="consumables" tab="Vật tư">
+            <a-table
+              v-if="consumablesDisplay.length"
+              :data-source="consumablesDisplay"
+              :columns="consumableColumns"
+              :pagination="consumablePagination"
+              :scroll="{ x: 600 }"
+              row-key="id"
+              size="small"
+            >
+              <template #headerCell="{ column }">
+                <TableColumnFilter
+                  v-if="column.filterType || column.sortable"
+                  :title="column.title"
+                  :type="column.filterType"
+                  :options="column.filterOptions"
+                  :value="column.filterKey === 'status' ? reportTableFilters.consumableStatus : reportTableFilters.consumableSearch"
+                  :placeholder="column.filterPlaceholder"
+                  :filterable="Boolean(column.filterType)"
+                  :sortable="Boolean(column.sortable)"
+                  :sort-order="consumableSortState.field === column.sortKey ? consumableSortState.order : undefined"
+                  @apply="value => applyReportFilter('consumables', column, value)"
+                  @sort="value => applyReportSort(consumableSortState, column, value)"
+                />
+                <span v-else>{{ column.title }}</span>
+              </template>
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'quantity'">
+                  {{ formatNumber(record.availableQuantity ?? record.quantity) }} {{ record.unit || '' }}
+                </template>
+                <template v-else-if="column.key === 'status'">
+                  <a-tag :color="(record.availableQuantity ?? record.quantity) <= record.minQuantity ? 'orange' : 'green'">
+                    {{ (record.availableQuantity ?? record.quantity) <= record.minQuantity ? 'Sắp hết' : 'Đủ tồn' }}
+                  </a-tag>
+                </template>
+                <template v-else>
+                  <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
+                    {{ cellText(record[column.dataIndex]) }}
+                  </span>
+                </template>
+              </template>
+            </a-table>
+            <a-empty v-else description="Chưa có dữ liệu vật tư" />
+          </a-tab-pane>
+        </a-tabs>
+      </a-card>
 
       <section class="main-grid" aria-label="Tình hình và cảnh báo tài sản">
         <a-card :bordered="false" class="report-card status-card">
@@ -117,105 +238,12 @@
           <a-empty v-else description="Không có cảnh báo" />
         </a-card>
       </section>
-
-      <a-card :bordered="false" class="report-card detail-card">
-        <template #title>Chi tiết vận hành</template>
-        <a-tabs v-model:active-key="activeTab" class="operation-tabs">
-          <a-tab-pane key="borrow" tab="Mượn trả">
-            <a-table
-              v-if="report.borrowed.length"
-              :data-source="report.borrowed"
-              :columns="borrowColumns"
-              :pagination="borrowPagination"
-              :scroll="{ x: 680 }"
-              row-key="id"
-              size="small"
-            >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'expectedReturnDate'">
-                  {{ formatDate(record.expectedReturnDate) }}
-                </template>
-                <template v-else-if="column.key === 'status'">
-                  <a-tag :color="record.overdue ? 'red' : 'blue'">
-                    {{ record.overdue ? 'Quá hạn' : 'Đang mượn' }}
-                  </a-tag>
-                </template>
-                <template v-else>
-                  <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
-                    {{ cellText(record[column.dataIndex]) }}
-                  </span>
-                </template>
-              </template>
-            </a-table>
-            <a-empty v-else description="Chưa có dữ liệu mượn trả" />
-          </a-tab-pane>
-
-          <a-tab-pane key="maintenance" tab="Bảo trì">
-            <a-table
-              v-if="report.maintenance.length"
-              :data-source="report.maintenance"
-              :columns="maintenanceColumns"
-              :pagination="maintenancePagination"
-              :scroll="{ x: 680 }"
-              row-key="id"
-              size="small"
-            >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'maintenanceDate'">
-                  {{ formatDate(record.maintenanceDate) }}
-                </template>
-                <template v-else-if="column.key === 'cost'">
-                  {{ formatCurrency(record.cost) }}
-                </template>
-                <template v-else-if="column.key === 'status'">
-                  <StatusBadge :status="record.status" type="maintenance" />
-                </template>
-                <template v-else>
-                  <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
-                    {{ cellText(record[column.dataIndex]) }}
-                  </span>
-                </template>
-              </template>
-            </a-table>
-            <a-empty v-else description="Chưa có dữ liệu bảo trì" />
-          </a-tab-pane>
-
-          <a-tab-pane key="consumables" tab="Vật tư">
-            <a-table
-              v-if="report.consumables.length"
-              :data-source="report.consumables"
-              :columns="consumableColumns"
-              :pagination="consumablePagination"
-              :scroll="{ x: 600 }"
-              row-key="id"
-              size="small"
-            >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'quantity'">
-                  {{ formatNumber(record.availableQuantity ?? record.quantity) }} {{ record.unit || '' }}
-                </template>
-                <template v-else-if="column.key === 'status'">
-                  <a-tag :color="(record.availableQuantity ?? record.quantity) <= record.minQuantity ? 'orange' : 'green'">
-                    {{ (record.availableQuantity ?? record.quantity) <= record.minQuantity ? 'Sắp hết' : 'Đủ tồn' }}
-                  </a-tag>
-                </template>
-                <template v-else>
-                  <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
-                    {{ cellText(record[column.dataIndex]) }}
-                  </span>
-                </template>
-              </template>
-            </a-table>
-            <a-empty v-else description="Chưa có dữ liệu vật tư" />
-          </a-tab-pane>
-        </a-tabs>
-      </a-card>
     </a-spin>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   AppstoreOutlined,
@@ -224,12 +252,10 @@ import {
   DollarOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
-  FilterOutlined,
   ReloadOutlined,
   ToolOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
-import StatusBadge from '../components/StatusBadge.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { assetCategoryApi } from '../api/assetCategoryApi'
 import { locationApi } from '../api/locationApi'
@@ -240,10 +266,22 @@ import { getApiErrorMessage } from '../utils/apiError'
 import router from '../router'
 import { createTablePagination } from '../utils/tablePagination'
 import { formatVietnamDate } from '../utils/dateTime'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
+import { sortTableRows } from '../utils/tableSort'
 
 const borrowPagination = createTablePagination()
-const maintenancePagination = createTablePagination()
+const responsiblePagination = createTablePagination()
 const consumablePagination = createTablePagination()
+const reportTableFilters = reactive({
+  borrowSearch: '',
+  borrowStatus: undefined,
+  responsibleSearch: '',
+  consumableSearch: '',
+  consumableStatus: undefined
+})
+const borrowSortState = reactive({ field: undefined, order: undefined })
+const responsibleSortState = reactive({ field: undefined, order: undefined })
+const consumableSortState = reactive({ field: undefined, order: undefined })
 
 const filters = () => ({ from: '', to: '', categoryId: null, locationNodeId: null })
 const filterForm = ref(filters())
@@ -262,6 +300,7 @@ const report = ref({
   lowStock: [],
   warrantySoon: [],
   maintenance: [],
+  responsible: [],
   consumables: []
 })
 
@@ -276,24 +315,63 @@ const assetStatusOrder = [
 ]
 
 const borrowColumns = [
-  { title: 'Người mượn', dataIndex: 'user', key: 'user', width: 150, ellipsis: true },
-  { title: 'Thiết bị', dataIndex: 'equipment', key: 'equipment', width: 220, ellipsis: true },
-  { title: 'Hạn trả', key: 'expectedReturnDate', width: 130 },
-  { title: 'Trạng thái', key: 'status', width: 130 }
+  { title: 'Người mượn', dataIndex: 'user', key: 'user', width: 150, ellipsis: true, sortable: true, sortKey: 'user', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người mượn...' },
+  { title: 'Thiết bị', dataIndex: 'equipment', key: 'equipment', width: 220, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Hạn trả', key: 'expectedReturnDate', width: 130, sortable: true, sortKey: 'expectedReturnDate' },
+  { title: 'Trạng thái', key: 'status', width: 130, sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
+    { value: 'BORROWED', label: 'Đang mượn' },
+    { value: 'OVERDUE', label: 'Quá hạn' },
+    { value: 'RETURN_PROCESSING', label: 'Đang xử lý trả' }
+  ] }
 ]
-const maintenanceColumns = [
-  { title: 'Thiết bị', dataIndex: 'equipment', key: 'equipment', width: 220, ellipsis: true },
-  { title: 'Ngày thực hiện', key: 'maintenanceDate', width: 140 },
-  { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', width: 170, ellipsis: true },
-  { title: 'Chi phí', key: 'cost', width: 130 },
-  { title: 'Trạng thái', key: 'status', width: 150 }
+const responsibleColumns = [
+  { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 220, ellipsis: true, sortable: true, sortKey: 'responsiblePerson', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người phụ trách...' },
+  { title: 'Số thiết bị', dataIndex: 'equipmentCount', key: 'equipmentCount', width: 130, sortable: true, sortKey: 'equipmentCount' },
+  { title: 'Thiết bị phụ trách', dataIndex: 'equipment', key: 'equipment', width: 420, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' }
 ]
 const consumableColumns = [
-  { title: 'Vật tư', dataIndex: 'name', key: 'name', width: 280, ellipsis: true },
-  { title: 'Khả dụng', key: 'quantity', width: 150 },
-  { title: 'Mức tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', width: 150 },
-  { title: 'Trạng thái', key: 'status', width: 140 }
+  { title: 'Vật tư', dataIndex: 'name', key: 'name', width: 280, ellipsis: true, sortable: true, sortKey: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm vật tư...' },
+  { title: 'Khả dụng', key: 'quantity', width: 150, sortable: true, sortKey: 'quantity' },
+  { title: 'Mức tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', width: 150, sortable: true, sortKey: 'minQuantity' },
+  { title: 'Trạng thái', key: 'status', width: 140, sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
+    { value: 'LOW_STOCK', label: 'Sắp hết' },
+    { value: 'AVAILABLE', label: 'Đủ tồn' }
+  ] }
 ]
+
+const borrowedDisplay = computed(() => {
+  const search = reportTableFilters.borrowSearch.trim().toLowerCase()
+  const rows = report.value.borrowed.filter(item => {
+    const matchesSearch = !search || [item.user, item.equipment].some(value => String(value || '').toLowerCase().includes(search))
+    const status = item.overdue ? 'OVERDUE' : (item.processingReturn ? 'RETURN_PROCESSING' : 'BORROWED')
+    return matchesSearch && (!reportTableFilters.borrowStatus || status === reportTableFilters.borrowStatus)
+  })
+  return sortTableRows(rows, borrowSortState.field, borrowSortState.order, (row, field) => {
+    if (field === 'status') return row.overdue ? 'Quá hạn' : (row.processingReturn ? 'Đang xử lý trả' : 'Đang mượn')
+    return row[field]
+  })
+})
+
+const responsibleDisplay = computed(() => {
+  const search = reportTableFilters.responsibleSearch.trim().toLowerCase()
+  const rows = report.value.responsible.filter(item => !search || [item.responsiblePerson, item.equipment].some(value => String(value || '').toLowerCase().includes(search)))
+  return sortTableRows(rows, responsibleSortState.field, responsibleSortState.order)
+})
+
+const consumablesDisplay = computed(() => {
+  const search = reportTableFilters.consumableSearch.trim().toLowerCase()
+  const rows = report.value.consumables.filter(item => {
+    const available = Number(item.availableQuantity ?? item.quantity ?? 0)
+    const status = available <= Number(item.minQuantity || 0) ? 'LOW_STOCK' : 'AVAILABLE'
+    return (!search || String(item.name || '').toLowerCase().includes(search))
+      && (!reportTableFilters.consumableStatus || status === reportTableFilters.consumableStatus)
+  })
+  return sortTableRows(rows, consumableSortState.field, consumableSortState.order, (row, field) => {
+    if (field === 'quantity') return Number(row.availableQuantity ?? row.quantity ?? 0)
+    if (field === 'status') return Number(row.availableQuantity ?? row.quantity ?? 0) <= Number(row.minQuantity || 0) ? 'Sắp hết' : 'Đủ tồn'
+    return row[field]
+  })
+})
 
 const summaryCards = computed(() => [
   {
@@ -321,21 +399,6 @@ const summaryCards = computed(() => [
     tone: 'success'
   }
 ])
-
-const appliedFilterLabels = computed(() => {
-  const value = appliedFilters.value
-  const labels = []
-  if (value.from) labels.push(`Từ ${formatInputDate(value.from)}`)
-  if (value.to) labels.push(`Đến ${formatInputDate(value.to)}`)
-  if (value.categoryId) {
-    labels.push(`Danh mục: ${categories.value.find(item => item.id === value.categoryId)?.name || value.categoryId}`)
-  }
-  if (value.locationNodeId) {
-    const location = locations.value.find(item => item.id === value.locationNodeId)
-    labels.push(`Vị trí: ${location ? `${location.code} — ${location.name}` : value.locationNodeId}`)
-  }
-  return labels.length ? labels : ['Tất cả dữ liệu']
-})
 
 const statusRows = computed(() => {
   if (!report.value.byStatus.length) return []
@@ -403,12 +466,22 @@ const hasAttention = computed(() => attentionCards.value.some(item => item.count
 
 const formatNumber = value => Number(value || 0).toLocaleString('vi-VN')
 const formatCurrency = value => `${Number(value || 0).toLocaleString('vi-VN')} ₫`
-const formatInputDate = value => {
-  const [year, month, day] = value.split('-')
-  return `${day}/${month}/${year}`
-}
 const cellText = value => value === null || value === undefined || value === '' ? '—' : String(value)
 const statusPercent = count => statusTotal.value ? (Number(count || 0) / statusTotal.value) * 100 : 0
+
+const applyReportFilter = (group, column, value) => {
+  const suffix = column.filterKey === 'status' ? 'Status' : 'Search'
+  const prefix = group === 'consumables' ? 'consumable' : group
+  reportTableFilters[`${prefix}${suffix}`] = value || undefined
+  if (group === 'borrow') borrowPagination.current = 1
+  if (group === 'responsible') responsiblePagination.current = 1
+  if (group === 'consumables') consumablePagination.current = 1
+}
+
+const applyReportSort = (state, column, order) => {
+  state.field = order ? (column.sortKey || column.key) : undefined
+  state.order = order || undefined
+}
 
 const loadOptions = async () => {
   const [categoryResult, locationResult] = await Promise.allSettled([assetCategoryApi.getAll(), locationApi.getAll()])
@@ -432,6 +505,7 @@ const load = async () => {
       lowStock: Array.isArray(result?.lowStock) ? result.lowStock : [],
       warrantySoon: Array.isArray(result?.warrantySoon) ? result.warrantySoon : [],
       maintenance: Array.isArray(result?.maintenance) ? result.maintenance : [],
+      responsible: Array.isArray(result?.responsible) ? result.responsible : [],
       consumables: Array.isArray(result?.consumables) ? result.consumables : []
     }
   } catch (error) {
@@ -439,12 +513,6 @@ const load = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const applyFilters = () => {
-  clearTimeout(filterTimer)
-  appliedFilters.value = { ...filterForm.value }
-  load()
 }
 
 const resetFilters = () => {
@@ -526,9 +594,6 @@ onMounted(async () => {
 }
 .filter-actions { display: flex; gap: 8px; }
 .filter-actions .ant-btn { min-height: 38px; padding-inline: 14px; white-space: nowrap; }
-.applied-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f1f1; color: var(--color-secondary); font-size: 13px; }
-.applied-filters .ant-tag { margin-inline-end: 0; color: var(--color-ink); background: #fff7f3; border-color: rgba(217, 119, 87, .28); }
-.applied-filters-label { font-weight: 600; }
 .reports-spin { display: block; }
 .reports-spin :deep(.ant-spin-container) { display: block; }
 .overview-section { margin-bottom: 24px; }
@@ -604,7 +669,6 @@ onMounted(async () => {
   .attention-item { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 10px; }
   .attention-icon { width: 36px; height: 36px; }
   .attention-action { grid-column: 2 / -1; justify-self: start; }
-  .applied-filters { align-items: flex-start; }
 }
 
 @media (max-width: 479px) {

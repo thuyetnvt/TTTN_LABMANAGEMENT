@@ -64,7 +64,8 @@ public class ReportsController : ControllerBase
                 equipment = item.EquipmentName,
                 serial = item.Serial,
                 expectedReturnDate = item.ExpectedReturnDate,
-                overdue = item.ExpectedReturnDate < now
+                overdue = item.ExpectedReturnDate < now,
+                processingReturn = item.Status == BorrowStatuses.ReturnProcessing
             })
             .ToList();
 
@@ -99,6 +100,21 @@ public class ReportsController : ControllerBase
                 equipment.WarrantyExpiry
             })
             .ToList();
+        var responsible = equipments
+            .GroupBy(equipment => string.IsNullOrWhiteSpace(equipment.ResponsiblePerson)
+                ? "Chưa phân công"
+                : equipment.ResponsiblePerson.Trim())
+            .OrderBy(group => group.Key)
+            .Select(group => new
+            {
+                responsiblePerson = group.Key,
+                equipmentCount = group.Count(),
+                equipment = string.Join(", ", group
+                    .Select(item => item.Name)
+                    .OrderBy(name => name)
+                    .Take(5)) + (group.Count() > 5 ? ", ..." : string.Empty)
+            })
+            .ToList();
 
         return Ok(new
         {
@@ -127,7 +143,8 @@ public class ReportsController : ControllerBase
             lowStock,
             warrantySoon,
             maintenance,
-            consumables
+            consumables,
+            responsible
         });
     }
 
@@ -374,7 +391,8 @@ public class ReportsController : ControllerBase
             .Include(record => record.Equipment)
             .Include(record => record.Details)
                 .ThenInclude(detail => detail.Equipment)
-            .Where(record => record.Status == BorrowStatuses.Borrowed
+            .Where(record => (record.Status == BorrowStatuses.Borrowed
+                || record.Status == BorrowStatuses.ReturnProcessing)
                 && ((record.EquipmentId.HasValue && ids.Contains(record.EquipmentId.Value))
                     || record.Details.Any(detail => ids.Contains(detail.EquipmentId))))
             .ToListAsync(cancellationToken);
@@ -393,7 +411,8 @@ public class ReportsController : ControllerBase
                     record.User?.Username ?? "—",
                     detail.Equipment!.Name,
                     detail.Equipment.Serial,
-                    record.ExpectedReturnDate)));
+                    record.ExpectedReturnDate,
+                    record.Status)));
             }
             else if (record.Equipment is not null && equipmentIds.Contains(record.Equipment.Id))
             {
@@ -403,7 +422,8 @@ public class ReportsController : ControllerBase
                     record.User?.Username ?? "—",
                     record.Equipment.Name,
                     record.Equipment.Serial,
-                    record.ExpectedReturnDate));
+                    record.ExpectedReturnDate,
+                    record.Status));
             }
         }
         return result
@@ -418,7 +438,8 @@ public class ReportsController : ControllerBase
         string Username,
         string EquipmentName,
         string Serial,
-        DateTime ExpectedReturnDate);
+        DateTime ExpectedReturnDate,
+        string Status);
 
     private static void WriteHeaders(ExcelWorksheet worksheet, string[] headers)
     {

@@ -2,13 +2,17 @@
   <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" bordered rowKey="id" :scroll="{ x: 'max-content' }" :pagination="pagination" @change="$emit('change', $event)">
     <template #headerCell="{ column }">
       <TableColumnFilter
-        v-if="column.filterType"
+        v-if="column.filterType || column.sortable"
         :title="column.title"
         :type="column.filterType"
         :options="column.filterOptions"
+        :filterable="Boolean(column.filterType)"
+        :sortable="Boolean(column.sortable)"
+        :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
         :value="filterValues[column.filterKey || column.key]"
         :placeholder="column.filterPlaceholder"
         @apply="value => emit('column-filter', { key: column.filterKey || column.key, value })"
+        @sort="value => emit('sort', { column, value })"
       />
       <span v-else>{{ column.title }}</span>
     </template>
@@ -81,28 +85,33 @@ const props = defineProps({
   filterValues: {
     type: Object,
     default: () => ({})
+  },
+  sortState: {
+    type: Object,
+    default: () => ({ field: undefined, order: undefined })
   }
 })
 
 const filterValues = computed(() => props.filterValues || {})
+const sortState = computed(() => props.sortState || { field: undefined, order: undefined })
 
-const emit = defineEmits(['edit', 'delete', 'activate', 'change', 'column-filter'])
+const emit = defineEmits(['edit', 'delete', 'activate', 'change', 'column-filter', 'sort'])
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 
 const columns = [
-  { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm họ và tên...' },
-  { title: 'Mã định danh', dataIndex: 'universityCode', key: 'universityCode', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã định danh...' },
-  { title: 'Email', dataIndex: 'email', key: 'email', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm email...' },
-  { title: 'Vai trò', dataIndex: 'role', key: 'role', filterType: 'select', filterKey: 'role', filterOptions: [
+  { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName', sortKey: 'fullName', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm họ và tên...' },
+  { title: 'Mã định danh', dataIndex: 'universityCode', key: 'universityCode', sortKey: 'universityCode', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã định danh...' },
+  { title: 'Email', dataIndex: 'email', key: 'email', sortKey: 'email', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm email...' },
+  { title: 'Vai trò', dataIndex: 'role', key: 'role', sortKey: 'role', sortable: true, filterType: 'select', filterKey: 'role', filterOptions: [
     { value: 'Admin', label: 'Quản trị viên' },
     { value: 'Trưởng lab', label: 'Trưởng lab' },
     { value: 'Phó lab', label: 'Phó lab' },
     { value: 'Giảng viên', label: 'Giảng viên' },
     { value: 'Sinh viên', label: 'Sinh viên' }
   ] },
-  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', width: 120, filterType: 'select', filterKey: 'status', filterOptions: [
+  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', sortKey: 'isActive', sortable: true, width: 120, filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'ACTIVE', label: 'Hoạt động' },
     { value: 'INACTIVE', label: 'Đã khóa' }
   ] },

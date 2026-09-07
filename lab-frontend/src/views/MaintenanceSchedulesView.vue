@@ -21,13 +21,17 @@
       <a-table class="desktop-table" :data-source="schedules" :columns="columns" :loading="loading" row-key="id" bordered :scroll="{ x: 1200 }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
-            v-if="column.filterType"
+            v-if="column.filterType || column.sortable"
             :title="column.title"
             :type="column.filterType"
             :options="column.filterOptions"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
             :value="column.filterKey === 'status' ? statusFilter : searchQuery"
             :placeholder="column.filterPlaceholder"
             @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
           />
           <span v-else>{{ column.title }}</span>
         </template>
@@ -168,6 +172,7 @@ const loading = ref(false)
 const lookupLoading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
 const saving = ref(false)
 const modalOpen = ref(false)
 const editing = ref(null)
@@ -178,11 +183,11 @@ const scheduleStatusOptions = [
   { value: 'INACTIVE', label: 'Tạm tắt' }
 ]
 const columns = [
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 260, filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Kế hoạch', dataIndex: 'name', key: 'name', width: 380, filterType: 'search', filterPlaceholder: 'Tìm kế hoạch...' },
-  { title: 'Chu kỳ', dataIndex: 'intervalDays', key: 'intervalDays', width: 120, customRender: ({ record }) => `${record.intervalDays} ${({ DAY: 'ngày', WEEK: 'tuần', MONTH: 'tháng', QUARTER: 'quý', YEAR: 'năm' })[record.intervalUnit] || 'ngày'}` },
-  { title: 'Hạn bảo trì', dataIndex: 'nextDueAt', key: 'nextDueAt', width: 170, filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions },
-  { title: 'Hoạt động', dataIndex: 'isActive', key: 'isActive', width: 120, filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions.slice(1) },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 260, filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Kế hoạch', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, width: 380, filterType: 'search', filterPlaceholder: 'Tìm kế hoạch...' },
+  { title: 'Chu kỳ', dataIndex: 'intervalDays', key: 'intervalDays', sortKey: 'intervalDays', sortable: true, width: 120, customRender: ({ record }) => `${record.intervalDays} ${({ DAY: 'ngày', WEEK: 'tuần', MONTH: 'tháng', QUARTER: 'quý', YEAR: 'năm' })[record.intervalUnit] || 'ngày'}` },
+  { title: 'Hạn bảo trì', dataIndex: 'nextDueAt', key: 'nextDueAt', sortKey: 'nextDueAt', sortable: true, width: 170, filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions },
+  { title: 'Hoạt động', dataIndex: 'isActive', key: 'isActive', sortKey: 'isActive', sortable: true, width: 120, filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions.slice(1) },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 150, align: 'center' }
 ]
 
@@ -195,7 +200,9 @@ const load = async () => {
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value
+      status: statusFilter.value,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     schedules.value = response.items || []
     tablePagination.total = response.total || 0
@@ -208,6 +215,14 @@ const applyColumnFilter = (column, value) => {
   else searchQuery.value = value || ''
   applyFilters()
 }
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+  tablePagination.current = 1
+  load()
+}
+
 const handleTableChange = pager => {
   tablePagination.current = pager.pageSize === tablePagination.pageSize ? pager.current : 1
   tablePagination.pageSize = pager.pageSize

@@ -18,13 +18,17 @@
         <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1450 }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
-            v-if="column.filterType"
+            v-if="column.filterType || column.sortable"
             :title="column.title"
             :type="column.filterType"
             :options="column.filterOptions"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
             :value="column.filterKey === 'status' ? statusFilter : searchQuery"
             :placeholder="column.filterPlaceholder"
             @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
           />
           <span v-else>{{ column.title }}</span>
         </template>
@@ -245,6 +249,7 @@ const loading = ref(false)
 const lookupLoading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
 const maintenanceStatusOptions = [
   { value: STATUS.MAINTENANCE_IN_PROGRESS, label: 'Đang bảo trì' },
   { value: STATUS.MAINTENANCE_COMPLETED, label: 'Đã hoàn tất' }
@@ -274,14 +279,14 @@ const formData = ref({
 })
 
 const columns = [
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 180, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Ngày thực hiện', dataIndex: 'maintenanceDate', key: 'maintenanceDate', width: 140 },
-  { title: 'Nội dung', dataIndex: 'description', key: 'description', width: 320, filterType: 'search', filterPlaceholder: 'Tìm nội dung...' },
-  { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', width: 170, filterType: 'search', filterPlaceholder: 'Tìm người thực hiện...' },
-  { title: 'Chi phí', dataIndex: 'cost', key: 'cost', width: 120 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160, filterType: 'select', filterKey: 'status', filterOptions: maintenanceStatusOptions },
-  { title: 'Kết quả', dataIndex: 'result', key: 'result', width: 280, filterType: 'search', filterPlaceholder: 'Tìm kết quả...' },
-  { title: 'Tình trạng sau bảo trì', dataIndex: 'resultStatus', key: 'resultStatus', width: 180 },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 180, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Ngày thực hiện', dataIndex: 'maintenanceDate', key: 'maintenanceDate', sortKey: 'maintenanceDate', sortable: true, width: 140 },
+  { title: 'Nội dung', dataIndex: 'description', key: 'description', sortKey: 'description', sortable: true, width: 320, filterType: 'search', filterPlaceholder: 'Tìm nội dung...' },
+  { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', sortKey: 'performedBy', sortable: true, width: 170, filterType: 'search', filterPlaceholder: 'Tìm người thực hiện...' },
+  { title: 'Chi phí', dataIndex: 'cost', key: 'cost', sortKey: 'cost', sortable: true, width: 120 },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, width: 160, filterType: 'select', filterKey: 'status', filterOptions: maintenanceStatusOptions },
+  { title: 'Kết quả', dataIndex: 'result', key: 'result', sortKey: 'result', sortable: true, width: 280, filterType: 'search', filterPlaceholder: 'Tìm kết quả...' },
+  { title: 'Tình trạng sau bảo trì', dataIndex: 'resultStatus', key: 'resultStatus', sortKey: 'resultStatus', sortable: true, width: 180 },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 120 }
 ]
 
@@ -297,7 +302,9 @@ const fetchData = async () => {
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value
+      status: statusFilter.value,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     dataSource.value = res.items || []
     tablePagination.total = res.total || 0
@@ -317,6 +324,13 @@ const applyColumnFilter = (column, value) => {
   if (column.filterKey === 'status') statusFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+  tablePagination.current = 1
+  fetchData()
 }
 
 const handleTableChange = (pager) => {

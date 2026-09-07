@@ -25,13 +25,17 @@
       <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1640 }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
-            v-if="column.filterType"
+            v-if="column.filterType || column.sortable"
             :title="column.title"
             :type="column.filterType"
             :options="column.filterOptions"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
             :value="column.filterKey === 'status' ? statusFilter : searchQuery"
             :placeholder="column.filterPlaceholder"
             @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
           />
           <span v-else>{{ column.title }}</span>
         </template>
@@ -217,6 +221,7 @@ const isManager = computed(() => isManagerRole(role.value))
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
 const isHandoverVisible = ref(false)
 const handoverLoading = ref(false)
 const confirming = ref(false)
@@ -248,17 +253,17 @@ const borrowStatusOptions = [
 ]
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
-  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },
-  { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 120 },
-  { title: 'Ngày trả thực tế', dataIndex: 'actualReturnDate', key: 'actualReturnDate', width: 130 },
-  { title: 'Tình trạng trả', dataIndex: 'returnCondition', key: 'returnCondition', width: 130 },
-  { title: 'Ghi chú kiểm tra', dataIndex: 'returnInspectionNote', key: 'returnInspectionNote', width: 200 },
-  { title: 'Xử lý bảo hành', dataIndex: 'warrantyAction', key: 'warrantyAction', width: 180 },
-  { title: 'Bồi thường', dataIndex: 'compensationAmount', key: 'compensationAmount', width: 130 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 140, filterType: 'select', filterKey: 'status', filterOptions: borrowStatusOptions },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 170, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 160, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 130, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
+  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 120 },
+  { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', sortKey: 'expectedReturnDate', sortable: true, width: 120 },
+  { title: 'Ngày trả thực tế', dataIndex: 'actualReturnDate', key: 'actualReturnDate', sortKey: 'actualReturnDate', sortable: true, width: 130 },
+  { title: 'Tình trạng trả', dataIndex: 'returnCondition', key: 'returnCondition', sortKey: 'returnCondition', sortable: true, width: 130 },
+  { title: 'Ghi chú kiểm tra', dataIndex: 'returnInspectionNote', key: 'returnInspectionNote', sortKey: 'returnInspectionNote', sortable: true, width: 200 },
+  { title: 'Xử lý bảo hành', dataIndex: 'warrantyAction', key: 'warrantyAction', sortKey: 'warrantyAction', sortable: true, width: 180 },
+  { title: 'Bồi thường', dataIndex: 'compensationAmount', key: 'compensationAmount', sortKey: 'compensationAmount', sortable: true, width: 130 },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 140, filterType: 'select', filterKey: 'status', filterOptions: borrowStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190 }
 ]
 
@@ -379,7 +384,9 @@ const fetchHistory = async () => {
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value
+      status: statusFilter.value,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     dataSource.value = response.items || []
     tablePagination.total = response.total || 0
@@ -399,6 +406,13 @@ const applyColumnFilter = (column, value) => {
   if (column.filterKey === 'status') statusFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+  tablePagination.current = 1
+  fetchHistory()
 }
 
 const handleTableChange = (pager) => {

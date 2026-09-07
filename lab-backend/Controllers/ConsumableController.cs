@@ -125,9 +125,7 @@ public class ConsumableController : ControllerBase
             }
         }
 
-        var page = await query
-            .OrderByDescending(item => item.CreatedAt)
-            .ThenBy(item => item.Id)
+        var page = await ApplySorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var isManager = User.IsInRole(Roles.Admin)
             || User.IsInRole(Roles.LabHead)
@@ -138,6 +136,54 @@ public class ConsumableController : ControllerBase
         }
 
         return Ok(page.Map(ToBorrowerDto));
+    }
+
+    private static IQueryable<Consumable> ApplySorting(
+        IQueryable<Consumable> query,
+        PageQuery paging)
+    {
+        var descending = string.Equals(
+            paging.SortDirection?.Trim(),
+            "desc",
+            StringComparison.OrdinalIgnoreCase);
+
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "code" => descending
+                ? query.OrderByDescending(item => item.Code).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Code).ThenBy(item => item.Id),
+            "name" => descending
+                ? query.OrderByDescending(item => item.Name).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Name).ThenBy(item => item.Id),
+            "category" => descending
+                ? query.OrderByDescending(item => item.AssetCategory == null ? string.Empty : item.AssetCategory.Name).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.AssetCategory == null ? string.Empty : item.AssetCategory.Name).ThenBy(item => item.Id),
+            "unit" => descending
+                ? query.OrderByDescending(item => item.Unit).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Unit).ThenBy(item => item.Id),
+            "quantity" => descending
+                ? query.OrderByDescending(item => item.Quantity).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Quantity).ThenBy(item => item.Id),
+            "minquantity" => descending
+                ? query.OrderByDescending(item => item.MinQuantity).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.MinQuantity).ThenBy(item => item.Id),
+            "reservedquantity" => descending
+                ? query.OrderByDescending(item => item.ReservedQuantity).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.ReservedQuantity).ThenBy(item => item.Id),
+            "availablequantity" => descending
+                ? query.OrderByDescending(item => item.Quantity - item.ReservedQuantity).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Quantity - item.ReservedQuantity).ThenBy(item => item.Id),
+            "lotcount" => descending
+                ? query.OrderByDescending(item => item.Lots.Count).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Lots.Count).ThenBy(item => item.Id),
+            "responsibleperson" => descending
+                ? query.OrderByDescending(item => item.ResponsiblePerson).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.ResponsiblePerson).ThenBy(item => item.Id),
+            "status" => descending
+                ? query.OrderByDescending(item => item.Quantity - item.ReservedQuantity <= item.MinQuantity).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Quantity - item.ReservedQuantity <= item.MinQuantity).ThenBy(item => item.Id),
+            _ => query.OrderByDescending(item => item.CreatedAt).ThenBy(item => item.Id)
+        };
     }
 
     [HttpGet("lookup")]

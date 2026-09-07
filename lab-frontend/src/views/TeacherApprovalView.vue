@@ -10,12 +10,16 @@
       <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
-            v-if="column.filterType"
+            v-if="column.filterType || column.sortable"
             :title="column.title"
             :type="column.filterType"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
             :value="searchQuery"
             :placeholder="column.filterPlaceholder"
             @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
           />
           <span v-else>{{ column.title }}</span>
         </template>
@@ -94,6 +98,7 @@ const tablePagination = reactive({
 const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
+const sortState = reactive({ field: undefined, order: undefined })
 const decisionOpen = ref(false)
 const decisionLoading = ref(false)
 const decisionType = ref('approve')
@@ -103,12 +108,12 @@ const selectedRecord = ref(null)
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
 
 const columns = [
-  { title: 'Sinh viên', dataIndex: 'borrowerName', key: 'borrowerName', filterType: 'search', filterPlaceholder: 'Tìm sinh viên...' },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate' },
-  { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate' },
-  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center' },
+  { title: 'Sinh viên', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm sinh viên...' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true },
+  { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true },
+  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', sortKey: 'purpose', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center' },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190, align: 'center' }
 ]
 
@@ -122,7 +127,9 @@ const fetchRequests = async () => {
     const response = await borrowApi.getTeacherPendingPaged({
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
-      search: searchQuery.value.trim() || undefined
+      search: searchQuery.value.trim() || undefined,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     dataSource.value = response.items || []
     tablePagination.total = response.total || 0
@@ -141,6 +148,13 @@ const applySearch = () => {
 const applyColumnFilter = (column, value) => {
   searchQuery.value = value || ''
   applySearch()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+  tablePagination.current = 1
+  fetchRequests()
 }
 
 const handleTableChange = pager => {

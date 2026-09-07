@@ -19,13 +19,17 @@
       <a-table :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: tableScrollX }" :pagination="tablePagination" @change="handleTableChange">
       <template #headerCell="{ column }">
         <TableColumnFilter
-          v-if="column.filterType"
+          v-if="column.filterType || column.sortable"
           :title="column.title"
           :type="column.filterType"
           :options="column.filterOptions"
           :value="column.filterKey === 'category' ? categoryFilter : (column.filterKey === 'stock' ? stockFilter : searchQuery)"
           :placeholder="column.filterPlaceholder"
+          :filterable="Boolean(column.filterType)"
+          :sortable="Boolean(column.sortable)"
+          :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
           @apply="value => applyColumnFilter(column, value)"
+          @sort="value => applyColumnSort(column, value)"
         />
         <span v-else>{{ column.title }}</span>
       </template>
@@ -346,25 +350,26 @@ const submitting = ref(false)
 const searchQuery = ref('')
 const stockFilter = ref(undefined)
 const categoryFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
 const availableStock = record => Number(record?.availableQuantity ?? Math.max(0, Number(record?.quantity || 0) - Number(record?.reservedQuantity || 0)))
 
 const columns = computed(() => {
   const commonColumns = [
-  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vật tư...' },
-  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140, filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
-  { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm đơn vị...' },
-  { title: isManagerRole(role.value) ? 'Tổng tồn' : 'Khả dụng', dataIndex: 'quantity', key: 'quantity', align: 'center', width: 110 },
-  { title: 'Tồn tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', align: 'center', width: 120 }
+  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150, fixed: 'left', sortable: true, sortKey: 'code', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vật tư...' },
+  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240, fixed: 'left', sortable: true, sortKey: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
+  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140, sortable: true, sortKey: 'category', filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
+  { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100, sortable: true, sortKey: 'unit', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm đơn vị...' },
+  { title: isManagerRole(role.value) ? 'Tổng tồn' : 'Khả dụng', dataIndex: 'quantity', key: 'quantity', sortable: true, sortKey: isManagerRole(role.value) ? 'quantity' : 'availableQuantity', align: 'center', width: 110 },
+  { title: 'Tồn tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', sortable: true, sortKey: 'minQuantity', align: 'center', width: 120 }
   ]
   const managerColumns = isManagerRole(role.value) ? [
-    { title: 'Đang giữ', dataIndex: 'reservedQuantity', key: 'reservedQuantity', align: 'center', width: 100 },
-    { title: 'Khả dụng', dataIndex: 'availableQuantity', key: 'availableQuantity', align: 'center', width: 100 },
-    { title: 'Số lô', dataIndex: 'lotCount', key: 'lotCount', align: 'center', width: 90 },
-    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 180 }
+    { title: 'Đang giữ', dataIndex: 'reservedQuantity', key: 'reservedQuantity', sortable: true, sortKey: 'reservedQuantity', align: 'center', width: 100 },
+    { title: 'Khả dụng', dataIndex: 'availableQuantity', key: 'availableQuantity', sortable: true, sortKey: 'availableQuantity', align: 'center', width: 100 },
+    { title: 'Số lô', dataIndex: 'lotCount', key: 'lotCount', sortable: true, sortKey: 'lotCount', align: 'center', width: 90 },
+    { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', sortable: true, sortKey: 'responsiblePerson', width: 180 }
   ] : []
   return [...commonColumns, ...managerColumns,
-  { title: 'Trạng thái', key: 'status', align: 'center', width: 120, filterType: 'select', filterKey: 'stock', filterOptions: [
+  { title: 'Trạng thái', key: 'status', sortable: true, sortKey: 'status', align: 'center', width: 120, filterType: 'select', filterKey: 'stock', filterOptions: [
     { value: 'AVAILABLE', label: 'Đủ dùng' },
     { value: 'LOW_STOCK', label: 'Cần nhập thêm' }
   ] },
@@ -486,7 +491,9 @@ const fetchData = async () => {
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
       status: stockFilter.value,
-      categoryId: categoryFilter.value || undefined
+      categoryId: categoryFilter.value || undefined,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     dataSource.value = response.items || []
     tablePagination.total = response.total || 0
@@ -502,6 +509,13 @@ const applyColumnFilter = (column, value) => {
   else if (column.filterKey === 'stock') stockFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? (column.sortKey || column.key) : undefined
+  sortState.order = order || undefined
+  tablePagination.current = 1
+  fetchData()
 }
 
 const showAddModal = () => {

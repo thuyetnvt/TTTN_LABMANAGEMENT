@@ -83,6 +83,33 @@ test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về
   assert.match(deviceSource, /sortKey:\s*'name',\s*sortable:\s*true/)
 })
 
+test('mọi bảng nghiệp vụ của các vai trò đều có lọc hoặc sắp xếp theo cột', () => {
+  const tableFiles = [
+    '../src/views/BorrowHistoryView.vue',
+    '../src/views/BorrowRequestsView.vue',
+    '../src/views/TeacherApprovalView.vue',
+    '../src/views/ConsumableRequestsView.vue',
+    '../src/views/InventoryView.vue',
+    '../src/views/MaintenanceView.vue',
+    '../src/views/MaintenanceSchedulesView.vue',
+    '../src/views/PenaltyView.vue',
+    '../src/views/AuditLogsView.vue',
+    '../src/views/ApprovalDelegationsView.vue',
+    '../src/views/LocationsView.vue',
+    '../src/views/ReportsView.vue',
+    '../src/components/DeviceTable.vue',
+    '../src/components/ConsumablesTable.vue',
+    '../src/components/AssetCategoriesTable.vue',
+    '../src/components/UserTable.vue'
+  ]
+
+  for (const relativePath of tableFiles) {
+    const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+    assert.match(source, /sortable:\s*true/, relativePath)
+    assert.match(source, /@sort=|emit\('sort'/, relativePath)
+  }
+})
+
 test('thanh thao tác không làm tràn khung nội dung khi màn hình hẹp', () => {
   const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
   const shellSource = readFileSync(new URL('../src/views/DashboardView.vue', import.meta.url), 'utf8')
@@ -161,6 +188,30 @@ test('báo cáo gộp toàn bộ tài sản đang mượn và không gộp quá 
   assert.match(source, /label:\s*['"]Đang mượn['"][^]*?value:\s*formatNumber\(report\.value\.totals\.borrowed\)/)
   assert.match(source, /label:\s*['"]Đang hỏng['"][^]*?value:\s*formatNumber\(report\.value\.totals\.broken\)/)
   assert.doesNotMatch(source, /label:\s*['"]Đang mượn \/ Quá hạn['"]|label:\s*['"]Đang hỏng \/ Bảo hành['"]|totals\.underWarranty\)/)
+})
+
+test('báo cáo không hiển thị dải bộ lọc đang áp dụng hoặc nút lọc màu cam', () => {
+  const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(source, /Bộ lọc đang áp dụng|FilterOutlined|@click="applyFilters"/)
+  assert.match(source, /const resetFilters = \(\) =>/)
+  assert.match(source, /watch\(filterForm, value =>/)
+})
+
+test('báo cáo giữ cả phiếu đang xử lý trả trong danh sách đang mượn', () => {
+  const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /record\.processingReturn\s*\?\s*'orange'/)
+  assert.match(source, /record\.processingReturn\s*\?\s*'Đang xử lý trả'/)
+})
+
+test('báo cáo đặt chi tiết vận hành lên trước và thay bảo trì bằng người chịu trách nhiệm', () => {
+  const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
+
+  assert.ok(source.indexOf('class="detail-card"') < source.indexOf('class="main-grid"'))
+  assert.match(source, /key="responsible"\s+tab="Người chịu trách nhiệm"/)
+  assert.match(source, /responsibleColumns/)
+  assert.doesNotMatch(source, /key="maintenance"\s+tab="Bảo trì"/)
 })
 
 test('kiểm kê hiển thị đã đối soát cho tài sản đã quét bình thường', () => {

@@ -8,12 +8,16 @@
     <a-table :dataSource="filteredDataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination">
       <template #headerCell="{ column }">
         <TableColumnFilter
-          v-if="column.filterType"
+          v-if="column.filterType || column.sortable"
           :title="column.title"
           :type="column.filterType"
+          :filterable="Boolean(column.filterType)"
+          :sortable="Boolean(column.sortable)"
+          :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
           :value="searchQuery"
           :placeholder="column.filterPlaceholder"
           @apply="searchQuery = $event || ''"
+          @sort="value => applyColumnSort(column, value)"
         />
         <span v-else>{{ column.title }}</span>
       </template>
@@ -52,7 +56,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { assetCategoryApi } from '../api/assetCategoryApi'
@@ -62,6 +66,7 @@ import { getApiErrorMessage } from '../utils/apiError'
 import { createTablePagination } from '../utils/tablePagination'
 import { formatVietnamDate } from '../utils/dateTime'
 import TableColumnFilter from './TableColumnFilter.vue'
+import { sortTableRows } from '../utils/tableSort'
 
 const tablePagination = createTablePagination()
 
@@ -76,19 +81,27 @@ const isEditMode = ref(false)
 const currentEditId = ref(null)
 const formData = ref({ name: '', description: '' })
 const searchQuery = ref('')
+const sortState = reactive({ field: undefined, order: undefined })
 
 const filteredDataSource = computed(() => {
   const keyword = searchQuery.value.trim().toLowerCase()
-  if (!keyword) return dataSource.value
-  return dataSource.value.filter(item => [item.name, item.description].some(value => String(value || '').toLowerCase().includes(keyword)))
+  const filtered = keyword
+    ? dataSource.value.filter(item => [item.name, item.description].some(value => String(value || '').toLowerCase().includes(keyword)))
+    : dataSource.value
+  return sortTableRows(filtered, sortState.field, sortState.order)
 })
 
 const columns = [
-  { title: 'Tên danh mục', dataIndex: 'name', key: 'name', filterType: 'search', filterPlaceholder: 'Tìm tên danh mục...' },
-  { title: 'Mô tả', dataIndex: 'description', key: 'description', filterType: 'search', filterPlaceholder: 'Tìm mô tả...' },
-  { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'createdAt', width: 140 },
+  { title: 'Tên danh mục', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm tên danh mục...' },
+  { title: 'Mô tả', dataIndex: 'description', key: 'description', sortKey: 'description', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm mô tả...' },
+  { title: 'Ngày tạo', dataIndex: 'createdAt', key: 'createdAt', sortKey: 'createdAt', sortable: true, width: 140 },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), align: 'center', width: 160 }
 ]
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+}
 
 onMounted(() => fetchData())
 

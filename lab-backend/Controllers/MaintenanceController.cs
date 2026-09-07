@@ -173,9 +173,7 @@ public class MaintenanceController : ControllerBase
             query = query.Where(record => record.MaintenanceDate < exclusiveTo);
         }
 
-        var page = await query
-            .OrderByDescending(record => record.MaintenanceDate)
-            .ThenByDescending(record => record.Id)
+        var page = await ApplySorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var items = page.Items.Select(record => (object)new
         {
@@ -212,6 +210,44 @@ public class MaintenanceController : ControllerBase
             })
         }).ToList();
         return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
+    private static IQueryable<MaintenanceRecord> ApplySorting(
+        IQueryable<MaintenanceRecord> query,
+        PageQuery paging)
+    {
+        var descending = string.Equals(paging.SortDirection?.Trim(), "desc", StringComparison.OrdinalIgnoreCase);
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "device" => descending
+                ? query.OrderByDescending(record => record.Equipment == null ? string.Empty : record.Equipment.Name).ThenBy(record => record.Id)
+                : query.OrderBy(record => record.Equipment == null ? string.Empty : record.Equipment.Name).ThenBy(record => record.Id),
+            "maintenancedate" => descending
+                ? query.OrderByDescending(record => record.MaintenanceDate).ThenBy(record => record.Id)
+                : query.OrderBy(record => record.MaintenanceDate).ThenBy(record => record.Id),
+            "description" => descending
+                ? query.OrderByDescending(record => record.Description).ThenBy(record => record.Id)
+                : query.OrderBy(record => record.Description).ThenBy(record => record.Id),
+            "performedby" => descending
+                ? query.OrderByDescending(record => record.PerformedBy).ThenBy(record => record.Id)
+                : query.OrderBy(record => record.PerformedBy).ThenBy(record => record.Id),
+            "cost" => descending
+                ? query.OrderByDescending(record => record.Cost).ThenBy(record => record.Id)
+                : query.OrderBy(record => record.Cost).ThenBy(record => record.Id),
+            "status" => descending
+                ? query.OrderByDescending(record => record.Status).ThenBy(record => record.Id)
+                : query.OrderBy(record => record.Status).ThenBy(record => record.Id),
+            "result" => descending
+                ? query.OrderByDescending(record => record.Result).ThenBy(record => record.Id)
+                : query.OrderBy(record => record.Result).ThenBy(record => record.Id),
+            "resultstatus" => descending
+                ? query.OrderByDescending(record => record.ResultStatus).ThenBy(record => record.Id)
+                : query.OrderBy(record => record.ResultStatus).ThenBy(record => record.Id),
+            "supplier" => descending
+                ? query.OrderByDescending(record => record.Supplier).ThenBy(record => record.Id)
+                : query.OrderBy(record => record.Supplier).ThenBy(record => record.Id),
+            _ => query.OrderByDescending(record => record.MaintenanceDate).ThenByDescending(record => record.Id)
+        };
     }
 
     [HttpPost]

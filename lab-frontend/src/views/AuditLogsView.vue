@@ -46,13 +46,17 @@
       >
         <template #headerCell="{ column }">
           <TableColumnFilter
-            v-if="column.filterType"
+            v-if="column.filterType || column.sortable"
             :title="column.title"
             :type="column.filterType"
             :options="column.filterOptions"
             :value="filters[column.filterKey]"
             :placeholder="column.filterPlaceholder"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
             @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
           />
           <span v-else>{{ column.title }}</span>
         </template>
@@ -112,6 +116,7 @@ const filters = reactive({
   action: undefined,
   entityType: undefined
 })
+const sortState = reactive({ field: undefined, order: undefined })
 const pagination = reactive({
   current: 1,
   pageSize: TABLE_PAGE_SIZE,
@@ -139,11 +144,11 @@ const auditEntityOptions = [
 ]
 
 const columns = [
-  { title: 'Thời gian', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
-  { title: 'Người thao tác', dataIndex: 'username', key: 'username', width: 150, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người thao tác...' },
-  { title: 'Hành động', dataIndex: 'action', key: 'action', width: 130, filterType: 'select', filterKey: 'action', filterOptions: auditActionOptions },
-  { title: 'Đối tượng', dataIndex: 'entityType', key: 'entityType', width: 150, filterType: 'select', filterKey: 'entityType', filterOptions: auditEntityOptions },
-  { title: 'IP', dataIndex: 'ipAddress', key: 'ipAddress', width: 150, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm địa chỉ IP...' },
+  { title: 'Thời gian', dataIndex: 'createdAt', key: 'createdAt', width: 170, sortable: true, sortKey: 'createdAt' },
+  { title: 'Người thao tác', dataIndex: 'username', key: 'username', width: 150, sortable: true, sortKey: 'username', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người thao tác...' },
+  { title: 'Hành động', dataIndex: 'action', key: 'action', width: 130, sortable: true, sortKey: 'action', filterType: 'select', filterKey: 'action', filterOptions: auditActionOptions },
+  { title: 'Đối tượng', dataIndex: 'entityType', key: 'entityType', width: 150, sortable: true, sortKey: 'entityType', filterType: 'select', filterKey: 'entityType', filterOptions: auditEntityOptions },
+  { title: 'IP', dataIndex: 'ipAddress', key: 'ipAddress', width: 150, sortable: true, sortKey: 'ipAddress', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm địa chỉ IP...' },
   { title: 'Chi tiết', key: 'details', width: 120, align: 'center' }
 ]
 
@@ -155,7 +160,9 @@ const fetchLogs = async () => {
       pageSize: pagination.pageSize,
       action: filters.action,
       entityType: filters.entityType,
-      search: filters.search.trim() || undefined
+      search: filters.search.trim() || undefined,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     logs.value = res.items || []
     pagination.total = res.total || 0
@@ -189,6 +196,13 @@ const applyColumnFilter = (column, value) => {
   }
   filters.search = value || ''
   applySearch()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? (column.sortKey || column.key) : undefined
+  sortState.order = order || undefined
+  pagination.current = 1
+  fetchLogs()
 }
 
 const handleTableChange = (pager) => {

@@ -22,13 +22,17 @@
       <a-table bordered :data-source="filteredLocations" :columns="columns" :loading="loading" row-key="id" :scroll="{ x: 900 }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
-            v-if="column.filterType"
+            v-if="column.filterType || column.sortable"
             :title="column.title"
             :type="column.filterType"
             :options="column.filterOptions"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
             :value="column.filterKey === 'type' ? typeFilter : (column.filterKey === 'status' ? activeFilter : searchQuery)"
             :placeholder="column.filterPlaceholder"
             @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
           />
           <span v-else>{{ column.title }}</span>
         </template>
@@ -94,6 +98,7 @@ import { locationApi } from '../api/locationApi'
 import { getApiErrorMessage } from '../utils/apiError'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
 import TableColumnFilter from '../components/TableColumnFilter.vue'
+import { sortTableRows } from '../utils/tableSort'
 
 const tablePagination = reactive({
   ...createTablePagination(),
@@ -109,6 +114,7 @@ const editing = ref(null)
 const searchQuery = ref('')
 const typeFilter = ref(undefined)
 const activeFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
 const form = reactive({ code: '', name: '', type: 'ROOM', parentId: null, description: '', isActive: true })
 const typeOptions = [
   { value: 'ROOM', label: 'Phòng lab' },
@@ -126,12 +132,12 @@ const locationTypeLabels = {
   LEGACY: 'Chưa phân loại'
 }
 const columns = [
-  { title: 'Mã', dataIndex: 'code', key: 'code', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vị trí...' },
-  { title: 'Tên vị trí', dataIndex: 'name', key: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vị trí...' },
-  { title: 'Loại', key: 'type', filterType: 'select', filterKey: 'type', filterOptions: typeOptions },
-  { title: 'Vị trí cha', key: 'parent', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm vị trí cha...' },
-  { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount' },
-  { title: 'Trạng thái', key: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
+  { title: 'Mã', dataIndex: 'code', key: 'code', sortKey: 'code', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vị trí...' },
+  { title: 'Tên vị trí', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vị trí...' },
+  { title: 'Loại', key: 'type', sortKey: 'type', sortable: true, filterType: 'select', filterKey: 'type', filterOptions: typeOptions },
+  { title: 'Vị trí cha', key: 'parent', sortKey: 'parent', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm vị trí cha...' },
+  { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount', sortKey: 'equipmentCount', sortable: true },
+  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'ACTIVE', label: 'Đang sử dụng' },
     { value: 'INACTIVE', label: 'Ngừng sử dụng' }
   ] },
@@ -147,13 +153,14 @@ const deleteLocationLabel = (record) => canDeleteLocation(record)
 
 const filteredLocations = computed(() => {
   const keyword = searchQuery.value.trim().toLowerCase()
-  return locations.value.filter(location => {
+  const filtered = locations.value.filter(location => {
     const parent = parentName(location.parentId).toLowerCase()
     const matchesSearch = !keyword || [location.code, location.name, parent].some(value => String(value || '').toLowerCase().includes(keyword))
     const matchesType = !typeFilter.value || location.type === typeFilter.value
     const matchesStatus = !activeFilter.value || (activeFilter.value === 'ACTIVE' ? location.isActive : !location.isActive)
     return matchesSearch && matchesType && matchesStatus
   })
+  return sortTableRows(filtered, sortState.field, sortState.order, (location, field) => field === 'parent' ? parentName(location.parentId) : location[field])
 })
 
 const applyFilters = () => {
@@ -165,6 +172,11 @@ const applyColumnFilter = (column, value) => {
   else if (column.filterKey === 'status') activeFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
 }
 
 const handleTableChange = pager => {

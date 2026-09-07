@@ -99,10 +99,7 @@ public class PenaltyController : ControllerBase
             query = query.Where(penalty => penalty.CreatedAt < exclusiveTo);
         }
 
-        var page = await query
-            .AsSingleQuery()
-            .OrderByDescending(penalty => penalty.CreatedAt)
-            .ThenByDescending(penalty => penalty.Id)
+        var page = await ApplySorting(query.AsSingleQuery(), paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var items = page.Items.Select(penalty => (object)new
         {
@@ -120,6 +117,35 @@ public class PenaltyController : ControllerBase
             penalty.PaidAt
         }).ToList();
         return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
+    private static IQueryable<Penalty> ApplySorting(
+        IQueryable<Penalty> query,
+        PageQuery paging)
+    {
+        var descending = string.Equals(paging.SortDirection?.Trim(), "desc", StringComparison.OrdinalIgnoreCase);
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "user" => descending
+                ? query.OrderByDescending(penalty => penalty.User == null ? string.Empty : penalty.User.FullName).ThenBy(penalty => penalty.Id)
+                : query.OrderBy(penalty => penalty.User == null ? string.Empty : penalty.User.FullName).ThenBy(penalty => penalty.Id),
+            "equipment" => descending
+                ? query.OrderByDescending(penalty => penalty.Equipment == null ? string.Empty : penalty.Equipment.Name).ThenBy(penalty => penalty.Id)
+                : query.OrderBy(penalty => penalty.Equipment == null ? string.Empty : penalty.Equipment.Name).ThenBy(penalty => penalty.Id),
+            "reason" => descending
+                ? query.OrderByDescending(penalty => penalty.Reason).ThenBy(penalty => penalty.Id)
+                : query.OrderBy(penalty => penalty.Reason).ThenBy(penalty => penalty.Id),
+            "amount" => descending
+                ? query.OrderByDescending(penalty => penalty.Amount).ThenBy(penalty => penalty.Id)
+                : query.OrderBy(penalty => penalty.Amount).ThenBy(penalty => penalty.Id),
+            "createdat" => descending
+                ? query.OrderByDescending(penalty => penalty.CreatedAt).ThenBy(penalty => penalty.Id)
+                : query.OrderBy(penalty => penalty.CreatedAt).ThenBy(penalty => penalty.Id),
+            "status" => descending
+                ? query.OrderByDescending(penalty => penalty.Status).ThenBy(penalty => penalty.Id)
+                : query.OrderBy(penalty => penalty.Status).ThenBy(penalty => penalty.Id),
+            _ => query.OrderByDescending(penalty => penalty.CreatedAt).ThenByDescending(penalty => penalty.Id)
+        };
     }
 
     [HttpPut("{id:int}/pay")]

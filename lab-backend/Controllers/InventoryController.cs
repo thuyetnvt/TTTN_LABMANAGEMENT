@@ -132,9 +132,7 @@ public class InventoryController : ControllerBase
             query = query.Where(session => session.StartedAt < exclusiveTo);
         }
 
-        var page = await query
-            .OrderByDescending(session => session.StartedAt)
-            .ThenByDescending(session => session.Id)
+        var page = await ApplySessionSorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var items = page.Items.Select(session => (object)new
         {
@@ -222,9 +220,7 @@ public class InventoryController : ControllerBase
             query = query.Where(item => item.Status == status);
         }
 
-        var page = await query
-            .OrderBy(item => item.Equipment!.Name)
-            .ThenBy(item => item.Id)
+        var page = await ApplyItemSorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var items = page.Items.Select(item => (object)new
         {
@@ -257,6 +253,67 @@ public class InventoryController : ControllerBase
             })
         }).ToList();
         return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
+    private static IQueryable<InventorySession> ApplySessionSorting(
+        IQueryable<InventorySession> query,
+        PageQuery paging)
+    {
+        var descending = string.Equals(paging.SortDirection?.Trim(), "desc", StringComparison.OrdinalIgnoreCase);
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "code" => descending
+                ? query.OrderByDescending(session => session.Code).ThenBy(session => session.Id)
+                : query.OrderBy(session => session.Code).ThenBy(session => session.Id),
+            "name" => descending
+                ? query.OrderByDescending(session => session.Name).ThenBy(session => session.Id)
+                : query.OrderBy(session => session.Name).ThenBy(session => session.Id),
+            "status" => descending
+                ? query.OrderByDescending(session => session.Status).ThenBy(session => session.Id)
+                : query.OrderBy(session => session.Status).ThenBy(session => session.Id),
+            "startedat" => descending
+                ? query.OrderByDescending(session => session.StartedAt).ThenBy(session => session.Id)
+                : query.OrderBy(session => session.StartedAt).ThenBy(session => session.Id),
+            "progress" => descending
+                ? query.OrderByDescending(session => session.Items.Count(item => item.Status == InventoryItemStatuses.Found)).ThenBy(session => session.Id)
+                : query.OrderBy(session => session.Items.Count(item => item.Status == InventoryItemStatuses.Found)).ThenBy(session => session.Id),
+            "missing" => descending
+                ? query.OrderByDescending(session => session.Items.Count(item => item.Status == InventoryItemStatuses.Missing)).ThenBy(session => session.Id)
+                : query.OrderBy(session => session.Items.Count(item => item.Status == InventoryItemStatuses.Missing)).ThenBy(session => session.Id),
+            _ => query.OrderByDescending(session => session.StartedAt).ThenByDescending(session => session.Id)
+        };
+    }
+
+    private static IQueryable<InventoryItem> ApplyItemSorting(
+        IQueryable<InventoryItem> query,
+        PageQuery paging)
+    {
+        var descending = string.Equals(paging.SortDirection?.Trim(), "desc", StringComparison.OrdinalIgnoreCase);
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "equipment" => descending
+                ? query.OrderByDescending(item => item.Equipment == null ? string.Empty : item.Equipment.Name).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Equipment == null ? string.Empty : item.Equipment.Name).ThenBy(item => item.Id),
+            "assetcode" => descending
+                ? query.OrderByDescending(item => item.Equipment == null ? string.Empty : item.Equipment.AssetCode).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Equipment == null ? string.Empty : item.Equipment.AssetCode).ThenBy(item => item.Id),
+            "expectedlocation" => descending
+                ? query.OrderByDescending(item => item.ExpectedLocationName).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.ExpectedLocationName).ThenBy(item => item.Id),
+            "actualquantity" => descending
+                ? query.OrderByDescending(item => item.Status == InventoryItemStatuses.Missing ? 0 : item.Status == InventoryItemStatuses.Found || item.Status == InventoryItemStatuses.WrongLocation || item.Status == InventoryItemStatuses.Damaged ? 1 : (int?)null).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Status == InventoryItemStatuses.Missing ? 0 : item.Status == InventoryItemStatuses.Found || item.Status == InventoryItemStatuses.WrongLocation || item.Status == InventoryItemStatuses.Damaged ? 1 : (int?)null).ThenBy(item => item.Id),
+            "quantitydifference" => descending
+                ? query.OrderByDescending(item => item.Status == InventoryItemStatuses.Missing ? -1 : item.Status == InventoryItemStatuses.Found || item.Status == InventoryItemStatuses.WrongLocation || item.Status == InventoryItemStatuses.Damaged ? 0 : (int?)null).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Status == InventoryItemStatuses.Missing ? -1 : item.Status == InventoryItemStatuses.Found || item.Status == InventoryItemStatuses.WrongLocation || item.Status == InventoryItemStatuses.Damaged ? 0 : (int?)null).ThenBy(item => item.Id),
+            "status" => descending
+                ? query.OrderByDescending(item => item.Status).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Status).ThenBy(item => item.Id),
+            "scannedat" => descending
+                ? query.OrderByDescending(item => item.ScannedAt).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.ScannedAt).ThenBy(item => item.Id),
+            _ => query.OrderBy(item => item.Equipment == null ? string.Empty : item.Equipment.Name).ThenBy(item => item.Id)
+        };
     }
 
     [HttpPost]

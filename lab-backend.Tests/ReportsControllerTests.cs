@@ -98,6 +98,45 @@ public sealed class ReportsControllerTests
     }
 
     [Fact]
+    public async Task Summary_includes_overdue_return_processing_assets_in_borrowed_list()
+    {
+        await using var context = CreateContext();
+        var now = DateTime.UtcNow;
+        context.Users.Add(new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true });
+        context.Equipments.Add(new Equipment
+        {
+            Id = 1,
+            AssetCode = "EQ-001",
+            QrToken = "qr-001",
+            Name = "Thiết bị đang xử lý trả",
+            Serial = "SN-001",
+            Model = "M1",
+            Location = "Lab",
+            Status = EquipmentStatuses.Borrowed,
+            CreatedAt = now
+        });
+        context.BorrowRecords.Add(new BorrowRecord
+        {
+            Id = 1,
+            UserId = 1,
+            ExpectedReturnDate = now.AddDays(-1),
+            BorrowDate = now.AddDays(-3),
+            Purpose = "Kiểm thử quá hạn đang xử lý trả",
+            Status = BorrowStatuses.ReturnProcessing,
+            Details = [new BorrowRequestDetail { EquipmentId = 1, Status = BorrowStatuses.ReturnProcessing }]
+        });
+        await context.SaveChangesAsync();
+
+        var result = Assert.IsType<OkObjectResult>(await new ReportsController(context)
+            .Summary(null, null, null, null, CancellationToken.None));
+        var json = JsonSerializer.SerializeToElement(result.Value);
+
+        Assert.Equal(1, json.GetProperty("totals").GetProperty("borrowed").GetInt32());
+        Assert.Equal(1, json.GetProperty("totals").GetProperty("overdue").GetInt32());
+        Assert.True(json.GetProperty("borrowed")[0].GetProperty("processingReturn").GetBoolean());
+    }
+
+    [Fact]
     public async Task Summary_applies_equipment_scope_and_uses_available_consumable_stock()
     {
         await using var context = CreateContext();
@@ -110,6 +149,7 @@ public sealed class ReportsControllerTests
             {
                 Id = 1, AssetCode = "EQ-1", QrToken = "qr-1", Name = "ESP32", Serial = "SN-1",
                 Model = "M", Location = "Lab", Status = EquipmentStatuses.MaintenanceInProgress,
+                ResponsiblePerson = "Nguyễn Văn A",
                 AssetCategoryId = 1, CreatedAt = day
             },
             new Equipment
@@ -147,6 +187,8 @@ public sealed class ReportsControllerTests
         Assert.Equal(1, json.GetProperty("lowStock").GetArrayLength());
         Assert.Equal(2, json.GetProperty("lowStock")[0].GetProperty("availableQuantity").GetInt32());
         Assert.Equal(1, json.GetProperty("consumables").GetArrayLength());
+        Assert.Equal(1, json.GetProperty("responsible").GetArrayLength());
+        Assert.Equal("Nguyễn Văn A", json.GetProperty("responsible")[0].GetProperty("responsiblePerson").GetString());
     }
 
     [Fact]

@@ -109,9 +109,7 @@ public class MaintenanceScheduleController : ControllerBase
             else if (status == "INACTIVE") query = query.Where(schedule => !schedule.IsActive);
         }
 
-        var page = await query
-            .OrderBy(schedule => schedule.NextDueAt)
-            .ThenBy(schedule => schedule.Id)
+        var page = await ApplySorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var items = page.Items.Select(schedule => (object)new
         {
@@ -130,6 +128,32 @@ public class MaintenanceScheduleController : ControllerBase
             checklist = schedule.Checklist
         }).ToList();
         return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
+    private static IQueryable<MaintenanceSchedule> ApplySorting(
+        IQueryable<MaintenanceSchedule> query,
+        PageQuery paging)
+    {
+        var descending = string.Equals(paging.SortDirection?.Trim(), "desc", StringComparison.OrdinalIgnoreCase);
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "device" => descending
+                ? query.OrderByDescending(schedule => schedule.Equipment == null ? string.Empty : schedule.Equipment.Name).ThenBy(schedule => schedule.Id)
+                : query.OrderBy(schedule => schedule.Equipment == null ? string.Empty : schedule.Equipment.Name).ThenBy(schedule => schedule.Id),
+            "name" => descending
+                ? query.OrderByDescending(schedule => schedule.Name).ThenBy(schedule => schedule.Id)
+                : query.OrderBy(schedule => schedule.Name).ThenBy(schedule => schedule.Id),
+            "intervaldays" => descending
+                ? query.OrderByDescending(schedule => schedule.IntervalDays).ThenBy(schedule => schedule.Id)
+                : query.OrderBy(schedule => schedule.IntervalDays).ThenBy(schedule => schedule.Id),
+            "nextdueat" => descending
+                ? query.OrderByDescending(schedule => schedule.NextDueAt).ThenBy(schedule => schedule.Id)
+                : query.OrderBy(schedule => schedule.NextDueAt).ThenBy(schedule => schedule.Id),
+            "isactive" or "status" => descending
+                ? query.OrderByDescending(schedule => schedule.IsActive).ThenBy(schedule => schedule.Id)
+                : query.OrderBy(schedule => schedule.IsActive).ThenBy(schedule => schedule.Id),
+            _ => query.OrderBy(schedule => schedule.NextDueAt).ThenBy(schedule => schedule.Id)
+        };
     }
 
     [HttpPost]

@@ -17,13 +17,17 @@
       <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
-            v-if="column.filterType"
+            v-if="column.filterType || column.sortable"
             :title="column.title"
             :type="column.filterType"
             :options="column.filterOptions"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
             :value="column.filterKey === 'status' ? statusFilter : searchQuery"
             :placeholder="column.filterPlaceholder"
             @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
           />
           <span v-else>{{ column.title }}</span>
         </template>
@@ -96,6 +100,7 @@ const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
 const penaltyStatusOptions = [
   { value: STATUS.UNPAID, label: 'Chưa thanh toán' },
   { value: STATUS.PAID, label: 'Đã thanh toán' }
@@ -109,12 +114,12 @@ const showDetails = record => {
 }
 
 const columns = [
-  { title: 'Người bồi thường', dataIndex: 'fullName', key: 'fullName', fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người bồi thường...' },
-  { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Lý do / Tình trạng', dataIndex: 'reason', key: 'reason', filterType: 'search', filterPlaceholder: 'Tìm lý do...' },
-  { title: 'Số tiền phạt', dataIndex: 'amount', key: 'amount', align: 'right' },
-  { title: 'Ngày lập', dataIndex: 'createdAt', key: 'createdAt', align: 'center' },
-  { title: 'Trạng thái', key: 'status', align: 'center', filterType: 'select', filterKey: 'status', filterOptions: penaltyStatusOptions },
+  { title: 'Người bồi thường', dataIndex: 'fullName', key: 'fullName', sortKey: 'user', sortable: true, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người bồi thường...' },
+  { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName', sortKey: 'equipment', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Lý do / Tình trạng', dataIndex: 'reason', key: 'reason', sortKey: 'reason', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm lý do...' },
+  { title: 'Số tiền phạt', dataIndex: 'amount', key: 'amount', sortKey: 'amount', sortable: true, align: 'right' },
+  { title: 'Ngày lập', dataIndex: 'createdAt', key: 'createdAt', sortKey: 'createdAt', sortable: true, align: 'center' },
+  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, align: 'center', filterType: 'select', filterKey: 'status', filterOptions: penaltyStatusOptions },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190, align: 'center' }
 ]
 
@@ -129,7 +134,9 @@ const fetchPenalties = async () => {
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value
+      status: statusFilter.value,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     dataSource.value = res.items || []
     tablePagination.total = res.total || 0
@@ -149,6 +156,13 @@ const applyColumnFilter = (column, value) => {
   if (column.filterKey === 'status') statusFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+  tablePagination.current = 1
+  fetchPenalties()
 }
 
 const handleTableChange = pager => {

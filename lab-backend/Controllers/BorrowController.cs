@@ -365,9 +365,7 @@ public class BorrowController : ControllerBase
             query = query.Where(item => item.BorrowDate < exclusiveTo);
         }
 
-        var page = await query
-            .OrderByDescending(item => item.BorrowDate)
-            .ThenByDescending(item => item.Id)
+        var page = await ApplySorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var requestIds = page.Items.Select(item => item.Id).ToArray();
         var handovers = await _context.HandoverRecords
@@ -599,9 +597,7 @@ public class BorrowController : ControllerBase
             query = query.Where(item => item.BorrowDate < exclusiveTo);
         }
 
-        var page = await query
-            .OrderByDescending(item => item.BorrowDate)
-            .ThenByDescending(item => item.Id)
+        var page = await ApplySorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var recordIds = page.Items.Select(item => item.Id).ToArray();
         var handovers = await _context.HandoverRecords
@@ -755,9 +751,7 @@ public class BorrowController : ControllerBase
                 || item.Details.Any(detail => detail.Equipment != null && detail.Equipment.Name.Contains(search)));
         }
 
-        var page = await query
-            .OrderByDescending(item => item.BorrowDate)
-            .ThenByDescending(item => item.Id)
+        var page = await ApplySorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var items = page.Items.Select(item => (object)new
         {
@@ -1611,6 +1605,60 @@ public class BorrowController : ControllerBase
                 PaidAt = paidAt
             });
         }
+    }
+
+    private static IQueryable<BorrowRecord> ApplySorting(
+        IQueryable<BorrowRecord> query,
+        PageQuery paging)
+    {
+        var descending = string.Equals(
+            paging.SortDirection?.Trim(),
+            "desc",
+            StringComparison.OrdinalIgnoreCase);
+
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "borrower" => descending
+                ? query.OrderByDescending(item => item.User == null ? string.Empty : item.User.FullName).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.User == null ? string.Empty : item.User.FullName).ThenBy(item => item.Id),
+            "device" => descending
+                ? query.OrderByDescending(item => item.Equipment == null ? string.Empty : item.Equipment.Name).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Equipment == null ? string.Empty : item.Equipment.Name).ThenBy(item => item.Id),
+            "category" => descending
+                ? query.OrderByDescending(item => item.Equipment == null || item.Equipment.AssetCategory == null ? string.Empty : item.Equipment.AssetCategory.Name).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Equipment == null || item.Equipment.AssetCategory == null ? string.Empty : item.Equipment.AssetCategory.Name).ThenBy(item => item.Id),
+            "serial" => descending
+                ? query.OrderByDescending(item => item.Equipment == null ? string.Empty : item.Equipment.Serial).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Equipment == null ? string.Empty : item.Equipment.Serial).ThenBy(item => item.Id),
+            "requestdate" => descending
+                ? query.OrderByDescending(item => item.BorrowDate).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.BorrowDate).ThenBy(item => item.Id),
+            "returndate" or "expectedreturndate" => descending
+                ? query.OrderByDescending(item => item.ExpectedReturnDate).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.ExpectedReturnDate).ThenBy(item => item.Id),
+            "actualreturndate" => descending
+                ? query.OrderByDescending(item => item.ActualReturnDate).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.ActualReturnDate).ThenBy(item => item.Id),
+            "purpose" => descending
+                ? query.OrderByDescending(item => item.Purpose).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Purpose).ThenBy(item => item.Id),
+            "status" => descending
+                ? query.OrderByDescending(item => item.Status).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.Status).ThenBy(item => item.Id),
+            "returncondition" => descending
+                ? query.OrderByDescending(item => item.ReturnCondition).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.ReturnCondition).ThenBy(item => item.Id),
+            "returninspectionnote" => descending
+                ? query.OrderByDescending(item => item.ReturnInspectionNote).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.ReturnInspectionNote).ThenBy(item => item.Id),
+            "warrantyaction" => descending
+                ? query.OrderByDescending(item => item.WarrantyAction).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.WarrantyAction).ThenBy(item => item.Id),
+            "compensationamount" => descending
+                ? query.OrderByDescending(item => item.CompensationAmount).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.CompensationAmount).ThenBy(item => item.Id),
+            _ => query.OrderByDescending(item => item.BorrowDate).ThenByDescending(item => item.Id)
+        };
     }
 
     private static string? NormalizeDecisionNote(DecisionNoteDto? dto, bool required)

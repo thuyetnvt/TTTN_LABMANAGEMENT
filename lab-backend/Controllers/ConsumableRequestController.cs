@@ -162,9 +162,7 @@ public class ConsumableRequestController : ControllerBase
             query = query.Where(request => request.RequestDate < exclusiveTo);
         }
 
-        var page = await query
-            .OrderByDescending(request => request.RequestDate)
-            .ThenByDescending(request => request.Id)
+        var page = await ApplySorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
         var items = page.Items.Select(request => (object)new
         {
@@ -191,6 +189,38 @@ public class ConsumableRequestController : ControllerBase
             })
         }).ToList();
         return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
+    private static IQueryable<ConsumableRequest> ApplySorting(
+        IQueryable<ConsumableRequest> query,
+        PageQuery paging)
+    {
+        var descending = string.Equals(paging.SortDirection?.Trim(), "desc", StringComparison.OrdinalIgnoreCase);
+        return paging.SortBy?.Trim().ToLowerInvariant() switch
+        {
+            "consumable" => descending
+                ? query.OrderByDescending(request => request.Consumable == null ? string.Empty : request.Consumable.Name).ThenBy(request => request.Id)
+                : query.OrderBy(request => request.Consumable == null ? string.Empty : request.Consumable.Name).ThenBy(request => request.Id),
+            "category" => descending
+                ? query.OrderByDescending(request => request.Consumable == null || request.Consumable.AssetCategory == null ? string.Empty : request.Consumable.AssetCategory.Name).ThenBy(request => request.Id)
+                : query.OrderBy(request => request.Consumable == null || request.Consumable.AssetCategory == null ? string.Empty : request.Consumable.AssetCategory.Name).ThenBy(request => request.Id),
+            "requester" => descending
+                ? query.OrderByDescending(request => request.User == null ? string.Empty : request.User.FullName).ThenBy(request => request.Id)
+                : query.OrderBy(request => request.User == null ? string.Empty : request.User.FullName).ThenBy(request => request.Id),
+            "quantity" => descending
+                ? query.OrderByDescending(request => request.Quantity).ThenBy(request => request.Id)
+                : query.OrderBy(request => request.Quantity).ThenBy(request => request.Id),
+            "reason" => descending
+                ? query.OrderByDescending(request => request.Reason).ThenBy(request => request.Id)
+                : query.OrderBy(request => request.Reason).ThenBy(request => request.Id),
+            "status" => descending
+                ? query.OrderByDescending(request => request.Status).ThenBy(request => request.Id)
+                : query.OrderBy(request => request.Status).ThenBy(request => request.Id),
+            "requestdate" => descending
+                ? query.OrderByDescending(request => request.RequestDate).ThenBy(request => request.Id)
+                : query.OrderBy(request => request.RequestDate).ThenBy(request => request.Id),
+            _ => query.OrderByDescending(request => request.RequestDate).ThenByDescending(request => request.Id)
+        };
     }
 
     [HttpPost]

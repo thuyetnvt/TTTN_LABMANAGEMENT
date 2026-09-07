@@ -16,13 +16,17 @@
       <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1600 }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
-            v-if="column.filterType"
+            v-if="column.filterType || column.sortable"
             :title="column.title"
             :type="column.filterType"
             :options="column.filterOptions"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
             :value="column.filterKey === 'status' ? statusFilter : searchQuery"
             :placeholder="column.filterPlaceholder"
             @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
           />
           <span v-else>{{ column.title }}</span>
         </template>
@@ -286,6 +290,7 @@ const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
 const borrowRequestStatusOptions = [
   { value: STATUS.BORROW_PENDING, label: 'Chờ duyệt' },
   { value: STATUS.APPROVED, label: 'Chờ bàn giao' },
@@ -311,16 +316,16 @@ const cancelReason = ref('')
 const cancelRecord = ref(null)
 
 const columns = [
-  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
-  { title: 'Thiết bị', dataIndex: 'device', key: 'device', width: 160, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Danh mục', dataIndex: 'category', key: 'category', width: 110, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 130, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 170, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
+  { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 160, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Danh mục', dataIndex: 'category', key: 'category', sortKey: 'category', sortable: true, width: 110, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
+  { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 130, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
   { title: 'Chi tiết yêu cầu', key: 'details', width: 180, filterType: 'search', filterPlaceholder: 'Tìm chi tiết...' },
-  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', width: 120 },
-  { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', width: 120 },
-  { title: 'Hạn trả', key: 'dueStatus', align: 'center', width: 130 },
-  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', width: 180, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', align: 'center', width: 120, filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
+  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 120 },
+  { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true, width: 120 },
+  { title: 'Hạn trả', key: 'dueStatus', sortKey: 'dueStatus', sortable: true, align: 'center', width: 130 },
+  { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', sortKey: 'purpose', sortable: true, width: 180, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 120, filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220 }
 ]
 
@@ -374,7 +379,9 @@ const fetchRequests = async () => {
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value
+      status: statusFilter.value,
+      sortBy: sortState.field,
+      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
     dataSource.value = response.items || []
     tablePagination.total = response.total || 0
@@ -394,6 +401,13 @@ const applyColumnFilter = (column, value) => {
   if (column.filterKey === 'status') statusFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+  tablePagination.current = 1
+  fetchRequests()
 }
 
 const handleTableChange = (pager) => {

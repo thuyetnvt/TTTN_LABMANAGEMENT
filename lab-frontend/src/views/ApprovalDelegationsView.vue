@@ -11,13 +11,29 @@
     <a-card :bordered="false" class="delegations-card">
       <a-table
         class="desktop-table"
-        :data-source="delegations"
+        :data-source="displayDelegations"
         :columns="columns"
         :loading="loading"
         row-key="id"
         bordered
         :pagination="false"
       >
+        <template #headerCell="{ column }">
+          <TableColumnFilter
+            v-if="column.filterType || column.sortable"
+            :title="column.title"
+            :type="column.filterType"
+            :options="column.filterOptions"
+            :filterable="Boolean(column.filterType)"
+            :sortable="Boolean(column.sortable)"
+            :sort-order="sortState.field === column.sortKey ? sortState.order : undefined"
+            :value="column.filterKey === 'scope' ? scopeFilter : (column.filterKey === 'status' ? statusFilter : searchQuery)"
+            :placeholder="column.filterPlaceholder"
+            @apply="value => applyColumnFilter(column, value)"
+            @sort="value => applyColumnSort(column, value)"
+          />
+          <span v-else>{{ column.title }}</span>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'delegate'">
             <div class="person-cell">
@@ -54,7 +70,7 @@
         </template>
       </a-table>
 
-      <ResponsiveDataList :items="delegations" :loading="loading" empty-description="Chưa có quyền ủy quyền">
+      <ResponsiveDataList :items="displayDelegations" :loading="loading" empty-description="Chưa có quyền ủy quyền">
         <template #default="{ item }">
           <div class="mobile-delegation-heading">
             <div class="person-cell">
@@ -132,14 +148,16 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
 import { message, Modal } from 'ant-design-vue'
 import { approvalDelegationApi } from '../api/approvalDelegationApi'
 import { userApi } from '../api/userApi'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
+import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
+import { sortTableRows } from '../utils/tableSort'
 
 const delegations = ref([])
 const teachers = ref([])
@@ -156,17 +174,61 @@ const formState = reactive({
   reason: ''
 })
 const dateRules = [{ required: true, message: 'Vui lòng chọn thời gian.' }]
+const searchQuery = ref('')
+const scopeFilter = ref(undefined)
+const statusFilter = ref(undefined)
+const sortState = reactive({ field: undefined, order: undefined })
+const scopeOptions = [
+  { value: 'BORROW_REQUEST', label: 'Mượn/trả' },
+  { value: 'CONSUMABLE_REQUEST', label: 'Cấp phát vật tư' },
+  { value: 'BOTH', label: 'Mượn/trả và cấp phát' }
+]
+const statusOptions = [
+  { value: 'ACTIVE', label: 'Đang hiệu lực' },
+  { value: 'SCHEDULED', label: 'Sắp áp dụng' },
+  { value: 'EXPIRED', label: 'Hết hiệu lực' },
+  { value: 'REVOKED', label: 'Đã thu hồi' }
+]
 
 const columns = [
-  { title: 'Giảng viên được ủy quyền', key: 'delegate', width: 220 },
-  { title: 'Người ủy quyền', key: 'delegator', width: 170 },
-  { title: 'Phạm vi', key: 'scope', width: 190 },
-  { title: 'Quyền bàn giao', key: 'handover', width: 145, align: 'center' },
-  { title: 'Thời gian', key: 'period', width: 230 },
-  { title: 'Lý do', dataIndex: 'reason', key: 'reason', width: 260 },
-  { title: 'Trạng thái', key: 'status', width: 120, align: 'center' },
+  { title: 'Giảng viên được ủy quyền', key: 'delegate', sortKey: 'delegate', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm giảng viên...', width: 220 },
+  { title: 'Người ủy quyền', key: 'delegator', sortKey: 'delegator', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người ủy quyền...', width: 170 },
+  { title: 'Phạm vi', key: 'scope', sortKey: 'scope', sortable: true, filterType: 'select', filterKey: 'scope', filterOptions: scopeOptions, width: 190 },
+  { title: 'Quyền bàn giao', key: 'handover', sortKey: 'handover', sortable: true, width: 145, align: 'center' },
+  { title: 'Thời gian', key: 'period', sortKey: 'startsAt', sortable: true, width: 230 },
+  { title: 'Lý do', dataIndex: 'reason', key: 'reason', sortKey: 'reason', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm lý do...', width: 260 },
+  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, filterType: 'select', filterKey: 'status', filterOptions: statusOptions, width: 120, align: 'center' },
   { title: 'Hành động', key: 'action', width: 110, align: 'center' }
 ]
+
+const scopeValue = item => item.scope || ''
+const statusValue = item => !item.isActive
+  ? 'REVOKED'
+  : item.status || ''
+const filteredDelegations = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+  return delegations.value.filter(item => {
+    const matchesSearch = !keyword || [item.delegateName, item.delegateUsername, item.delegatorName, item.delegatorUsername, item.reason]
+      .some(value => String(value || '').toLowerCase().includes(keyword))
+    return matchesSearch
+      && (!scopeFilter.value || scopeValue(item) === scopeFilter.value)
+      && (!statusFilter.value || statusValue(item) === statusFilter.value)
+  })
+})
+const displayDelegations = computed(() => sortTableRows(
+  filteredDelegations.value,
+  sortState.field,
+  sortState.order,
+  (item, field) => {
+    if (field === 'delegate') return item.delegateName || item.delegateUsername
+    if (field === 'delegator') return item.delegatorName || item.delegatorUsername
+    if (field === 'scope') return scopeLabel(item.scope)
+    if (field === 'handover') return item.canHandover ? 1 : 0
+    if (field === 'period' || field === 'startsAt') return item.startsAt
+    if (field === 'status') return statusLabel(statusValue(item))
+    return item[field]
+  }
+))
 
 const scopeLabel = scope => ({
   BORROW_REQUEST: 'Mượn/trả',
@@ -176,6 +238,17 @@ const scopeLabel = scope => ({
 
 const statusLabel = status => ({ ACTIVE: 'Đang hiệu lực', SCHEDULED: 'Sắp áp dụng', EXPIRED: 'Hết hiệu lực' }[status] || 'Đã thu hồi')
 const statusColor = status => ({ ACTIVE: 'green', SCHEDULED: 'blue', EXPIRED: 'orange' }[status] || 'red')
+
+const applyColumnFilter = (column, value) => {
+  if (column.filterKey === 'scope') scopeFilter.value = value
+  else if (column.filterKey === 'status') statusFilter.value = value
+  else searchQuery.value = value || ''
+}
+
+const applyColumnSort = (column, order) => {
+  sortState.field = order ? column.sortKey : undefined
+  sortState.order = order
+}
 
 const fetchData = async () => {
   loading.value = true
