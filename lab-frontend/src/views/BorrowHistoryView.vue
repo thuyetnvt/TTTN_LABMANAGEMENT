@@ -143,6 +143,9 @@
             <div>Tình trạng: <StatusBadge :status="item.condition" type="returnCondition" /></div>
             <div>Phụ kiện: {{ item.accessories || 'Không ghi nhận' }}</div>
             <div>Ghi chú: {{ item.note || 'Không có' }}</div>
+            <div v-if="issueReportFor(item.equipmentId)?.evidence?.length" class="handover-issue-evidence-count">
+              Đã đính kèm {{ issueReportFor(item.equipmentId).evidence.length }} ảnh bằng chứng
+            </div>
             <div v-if="selectedHandover?.canReportIssue" class="handover-item-actions">
               <a-button
                 v-if="issueReportFor(item.equipmentId)?.status !== 'HANDOVER_ISSUE_PENDING'"
@@ -177,6 +180,7 @@
       ok-text="Gửi báo cáo"
       cancel-text="Hủy"
       :confirm-loading="issueSubmitting"
+      @cancel="closeIssueReport"
       @ok="submitIssueReport"
     >
       <a-alert
@@ -203,6 +207,28 @@
             show-count
             placeholder="Mô tả rõ điểm khác với biên bản: thiếu phụ kiện, trầy xước, không hoạt động..."
           />
+        </a-form-item>
+        <a-form-item label="Ảnh bằng chứng (không bắt buộc)">
+          <a-upload
+            :multiple="true"
+            :before-upload="selectIssueEvidence"
+            :show-upload-list="false"
+            accept=".jpg,.jpeg,.png,.webp"
+            :disabled="issueSubmitting || issueEvidenceFiles.length >= 5"
+          >
+            <a-button>Chọn ảnh</a-button>
+          </a-upload>
+          <div class="issue-upload-hint">JPG, PNG, WEBP · tối đa 5 ảnh · mỗi ảnh không quá 10 MB</div>
+          <div v-if="issueEvidenceFiles.length" class="issue-evidence-list">
+            <div v-for="(file, index) in issueEvidenceFiles" :key="`${file.name}-${file.lastModified}-${index}`" class="issue-evidence-file">
+              <a-image :src="issueEvidencePreviewUrls[index]" :width="56" :height="56" :preview="true" />
+              <div class="issue-evidence-file-copy">
+                <strong>{{ file.name }}</strong>
+                <span>{{ formatFileSize(file.size) }}</span>
+              </div>
+              <a-button type="text" danger :disabled="issueSubmitting" @click="removeIssueEvidence(index)">Xóa</a-button>
+            </div>
+          </div>
         </a-form-item>
       </a-form>
     </a-modal>
@@ -247,7 +273,7 @@
 <script setup>
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Upload } from 'ant-design-vue'
 import { EyeOutlined } from '@ant-design/icons-vue'
 import { borrowApi } from '../api/borrowApi'
 import { handoverApi } from '../api/handoverApi'
@@ -294,6 +320,8 @@ const issueReportVisible = ref(false)
 const issueSubmitting = ref(false)
 const issueReportItem = ref(null)
 const issueForm = reactive({ issueType: 'CONDITION', description: '' })
+const issueEvidenceFiles = ref([])
+const issueEvidencePreviewUrls = ref([])
 
 const issueTypeOptions = [
   { value: 'CONDITION', label: 'Tình trạng khác mô tả' },
@@ -304,6 +332,11 @@ const issueTypeOptions = [
 ]
 
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
+const formatFileSize = bytes => {
+  if (!bytes) return '0 KB'
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 const isReminding = id => remindingRecordIds.value.has(id)
 
 const borrowStatusOptions = [
@@ -479,7 +512,46 @@ const openIssueReport = item => {
   issueReportItem.value = item
   issueForm.issueType = 'CONDITION'
   issueForm.description = ''
+  resetIssueEvidence()
   issueReportVisible.value = true
+}
+
+const resetIssueEvidence = () => {
+  issueEvidencePreviewUrls.value.forEach(url => URL.revokeObjectURL(url))
+  issueEvidenceFiles.value = []
+  issueEvidencePreviewUrls.value = []
+}
+
+const selectIssueEvidence = file => {
+  if (issueEvidenceFiles.value.length >= 5) {
+    message.warning('Mỗi báo cáo được đính kèm tối đa 5 ảnh.')
+    return Upload.LIST_IGNORE
+  }
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  if (!['jpg', 'jpeg', 'png', 'webp'].includes(extension) || !file.type?.startsWith('image/')) {
+    message.error('Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP.')
+    return Upload.LIST_IGNORE
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    message.error('Mỗi ảnh không được vượt quá 10 MB.')
+    return Upload.LIST_IGNORE
+  }
+  issueEvidenceFiles.value.push(file)
+  issueEvidencePreviewUrls.value.push(URL.createObjectURL(file))
+  return false
+}
+
+const removeIssueEvidence = index => {
+  const previewUrl = issueEvidencePreviewUrls.value[index]
+  if (previewUrl) URL.revokeObjectURL(previewUrl)
+  issueEvidenceFiles.value.splice(index, 1)
+  issueEvidencePreviewUrls.value.splice(index, 1)
+}
+
+const closeIssueReport = () => {
+  if (issueSubmitting.value) return
+  issueReportVisible.value = false
+  resetIssueEvidence()
 }
 
 const submitIssueReport = async () => {
@@ -494,10 +566,12 @@ const submitIssueReport = async () => {
     await handoverApi.createIssueReport(selectedRecord.value.id, {
       equipmentId: issueReportItem.value.equipmentId,
       issueType: issueForm.issueType,
-      description
+      description,
+      files: issueEvidenceFiles.value
     })
     message.success('Đã gửi báo cáo sai lệch cho quản lý Lab.')
     issueReportVisible.value = false
+    resetIssueEvidence()
     await openHandover(selectedRecord.value)
   } catch (error) {
     message.error(getApiErrorMessage(error, 'Không thể gửi báo cáo sai lệch.'))
@@ -523,6 +597,13 @@ const handleTableChange = (pager) => {
 <style scoped>
 .handover-item-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .handover-issue-summary { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; color: var(--color-secondary); font-size: 13px; }
+.handover-issue-evidence-count { color: var(--color-secondary); font-size: 13px; }
+.issue-upload-hint { margin-top: 8px; color: var(--color-secondary); font-size: 12px; }
+.issue-evidence-list { display: grid; gap: 8px; margin-top: 10px; }
+.issue-evidence-file { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; }
+.issue-evidence-file-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.issue-evidence-file-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.issue-evidence-file-copy span { color: var(--color-secondary); font-size: 12px; }
 .borrow-history-container {
   padding: 0;
 }

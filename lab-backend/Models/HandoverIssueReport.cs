@@ -18,4 +18,5 @@ public class HandoverIssueReport
     public User? ResolvedByUser { get; set; }
     public DateTime ReportedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ResolvedAt { get; set; }
+    public ICollection<HandoverIssueEvidence> Evidence { get; set; } = new List<HandoverIssueEvidence>();
 }

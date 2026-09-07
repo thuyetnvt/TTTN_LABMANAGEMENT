@@ -258,9 +258,13 @@ test('luồng bàn giao cho phép báo sai lệch và khóa xác nhận khi đan
   assert.match(historySource, /Báo sai lệch/)
   assert.match(historySource, /selectedHandover\?\.canConfirm/)
   assert.match(historySource, /hasPendingIssueReports/)
+  assert.match(historySource, /Ảnh bằng chứng/)
+  assert.match(historySource, /selectIssueEvidence/)
   assert.match(handoverApiSource, /createIssueReport/)
+  assert.match(handoverApiSource, /form\.append\('files'/)
   assert.match(handoverApiSource, /resolveIssueReport/)
   assert.match(issueViewSource, /Báo cáo sai lệch bàn giao/)
+  assert.match(issueViewSource, /downloadIssueEvidence/)
   assert.match(routerSource, /name: 'HandoverIssues'/)
 })
 

@@ -34,6 +34,7 @@ namespace LabManagementAPI.Data
         public DbSet<HandoverItem> HandoverItems { get; set; }
         public DbSet<HandoverEvidence> HandoverEvidence { get; set; }
         public DbSet<HandoverIssueReport> HandoverIssueReports { get; set; }
+        public DbSet<HandoverIssueEvidence> HandoverIssueEvidence { get; set; }
         public DbSet<EquipmentLocationHistory> EquipmentLocationHistories { get; set; }
         public DbSet<AutomationDispatch> AutomationDispatches { get; set; }
         public DbSet<ApprovalDelegation> ApprovalDelegations { get; set; }
@@ -386,6 +387,22 @@ namespace LabManagementAPI.Data
                     .HasForeignKey(item => item.ReportedByUserId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(item => item.ResolvedByUser).WithMany()
                     .HasForeignKey(item => item.ResolvedByUserId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<HandoverIssueEvidence>(entity =>
+            {
+                entity.Property(item => item.OriginalFileName).HasMaxLength(255);
+                entity.Property(item => item.StoredPath).HasMaxLength(1000);
+                entity.Property(item => item.ContentType).HasMaxLength(150);
+                entity.HasIndex(item => new { item.HandoverIssueReportId, item.UploadedAt });
+                entity.HasOne(item => item.HandoverIssueReport)
+                    .WithMany(report => report.Evidence)
+                    .HasForeignKey(item => item.HandoverIssueReportId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(item => item.UploadedByUser)
+                    .WithMany()
+                    .HasForeignKey(item => item.UploadedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<HandoverItem>(entity =>

@@ -33,6 +33,9 @@
           <template v-else-if="column.key === 'reportedAt'">
             {{ formatDateTime(record.reportedAt) }}
           </template>
+          <template v-else-if="column.key === 'evidence'">
+            {{ record.evidence?.length || 0 }} ảnh
+          </template>
           <template v-else-if="column.key === 'description'">
             <span class="description-cell">{{ record.description }}</span>
           </template>
@@ -56,6 +59,25 @@
         </a-descriptions-item>
         <a-descriptions-item label="Loại sai lệch">{{ issueTypeLabel(selectedReport.issueType) }}</a-descriptions-item>
         <a-descriptions-item label="Nội dung sinh viên báo cáo">{{ selectedReport.description }}</a-descriptions-item>
+        <a-descriptions-item v-if="selectedReport.evidence?.length" label="Ảnh bằng chứng">
+          <div class="issue-evidence-grid">
+            <div v-for="evidence in selectedReport.evidence" :key="evidence.id" class="issue-evidence-card">
+              <a-spin v-if="evidenceLoading[evidenceKey(selectedReport, evidence)]" />
+              <a-image
+                v-else-if="evidencePreviewUrls[evidenceKey(selectedReport, evidence)]"
+                :src="evidencePreviewUrls[evidenceKey(selectedReport, evidence)]"
+                :width="96"
+                :height="72"
+                :preview="true"
+              />
+              <div class="issue-evidence-card-copy">
+                <span>{{ evidence.OriginalFileName || evidence.originalFileName }}</span>
+                <small>{{ formatFileSize(evidence.FileSize ?? evidence.fileSize) }}</small>
+                <a-button type="link" size="small" @click="downloadEvidence(selectedReport, evidence)">Tải ảnh</a-button>
+              </div>
+            </div>
+          </div>
+        </a-descriptions-item>
         <a-descriptions-item label="Thời gian gửi">{{ formatDateTime(selectedReport.reportedAt) }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedReport.status !== 'HANDOVER_ISSUE_PENDING'" label="Kết quả xử lý">
           {{ selectedReport.status === 'HANDOVER_ISSUE_REJECTED' ? 'Từ chối báo cáo' : 'Đã ghi nhận sai lệch' }}
@@ -101,7 +123,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import EmptyState from '../components/EmptyState.vue'
 import { handoverApi } from '../api/handoverApi'
@@ -117,12 +139,15 @@ const resolving = ref(false)
 const selectedReport = ref(null)
 const resolveAction = ref('ACKNOWLEDGE')
 const resolutionNote = ref('')
+const evidencePreviewUrls = reactive({})
+const evidenceLoading = reactive({})
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 190 },
   { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName', width: 220 },
   { title: 'Loại sai lệch', dataIndex: 'issueType', key: 'issueType', width: 190 },
   { title: 'Nội dung báo cáo', dataIndex: 'description', key: 'description', width: 320 },
+  { title: 'Bằng chứng', dataIndex: 'evidence', key: 'evidence', width: 110, align: 'center' },
   { title: 'Thời gian gửi', dataIndex: 'reportedAt', key: 'reportedAt', width: 180 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160, align: 'center' },
   { title: 'Hành động', key: 'action', width: 150, align: 'center' }
@@ -159,9 +184,46 @@ const fetchReports = async () => {
   }
 }
 
-const openDetails = report => {
+const evidenceKey = (report, evidence) => `${report.id}-${evidence.id}`
+
+const formatFileSize = bytes => {
+  if (!bytes) return '0 KB'
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const loadEvidencePreview = async (report, evidence) => {
+  const key = evidenceKey(report, evidence)
+  if (evidencePreviewUrls[key] || evidenceLoading[key]) return
+  evidenceLoading[key] = true
+  try {
+    const blob = await handoverApi.downloadIssueEvidence(report.id, evidence.id)
+    evidencePreviewUrls[key] = URL.createObjectURL(blob)
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể tải ảnh bằng chứng.'))
+  } finally {
+    evidenceLoading[key] = false
+  }
+}
+
+const openDetails = async report => {
   selectedReport.value = report
   detailsVisible.value = true
+  await Promise.all((report.evidence || []).map(evidence => loadEvidencePreview(report, evidence)))
+}
+
+const downloadEvidence = async (report, evidence) => {
+  try {
+    const blob = await handoverApi.downloadIssueEvidence(report.id, evidence.id)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = evidence.OriginalFileName || evidence.originalFileName || 'anh-bang-chung'
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể tải ảnh bằng chứng.'))
+  }
 }
 
 const openResolve = action => {
@@ -192,6 +254,9 @@ const submitResolve = async () => {
 }
 
 onMounted(fetchReports)
+onBeforeUnmount(() => {
+  Object.values(evidencePreviewUrls).forEach(url => URL.revokeObjectURL(url))
+})
 </script>
 
 <style scoped>
@@ -202,6 +267,12 @@ onMounted(fetchReports)
 .status-filter { min-width: 190px; }
 .handover-issues-card { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
 .description-cell { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.issue-evidence-grid { display: grid; gap: 10px; }
+.issue-evidence-card { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; }
+.issue-evidence-card :deep(.ant-image) { flex: 0 0 auto; overflow: hidden; border-radius: 6px; background: #f5f5f5; }
+.issue-evidence-card-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.issue-evidence-card-copy span { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.issue-evidence-card-copy small { color: var(--color-secondary); }
 .details-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 @media (max-width: 767px) {
   .toolbar { flex-direction: column; }

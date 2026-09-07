@@ -58,6 +58,7 @@ public class HandoverController : ControllerBase
         [Range(1, int.MaxValue)] public int EquipmentId { get; set; }
         [Required, MaxLength(50)] public string IssueType { get; set; } = string.Empty;
         [Required, MaxLength(2000)] public string Description { get; set; } = string.Empty;
+        public List<IFormFile> Files { get; set; } = new();
     }
 
     public sealed class ResolveIssueReportDto
@@ -74,6 +75,7 @@ public class HandoverController : ControllerBase
             .Include(item => item.Items).ThenInclude(item => item.Equipment)
             .Include(item => item.Evidence)
             .Include(item => item.IssueReports)
+                .ThenInclude(issue => issue.Evidence)
             .SingleOrDefaultAsync(item => item.BorrowRecordId == borrowRecordId, cancellationToken);
         if (handover is null) return NotFound(new { message = "Phiếu chưa có biên bản bàn giao." });
         var userId = GetCurrentUserId();
@@ -99,7 +101,15 @@ public class HandoverController : ControllerBase
                 issue.ResolutionAction,
                 issue.ResolutionNote,
                 issue.ReportedAt,
-                issue.ResolvedAt
+                issue.ResolvedAt,
+                evidence = issue.Evidence.OrderByDescending(evidence => evidence.UploadedAt).Select(evidence => new
+                {
+                    evidence.Id,
+                    evidence.OriginalFileName,
+                    evidence.ContentType,
+                    evidence.FileSize,
+                    evidence.UploadedAt
+                })
             }),
             items = handover.Items.Select(item => new
             {
@@ -116,9 +126,11 @@ public class HandoverController : ControllerBase
 
     [HttpPost("{borrowRecordId:int}/issue-reports")]
     [Authorize(Roles = Roles.Borrowers)]
+    [EnableRateLimiting("sensitive")]
+    [RequestSizeLimit(55_000_000)]
     public async Task<ActionResult<object>> CreateIssueReport(
         int borrowRecordId,
-        [FromBody] CreateIssueReportDto dto,
+        [FromForm] CreateIssueReportDto dto,
         CancellationToken cancellationToken)
     {
         dto.IssueType = dto.IssueType.Trim().ToUpperInvariant();
@@ -127,6 +139,8 @@ public class HandoverController : ControllerBase
             return BadRequest(new { message = "Loại sai lệch không hợp lệ." });
         if (string.IsNullOrWhiteSpace(dto.Description))
             return BadRequest(new { message = "Vui lòng mô tả sai lệch thực tế." });
+        if (dto.Files.Count > 5)
+            return BadRequest(new { message = "Mỗi báo cáo được đính kèm tối đa 5 ảnh." });
 
         var userId = GetCurrentUserId();
         var handover = await _context.HandoverRecords
@@ -147,6 +161,29 @@ public class HandoverController : ControllerBase
                 cancellationToken))
             return Conflict(new { message = "Tài sản này đã có báo cáo sai lệch đang chờ xử lý." });
 
+        var storedFiles = new List<StoredFile>();
+        try
+        {
+            var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { ".jpg", ".jpeg", ".png", ".webp" };
+            var maxFileBytes = _configuration.GetValue("Uploads:MaxEvidenceFileBytes", 10 * 1024 * 1024L);
+            foreach (var file in dto.Files)
+            {
+                storedFiles.Add(await _fileStorage.SaveAsync(
+                    file,
+                    "handover-issues",
+                    allowedExtensions,
+                    maxFileBytes,
+                    cancellationToken));
+            }
+        }
+        catch (InvalidDataException exception)
+        {
+            foreach (var storedFile in storedFiles)
+                await _fileStorage.DeleteAsync(storedFile.StoredPath, cancellationToken);
+            return BadRequest(new { message = exception.Message });
+        }
+
         var report = new HandoverIssueReport
         {
             HandoverRecordId = handover.Id,
@@ -155,10 +192,27 @@ public class HandoverController : ControllerBase
             IssueType = dto.IssueType,
             Description = dto.Description,
             Status = HandoverIssueReportStatuses.Pending,
-            ReportedAt = DateTime.UtcNow
+            ReportedAt = DateTime.UtcNow,
+            Evidence = storedFiles.Select(storedFile => new HandoverIssueEvidence
+            {
+                OriginalFileName = storedFile.OriginalFileName,
+                StoredPath = storedFile.StoredPath,
+                ContentType = storedFile.ContentType,
+                FileSize = storedFile.Length,
+                UploadedByUserId = userId
+            }).ToList()
         };
         _context.HandoverIssueReports.Add(report);
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            foreach (var storedFile in storedFiles)
+                await _fileStorage.DeleteAsync(storedFile.StoredPath, cancellationToken);
+            throw;
+        }
         await _auditService.WriteAsync(
             HttpContext,
             "CreateIssueReport",
@@ -173,7 +227,7 @@ public class HandoverController : ControllerBase
             "/dashboard/handover-issues",
             cancellationToken);
 
-        return Ok(new { report.Id, message = "Đã gửi báo cáo sai lệch. Vui lòng chờ quản lý kiểm tra tại Lab." });
+        return Ok(new { report.Id, evidenceCount = storedFiles.Count, message = "Đã gửi báo cáo sai lệch. Vui lòng chờ quản lý kiểm tra tại Lab." });
     }
 
     [HttpGet("issue-reports")]
@@ -190,6 +244,7 @@ public class HandoverController : ControllerBase
             .Include(issue => issue.Equipment)
             .Include(issue => issue.ReportedByUser)
             .Include(issue => issue.ResolvedByUser)
+            .Include(issue => issue.Evidence)
             .AsQueryable();
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(issue => issue.Status == status.Trim());
@@ -216,10 +271,41 @@ public class HandoverController : ControllerBase
                 issue.ResolutionNote,
                 reportedAt = issue.ReportedAt,
                 resolvedAt = issue.ResolvedAt,
-                resolvedByName = issue.ResolvedByUser == null ? null : issue.ResolvedByUser.FullName
+                resolvedByName = issue.ResolvedByUser == null ? null : issue.ResolvedByUser.FullName,
+                evidence = issue.Evidence.OrderByDescending(evidence => evidence.UploadedAt).Select(evidence => new
+                {
+                    evidence.Id,
+                    evidence.OriginalFileName,
+                    evidence.ContentType,
+                    evidence.FileSize,
+                    evidence.UploadedAt
+                })
             })
             .ToListAsync(cancellationToken);
         return Ok(reports);
+    }
+
+    [HttpGet("issue-reports/{reportId:int}/evidence/{evidenceId:long}")]
+    public async Task<IActionResult> DownloadIssueEvidence(
+        int reportId,
+        long evidenceId,
+        CancellationToken cancellationToken)
+    {
+        var evidence = await _context.HandoverIssueEvidence.AsNoTracking()
+            .Include(item => item.HandoverIssueReport)
+                .ThenInclude(report => report!.HandoverRecord)
+                    .ThenInclude(handover => handover!.BorrowRecord)
+            .SingleOrDefaultAsync(item => item.Id == evidenceId
+                && item.HandoverIssueReportId == reportId, cancellationToken);
+        if (evidence is null) return NotFound();
+
+        var borrowerId = evidence.HandoverIssueReport?.HandoverRecord?.BorrowRecord?.UserId;
+        if (!await CanHandoverBorrowAsync(cancellationToken) && borrowerId != GetCurrentUserId())
+            return Forbid();
+
+        var stream = await _fileStorage.OpenReadAsync(evidence.StoredPath, cancellationToken);
+        if (stream is null) return NotFound();
+        return File(stream, evidence.ContentType, evidence.OriginalFileName, enableRangeProcessing: true);
     }
 
     [HttpPut("issue-reports/{id:int}/resolve")]
