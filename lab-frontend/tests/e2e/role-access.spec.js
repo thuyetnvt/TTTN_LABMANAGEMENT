@@ -29,7 +29,7 @@ const roles = [
     username: process.env.E2E_TEACHER_USERNAME || 'giangvien1',
     allowedRoute: '/dashboard/teacher-approval',
     heading: 'Duyệt bảo lãnh mượn thiết bị',
-    deniedRoute: '/dashboard/borrow-requests'
+    deniedRoute: '/dashboard/approval-delegations'
   },
   {
     name: 'Sinh viên',

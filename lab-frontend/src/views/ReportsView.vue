@@ -303,14 +303,14 @@ const summaryCards = computed(() => [
     tone: 'primary'
   },
   {
-    label: 'Đang mượn / Quá hạn',
-    value: `${formatNumber(report.value.totals.borrowed)} / ${formatNumber(report.value.totals.overdue)}`,
+    label: 'Đang mượn',
+    value: formatNumber(report.value.totals.borrowed),
     icon: ClockCircleOutlined,
     tone: 'info'
   },
   {
-    label: 'Đang hỏng / Bảo hành',
-    value: `${formatNumber(report.value.totals.broken)} / ${formatNumber(report.value.totals.underWarranty)}`,
+    label: 'Đang hỏng',
+    value: formatNumber(report.value.totals.broken),
     icon: ToolOutlined,
     tone: 'warning'
   },

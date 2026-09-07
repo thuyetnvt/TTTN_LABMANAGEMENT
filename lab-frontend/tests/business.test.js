@@ -122,6 +122,14 @@ test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', ()
   }
 })
 
+test('báo cáo gộp toàn bộ tài sản đang mượn và không gộp quá hạn, bảo hành vào thẻ tổng quan', () => {
+  const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /label:\s*['"]Đang mượn['"][^]*?value:\s*formatNumber\(report\.value\.totals\.borrowed\)/)
+  assert.match(source, /label:\s*['"]Đang hỏng['"][^]*?value:\s*formatNumber\(report\.value\.totals\.broken\)/)
+  assert.doesNotMatch(source, /label:\s*['"]Đang mượn \/ Quá hạn['"]|label:\s*['"]Đang hỏng \/ Bảo hành['"]|totals\.underWarranty\)/)
+})
+
 test('kiểm kê hiển thị đã đối soát cho tài sản đã quét bình thường', () => {
   const source = readFileSync(new URL('../src/views/InventoryView.vue', import.meta.url), 'utf8')
 
