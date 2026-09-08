@@ -16,6 +16,7 @@
         :loading="loading"
         row-key="id"
         bordered
+        :scroll="{ x: 1600 }"
         :pagination="false"
       >
         <template #headerCell="{ column }">
@@ -197,8 +198,8 @@ const columns = [
   { title: 'Quyền bàn giao', key: 'handover', sortKey: 'handover', sortable: true, width: 175, align: 'center' },
   { title: 'Thời gian', key: 'period', sortKey: 'startsAt', sortable: true, width: 230 },
   { title: 'Lý do', dataIndex: 'reason', key: 'reason', sortKey: 'reason', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm lý do...', width: 260 },
-  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, filterType: 'select', filterKey: 'status', filterOptions: statusOptions, width: 120, align: 'center' },
-  { title: 'Hành động', key: 'action', width: 110, align: 'center' }
+  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, filterType: 'select', filterKey: 'status', filterOptions: statusOptions, width: 155, align: 'center', className: 'status-column' },
+  { title: 'Hành động', key: 'action', width: 110, align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }) }
 ]
 
 const scopeValue = item => item.scope || ''

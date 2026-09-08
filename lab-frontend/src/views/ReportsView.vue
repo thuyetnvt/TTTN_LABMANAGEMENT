@@ -376,7 +376,7 @@ const borrowColumns = [
   { title: 'Người mượn', dataIndex: 'user', key: 'user', width: 150, ellipsis: true, sortable: true, sortKey: 'user', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người mượn...' },
   { title: 'Thiết bị', dataIndex: 'equipment', key: 'equipment', width: 220, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 130, sortable: true, sortKey: 'expectedReturnDate' },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 130, sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 190, className: 'status-column', sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'BORROWED', label: 'Đang mượn' },
     { value: 'OVERDUE', label: 'Quá hạn' },
     { value: 'RETURN_PROCESSING', label: 'Đang xử lý trả' }
@@ -391,7 +391,7 @@ const consumableColumns = [
   { title: 'Vật tư', dataIndex: 'name', key: 'name', width: 280, ellipsis: true, sortable: true, sortKey: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm vật tư...' },
   { title: 'Khả dụng', key: 'quantity', width: 150, sortable: true, sortKey: 'quantity' },
   { title: 'Mức tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', width: 150, sortable: true, sortKey: 'minQuantity' },
-  { title: 'Trạng thái', key: 'status', width: 140, sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
+  { title: 'Trạng thái', key: 'status', width: 160, className: 'status-column', sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'LOW_STOCK', label: 'Sắp hết' },
     { value: 'AVAILABLE', label: 'Đủ tồn' }
   ] }
@@ -486,7 +486,7 @@ const statusDetailsColumns = computed(() => {
     { title: 'Model', dataIndex: 'model', key: 'model', width: 180, ellipsis: true },
     { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 150, ellipsis: true },
     { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 150, ellipsis: true },
-    { title: 'Trạng thái', key: 'status', width: 130 }
+    { title: 'Trạng thái', key: 'status', width: 180, className: 'status-column' }
   ]
 })
 const selectedStatusLabel = computed(() => selectedStatus.value ? getEquipmentStatusLabel(selectedStatus.value) : '')
@@ -555,7 +555,7 @@ const attentionCards = computed(() => [
     description: 'Thiết bị đang trong quá trình bảo trì.',
     icon: ToolOutlined,
     tone: 'warning',
-    route: { name: 'Maintenance' }
+    route: { name: 'Maintenance', query: { status: STATUS.MAINTENANCE_IN_PROGRESS } }
   },
   {
     key: 'broken',
