@@ -1,6 +1,6 @@
 <template>
   <div class="table-column-header">
-    <span class="table-column-title">{{ title }}</span>
+    <span class="table-column-title" :title="title">{{ title }}</span>
     <span class="table-column-controls table-column-filter-control">
       <span v-if="sortable" class="table-column-sort-control" :aria-label="`Sắp xếp cột ${title}`">
         <button
@@ -121,17 +121,17 @@ const applySort = order => {
 .table-column-header {
   display: flex;
   align-items: center;
-  width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
   gap: 8px;
   white-space: nowrap;
 }
 
 .table-column-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 0 0 auto;
+  min-width: max-content;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 

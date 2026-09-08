@@ -23,6 +23,7 @@ const TABLE_FILES_WITH_STICKY_ACTION = [
   '../src/views/BorrowHistoryView.vue',
   '../src/views/ConsumableRequestsView.vue',
   '../src/views/InventoryView.vue',
+  '../src/views/ApprovalDelegationsView.vue',
   '../src/views/LocationsView.vue',
   '../src/components/DeviceTable.vue',
   '../src/components/ConsumablesTable.vue',
@@ -92,6 +93,21 @@ test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về
   assert.match(deviceSource, /sortBy:\s*sortState\.field/)
   assert.match(deviceSource, /sortDirection:\s*sortState\.order === 'descend'/)
   assert.match(deviceSource, /sortKey:\s*'name',\s*sortable:\s*true/)
+})
+
+test('tiêu đề cột không bị rút gọn và bảng tự giữ đủ độ rộng', () => {
+  const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
+  const dashboardSource = readFileSync(new URL('../src/views/DashboardView.vue', import.meta.url), 'utf8')
+  const consumableRequestSource = readFileSync(new URL('../src/views/ConsumableRequestsView.vue', import.meta.url), 'utf8')
+  const borrowHistorySource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+  const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
+
+  assert.match(filterSource, /class="table-column-title" :title="title"/)
+  assert.match(filterSource, /\.table-column-title\s*\{[\s\S]*?text-overflow:\s*clip;/)
+  assert.match(dashboardSource, /<a-menu-item-group v-if="isManagerRole\(role\) \|\| isTeacherRole\(role\)" title="Vận hành">/)
+  assert.match(consumableRequestSource, /:scroll="\{ x: 'max-content' \}"/)
+  assert.match(borrowHistorySource, /:scroll="\{ x: 'max-content' \}"/)
+  assert.match(deviceSource, /columns\.value\.reduce\(\(total, column\) => total \+ \(Number\(column\.width\) \|\| 0\), 0\)/)
 })
 
 test('mọi bảng nghiệp vụ của các vai trò đều có lọc hoặc sắp xếp theo cột', () => {
@@ -195,6 +211,15 @@ test('báo cáo hiển thị đang mượn và tài sản hỏng riêng', () => 
 
   assert.match(source, /label:\s*['"]Đang mượn['"][^]*?value:\s*formatNumber\(report\.value\.totals\.borrowed\)/)
   assert.match(source, /label:\s*['"]Đang hỏng['"][^]*?value:\s*formatNumber\(report\.value\.totals\.broken\)/)
+})
+
+test('cảnh báo báo cáo mở trang đích theo đúng trạng thái cảnh báo', () => {
+  const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
+  const attentionSection = source.slice(source.indexOf('const attentionCards'), source.indexOf('const hasAttention'))
+
+  assert.match(attentionSection, /route: \{ name: 'BorrowHistory', query: \{ status: 'OVERDUE' \} \}/)
+  assert.match(attentionSection, /route: \{ name: 'Maintenance', query: \{ status: STATUS\.MAINTENANCE_IN_PROGRESS \} \}/)
+  assert.match(attentionSection, /route: \{ name: 'Devices', query: \{ status: STATUS\.BROKEN \} \}/)
 })
 
 test('báo cáo không hiển thị dải bộ lọc đang áp dụng hoặc nút lọc màu cam', () => {

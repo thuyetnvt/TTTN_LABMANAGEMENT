@@ -22,7 +22,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1640 }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 'max-content' }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
             v-if="column.filterType || column.sortable"
@@ -355,13 +355,13 @@ const borrowStatusOptions = [
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
-  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 155 },
-  { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', sortKey: 'expectedReturnDate', sortable: true, width: 145 },
+  { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 175, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
+  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 170 },
+  { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', sortKey: 'expectedReturnDate', sortable: true, width: 155 },
   { title: 'Ngày trả thực tế', dataIndex: 'actualReturnDate', key: 'actualReturnDate', sortKey: 'actualReturnDate', sortable: true, width: 175 },
-  { title: 'Tình trạng trả', dataIndex: 'returnCondition', key: 'returnCondition', sortKey: 'returnCondition', sortable: true, width: 170 },
+  { title: 'Tình trạng trả', dataIndex: 'returnCondition', key: 'returnCondition', sortKey: 'returnCondition', sortable: true, width: 180, className: 'status-column' },
   { title: 'Ghi chú kiểm tra', dataIndex: 'returnInspectionNote', key: 'returnInspectionNote', sortKey: 'returnInspectionNote', sortable: true, width: 200 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 140, filterType: 'select', filterKey: 'status', filterOptions: borrowStatusOptions },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 255, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: borrowStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190 }
 ]
 

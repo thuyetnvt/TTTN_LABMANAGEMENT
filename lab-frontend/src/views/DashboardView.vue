@@ -51,7 +51,7 @@
             </a-menu-item>
           </a-menu-item-group>
 
-          <a-menu-item-group title="Vận hành">
+          <a-menu-item-group v-if="isManagerRole(role) || isTeacherRole(role)" title="Vận hành">
             <a-menu-item v-if="isManagerRole(role)" key="m3" @click="$router.push({ name: 'Maintenance' })">
               <tool-outlined /><span>{{ $t('menu.maintenanceHistory') }}</span>
             </a-menu-item>

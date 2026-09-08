@@ -32,7 +32,7 @@
         :loading="loading"
         rowKey="id"
         bordered
-        :scroll="{ x: 1450 }"
+        :scroll="{ x: 'max-content' }"
         :pagination="tablePagination"
         @change="handleTableChange"
       >
@@ -63,12 +63,14 @@
             <div class="action-cell">
               <template v-if="canApprove && statusMatches(record.status, STATUS.CONSUMABLE_PENDING)">
                 <a-button type="primary" size="small" @click="handleApprove(record.id)">Duyệt</a-button>
-                <a-button danger size="small" @click="handleReject(record.id)">Từ chối</a-button>
+                <a-button danger size="small" @click="openRejectModal(record)">Từ chối</a-button>
               </template>
 
               <template v-else-if="statusMatches(record.status, STATUS.CONSUMABLE_APPROVED)">
                 <a-button v-if="canHandover" type="primary" size="small" @click="openHandover(record)">Bàn giao</a-button>
-                <a-button v-if="canApprove" danger size="small" @click="handleReject(record.id)">Từ chối</a-button>
+                <a-button v-if="canApprove" danger size="small" @click="openRejectModal(record)">
+                  {{ isApprovedRequest(record) ? 'Không thể bàn giao' : 'Từ chối' }}
+                </a-button>
                 <span v-if="canApprove && !canHandover" class="waiting-text">Chờ người có quyền bàn giao</span>
               </template>
 
@@ -104,11 +106,13 @@
           <div class="mobile-request-actions">
             <template v-if="canApprove && statusMatches(item.status, STATUS.CONSUMABLE_PENDING)">
               <a-button type="primary" @click="handleApprove(item.id)">Duyệt</a-button>
-              <a-button danger @click="handleReject(item.id)">Từ chối</a-button>
+              <a-button danger @click="openRejectModal(item)">Từ chối</a-button>
             </template>
             <template v-else-if="statusMatches(item.status, STATUS.CONSUMABLE_APPROVED)">
               <a-button v-if="canHandover" type="primary" @click="openHandover(item)">Bàn giao</a-button>
-              <a-button v-if="canApprove" danger @click="handleReject(item.id)">Từ chối</a-button>
+              <a-button v-if="canApprove" danger @click="openRejectModal(item)">
+                {{ isApprovedRequest(item) ? 'Không thể bàn giao' : 'Từ chối' }}
+              </a-button>
               <span v-if="canApprove && !canHandover" class="waiting-text">Chờ người có quyền bàn giao</span>
             </template>
             <a-button v-else-if="!canApprove && statusMatches(item.status, STATUS.CONSUMABLE_HANDED_OVER)" type="primary" block @click="openReceiptConfirmation(item)">Xem & xác nhận</a-button>
@@ -128,6 +132,16 @@
         <a-descriptions-item label="Trạng thái">
           <StatusBadge :status="selectedRequest.status" type="consumable" />
         </a-descriptions-item>
+        <a-descriptions-item v-if="selectedRequest.rejectionReason" label="Lý do xử lý">
+          {{ selectedRequest.rejectionReason }}
+        </a-descriptions-item>
+        <a-descriptions-item v-if="selectedRequest.rejectionReason" label="Người xử lý">
+          {{ selectedRequest.rejectedByName || selectedRequest.rejectedByUsername || '—' }}
+          <span v-if="selectedRequest.rejectionStage"> · {{ rejectionStageLabel(selectedRequest.rejectionStage) }}</span>
+        </a-descriptions-item>
+        <a-descriptions-item v-if="selectedRequest.rejectedAt" label="Thời gian xử lý">
+          {{ formatDateTime(selectedRequest.rejectedAt) }}
+        </a-descriptions-item>
         <a-descriptions-item label="Ngày gửi">{{ formatDateTime(selectedRequest.requestDate) }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRequest.approvalDate" label="Ngày duyệt">
           {{ formatDateTime(selectedRequest.approvalDate) }}
@@ -145,6 +159,34 @@
           </div>
         </a-descriptions-item>
       </a-descriptions>
+    </a-modal>
+
+    <a-modal
+      v-model:open="rejectVisible"
+      :title="rejectModalTitle"
+      ok-text="Xác nhận"
+      cancel-text="Hủy"
+      :confirm-loading="rejectSubmitting"
+      :ok-button-props="{ danger: true, disabled: !rejectReason.trim() }"
+      @ok="submitReject"
+    >
+      <a-alert
+        type="warning"
+        show-icon
+        :message="rejectModalMessage"
+        class="handover-alert"
+      />
+      <a-form layout="vertical">
+        <a-form-item label="Lý do xử lý" required>
+          <a-textarea
+            v-model:value="rejectReason"
+            :rows="4"
+            :maxlength="2000"
+            show-count
+            :placeholder="rejectModalPlaceholder"
+          />
+        </a-form-item>
+      </a-form>
     </a-modal>
 
     <a-modal
@@ -224,7 +266,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import { EyeOutlined } from '@ant-design/icons-vue'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { useAuthStore } from '../stores/authStore'
@@ -255,6 +297,10 @@ const statusFilter = ref(undefined)
 const sortState = reactive({ field: undefined, order: undefined })
 const detailsVisible = ref(false)
 const selectedRequest = ref(null)
+const rejectVisible = ref(false)
+const rejectSubmitting = ref(false)
+const rejectRequest = ref(null)
+const rejectReason = ref('')
 const handoverVisible = ref(false)
 const handoverRequest = ref(null)
 const availableLots = ref([])
@@ -274,11 +320,11 @@ const consumableRequestStatusOptions = [
 
 const columns = [
   { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', sortKey: 'consumable', sortable: true, width: 220, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', sortKey: 'category', sortable: true, width: 140, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
-  { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', sortKey: 'requester', sortable: true, width: 180, filterType: 'search', filterPlaceholder: 'Tìm người yêu cầu...' },
-  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', sortKey: 'quantity', sortable: true, width: 90, align: 'center' },
+  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', sortKey: 'category', sortable: true, width: 165, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
+  { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', sortKey: 'requester', sortable: true, width: 195, filterType: 'search', filterPlaceholder: 'Tìm người yêu cầu...' },
+  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', sortKey: 'quantity', sortable: true, width: 125, align: 'center' },
   { title: 'Mục đích', dataIndex: 'reason', key: 'reason', sortKey: 'reason', sortable: true, width: 280, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
-  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 180, align: 'center', filterType: 'select', filterKey: 'status', filterOptions: consumableRequestStatusOptions },
+  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 255, align: 'center', className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: consumableRequestStatusOptions },
   { title: 'Ngày gửi', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 170 },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220, align: 'center' }
 ]
@@ -326,6 +372,22 @@ const applyColumnFilter = (column, value) => {
   applyFilters()
 }
 
+const isApprovedRequest = record => statusMatches(record?.status, STATUS.CONSUMABLE_APPROVED)
+const rejectionStageLabel = stage => stage === 'HANDOVER' ? 'khâu bàn giao' : 'khâu duyệt'
+const rejectModalTitle = computed(() => isApprovedRequest(rejectRequest.value) ? 'Không thể bàn giao vật tư' : 'Từ chối yêu cầu')
+const rejectModalMessage = computed(() => isApprovedRequest(rejectRequest.value)
+  ? 'Yêu cầu đã được duyệt nhưng chưa thể bàn giao. Vui lòng ghi rõ nguyên nhân thực tế.'
+  : 'Vui lòng ghi rõ lý do để người yêu cầu biết và có thể xử lý lại.')
+const rejectModalPlaceholder = computed(() => isApprovedRequest(rejectRequest.value)
+  ? 'Ví dụ: Kho thực tế không đủ số lượng đã duyệt...'
+  : 'Ví dụ: Vật tư vượt định mức hoặc mục đích chưa phù hợp...')
+
+const openRejectModal = record => {
+  rejectRequest.value = record
+  rejectReason.value = ''
+  rejectVisible.value = true
+}
+
 const applyColumnSort = (column, order) => {
   sortState.field = order ? column.sortKey : undefined
   sortState.order = order
@@ -349,23 +411,26 @@ const handleApprove = async id => {
   }
 }
 
-const handleReject = id => {
-  Modal.confirm({
-    title: 'Từ chối yêu cầu',
-    content: 'Nếu yêu cầu đã được duyệt, số lượng đang giữ sẽ được trả lại kho khả dụng.',
-    okText: 'Từ chối',
-    okType: 'danger',
-    cancelText: 'Hủy',
-    onOk: async () => {
-      try {
-        await consumableRequestApi.reject(id)
-        message.success('Đã từ chối yêu cầu.')
-        await fetchData()
-      } catch (error) {
-        message.error(getApiErrorMessage(error, 'Không thể từ chối yêu cầu.'))
-      }
-    }
-  })
+const submitReject = async () => {
+  const reason = rejectReason.value.trim()
+  if (!rejectRequest.value || !reason) {
+    message.warning('Vui lòng nhập lý do xử lý.')
+    return
+  }
+
+  rejectSubmitting.value = true
+  try {
+    const result = await consumableRequestApi.reject(rejectRequest.value.id, { reason })
+    message.success(result?.message || 'Đã lưu kết quả xử lý.')
+    rejectVisible.value = false
+    rejectRequest.value = null
+    rejectReason.value = ''
+    await fetchData()
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể lưu kết quả xử lý.'))
+  } finally {
+    rejectSubmitting.value = false
+  }
 }
 
 const openHandover = async record => {

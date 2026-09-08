@@ -402,11 +402,11 @@ const sortState = reactive({ field: undefined, order: undefined })
 const columns = computed(() => {
   const commonColumns = [
     { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, width: 200, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên thiết bị...' },
-    { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', sortKey: 'category', sortable: true, width: 140, filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
+    { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', sortKey: 'category', sortable: true, width: 175, filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
     { title: 'Model', dataIndex: 'model', key: 'model', sortKey: 'model', sortable: true, width: 130, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm model...' },
-    { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 140, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số seri...' },
-    { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', sortKey: 'serialName', sortable: true, width: 140, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên seri...' },
-    { title: 'Vị trí', dataIndex: 'location', key: 'location', sortKey: 'location', sortable: true, width: 130, filterType: 'select', filterKey: 'location', filterOptions: locations.value.map(item => ({ value: item.id, label: `${item.code} — ${item.name}` })) }
+    { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 160, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số seri...' },
+    { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', sortKey: 'serialName', sortable: true, width: 160, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên seri...' },
+    { title: 'Vị trí', dataIndex: 'location', key: 'location', sortKey: 'location', sortable: true, width: 155, filterType: 'select', filterKey: 'location', filterOptions: locations.value.map(item => ({ value: item.id, label: `${item.code} — ${item.name}` })) }
   ]
   const managerColumns = isManager.value ? [
     { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', sortKey: 'responsiblePerson', sortable: true, width: 260, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người chịu trách nhiệm...' },
@@ -418,7 +418,7 @@ const columns = computed(() => {
   return [
     ...commonColumns,
     ...managerColumns,
-    { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, width: 130, filterType: 'select', filterKey: 'status', filterOptions: equipmentStatusOptions },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, width: 195, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: equipmentStatusOptions },
     { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
     {
       title: 'Hành động',
@@ -431,12 +431,7 @@ const columns = computed(() => {
   ]
 })
 
-const tableScrollX = computed(() => {
-  const commonWidth = 880
-  const managerWidth = isManager.value ? 560 : 0
-  const actionWidth = isAdminRole(role.value) ? 160 : (isManagerRole(role.value) ? 130 : 90)
-  return commonWidth + managerWidth + 130 + 80 + actionWidth
-})
+const tableScrollX = computed(() => columns.value.reduce((total, column) => total + (Number(column.width) || 0), 0))
 const categoryFilter = ref(undefined)
 const locationFilter = ref(undefined)
 const mapRouteStatus = value => value && value !== 'all'
