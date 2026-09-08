@@ -351,6 +351,55 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task Paged_history_supports_dashboard_status_groups()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student",
+            FullName = "Nguyễn Văn A",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.AddRange(Enumerable.Range(1, 7).Select(id => CreateEquipment(id)));
+        context.BorrowRecords.AddRange(
+            CreateBorrowRecord(100, 1, BorrowStatuses.Pending, 1),
+            CreateBorrowRecord(101, 1, BorrowStatuses.TeacherPending, 2),
+            CreateBorrowRecord(102, 1, BorrowStatuses.ProcessingApproval, 3),
+            CreateBorrowRecord(103, 1, BorrowStatuses.Approved, 4),
+            CreateBorrowRecord(104, 1, BorrowStatuses.Borrowed, 5),
+            CreateBorrowRecord(105, 1, BorrowStatuses.ReturnProcessing, 6),
+            CreateBorrowRecord(106, 1, BorrowStatuses.ReturnedDamaged, 7));
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 1, Roles.Student);
+        var cases = new[]
+        {
+            ("PENDING_ALL", new[] { 100, 101, 102 }),
+            ("ACTIVE_ALL", new[] { 104, 105 }),
+            ("COMPLETED_ALL", new[] { 106 })
+        };
+
+        foreach (var (status, expectedIds) in cases)
+        {
+            var result = await controller.GetHistoryPaged(
+                new LabManagementAPI.Dtos.PageQuery { Status = status, PageSize = 100 },
+                CancellationToken.None);
+            using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+                Assert.IsType<OkObjectResult>(result).Value,
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            var ids = json.RootElement.GetProperty("items")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("id").GetInt32())
+                .OrderBy(id => id)
+                .ToArray();
+
+            Assert.Equal(expectedIds, ids);
+        }
+    }
+
+    [Fact]
     public async Task Manager_pending_queue_excludes_borrowed_and_return_processing_records()
     {
         await using var context = CreateInMemoryContext();

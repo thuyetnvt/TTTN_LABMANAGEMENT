@@ -6,11 +6,14 @@
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người mượn, thiết bị..." class="filter-search" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
+          <a-select-option :value="BORROW_HISTORY_FILTERS.PENDING">Phiếu đang xử lý</a-select-option>
           <a-select-option :value="STATUS.BORROW_PENDING">Chờ quản lý duyệt</a-select-option>
           <a-select-option :value="STATUS.TEACHER_PENDING">Chờ giảng viên duyệt</a-select-option>
           <a-select-option :value="STATUS.APPROVED">Chờ nhận</a-select-option>
+          <a-select-option :value="BORROW_HISTORY_FILTERS.ACTIVE">Đang mượn (tất cả)</a-select-option>
           <a-select-option :value="STATUS.BORROWED">Đang mượn</a-select-option>
           <a-select-option :value="STATUS.RETURN_PROCESSING">Đang kiểm tra trả</a-select-option>
+          <a-select-option :value="BORROW_HISTORY_FILTERS.COMPLETED">Đã hoàn tất (tất cả)</a-select-option>
           <a-select-option :value="STATUS.RETURNED">Đã trả</a-select-option>
           <a-select-option :value="STATUS.RETURNED_DAMAGED">Đã trả, có hư hỏng</a-select-option>
           <a-select-option :value="STATUS.REJECTED">Từ chối</a-select-option>
@@ -283,7 +286,7 @@ import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import ReturnInspectionModal from '../components/ReturnInspectionModal.vue'
 import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
-import { STATUS, isManagerRole, statusMatches } from '../constants/business'
+import { BORROW_HISTORY_FILTERS, STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { getApiErrorMessage, getApiSuccessMessage } from '../utils/apiError'
 import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 

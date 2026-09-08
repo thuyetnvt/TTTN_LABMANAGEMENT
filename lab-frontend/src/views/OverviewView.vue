@@ -359,7 +359,7 @@ import {
 } from '@ant-design/icons-vue'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../stores/authStore'
-import { isAdminRole, isManagerRole, isStudentRole, isTeacherRole } from '../constants/business'
+import { BORROW_HISTORY_FILTERS, isAdminRole, isManagerRole, isStudentRole, isTeacherRole } from '../constants/business'
 import { getDashboardAlertTarget } from '../utils/dashboardAlerts'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatVietnamDateTime } from '../utils/dateTime.js'
@@ -616,7 +616,7 @@ const studentStats = computed(() => [
     hint: 'Chờ duyệt hoặc bảo lãnh',
     icon: FileSearchOutlined,
     tone: 'coral',
-    route: { name: 'BorrowHistory' }
+    route: { name: 'BorrowHistory', query: { status: BORROW_HISTORY_FILTERS.PENDING } }
   },
   {
     key: 'approved',
@@ -625,7 +625,7 @@ const studentStats = computed(() => [
     hint: 'Đã duyệt, chưa nhận thiết bị',
     icon: ClockCircleOutlined,
     tone: 'amber',
-    route: { name: 'BorrowHistory' }
+    route: { name: 'BorrowHistory', query: { status: BORROW_HISTORY_FILTERS.APPROVED } }
   },
   {
     key: 'active',
@@ -634,7 +634,7 @@ const studentStats = computed(() => [
     hint: 'Thiết bị thuộc trách nhiệm của bạn',
     icon: AppstoreOutlined,
     tone: 'blue',
-    route: { name: 'BorrowHistory' }
+    route: { name: 'BorrowHistory', query: { status: BORROW_HISTORY_FILTERS.ACTIVE } }
   },
   {
     key: 'returned',
@@ -643,7 +643,7 @@ const studentStats = computed(() => [
     hint: 'Lịch sử đã trả',
     icon: CheckCircleOutlined,
     tone: 'green',
-    route: { name: 'BorrowHistory' }
+    route: { name: 'BorrowHistory', query: { status: BORROW_HISTORY_FILTERS.COMPLETED } }
   }
 ])
 

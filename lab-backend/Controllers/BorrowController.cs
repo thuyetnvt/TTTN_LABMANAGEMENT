@@ -573,6 +573,25 @@ public class BorrowController : ControllerBase
                     (item.Status == Borrowed || item.Status == ProcessingReturn)
                     && item.ExpectedReturnDate < today);
             }
+            else if (string.Equals(status, "PENDING_ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(item =>
+                    item.Status == Pending
+                    || item.Status == TeacherPending
+                    || item.Status == ProcessingApproval);
+            }
+            else if (string.Equals(status, "ACTIVE_ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(item =>
+                    item.Status == Borrowed
+                    || item.Status == ProcessingReturn);
+            }
+            else if (string.Equals(status, "COMPLETED_ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(item =>
+                    item.Status == BorrowStatuses.Returned
+                    || item.Status == BorrowStatuses.ReturnedDamaged);
+            }
             else
             {
                 query = query.Where(item => item.Status == status);

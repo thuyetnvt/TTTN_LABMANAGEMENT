@@ -61,6 +61,12 @@ export const MANAGER_ROLES = Object.freeze([
 ])
 
 export const BORROWER_ROLES = Object.freeze([ROLE.STUDENT, ROLE.TEACHER])
+export const BORROW_HISTORY_FILTERS = Object.freeze({
+  PENDING: 'PENDING_ALL',
+  APPROVED: STATUS.APPROVED,
+  ACTIVE: 'ACTIVE_ALL',
+  COMPLETED: 'COMPLETED_ALL'
+})
 export const HANDOVER_CONDITIONS = Object.freeze({
   GOOD: STATUS.AVAILABLE,
   SCRATCHED: 'SCRATCHED',

@@ -406,6 +406,19 @@ test('dashboard sinh viên dùng thống kê cá nhân, không dùng số liệu
   assert.doesNotMatch(source, /label:\s*'Thiết bị rảnh'/)
 })
 
+test('thẻ dashboard sinh viên mở lịch sử theo đúng nhóm trạng thái', () => {
+  const overviewSource = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
+  const historySource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+
+  assert.match(overviewSource, /key: 'pending'[\s\S]*?BORROW_HISTORY_FILTERS\.PENDING/)
+  assert.match(overviewSource, /key: 'approved'[\s\S]*?BORROW_HISTORY_FILTERS\.APPROVED/)
+  assert.match(overviewSource, /key: 'active'[\s\S]*?BORROW_HISTORY_FILTERS\.ACTIVE/)
+  assert.match(overviewSource, /key: 'returned'[\s\S]*?BORROW_HISTORY_FILTERS\.COMPLETED/)
+  assert.match(historySource, /BORROW_HISTORY_FILTERS\.PENDING/)
+  assert.match(historySource, /BORROW_HISTORY_FILTERS\.ACTIVE/)
+  assert.match(historySource, /BORROW_HISTORY_FILTERS\.COMPLETED/)
+})
+
 test('dashboard có skeleton ban đầu và cho phép làm mới bỏ qua cache', () => {
   const viewSource = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
   const apiSource = readFileSync(new URL('../src/api/dashboardApi.js', import.meta.url), 'utf8')
