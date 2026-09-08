@@ -40,7 +40,11 @@
             <span class="description-cell">{{ record.description }}</span>
           </template>
           <template v-else-if="column.key === 'action'">
-            <a-button type="text" class="view-action" @click="openDetails(record)">Xem chi tiết</a-button>
+            <a-tooltip title="Xem chi tiết">
+              <a-button type="text" class="view-action" aria-label="Xem chi tiết báo cáo sai lệch" @click="openDetails(record)">
+                <template #icon><EyeOutlined /></template>
+              </a-button>
+            </a-tooltip>
           </template>
         </template>
       </a-table>
@@ -125,6 +129,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
+import { EyeOutlined } from '@ant-design/icons-vue'
 import EmptyState from '../components/EmptyState.vue'
 import { handoverApi } from '../api/handoverApi'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -150,7 +155,7 @@ const columns = [
   { title: 'Bằng chứng', dataIndex: 'evidence', key: 'evidence', width: 110, align: 'center' },
   { title: 'Thời gian gửi', dataIndex: 'reportedAt', key: 'reportedAt', width: 180 },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160, align: 'center' },
-  { title: 'Hành động', key: 'action', width: 150, align: 'center' }
+  { title: 'Hành động', key: 'action', width: 130, align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }) }
 ]
 
 const issueTypeLabel = type => ({
@@ -267,6 +272,7 @@ onBeforeUnmount(() => {
 .status-filter { min-width: 190px; }
 .handover-issues-card { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
 .description-cell { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.view-action { color: var(--color-primary); }
 .issue-evidence-grid { display: grid; gap: 10px; }
 .issue-evidence-card { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; }
 .issue-evidence-card :deep(.ant-image) { flex: 0 0 auto; overflow: hidden; border-radius: 6px; background: #f5f5f5; }

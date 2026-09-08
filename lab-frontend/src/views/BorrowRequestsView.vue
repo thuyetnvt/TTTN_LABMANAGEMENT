@@ -13,7 +13,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1600 }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1830 }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
             v-if="column.filterType || column.sortable"
@@ -320,7 +320,7 @@ const columns = [
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 155 },
   { title: 'Hạn trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true, width: 145 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', sortKey: 'purpose', sortable: true, width: 180, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 120, filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 250, className: 'borrow-status-column', customCell: () => ({ class: 'borrow-status-column' }), filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220 }
 ]
 
@@ -575,6 +575,8 @@ h2 {
   color: #9ca3af;
   font-size: 13px;
 }
+:deep(.borrow-status-column) { white-space: nowrap; }
+:deep(.borrow-status-column .ant-tag) { white-space: nowrap; }
 .view-action { color: var(--color-primary); }
 .handover-items-readonly { display: grid; gap: 10px; margin-top: 14px; }
 .handover-items-readonly :deep(.ant-card-body) { display: grid; gap: 5px; }

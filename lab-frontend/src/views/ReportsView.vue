@@ -472,20 +472,23 @@ const statusDetailsLoading = ref(false)
 const selectedStatus = ref('')
 const selectedStatusCount = ref(0)
 const statusDetails = ref([])
-const statusDetailsColumns = computed(() => [
-  { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 220, ellipsis: true },
-  { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode', width: 140, ellipsis: true },
-  { title: 'Model', dataIndex: 'model', key: 'model', width: 180, ellipsis: true },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 150, ellipsis: true },
-  { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 150, ellipsis: true },
-  ...(selectedStatus.value === STATUS.BORROW_PENDING
+const statusDetailsColumns = computed(() => {
+  const reservationColumns = selectedStatus.value === STATUS.BORROW_PENDING
     ? [
-        { title: 'Người giữ chỗ', dataIndex: 'reservedByName', key: 'reservedByName', width: 190, ellipsis: true },
+        { title: 'Người giữ chỗ', dataIndex: 'reservedByName', key: 'reservedByName', width: 210, ellipsis: true },
         { title: 'Hạn giữ chỗ', dataIndex: 'holdExpiresAt', key: 'holdExpiresAt', width: 155 }
       ]
-    : []),
-  { title: 'Trạng thái', key: 'status', width: 130 }
-])
+    : []
+  return [
+    ...reservationColumns,
+    { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 220, ellipsis: true },
+    { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode', width: 140, ellipsis: true },
+    { title: 'Model', dataIndex: 'model', key: 'model', width: 180, ellipsis: true },
+    { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 150, ellipsis: true },
+    { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 150, ellipsis: true },
+    { title: 'Trạng thái', key: 'status', width: 130 }
+  ]
+})
 const selectedStatusLabel = computed(() => selectedStatus.value ? getEquipmentStatusLabel(selectedStatus.value) : '')
 const statusDetailsTitle = computed(() => selectedStatusLabel.value
   ? `${selectedStatusLabel.value} (${formatNumber(selectedStatusCount.value)} thiết bị)`
