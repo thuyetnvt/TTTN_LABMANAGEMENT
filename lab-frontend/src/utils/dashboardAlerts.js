@@ -1,8 +1,10 @@
+import { STATUS } from '../constants/business.js'
+
 const ALERT_TARGETS = Object.freeze({
   overdue: { name: 'BorrowHistory', query: { status: 'OVERDUE' } },
   'low-stock': { name: 'Devices', query: { tab: 'consumables', stock: 'LOW_STOCK' } },
   'pending-requests': { name: 'BorrowRequests' },
-  'pending-borrow-requests': { name: 'BorrowRequests' },
+  'pending-borrow-requests': { name: 'BorrowRequests', query: { status: STATUS.BORROW_PENDING } },
   'pending-consumable-requests': { name: 'ConsumableRequests' },
   'teacher-pending-approvals': { name: 'TeacherApproval' }
 })

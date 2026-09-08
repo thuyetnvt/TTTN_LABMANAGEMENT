@@ -255,9 +255,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onBeforeUnmount, onMounted, computed } from 'vue'
+import { ref, reactive, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { message, Upload } from 'ant-design-vue'
 import { CloseOutlined, DeleteOutlined, EyeOutlined, FileOutlined, InboxOutlined } from '@ant-design/icons-vue'
+import { useRoute } from 'vue-router'
 import { borrowApi } from '../api/borrowApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -277,6 +278,7 @@ const tablePagination = reactive({
 })
 
 const authStore = useAuthStore()
+const route = useRoute()
 const role = computed(() => authStore.role)
 const isManager = computed(() => isManagerRole(role.value))
 const canApprove = computed(() => isManager.value || Boolean(authStore.approvalPermissions?.canApproveBorrow))
@@ -285,7 +287,11 @@ const canHandover = computed(() => isManager.value || Boolean(authStore.approval
 const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
-const statusFilter = ref(undefined)
+const getRouteStatus = value => {
+  const status = Array.isArray(value) ? value[0] : value
+  return typeof status === 'string' && status.trim() ? status : undefined
+}
+const statusFilter = ref(getRouteStatus(route.query.status))
 const sortState = reactive({ field: undefined, order: undefined })
 const borrowRequestStatusOptions = [
   { value: STATUS.BORROW_PENDING, label: 'Chờ duyệt' },
@@ -320,12 +326,21 @@ const columns = [
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 155 },
   { title: 'Hạn trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true, width: 145 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', sortKey: 'purpose', sortable: true, width: 180, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 250, className: 'borrow-status-column', customCell: () => ({ class: 'borrow-status-column' }), filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 300, className: 'status-column borrow-status-column', customCell: () => ({ class: 'status-column borrow-status-column' }), filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220 }
 ]
 
 onMounted(async () => {
   await authStore.loadApprovalPermissions().catch(() => {})
+  fetchRequests()
+})
+
+watch(() => route.query.status, value => {
+  const nextStatus = getRouteStatus(value)
+  if (statusFilter.value === nextStatus) return
+
+  statusFilter.value = nextStatus
+  tablePagination.current = 1
   fetchRequests()
 })
 

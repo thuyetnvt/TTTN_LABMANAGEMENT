@@ -379,7 +379,7 @@ test('không hiển thị [object Object] khi response lỗi là object', () => 
 test('điều hướng cảnh báo Dashboard đến đúng màn hình', () => {
   assert.deepEqual(getDashboardAlertTarget('overdue'), { name: 'BorrowHistory', query: { status: 'OVERDUE' } })
   assert.deepEqual(getDashboardAlertTarget('low-stock'), { name: 'Devices', query: { tab: 'consumables', stock: 'LOW_STOCK' } })
-  assert.deepEqual(getDashboardAlertTarget('pending-borrow-requests'), { name: 'BorrowRequests' })
+  assert.deepEqual(getDashboardAlertTarget('pending-borrow-requests'), { name: 'BorrowRequests', query: { status: STATUS.BORROW_PENDING } })
   assert.deepEqual(getDashboardAlertTarget('pending-consumable-requests'), { name: 'ConsumableRequests' })
   assert.deepEqual(getDashboardAlertTarget('teacher-pending-approvals'), { name: 'TeacherApproval' })
   assert.equal(getDashboardAlertTarget('unknown'), null)
@@ -404,6 +404,15 @@ test('dashboard sinh viên dùng thống kê cá nhân, không dùng số liệu
   assert.match(source, /Tình trạng phiếu mượn của bạn/)
   assert.match(source, /const studentStats[\s\S]*?studentSummary\.value\.activeBorrows/)
   assert.doesNotMatch(source, /label:\s*'Thiết bị rảnh'/)
+})
+
+test('dashboard quản trị mở đúng các phiếu mượn đang chờ xử lý', () => {
+  const overviewSource = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
+  const requestsSource = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
+
+  assert.match(overviewSource, /key: 'pending-borrow-requests'[\s\S]*?pendingBorrowRequests[\s\S]*?status: STATUS\.BORROW_PENDING/)
+  assert.match(requestsSource, /const route = useRoute\(\)/)
+  assert.match(requestsSource, /statusFilter = ref\(getRouteStatus\(route\.query\.status\)\)/)
 })
 
 test('thẻ dashboard sinh viên mở lịch sử theo đúng nhóm trạng thái', () => {

@@ -359,7 +359,7 @@ import {
 } from '@ant-design/icons-vue'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../stores/authStore'
-import { BORROW_HISTORY_FILTERS, isAdminRole, isManagerRole, isStudentRole, isTeacherRole } from '../constants/business'
+import { BORROW_HISTORY_FILTERS, STATUS, isAdminRole, isManagerRole, isStudentRole, isTeacherRole } from '../constants/business'
 import { getDashboardAlertTarget } from '../utils/dashboardAlerts'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatVietnamDateTime } from '../utils/dateTime.js'
@@ -487,8 +487,8 @@ const getActivityIcon = action => ({
 const managerAttentionItems = computed(() => [
   {
     key: 'pending-borrow-requests', label: 'Phiếu mượn cần xử lý',
-    value: formatNumber(stats.value.borrowRequestsToProcess),
-    icon: FileSearchOutlined, tone: 'warning', route: { name: 'BorrowRequests' }
+    value: formatNumber(stats.value.pendingBorrowRequests),
+    icon: FileSearchOutlined, tone: 'warning', route: { name: 'BorrowRequests', query: { status: STATUS.BORROW_PENDING } }
   },
   {
     key: 'pending-consumable-requests', label: 'Cấp phát cần xử lý',
