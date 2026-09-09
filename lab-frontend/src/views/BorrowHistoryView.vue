@@ -379,7 +379,7 @@ const borrowStatusOptions = [
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
-  { title: 'Số điện thoại', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
+  { title: 'Số điện thoại', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 175, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 170 },
