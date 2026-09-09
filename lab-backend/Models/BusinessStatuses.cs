@@ -26,6 +26,12 @@ public static class ConsumableRequestStatuses
     public const string Rejected = "REJECTED";
 }
 
+public static class ConsumableRequestRejectionStages
+{
+    public const string Approval = "APPROVAL";
+    public const string Handover = "HANDOVER";
+}
+
 public static class MaintenanceStatuses
 {
     public const string InProgress = "MAINTENANCE_IN_PROGRESS";

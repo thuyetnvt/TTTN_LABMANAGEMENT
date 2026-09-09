@@ -41,6 +41,12 @@ public sealed class ManagerEquipmentDto : BorrowerEquipmentDto
     public DateTime? LastInventoryAt { get; init; }
     public string Notes { get; init; } = string.Empty;
     public string ResponsiblePerson { get; init; } = string.Empty;
+    public int? CreatedByUserId { get; init; }
+    public string CreatedByName { get; init; } = string.Empty;
+    public string? CreatedByCode { get; init; }
+    public int? ResponsibleUserId { get; init; }
+    public string ResponsibleName { get; init; } = string.Empty;
+    public string? ResponsibleCode { get; init; }
     public string DecisionFileName { get; init; } = string.Empty;
     public bool HasDecisionFile { get; init; }
     public DateTime? EntryDate { get; init; }

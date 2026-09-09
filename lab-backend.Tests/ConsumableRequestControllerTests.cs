@@ -21,6 +21,95 @@ namespace LabManagementAPI.Tests;
 public sealed class ConsumableRequestControllerTests
 {
     [Fact]
+    public async Task Reject_requires_reason_and_records_the_rejecting_user()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", FullName = "Sinh viên 1", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", FullName = "Trưởng lab", Role = Roles.LabHead, IsActive = true });
+            context.Consumables.Add(new Consumable { Id = 1, Code = "VT-001", Name = "Điện trở", Unit = "cái", Quantity = 10 });
+            context.ConsumableRequests.Add(new ConsumableRequest
+            {
+                Id = 14,
+                ConsumableId = 1,
+                UserId = 1,
+                Quantity = 2,
+                Reason = "Thực hành",
+                Status = ConsumableRequestStatuses.Pending
+            });
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.LabHead);
+            var missingReason = await controller.RejectRequest(
+                14,
+                new ConsumableRequestController.RejectConsumableRequestDto { Reason = " " },
+                CancellationToken.None);
+            Assert.IsType<BadRequestObjectResult>(missingReason);
+            Assert.Equal(ConsumableRequestStatuses.Pending, (await context.ConsumableRequests.AsNoTracking().SingleAsync()).Status);
+
+            var result = await controller.RejectRequest(
+                14,
+                new ConsumableRequestController.RejectConsumableRequestDto { Reason = "Vượt định mức của buổi thực hành." },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            var request = await context.ConsumableRequests.AsNoTracking().SingleAsync();
+            Assert.Equal(ConsumableRequestStatuses.Rejected, request.Status);
+            Assert.Equal("Vượt định mức của buổi thực hành.", request.RejectionReason);
+            Assert.Equal(99, request.RejectedByUserId);
+            Assert.NotNull(request.RejectedAt);
+            Assert.Equal(ConsumableRequestRejectionStages.Approval, request.RejectionStage);
+        }
+    }
+
+    [Fact]
+    public async Task Reject_after_approval_records_handover_stage_and_releases_reserved_stock()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", Role = Roles.LabHead, IsActive = true });
+            context.Consumables.Add(new Consumable
+            {
+                Id = 1,
+                Code = "VT-001",
+                Name = "Điện trở",
+                Unit = "cái",
+                Quantity = 10,
+                ReservedQuantity = 3
+            });
+            context.ConsumableRequests.Add(new ConsumableRequest
+            {
+                Id = 15,
+                ConsumableId = 1,
+                UserId = 1,
+                Quantity = 3,
+                Reason = "Thực hành",
+                Status = ConsumableRequestStatuses.Approved
+            });
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.LabHead);
+            var result = await controller.RejectRequest(
+                15,
+                new ConsumableRequestController.RejectConsumableRequestDto { Reason = "Kho thực tế không đủ số lượng." },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            var stock = await context.Consumables.AsNoTracking().SingleAsync();
+            var request = await context.ConsumableRequests.AsNoTracking().SingleAsync();
+            Assert.Equal(0, stock.ReservedQuantity);
+            Assert.Equal(ConsumableRequestStatuses.Rejected, request.Status);
+            Assert.Equal(ConsumableRequestRejectionStages.Handover, request.RejectionStage);
+            Assert.Equal("Kho thực tế không đủ số lượng.", request.RejectionReason);
+        }
+    }
+
+    [Fact]
     public async Task Paged_requests_return_requester_full_name_for_students_and_managers()
     {
         await using var context = CreateContext(out var connection);

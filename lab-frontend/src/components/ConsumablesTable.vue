@@ -394,7 +394,7 @@ const columns = computed(() => {
     { title: 'Người chịu trách nhiệm', dataIndex: 'responsibleName', key: 'responsibleName', sortable: true, sortKey: 'responsiblePerson', width: 260 }
   ] : []
   return [...commonColumns, ...managerColumns,
-  { title: 'Trạng thái', key: 'status', sortable: true, sortKey: 'status', align: 'center', width: 120, filterType: 'select', filterKey: 'stock', filterOptions: [
+  { title: 'Trạng thái', key: 'status', sortable: true, sortKey: 'status', align: 'center', width: 145, className: 'status-column', filterType: 'select', filterKey: 'stock', filterOptions: [
     { value: 'AVAILABLE', label: 'Đủ dùng' },
     { value: 'LOW_STOCK', label: 'Cần nhập thêm' }
   ] },

@@ -111,7 +111,7 @@ const columns = [
     { value: 'Giảng viên', label: 'Giảng viên' },
     { value: 'Sinh viên', label: 'Sinh viên' }
   ] },
-  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', sortKey: 'isActive', sortable: true, width: 120, filterType: 'select', filterKey: 'status', filterOptions: [
+  { title: 'Trạng thái', dataIndex: 'isActive', key: 'isActive', sortKey: 'isActive', sortable: true, width: 145, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'ACTIVE', label: 'Hoạt động' },
     { value: 'INACTIVE', label: 'Đã khóa' }
   ] },

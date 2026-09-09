@@ -62,6 +62,7 @@ public class ReportsController : ControllerBase
                 id = $"{item.BorrowRecordId}-{item.EquipmentId}",
                 borrowRecordId = item.BorrowRecordId,
                 user = item.Username,
+                phone = item.Phone,
                 equipment = item.EquipmentName,
                 serial = item.Serial,
                 expectedReturnDate = item.ExpectedReturnDate,
@@ -207,16 +208,17 @@ public class ReportsController : ControllerBase
         }
 
         var borrowedSheet = package.Workbook.Worksheets.Add("DangMuon");
-        WriteHeaders(borrowedSheet, ["Người mượn", "Thiết bị", "Số seri", "Ngày trả dự kiến", "Quá hạn"]);
+        WriteHeaders(borrowedSheet, ["Người mượn", "Số điện thoại", "Thiết bị", "Số seri", "Ngày trả dự kiến", "Quá hạn"]);
         for (var index = 0; index < borrowed.Count; index++)
         {
             var item = borrowed[index];
             var row = index + 2;
             WriteCell(borrowedSheet, row, 1, item.Username);
-            WriteCell(borrowedSheet, row, 2, item.EquipmentName);
-            WriteCell(borrowedSheet, row, 3, item.Serial);
-            WriteCell(borrowedSheet, row, 4, item.ExpectedReturnDate.ToString("dd/MM/yyyy"));
-            WriteCell(borrowedSheet, row, 5, item.ExpectedReturnDate < nowUtc ? "Có" : "Không");
+            WriteCell(borrowedSheet, row, 2, item.Phone);
+            WriteCell(borrowedSheet, row, 3, item.EquipmentName);
+            WriteCell(borrowedSheet, row, 4, item.Serial);
+            WriteCell(borrowedSheet, row, 5, item.ExpectedReturnDate.ToString("dd/MM/yyyy"));
+            WriteCell(borrowedSheet, row, 6, item.ExpectedReturnDate < nowUtc ? "Có" : "Không");
         }
 
         var consumableSheet = package.Workbook.Worksheets.Add("VatTu");
@@ -407,6 +409,7 @@ public class ReportsController : ControllerBase
                     record.Id,
                     detail.EquipmentId,
                     GetUserDisplayName(record.User) ?? "—",
+                    record.User?.Phone?.Trim() ?? string.Empty,
                     detail.Equipment!.Name,
                     detail.Equipment.Serial,
                     record.ExpectedReturnDate,
@@ -418,6 +421,7 @@ public class ReportsController : ControllerBase
                     record.Id,
                     record.Equipment.Id,
                     GetUserDisplayName(record.User) ?? "—",
+                    record.User?.Phone?.Trim() ?? string.Empty,
                     record.Equipment.Name,
                     record.Equipment.Serial,
                     record.ExpectedReturnDate,
@@ -518,6 +522,7 @@ public class ReportsController : ControllerBase
         int BorrowRecordId,
         int EquipmentId,
         string Username,
+        string Phone,
         string EquipmentName,
         string Serial,
         DateTime ExpectedReturnDate,

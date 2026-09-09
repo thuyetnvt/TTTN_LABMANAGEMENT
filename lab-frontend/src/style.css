@@ -57,6 +57,18 @@ html,
   background: #e6f4ff !important;
 }
 
+/* Các thẻ trạng thái luôn nằm gọn trên một hàng và không bị cắt trong bảng. */
+.ant-table-wrapper .status-column,
+.ant-table-wrapper .status-column .ant-tag,
+.ant-table-wrapper .status-badge {
+  white-space: nowrap;
+}
+
+.borrower-phone-link {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Giữ tiêu đề cột trên một hàng; bảng vẫn cuộn ngang khi màn hình hẹp. */
 .ant-table-wrapper .ant-table-thead > tr > th {
   white-space: nowrap;

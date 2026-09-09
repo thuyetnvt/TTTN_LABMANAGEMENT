@@ -108,6 +108,8 @@ public class EquipmentController : ControllerBase
         [MaxLength(255)]
         public string ResponsiblePerson { get; set; } = string.Empty;
 
+        public int? ResponsibleUserId { get; set; }
+
         public DateTime? EntryDate { get; set; }
 
         [MaxLength(100)]
@@ -153,6 +155,8 @@ public class EquipmentController : ControllerBase
             .AsNoTracking()
             .Include(equipment => equipment.AssetCategory)
             .Include(equipment => equipment.LocationNode)
+            .Include(equipment => equipment.CreatedByUser)
+            .Include(equipment => equipment.ResponsibleUser)
             .OrderByDescending(equipment => equipment.CreatedAt)
             .ToListAsync(cancellationToken);
 
@@ -175,6 +179,8 @@ public class EquipmentController : ControllerBase
             .AsNoTracking()
             .Include(equipment => equipment.AssetCategory)
             .Include(equipment => equipment.LocationNode)
+            .Include(equipment => equipment.CreatedByUser)
+            .Include(equipment => equipment.ResponsibleUser)
             .AsQueryable();
 
         var search = paging.NormalizedSearch;
@@ -441,6 +447,17 @@ public class EquipmentController : ControllerBase
         }).ToList();
         if (errors.Count > 0) return BadRequest(new { message = "Dữ liệu import chưa hợp lệ.", errors });
 
+        var importUserId = GetCurrentUserIdOrNull();
+        if (!importUserId.HasValue)
+        {
+            return Unauthorized(new { message = "Không xác định được tài khoản đang đăng nhập." });
+        }
+        var importUser = await FindResponsibleUserAsync(importUserId.Value, cancellationToken);
+        if (importUser is null)
+        {
+            return Unauthorized(new { message = "Tài khoản đang đăng nhập không còn hoạt động hoặc không có quyền quản lý." });
+        }
+
         await using var transaction = await _context.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.Serializable, cancellationToken);
         var serialSet = (await _context.Equipments.Select(equipment => equipment.Serial).ToListAsync(cancellationToken))
@@ -476,7 +493,11 @@ public class EquipmentController : ControllerBase
                 SerialName = row.SerialName,
                 Location = row.Location,
                 LocationNodeId = row.LocationNodeId,
-                ResponsiblePerson = row.ResponsiblePerson,
+                CreatedByUserId = importUser.Id,
+                ResponsibleUserId = string.IsNullOrWhiteSpace(row.ResponsiblePerson) ? importUser.Id : null,
+                ResponsiblePerson = string.IsNullOrWhiteSpace(row.ResponsiblePerson)
+                    ? GetUserDisplayName(importUser)
+                    : row.ResponsiblePerson,
                 EntryDate = row.EntryDate,
                 InvoiceNumber = row.InvoiceNumber,
                 Notes = row.Notes,
@@ -513,6 +534,26 @@ public class EquipmentController : ControllerBase
         if (fileValidationMessage is not null)
         {
             return BadRequest(new { message = fileValidationMessage });
+        }
+
+        var createdByUserId = GetCurrentUserIdOrNull();
+        if (!createdByUserId.HasValue)
+        {
+            return Unauthorized(new { message = "Không xác định được tài khoản đang đăng nhập." });
+        }
+
+        var createdByUser = await FindResponsibleUserAsync(createdByUserId.Value, cancellationToken);
+        if (createdByUser is null)
+        {
+            return Unauthorized(new { message = "Tài khoản đang đăng nhập không còn hoạt động hoặc không có quyền quản lý." });
+        }
+
+        var responsibleUser = await FindResponsibleUserAsync(
+            dto.ResponsibleUserId ?? createdByUserId.Value,
+            cancellationToken);
+        if (responsibleUser is null)
+        {
+            return BadRequest(new { message = "Người chịu trách nhiệm phải là tài khoản quản lý đang hoạt động." });
         }
 
         var serial = dto.Serial.Trim();
@@ -571,7 +612,9 @@ public class EquipmentController : ControllerBase
             Notes = dto.Notes.Trim(),
             Location = dto.Location.Trim(),
             LocationNodeId = dto.LocationNodeId,
-            ResponsiblePerson = dto.ResponsiblePerson.Trim(),
+            CreatedByUserId = createdByUser.Id,
+            ResponsibleUserId = responsibleUser.Id,
+            ResponsiblePerson = GetUserDisplayName(responsibleUser),
             EntryDate = dto.EntryDate,
             InvoiceNumber = dto.InvoiceNumber.Trim(),
             Status = EquipmentStatuses.Available,
@@ -705,6 +748,23 @@ public class EquipmentController : ControllerBase
             return BadRequest(new { message = "Tài sản phải chọn vị trí từ cây vị trí." });
         }
 
+        var currentUserId = GetCurrentUserIdOrNull();
+        if (!currentUserId.HasValue)
+        {
+            return Unauthorized(new { message = "Không xác định được tài khoản đang đăng nhập." });
+        }
+
+        var responsibleUser = await ResolveResponsibleUserAsync(
+            dto.ResponsibleUserId,
+            dto.ResponsiblePerson,
+            existing,
+            currentUserId.Value,
+            cancellationToken);
+        if (dto.ResponsibleUserId.HasValue && responsibleUser is null)
+        {
+            return BadRequest(new { message = "Người chịu trách nhiệm phải là tài khoản quản lý đang hoạt động." });
+        }
+
         var before = SnapshotEquipment(existing);
         var previousLocationNodeId = existing.LocationNodeId;
         var previousLocationName = existing.Location;
@@ -732,7 +792,15 @@ public class EquipmentController : ControllerBase
         existing.Notes = dto.Notes.Trim();
         existing.Location = dto.Location.Trim();
         existing.LocationNodeId = dto.LocationNodeId;
-        existing.ResponsiblePerson = dto.ResponsiblePerson.Trim();
+        if (responsibleUser is not null)
+        {
+            existing.ResponsibleUserId = responsibleUser.Id;
+            existing.ResponsiblePerson = GetUserDisplayName(responsibleUser);
+        }
+        else
+        {
+            existing.ResponsiblePerson = dto.ResponsiblePerson.Trim();
+        }
         existing.EntryDate = dto.EntryDate;
         existing.InvoiceNumber = dto.InvoiceNumber.Trim();
         existing.Status = dto.Status;
@@ -1062,6 +1130,8 @@ public class EquipmentController : ControllerBase
             equipment.Location,
             equipment.LocationNodeId,
             equipment.ResponsiblePerson,
+            equipment.CreatedByUserId,
+            equipment.ResponsibleUserId,
             equipment.EntryDate,
             equipment.InvoiceNumber,
             equipment.Status,
@@ -1134,6 +1204,12 @@ public class EquipmentController : ControllerBase
             LocationNodeId = equipment.LocationNodeId,
             LocationName = equipment.LocationNode?.Name ?? equipment.Location,
             ResponsiblePerson = equipment.ResponsiblePerson,
+            CreatedByUserId = equipment.CreatedByUserId,
+            CreatedByName = GetUserDisplayName(equipment.CreatedByUser),
+            CreatedByCode = equipment.CreatedByUser?.UniversityCode,
+            ResponsibleUserId = equipment.ResponsibleUserId,
+            ResponsibleName = GetUserDisplayName(equipment.ResponsibleUser, equipment.ResponsiblePerson),
+            ResponsibleCode = equipment.ResponsibleUser?.UniversityCode,
             DecisionFileName = equipment.DecisionFileName,
             HasDecisionFile = !string.IsNullOrEmpty(equipment.DecisionFilePath),
             EntryDate = equipment.EntryDate,
@@ -1147,6 +1223,65 @@ public class EquipmentController : ControllerBase
     }
 
     private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private int? GetCurrentUserIdOrNull()
+    {
+        return int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+            ? userId
+            : null;
+    }
+
+    private async Task<User?> FindResponsibleUserAsync(
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var managerRoles = new[] { Roles.Admin, Roles.LabHead, Roles.DeputyLabHead };
+        return await _context.Users
+            .SingleOrDefaultAsync(user => user.Id == userId
+                && user.IsActive
+                && managerRoles.Contains(user.Role), cancellationToken);
+    }
+
+    private async Task<User?> ResolveResponsibleUserAsync(
+        int? requestedUserId,
+        string requestedDisplayName,
+        Equipment existing,
+        int currentUserId,
+        CancellationToken cancellationToken)
+    {
+        if (requestedUserId.HasValue)
+        {
+            return await FindResponsibleUserAsync(requestedUserId.Value, cancellationToken);
+        }
+
+        if (existing.ResponsibleUserId.HasValue)
+        {
+            return await FindResponsibleUserAsync(existing.ResponsibleUserId.Value, cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedDisplayName))
+        {
+            var normalized = requestedDisplayName.Trim();
+            var managerRoles = new[] { Roles.Admin, Roles.LabHead, Roles.DeputyLabHead };
+            var matched = await _context.Users
+                .AsNoTracking()
+                .Where(user => user.IsActive && managerRoles.Contains(user.Role))
+                .FirstOrDefaultAsync(user => user.Username == normalized || user.FullName == normalized, cancellationToken);
+            if (matched is not null) return matched;
+        }
+
+        return string.IsNullOrWhiteSpace(existing.ResponsiblePerson)
+            ? await FindResponsibleUserAsync(currentUserId, cancellationToken)
+            : null;
+    }
+
+    private static string GetUserDisplayName(User? user, string fallback = "")
+    {
+        if (user is null) return fallback.Trim();
+        return !string.IsNullOrWhiteSpace(user.FullName)
+            ? user.FullName.Trim()
+            : user.Username.Trim();
+    }
 
     private Task<bool> HasLockedBorrowRequestAsync(
         int equipmentId,

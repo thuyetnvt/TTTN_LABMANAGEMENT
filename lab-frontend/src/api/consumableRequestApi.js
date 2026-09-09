@@ -8,5 +8,5 @@ export const consumableRequestApi = {
   getAvailableLots: (id) => axiosClient.get(`/consumablerequest/${id}/available-lots`),
   handover: (id, data) => axiosClient.put(`/consumablerequest/${id}/handover`, data),
   confirmReceipt: (id) => axiosClient.put(`/consumablerequest/${id}/confirm-receipt`),
-  reject: (id) => axiosClient.put(`/consumablerequest/${id}/reject`)
+  reject: (id, data) => axiosClient.put(`/consumablerequest/${id}/reject`, data)
 };

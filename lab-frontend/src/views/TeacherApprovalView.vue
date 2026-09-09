@@ -27,6 +27,12 @@
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
           </template>
+          <template v-else-if="column.key === 'borrowerPhone'">
+            <a v-if="record.borrowerPhone" class="borrower-phone-link" :href="phoneHref(record.borrowerPhone)" :title="`Gọi ${borrowerLabel(record)}`">
+              {{ record.borrowerPhone }}
+            </a>
+            <span v-else class="muted">Chưa cập nhật</span>
+          </template>
           <template v-else-if="column.key === 'device'">
             <div>{{ record.device }}</div>
             <div v-for="detail in record.details || []" :key="detail.equipmentId" class="detail-line">
@@ -50,6 +56,7 @@
           <div class="mobile-approval-device">{{ item.device }}</div>
           <div v-for="detail in item.details || []" :key="detail.equipmentId" class="detail-line">{{ detail.equipmentName }} — {{ detail.serial }}</div>
           <dl class="mobile-approval-details">
+            <div><dt>Số điện thoại</dt><dd><a v-if="item.borrowerPhone" :href="phoneHref(item.borrowerPhone)">{{ item.borrowerPhone }}</a><span v-else>Chưa cập nhật</span></dd></div>
             <div><dt>Ngày đăng ký</dt><dd>{{ formatDate(item.requestDate) }}</dd></div>
             <div><dt>Dự kiến trả</dt><dd>{{ formatDate(item.returnDate) }}</dd></div>
             <div><dt>Mục đích</dt><dd>{{ item.purpose || '—' }}</dd></div>
@@ -106,14 +113,19 @@ const decisionNote = ref('')
 const selectedRecord = ref(null)
 
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
+const phoneHref = phone => {
+  const normalized = String(phone || '').replace(/[^\d+]/g, '')
+  return normalized ? `tel:${normalized}` : '#'
+}
 
 const columns = [
   { title: 'Sinh viên', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm sinh viên...' },
+  { title: 'Số điện thoại', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true },
   { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', sortKey: 'purpose', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center' },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 190, className: 'status-column' },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190, align: 'center' }
 ]
 

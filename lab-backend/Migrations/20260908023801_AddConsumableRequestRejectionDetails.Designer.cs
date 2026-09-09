@@ -4,6 +4,7 @@ using LabManagementAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabManagementAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260908023801_AddConsumableRequestRejectionDetails")]
+    partial class AddConsumableRequestRejectionDetails
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -803,9 +806,6 @@ namespace LabManagementAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("int");
-
                     b.Property<string>("DecisionFileName")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -905,9 +905,6 @@ namespace LabManagementAPI.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<int?>("ResponsibleUserId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Serial")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -935,14 +932,10 @@ namespace LabManagementAPI.Migrations
                     b.HasIndex("AssetCode")
                         .IsUnique();
 
-                    b.HasIndex("CreatedByUserId");
-
                     b.HasIndex("LocationNodeId");
 
                     b.HasIndex("QrToken")
                         .IsUnique();
-
-                    b.HasIndex("ResponsibleUserId");
 
                     b.HasIndex("Serial")
                         .IsUnique();
@@ -2124,28 +2117,14 @@ namespace LabManagementAPI.Migrations
                         .WithMany()
                         .HasForeignKey("AssetCategoryId");
 
-                    b.HasOne("LabManagementAPI.Models.User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("LabManagementAPI.Models.LocationNode", "LocationNode")
                         .WithMany()
                         .HasForeignKey("LocationNodeId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("LabManagementAPI.Models.User", "ResponsibleUser")
-                        .WithMany()
-                        .HasForeignKey("ResponsibleUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("AssetCategory");
 
-                    b.Navigation("CreatedByUser");
-
                     b.Navigation("LocationNode");
-
-                    b.Navigation("ResponsibleUser");
                 });
 
             modelBuilder.Entity("LabManagementAPI.Models.EquipmentLocationHistory", b =>

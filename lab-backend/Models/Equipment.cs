@@ -25,6 +25,10 @@ namespace LabManagementAPI.Models
         public int? LocationNodeId { get; set; }
         public LocationNode? LocationNode { get; set; }
         public string ResponsiblePerson { get; set; } = string.Empty;
+        public int? CreatedByUserId { get; set; }
+        public User? CreatedByUser { get; set; }
+        public int? ResponsibleUserId { get; set; }
+        public User? ResponsibleUser { get; set; }
         public string DecisionFileName { get; set; } = string.Empty;
         public string DecisionFilePath { get; set; } = string.Empty;
         public DateTime? DecisionUploadedAt { get; set; }

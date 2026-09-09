@@ -7,7 +7,7 @@ export const borrowApi = {
   getHistory: () => axiosClient.get('/borrow/history'),
   getHistoryPaged: (params = {}) => axiosClient.get('/borrow/history/paged', { params }),
   approve: (id) => axiosClient.put(`/borrow/${id}/approve`),
-  reject: (id) => axiosClient.put(`/borrow/${id}/reject`),
+  reject: (id, note) => axiosClient.put(`/borrow/${id}/reject`, { note }),
   cancel: (id, reason) => axiosClient.put(`/borrow/${id}/cancel`, { reason }),
   returnEquipment: (id, data = null) => axiosClient.put(`/borrow/${id}/return`, data),
   reportDamage: (id, reason) => axiosClient.put(`/borrow/${id}/report-damage`, { reason }),

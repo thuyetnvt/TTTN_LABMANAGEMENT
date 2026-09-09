@@ -34,6 +34,17 @@
           <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
             {{ formatDate(record[column.key]) }}
           </template>
+          <template v-else-if="column.key === 'borrowerPhone'">
+            <a
+              v-if="record.borrowerPhone"
+              class="borrower-phone-link"
+              :href="phoneHref(record.borrowerPhone)"
+              :title="`Gọi ${borrowerLabel(record)}`"
+            >
+              {{ record.borrowerPhone }}
+            </a>
+            <span v-else class="muted">Chưa cập nhật</span>
+          </template>
           <template v-else-if="column.key === 'status'">
             <StatusBadge :status="record.status" type="borrow" :label-override="borrowWorkflowLabel(record)" />
           </template>
@@ -76,6 +87,11 @@
           <div class="mobile-request-dates">
             <span>Đăng ký <strong>{{ formatDate(item.requestDate) }}</strong></span>
             <span>Hạn trả <strong>{{ formatDate(item.returnDate) }}</strong></span>
+          </div>
+          <div class="mobile-request-phone">
+            <span>Số điện thoại</span>
+            <a v-if="item.borrowerPhone" :href="phoneHref(item.borrowerPhone)">{{ item.borrowerPhone }}</a>
+            <span v-else class="muted">Chưa cập nhật</span>
           </div>
           <div v-if="item.details?.length" class="mobile-request-items">
             <span v-for="detail in item.details" :key="detail.id">{{ detail.equipmentName }} ×{{ detail.quantity }}</span>
@@ -251,6 +267,35 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <a-modal
+      v-model:open="isRejectVisible"
+      title="Từ chối yêu cầu mượn"
+      ok-text="Xác nhận từ chối"
+      cancel-text="Hủy"
+      :confirm-loading="rejectSubmitting"
+      @ok="submitReject"
+    >
+      <a-alert
+        v-if="rejectRecord"
+        type="warning"
+        show-icon
+        :message="`Yêu cầu của ${borrowerLabel(rejectRecord)}`"
+        description="Lý do từ chối sẽ được lưu và gửi để sinh viên biết cách xử lý lại."
+        style="margin-bottom: 16px"
+      />
+      <a-form layout="vertical">
+        <a-form-item label="Lý do từ chối" required>
+          <a-textarea
+            v-model:value="rejectReason"
+            :rows="4"
+            maxlength="2000"
+            show-count
+            placeholder="Nhập lý do từ chối yêu cầu mượn..."
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -316,9 +361,14 @@ const isCancelVisible = ref(false)
 const cancelSubmitting = ref(false)
 const cancelReason = ref('')
 const cancelRecord = ref(null)
+const isRejectVisible = ref(false)
+const rejectSubmitting = ref(false)
+const rejectReason = ref('')
+const rejectRecord = ref(null)
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
+  { title: 'Số điện thoại', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Danh mục', dataIndex: 'category', key: 'category', sortKey: 'category', sortable: true, width: 145, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
@@ -353,6 +403,10 @@ const borrowRecordCode = computed(() => currentHandoverRecord.value?.id ? `BR-${
 const completedHandoverItems = computed(() => handoverForm.value.items.filter(item => Boolean(item.condition)).length)
 
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
+const phoneHref = phone => {
+  const normalized = String(phone || '').replace(/[^\d+]/g, '')
+  return normalized ? `tel:${normalized}` : '#'
+}
 
 const borrowWorkflowLabel = record => {
   if (statusMatches(record.status, STATUS.APPROVED)) {
@@ -430,12 +484,27 @@ const handleApprove = async (record) => {
 }
 
 const handleReject = async (record) => {
+  rejectRecord.value = record
+  rejectReason.value = ''
+  isRejectVisible.value = true
+}
+
+const submitReject = async () => {
+  const note = rejectReason.value.trim()
+  if (!note) {
+    message.warning('Vui lòng nhập lý do từ chối yêu cầu.')
+    return
+  }
+  rejectSubmitting.value = true
   try {
-    await borrowApi.reject(record.id)
-    message.warning(`Đã từ chối yêu cầu của ${borrowerLabel(record)}.`)
-    fetchRequests()
-  } catch {
-    message.error('Lỗi từ chối yêu cầu!')
+    await borrowApi.reject(rejectRecord.value.id, note)
+    message.warning(`Đã từ chối yêu cầu của ${borrowerLabel(rejectRecord.value)}.`)
+    isRejectVisible.value = false
+    await fetchRequests()
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Lỗi từ chối yêu cầu!'))
+  } finally {
+    rejectSubmitting.value = false
   }
 }
 

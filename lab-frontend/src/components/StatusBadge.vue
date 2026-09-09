@@ -1,5 +1,5 @@
 <template>
-  <a-tag :color="color || getStatusColor(status)" :title="label">
+  <a-tag class="status-badge" :color="color || getStatusColor(status)" :title="label">
     {{ label }}
   </a-tag>
 </template>

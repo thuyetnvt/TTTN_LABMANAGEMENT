@@ -186,8 +186,8 @@ const columns = [
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 260, filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Kế hoạch', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, width: 380, filterType: 'search', filterPlaceholder: 'Tìm kế hoạch...' },
   { title: 'Chu kỳ', dataIndex: 'intervalDays', key: 'intervalDays', sortKey: 'intervalDays', sortable: true, width: 120, customRender: ({ record }) => `${record.intervalDays} ${({ DAY: 'ngày', WEEK: 'tuần', MONTH: 'tháng', QUARTER: 'quý', YEAR: 'năm' })[record.intervalUnit] || 'ngày'}` },
-  { title: 'Hạn bảo trì', dataIndex: 'nextDueAt', key: 'nextDueAt', sortKey: 'nextDueAt', sortable: true, width: 170, filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions },
-  { title: 'Hoạt động', dataIndex: 'isActive', key: 'isActive', sortKey: 'isActive', sortable: true, width: 120, filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions.slice(1) },
+  { title: 'Hạn bảo trì', dataIndex: 'nextDueAt', key: 'nextDueAt', sortKey: 'nextDueAt', sortable: true, width: 190, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions },
+  { title: 'Hoạt động', dataIndex: 'isActive', key: 'isActive', sortKey: 'isActive', sortable: true, width: 145, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: scheduleStatusOptions.slice(1) },
   { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 150, align: 'center' }
 ]
 

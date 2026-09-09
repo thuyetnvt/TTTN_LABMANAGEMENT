@@ -64,6 +64,12 @@ public class ConsumableRequestController : ControllerBase
         public List<LotAllocationDto> Allocations { get; set; } = new();
     }
 
+    public sealed class RejectConsumableRequestDto
+    {
+        [Required, MaxLength(2000)]
+        public string Reason { get; set; } = string.Empty;
+    }
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<object>>> GetRequests(
         CancellationToken cancellationToken)
@@ -77,6 +83,7 @@ public class ConsumableRequestController : ControllerBase
             .Include(request => request.Consumable)
                 .ThenInclude(consumable => consumable!.AssetCategory)
             .Include(request => request.User)
+            .Include(request => request.RejectedByUser)
             .Include(request => request.LotAllocations)
                 .ThenInclude(allocation => allocation.ConsumableLot)
             .AsQueryable();
@@ -106,6 +113,12 @@ public class ConsumableRequestController : ControllerBase
             request.ApprovalDate,
             request.HandedOverAt,
             request.ReceivedAt,
+            rejectionReason = SeedDisplayText.Clean(request.RejectionReason),
+            rejectedByUserId = request.RejectedByUserId,
+            rejectedByUsername = request.RejectedByUser?.Username,
+            rejectedByName = request.RejectedByUser?.FullName,
+            request.RejectedAt,
+            request.RejectionStage,
             allocations = request.LotAllocations.Select(allocation => new
             {
                 allocation.ConsumableLotId,
@@ -129,6 +142,7 @@ public class ConsumableRequestController : ControllerBase
             .Include(request => request.Consumable)
                 .ThenInclude(consumable => consumable!.AssetCategory)
             .Include(request => request.User)
+            .Include(request => request.RejectedByUser)
             .Include(request => request.LotAllocations)
                 .ThenInclude(allocation => allocation.ConsumableLot)
             .AsQueryable();
@@ -180,6 +194,12 @@ public class ConsumableRequestController : ControllerBase
             request.ApprovalDate,
             request.HandedOverAt,
             request.ReceivedAt,
+            rejectionReason = SeedDisplayText.Clean(request.RejectionReason),
+            rejectedByUserId = request.RejectedByUserId,
+            rejectedByUsername = request.RejectedByUser?.Username,
+            rejectedByName = request.RejectedByUser?.FullName,
+            request.RejectedAt,
+            request.RejectionStage,
             allocations = request.LotAllocations.Select(allocation => new
             {
                 allocation.ConsumableLotId,
@@ -557,11 +577,18 @@ public class ConsumableRequestController : ControllerBase
     [HttpPut("{id:int}/reject")]
     public async Task<IActionResult> RejectRequest(
         int id,
+        [FromBody] RejectConsumableRequestDto dto,
         CancellationToken cancellationToken)
     {
         if (!await CanApproveConsumableAsync(GetCurrentUserId(), User.FindFirstValue(ClaimTypes.Role), cancellationToken))
         {
             return Forbid();
+        }
+
+        var reason = dto.Reason.Trim();
+        if (reason.Length == 0)
+        {
+            return BadRequest(new { message = "Lý do từ chối là bắt buộc." });
         }
 
         var request = await _context.ConsumableRequests
@@ -572,14 +599,22 @@ public class ConsumableRequestController : ControllerBase
             return NotFound(new { message = "Không tìm thấy yêu cầu." });
         }
 
-        var approvalDate = DateTime.UtcNow;
+        var rejectedAt = DateTime.UtcNow;
+        var rejectedByUserId = GetCurrentUserId();
+        var rejectionStage = request.Status == Approved
+            ? ConsumableRequestRejectionStages.Handover
+            : ConsumableRequestRejectionStages.Approval;
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         var updated = await _context.ConsumableRequests
             .Where(item => item.Id == id && (item.Status == Pending || item.Status == Approved))
             .ExecuteUpdateAsync(
                 updates => updates
                     .SetProperty(item => item.Status, Rejected)
-                    .SetProperty(item => item.ApprovalDate, (DateTime?)approvalDate),
+                    .SetProperty(item => item.ApprovalDate, (DateTime?)rejectedAt)
+                    .SetProperty(item => item.RejectionReason, reason)
+                    .SetProperty(item => item.RejectedByUserId, (int?)rejectedByUserId)
+                    .SetProperty(item => item.RejectedAt, (DateTime?)rejectedAt)
+                    .SetProperty(item => item.RejectionStage, rejectionStage),
                 cancellationToken);
         if (updated == 0)
         {
@@ -607,17 +642,28 @@ public class ConsumableRequestController : ControllerBase
             "Reject",
             nameof(ConsumableRequest),
             id,
+            new { request.ConsumableId, request.Quantity, Reason = reason, Stage = rejectionStage },
             cancellationToken: cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         await _notificationService.NotifyUserAsync(
             request.UserId,
             "CONSUMABLE_REJECTED",
-            "Yêu cầu vật tư bị từ chối",
-            "Yêu cầu vật tư của bạn đã bị từ chối.",
+            rejectionStage == ConsumableRequestRejectionStages.Handover
+                ? "Không thể bàn giao vật tư"
+                : "Yêu cầu vật tư bị từ chối",
+            rejectionStage == ConsumableRequestRejectionStages.Handover
+                ? $"Yêu cầu vật tư chưa thể bàn giao. Lý do: {reason}"
+                : $"Yêu cầu vật tư của bạn đã bị từ chối. Lý do: {reason}",
             "/dashboard/consumable-requests",
             cancellationToken);
-        return Ok(new { message = "Đã từ chối yêu cầu." });
+        return Ok(new
+        {
+            message = rejectionStage == ConsumableRequestRejectionStages.Handover
+                ? "Đã ghi nhận không thể bàn giao vật tư."
+                : "Đã từ chối yêu cầu.",
+            rejectionStage
+        });
     }
 
     private int GetCurrentUserId()

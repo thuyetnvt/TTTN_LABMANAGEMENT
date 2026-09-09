@@ -100,6 +100,12 @@
                 <template v-if="column.key === 'expectedReturnDate'">
                   {{ formatDate(record.expectedReturnDate) }}
                 </template>
+                <template v-else-if="column.key === 'phone'">
+                  <a v-if="record.phone" class="borrower-phone-link" :href="phoneHref(record.phone)" :title="`Gọi ${record.user}`">
+                    {{ record.phone }}
+                  </a>
+                  <span v-else>Chưa cập nhật</span>
+                </template>
                 <template v-else-if="column.key === 'status'">
                   <a-tag :color="record.overdue ? 'red' : (record.processingReturn ? 'orange' : 'blue')">
                     {{ record.overdue ? 'Quá hạn' : (record.processingReturn ? 'Đang xử lý trả' : 'Đang mượn') }}
@@ -374,6 +380,7 @@ const assetStatusOrder = [
 
 const borrowColumns = [
   { title: 'Người mượn', dataIndex: 'user', key: 'user', width: 150, ellipsis: true, sortable: true, sortKey: 'user', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người mượn...' },
+  { title: 'Số điện thoại', dataIndex: 'phone', key: 'phone', width: 150, sortable: true, sortKey: 'phone', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'equipment', key: 'equipment', width: 220, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 130, sortable: true, sortKey: 'expectedReturnDate' },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 190, className: 'status-column', sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
@@ -400,7 +407,7 @@ const consumableColumns = [
 const borrowedDisplay = computed(() => {
   const search = reportTableFilters.borrowSearch.trim().toLowerCase()
   const rows = report.value.borrowed.filter(item => {
-    const matchesSearch = !search || [item.user, item.equipment].some(value => String(value || '').toLowerCase().includes(search))
+    const matchesSearch = !search || [item.user, item.phone, item.equipment].some(value => String(value || '').toLowerCase().includes(search))
     const status = item.overdue ? 'OVERDUE' : (item.processingReturn ? 'RETURN_PROCESSING' : 'BORROWED')
     return matchesSearch && (!reportTableFilters.borrowStatus || status === reportTableFilters.borrowStatus)
   })
@@ -586,6 +593,10 @@ const formatDateTime = value => formatVietnamDateTime(value)
 const formatNumber = value => Number(value || 0).toLocaleString('vi-VN')
 const formatCurrency = value => `${Number(value || 0).toLocaleString('vi-VN')} ₫`
 const cellText = value => value === null || value === undefined || value === '' ? '—' : String(value)
+const phoneHref = phone => {
+  const normalized = String(phone || '').replace(/[^\d+]/g, '')
+  return normalized ? `tel:${normalized}` : '#'
+}
 const reservedByLabel = record => {
   const name = cellText(record?.reservedByName)
   if (name === '—') return 'Chưa có dữ liệu'

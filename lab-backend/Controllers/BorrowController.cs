@@ -284,6 +284,7 @@ public class BorrowController : ControllerBase
             serial = item.Equipment?.Serial ?? string.Empty,
             assetCode = item.Equipment?.AssetCode ?? string.Empty,
             borrowerName = item.User!.FullName,
+            borrowerPhone = item.User.Phone,
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
             purpose = SeedDisplayText.Clean(item.Purpose),
@@ -335,6 +336,7 @@ public class BorrowController : ControllerBase
             query = query.Where(item =>
                 item.User!.Username.Contains(search)
                 || item.User.FullName.Contains(search)
+                || item.User.Phone.Contains(search)
                 || item.Purpose.Contains(search)
                 || (item.Equipment != null
                     && (item.Equipment.Name.Contains(search)
@@ -378,6 +380,7 @@ public class BorrowController : ControllerBase
             serial = item.Equipment?.Serial ?? string.Empty,
             assetCode = item.Equipment?.AssetCode ?? string.Empty,
             borrowerName = item.User.FullName,
+            borrowerPhone = item.User.Phone,
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
             purpose = SeedDisplayText.Clean(item.Purpose),
@@ -458,6 +461,7 @@ public class BorrowController : ControllerBase
                 id = item.Id,
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
+                borrowerPhone = item.User.Phone,
                 device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
                 equipmentId = item.EquipmentId,
                 serial = item.Equipment != null ? item.Equipment.Serial : string.Empty,
@@ -470,6 +474,8 @@ public class BorrowController : ControllerBase
                 daysUntilDue = (expectedReturnDate - historyToday).Days,
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,
+                managerDecisionNote = item.ManagerDecisionNote,
+                teacherDecisionNote = item.TeacherDecisionNote,
                 holdExpiresAt = item.HoldExpiresAt,
                 cancellationReason = item.CancellationReason,
                 cancelledAt = item.CancelledAt,
@@ -557,6 +563,7 @@ public class BorrowController : ControllerBase
             query = query.Where(item =>
                 item.User!.Username.Contains(search)
                 || item.User.FullName.Contains(search)
+                || item.User.Phone.Contains(search)
                 || item.Purpose.Contains(search)
                 || (item.Equipment != null
                     && (item.Equipment.Name.Contains(search) || item.Equipment.Serial.Contains(search)))
@@ -626,6 +633,7 @@ public class BorrowController : ControllerBase
                 id = item.Id,
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
+                borrowerPhone = item.User.Phone,
                 device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
                 equipmentId = item.EquipmentId,
                 serial = item.Equipment?.Serial ?? string.Empty,
@@ -639,6 +647,8 @@ public class BorrowController : ControllerBase
                 daysUntilDue = (VietnamTime.Date(item.ExpectedReturnDate) - historyToday).Days,
                 returnCondition = item.ReturnCondition,
                 returnInspectionNote = item.ReturnInspectionNote,
+                managerDecisionNote = item.ManagerDecisionNote,
+                teacherDecisionNote = item.TeacherDecisionNote,
                 holdExpiresAt = item.HoldExpiresAt,
                 cancellationReason = item.CancellationReason,
                 cancelledAt = item.CancelledAt,
@@ -714,6 +724,7 @@ public class BorrowController : ControllerBase
             id = item.Id,
             student = item.User!.Username,
             borrowerName = item.User!.FullName,
+            borrowerPhone = item.User.Phone,
             device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
@@ -751,6 +762,7 @@ public class BorrowController : ControllerBase
             query = query.Where(item =>
                 item.User!.Username.Contains(search)
                 || item.User.FullName.Contains(search)
+                || item.User.Phone.Contains(search)
                 || item.Purpose.Contains(search)
                 || (item.Equipment != null && item.Equipment.Name.Contains(search))
                 || item.Details.Any(detail => detail.Equipment != null && detail.Equipment.Name.Contains(search)));
@@ -763,6 +775,7 @@ public class BorrowController : ControllerBase
             id = item.Id,
             student = item.User!.Username,
             borrowerName = item.User!.FullName,
+            borrowerPhone = item.User.Phone,
             device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
@@ -889,6 +902,7 @@ public class BorrowController : ControllerBase
             ChangedByUserId = teacherId
         });
 
+        await _context.SaveChangesAsync(cancellationToken);
         await _auditService.WriteAsync(
             HttpContext,
             "TeacherReject",
@@ -899,7 +913,7 @@ public class BorrowController : ControllerBase
             record.UserId,
             "BORROW_TEACHER_REJECTED",
             "Yêu cầu mượn bị từ chối bảo lãnh",
-            "Yêu cầu mượn của bạn đã bị từ chối bảo lãnh.",
+            $"Yêu cầu mượn của bạn đã bị từ chối bảo lãnh. Lý do: {note}",
             "/dashboard/borrow-history",
             cancellationToken);
         return Ok(new { message = "Đã từ chối bảo lãnh." });
@@ -1010,7 +1024,11 @@ public class BorrowController : ControllerBase
             return NotFound(new { message = "Không tìm thấy yêu cầu." });
         }
 
-        var note = NormalizeDecisionNote(dto, required: false) ?? "Quản lý lab từ chối yêu cầu.";
+        var note = NormalizeDecisionNote(dto, required: true);
+        if (note is null)
+        {
+            return BadRequest(new { message = "Quản lý lab phải nhập lý do từ chối." });
+        }
         var updated = await _context.BorrowRecords
             .Where(item => item.Id == id && item.Status == Pending)
             .ExecuteUpdateAsync(
@@ -1038,6 +1056,7 @@ public class BorrowController : ControllerBase
             ChangedByUserId = GetCurrentUserId()
         });
 
+        await _context.SaveChangesAsync(cancellationToken);
         await _auditService.WriteAsync(
             HttpContext,
             "Reject",
@@ -1048,7 +1067,7 @@ public class BorrowController : ControllerBase
             record.UserId,
             "BORROW_REJECTED",
             "Yêu cầu mượn bị từ chối",
-            "Yêu cầu mượn của bạn đã bị từ chối.",
+            $"Yêu cầu mượn của bạn đã bị từ chối. Lý do: {note}",
             "/dashboard/borrow-history",
             cancellationToken);
         return Ok(new { message = "Đã từ chối yêu cầu mượn." });
@@ -1516,6 +1535,9 @@ public class BorrowController : ControllerBase
             "borrower" => descending
                 ? query.OrderByDescending(item => item.User == null ? string.Empty : item.User.FullName).ThenBy(item => item.Id)
                 : query.OrderBy(item => item.User == null ? string.Empty : item.User.FullName).ThenBy(item => item.Id),
+            "borrowerphone" => descending
+                ? query.OrderByDescending(item => item.User == null ? string.Empty : item.User.Phone).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.User == null ? string.Empty : item.User.Phone).ThenBy(item => item.Id),
             "device" => descending
                 ? query.OrderByDescending(item => item.Equipment == null ? string.Empty : item.Equipment.Name).ThenBy(item => item.Id)
                 : query.OrderBy(item => item.Equipment == null ? string.Empty : item.Equipment.Name).ThenBy(item => item.Id),

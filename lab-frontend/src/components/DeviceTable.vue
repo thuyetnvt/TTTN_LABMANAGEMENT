@@ -277,7 +277,25 @@
       <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="Người chịu trách nhiệm">
-            <a-input v-model:value="formData.responsiblePerson" />
+            <a-select
+              v-model:value="formData.responsibleUserId"
+              show-search
+              allow-clear
+              option-filter-prop="label"
+              :loading="responsibleUsersLoading"
+              placeholder="Mặc định là người thêm thiết bị"
+              style="width: 100%"
+            >
+              <a-select-option
+                v-for="person in responsibleUsers"
+                :key="person.id"
+                :value="person.id"
+                :label="responsibleUserLabel(person)"
+              >
+                {{ responsibleUserLabel(person) }}
+              </a-select-option>
+            </a-select>
+            <div class="form-help">Mặc định là tài khoản đang đăng nhập.</div>
           </a-form-item>
         </a-col>
         <a-col :span="12">
@@ -394,6 +412,8 @@ const dataSource = ref([])
 const categories = ref([])
 const locations = ref([])
 const teachers = ref([])
+const responsibleUsers = ref([])
+const responsibleUsersLoading = ref(false)
 const loading = ref(false)
 const submitting = ref(false)
 const borrowSubmitting = ref(false)
@@ -500,6 +520,7 @@ const emptyForm = () => ({
   locationNodeId: null,
   locationChangeReason: '',
   responsiblePerson: '',
+  responsibleUserId: null,
   decisionFileName: '',
   entryDate: null,
   invoiceNumber: '',
@@ -563,6 +584,7 @@ onMounted(() => {
   fetchTeachers()
   fetchCategories()
   fetchLocations()
+  fetchResponsibleUsers()
 })
 
 const formatDate = value => formatVietnamDate(value, '')
@@ -594,6 +616,44 @@ const fetchTeachers = async () => {
     console.error('Không tải được danh sách giảng viên', err)
   }
 }
+
+const fetchResponsibleUsers = async () => {
+  if (!isManager.value) return
+  responsibleUsersLoading.value = true
+  try {
+    responsibleUsers.value = await userApi.getResponsibleUsers() || []
+  } catch (error) {
+    console.error('Không tải được danh sách người chịu trách nhiệm', error)
+    message.error('Không tải được danh sách người chịu trách nhiệm!')
+  } finally {
+    responsibleUsersLoading.value = false
+  }
+}
+
+const responsibleUserLabel = (user) => {
+  const name = user?.fullName?.trim() || user?.username || 'Chưa có tên'
+  return user?.universityCode ? `${name} (${user.universityCode})` : name
+}
+
+const currentResponsibleUser = () => responsibleUsers.value.find(user =>
+  (authStore.user?.id && Number(user.id) === Number(authStore.user.id))
+  || (authStore.user?.username && user.username === authStore.user.username))
+
+const currentUserId = () => currentResponsibleUser()?.id || authStore.user?.id || null
+
+const currentUserDisplayName = () => {
+  const user = currentResponsibleUser()
+  return user?.fullName?.trim()
+    || user?.username
+    || authStore.user?.fullName?.trim()
+    || authStore.user?.username
+    || ''
+}
+
+const responsibleUserIdForRecord = record => record?.responsibleUserId
+  || responsibleUsers.value.find(user =>
+    user.fullName === record?.responsiblePerson || user.username === record?.responsiblePerson)?.id
+  || null
 
 const fetchData = async () => {
   loading.value = true
@@ -630,9 +690,14 @@ watch(() => route.query.status, () => {
   fetchData()
 })
 
-const showAddModal = () => {
+const showAddModal = async () => {
   isEditMode.value = false
-  formData.value = emptyForm()
+  if (!responsibleUsers.value.length) await fetchResponsibleUsers()
+  formData.value = {
+    ...emptyForm(),
+    responsibleUserId: currentUserId(),
+    responsiblePerson: currentUserDisplayName()
+  }
   decisionFileList.value = []
   isFormVisible.value = true
 }
@@ -643,6 +708,8 @@ const showEditModal = (record) => {
   formData.value = {
     ...emptyForm(),
     ...record,
+    responsibleUserId: responsibleUserIdForRecord(record),
+    responsiblePerson: record.responsibleName || record.responsiblePerson || '',
     entryDate: record.entryDate ? dayjs(record.entryDate) : null
   }
   decisionFileList.value = []
@@ -689,7 +756,7 @@ const detailSections = computed(() => {
       key: 'management',
       title: 'Quản lý',
       fields: [
-        detailField('responsiblePerson', 'Người phụ trách', data.responsiblePerson),
+        detailField('responsiblePerson', 'Người phụ trách', data.responsibleName || data.responsiblePerson),
         detailField('status', 'Trạng thái', data.status)
       ]
     },
@@ -736,6 +803,9 @@ const buildEquipmentFormData = () => {
   }
   if (formData.value.locationChangeReason) payload.append('locationChangeReason', formData.value.locationChangeReason)
   payload.append('responsiblePerson', formData.value.responsiblePerson || '')
+  if (formData.value.responsibleUserId !== null && formData.value.responsibleUserId !== undefined) {
+    payload.append('responsibleUserId', formData.value.responsibleUserId)
+  }
   payload.append('invoiceNumber', formData.value.invoiceNumber || '')
   payload.append('status', formData.value.status || STATUS.AVAILABLE)
   if (formData.value.assetCategoryId !== null && formData.value.assetCategoryId !== undefined) {

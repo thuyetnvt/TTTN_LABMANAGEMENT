@@ -154,7 +154,7 @@ const columns = [
   { title: 'Nội dung báo cáo', dataIndex: 'description', key: 'description', width: 320 },
   { title: 'Bằng chứng', dataIndex: 'evidence', key: 'evidence', width: 110, align: 'center' },
   { title: 'Thời gian gửi', dataIndex: 'reportedAt', key: 'reportedAt', width: 180 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160, align: 'center' },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 180, align: 'center', className: 'status-column' },
   { title: 'Hành động', key: 'action', width: 130, align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }) }
 ]
 

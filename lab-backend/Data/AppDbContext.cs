@@ -120,6 +120,16 @@ namespace LabManagementAPI.Data
                     .WithMany()
                     .HasForeignKey(e => e.LocationNodeId)
                     .OnDelete(DeleteBehavior.SetNull);
+                entity.HasIndex(e => e.CreatedByUserId);
+                entity.HasIndex(e => e.ResponsibleUserId);
+                entity.HasOne(e => e.CreatedByUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(e => e.ResponsibleUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.ResponsibleUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<LocationNode>(entity =>
@@ -450,6 +460,8 @@ namespace LabManagementAPI.Data
             {
                 entity.Property(request => request.Reason).HasMaxLength(1000);
                 entity.Property(request => request.Status).HasMaxLength(50);
+                entity.Property(request => request.RejectionReason).HasMaxLength(2000);
+                entity.Property(request => request.RejectionStage).HasMaxLength(30);
                 entity.HasIndex(request => request.Status);
                 entity.HasOne(request => request.User)
                     .WithMany()
@@ -466,6 +478,10 @@ namespace LabManagementAPI.Data
                 entity.HasOne(request => request.ReceivedByUser)
                     .WithMany()
                     .HasForeignKey(request => request.ReceivedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(request => request.RejectedByUser)
+                    .WithMany()
+                    .HasForeignKey(request => request.RejectedByUserId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 

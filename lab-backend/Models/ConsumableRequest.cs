@@ -30,6 +30,13 @@ namespace LabManagementAPI.Models
         public DateTime? ReceivedAt { get; set; }
         public int? ReceivedByUserId { get; set; }
         public User? ReceivedByUser { get; set; }
+
+        public string RejectionReason { get; set; } = string.Empty;
+        public int? RejectedByUserId { get; set; }
+        public User? RejectedByUser { get; set; }
+        public DateTime? RejectedAt { get; set; }
+        public string RejectionStage { get; set; } = string.Empty;
+
         public ICollection<ConsumableRequestLotAllocation> LotAllocations { get; set; } = new List<ConsumableRequestLotAllocation>();
     }
 }

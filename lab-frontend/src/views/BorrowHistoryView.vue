@@ -46,6 +46,17 @@
           <template v-if="column.key === 'requestDate' || column.key === 'expectedReturnDate' || column.key === 'actualReturnDate'">
             {{ formatDate(record[column.key]) }}
           </template>
+          <template v-else-if="column.key === 'borrowerPhone'">
+            <a
+              v-if="record.borrowerPhone"
+              class="borrower-phone-link"
+              :href="phoneHref(record.borrowerPhone)"
+              :title="`Gọi ${borrowerLabel(record)}`"
+            >
+              {{ record.borrowerPhone }}
+            </a>
+            <span v-else class="muted">Chưa cập nhật</span>
+          </template>
           <template v-else-if="column.key === 'returnCondition'">
             <StatusBadge v-if="record.returnCondition" :status="record.returnCondition" type="returnCondition" />
           </template>
@@ -91,6 +102,7 @@
           </div>
           <div class="mobile-card-subtitle">{{ borrowerLabel(item) }} · {{ item.serial || 'Không có số seri' }}</div>
           <dl class="mobile-card-details">
+            <div><dt>Số điện thoại</dt><dd><a v-if="item.borrowerPhone" :href="phoneHref(item.borrowerPhone)">{{ item.borrowerPhone }}</a><span v-else>Chưa cập nhật</span></dd></div>
             <div><dt>Ngày đăng ký</dt><dd>{{ formatDate(item.requestDate) }}</dd></div>
             <div><dt>Hạn trả</dt><dd>{{ formatDate(item.expectedReturnDate) }}</dd></div>
             <div><dt>Ngày trả thực tế</dt><dd>{{ item.actualReturnDate ? formatDate(item.actualReturnDate) : '—' }}</dd></div>
@@ -239,10 +251,16 @@
     <a-modal v-model:open="isDetailsVisible" title="Chi tiết phiếu mượn/trả" :footer="null" width="760px">
       <a-descriptions v-if="selectedRecord" bordered size="small" :column="1">
         <a-descriptions-item label="Người mượn">{{ borrowerLabel(selectedRecord) }}</a-descriptions-item>
+        <a-descriptions-item label="Số điện thoại">
+          <a v-if="selectedRecord.borrowerPhone" :href="phoneHref(selectedRecord.borrowerPhone)">{{ selectedRecord.borrowerPhone }}</a>
+          <span v-else>Chưa cập nhật</span>
+        </a-descriptions-item>
         <a-descriptions-item label="Thiết bị">{{ selectedRecord.device }}</a-descriptions-item>
         <a-descriptions-item label="Hạn trả">{{ formatDate(selectedRecord.expectedReturnDate) }}</a-descriptions-item>
         <a-descriptions-item label="Ngày trả thực tế">{{ selectedRecord.actualReturnDate ? formatDate(selectedRecord.actualReturnDate) : 'Chưa trả' }}</a-descriptions-item>
         <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedRecord.status" type="borrow" :color="selectedRecord.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(selectedRecord)" /></a-descriptions-item>
+        <a-descriptions-item v-if="selectedRecord.managerDecisionNote" label="Lý do quản lý từ chối">{{ selectedRecord.managerDecisionNote }}</a-descriptions-item>
+        <a-descriptions-item v-if="selectedRecord.teacherDecisionNote" label="Lý do giảng viên từ chối bảo lãnh">{{ selectedRecord.teacherDecisionNote }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.holdExpiresAt" label="Thời hạn giữ chỗ">{{ formatDateTime(selectedRecord.holdExpiresAt) }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.cancellationReason" label="Lý do hủy">{{ selectedRecord.cancellationReason }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.cancelledAt" label="Thời điểm hủy">{{ formatDateTime(selectedRecord.cancelledAt) }}</a-descriptions-item>
@@ -335,6 +353,10 @@ const issueTypeOptions = [
 ]
 
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
+const phoneHref = phone => {
+  const normalized = String(phone || '').replace(/[^\d+]/g, '')
+  return normalized ? `tel:${normalized}` : '#'
+}
 const formatFileSize = bytes => {
   if (!bytes) return '0 KB'
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -357,6 +379,7 @@ const borrowStatusOptions = [
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
+  { title: 'Số điện thoại', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 175, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 170 },

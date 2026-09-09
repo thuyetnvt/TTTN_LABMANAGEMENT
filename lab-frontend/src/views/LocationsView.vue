@@ -137,7 +137,7 @@ const columns = [
   { title: 'Loại', key: 'type', sortKey: 'type', sortable: true, filterType: 'select', filterKey: 'type', filterOptions: typeOptions },
   { title: 'Vị trí cha', key: 'parent', sortKey: 'parent', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm vị trí cha...' },
   { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount', sortKey: 'equipmentCount', sortable: true },
-  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, filterType: 'select', filterKey: 'status', filterOptions: [
+  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 170, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'ACTIVE', label: 'Đang sử dụng' },
     { value: 'INACTIVE', label: 'Ngừng sử dụng' }
   ] },

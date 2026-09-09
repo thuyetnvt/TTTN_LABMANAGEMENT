@@ -216,7 +216,8 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { message, Upload } from 'ant-design-vue'
 import { DeleteOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '../stores/authStore'
@@ -240,6 +241,7 @@ const tablePagination = reactive({
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
+const route = useRoute()
 
 const dataSource = ref([])
 const equipments = ref([])
@@ -247,7 +249,8 @@ const consumables = ref([])
 const loading = ref(false)
 const lookupLoading = ref(false)
 const searchQuery = ref('')
-const statusFilter = ref(undefined)
+const mapRouteStatus = value => value && value !== 'all' ? value : undefined
+const statusFilter = ref(mapRouteStatus(route.query.status))
 const sortState = reactive({ field: undefined, order: undefined })
 const maintenanceStatusOptions = [
   { value: STATUS.MAINTENANCE_IN_PROGRESS, label: 'Đang bảo trì' },
@@ -283,14 +286,20 @@ const columns = [
   { title: 'Nội dung', dataIndex: 'description', key: 'description', sortKey: 'description', sortable: true, width: 320, filterType: 'search', filterPlaceholder: 'Tìm nội dung...' },
   { title: 'Người thực hiện', dataIndex: 'performedBy', key: 'performedBy', sortKey: 'performedBy', sortable: true, width: 220, filterType: 'search', filterPlaceholder: 'Tìm người thực hiện...' },
   { title: 'Chi phí', dataIndex: 'cost', key: 'cost', sortKey: 'cost', sortable: true, width: 120 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, width: 160, filterType: 'select', filterKey: 'status', filterOptions: maintenanceStatusOptions },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, width: 180, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: maintenanceStatusOptions },
   { title: 'Kết quả', dataIndex: 'result', key: 'result', sortKey: 'result', sortable: true, width: 280, filterType: 'search', filterPlaceholder: 'Tìm kết quả...' },
-  { title: 'Tình trạng sau bảo trì', dataIndex: 'resultStatus', key: 'resultStatus', sortKey: 'resultStatus', sortable: true, width: 220 },
+  { title: 'Tình trạng sau bảo trì', dataIndex: 'resultStatus', key: 'resultStatus', sortKey: 'resultStatus', sortable: true, width: 220, className: 'status-column' },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 120 }
 ]
 
 
 onMounted(() => {
+  fetchData()
+})
+
+watch(() => route.query.status, () => {
+  statusFilter.value = mapRouteStatus(route.query.status)
+  tablePagination.current = 1
   fetchData()
 })
 

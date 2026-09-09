@@ -288,6 +288,43 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task Manager_reject_requires_reason_and_records_it()
+    {
+        await using var context = CreateSqliteContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(CreateEquipment(1));
+            context.BorrowRecords.Add(CreateBorrowRecord(25, 1, BorrowStatuses.Pending, 1));
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.LabHead);
+            var emptyReasonResult = await controller.RejectRequest(
+                25,
+                new BorrowController.DecisionNoteDto { Note = "   " },
+                CancellationToken.None);
+
+            Assert.IsType<BadRequestObjectResult>(emptyReasonResult);
+            Assert.Equal(BorrowStatuses.Pending, (await context.BorrowRecords.AsNoTracking().SingleAsync()).Status);
+
+            var result = await controller.RejectRequest(
+                25,
+                new BorrowController.DecisionNoteDto { Note = "Thiết bị đã được đăng ký cho buổi thực hành khác." },
+                CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            var record = await context.BorrowRecords.AsNoTracking().Include(item => item.Details).SingleAsync();
+            Assert.Equal(BorrowStatuses.Rejected, record.Status);
+            Assert.Equal("Thiết bị đã được đăng ký cho buổi thực hành khác.", record.ManagerDecisionNote);
+            Assert.Equal(BorrowStatuses.Rejected, record.Details.Single().Status);
+            Assert.Contains(await context.BorrowStatusHistories.AsNoTracking().ToListAsync(), history =>
+                history.Note == record.ManagerDecisionNote && history.ToStatus == BorrowStatuses.Rejected);
+        }
+    }
+
+    [Fact]
     public async Task Student_history_does_not_return_another_users_record()
     {
         await using var context = CreateInMemoryContext();
