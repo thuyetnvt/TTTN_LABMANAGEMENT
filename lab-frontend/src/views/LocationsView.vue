@@ -10,11 +10,11 @@
 
     <a-card :bordered="false">
       <div class="location-filters">
-        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm mã, tên vị trí..." style="width: 260px" @search="applyFilters" />
-        <a-select v-model:value="typeFilter" allow-clear placeholder="Loại vị trí" style="width: 180px" @change="applyFilters">
+        <a-input-search class="location-filter-control" v-model:value="searchQuery" allow-clear placeholder="Tìm mã, tên vị trí..." @search="applyFilters" />
+        <a-select class="location-filter-control" v-model:value="typeFilter" allow-clear placeholder="Loại vị trí" @change="applyFilters">
           <a-select-option v-for="option in typeOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
         </a-select>
-        <a-select v-model:value="activeFilter" allow-clear placeholder="Trạng thái" style="width: 170px" @change="applyFilters">
+        <a-select class="location-filter-control" v-model:value="activeFilter" allow-clear placeholder="Trạng thái" @change="applyFilters">
           <a-select-option value="ACTIVE">Đang sử dụng</a-select-option>
           <a-select-option value="INACTIVE">Ngừng sử dụng</a-select-option>
         </a-select>
@@ -244,5 +244,23 @@ onMounted(fetchLocations)
 .page-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 20px; }
 .page-heading h2 { margin: 0 0 6px; }
 .page-heading p { margin: 0; color: #64748b; }
+.location-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.location-filter-control {
+  flex: 0 1 220px;
+  width: 220px;
+  min-width: 0;
+}
 @media (max-width: 640px) { .page-heading { flex-direction: column; } }
+@media (max-width: 640px) {
+  .location-filter-control {
+    flex-basis: 100%;
+    width: 100%;
+  }
+}
 </style>
