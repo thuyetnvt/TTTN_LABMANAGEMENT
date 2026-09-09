@@ -150,6 +150,74 @@ public sealed class ReportsControllerTests
     }
 
     [Fact]
+    public async Task Summary_reserved_equipment_recovers_legacy_multi_asset_holder_and_hold_expiry()
+    {
+        await using var context = CreateContext();
+        var now = DateTime.UtcNow;
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Username = "student01",
+            FullName = "Nguyễn Văn A",
+            UniversityCode = "SV001",
+            Role = Roles.Student,
+            IsActive = true
+        });
+        context.Equipments.AddRange(
+            new Equipment
+            {
+                Id = 1,
+                AssetCode = "EQ-001",
+                QrToken = "qr-001",
+                Name = "Thiết bị giữ chỗ 1",
+                Serial = "SN-001",
+                Model = "M1",
+                Location = "Lab",
+                Status = EquipmentStatuses.BorrowPending,
+                CreatedAt = now
+            },
+            new Equipment
+            {
+                Id = 2,
+                AssetCode = "EQ-002",
+                QrToken = "qr-002",
+                Name = "Thiết bị giữ chỗ 2",
+                Serial = "SN-002",
+                Model = "M2",
+                Location = "Lab",
+                Status = EquipmentStatuses.BorrowPending,
+                CreatedAt = now
+            });
+        context.BorrowRecords.Add(new BorrowRecord
+        {
+            Id = 1,
+            UserId = 1,
+            BorrowDate = now.AddHours(-1),
+            ExpectedReturnDate = now.AddDays(2),
+            Purpose = "Phiếu cũ nhiều tài sản",
+            Status = BorrowStatuses.Approved,
+            Details =
+            [
+                new BorrowRequestDetail { EquipmentId = 1, Status = BorrowStatuses.Pending },
+                new BorrowRequestDetail { EquipmentId = 2, Status = BorrowStatuses.Pending }
+            ]
+        });
+        await context.SaveChangesAsync();
+
+        var result = Assert.IsType<OkObjectResult>(await new ReportsController(context)
+            .Summary(null, null, null, null, CancellationToken.None));
+        var rows = JsonSerializer.SerializeToElement(result.Value).GetProperty("reservedEquipment");
+
+        Assert.Equal(2, rows.GetArrayLength());
+        foreach (var row in rows.EnumerateArray())
+        {
+            Assert.Equal("Nguyễn Văn A", row.GetProperty("reservedByName").GetString());
+            Assert.Equal("SV001", row.GetProperty("reservedByCode").GetString());
+            Assert.NotEqual(JsonValueKind.Null, row.GetProperty("holdExpiresAt").ValueKind);
+        }
+    }
+
+    [Fact]
     public async Task Summary_includes_overdue_return_processing_assets_in_borrowed_list()
     {
         await using var context = CreateContext();

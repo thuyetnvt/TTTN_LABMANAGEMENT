@@ -2,6 +2,7 @@ using LabManagementAPI.Data;
 using LabManagementAPI.Models;
 using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
@@ -17,8 +18,13 @@ namespace LabManagementAPI.Controllers;
 public class ReportsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IConfiguration? _configuration;
 
-    public ReportsController(AppDbContext context) => _context = context;
+    public ReportsController(AppDbContext context, IConfiguration? configuration = null)
+    {
+        _context = context;
+        _configuration = configuration;
+    }
 
     [HttpGet("summary")]
     public async Task<IActionResult> Summary(
@@ -35,7 +41,11 @@ public class ReportsController : ControllerBase
             .ToListAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var equipmentIds = equipments.Select(item => item.Id).ToHashSet();
-        var reservedEquipment = await GetReservedEquipmentAsync(equipments, now, cancellationToken);
+        var reservedEquipment = await GetReservedEquipmentAsync(
+            equipments,
+            now,
+            GetApprovedHoldHours(),
+            cancellationToken);
         var maintenanceQuery = FilterMaintenance(from, to, equipmentIds).AsNoTracking();
         var maintenanceCost = await maintenanceQuery.SumAsync(record => (decimal?)record.Cost, cancellationToken) ?? 0;
         var maintenance = await maintenanceQuery
@@ -437,6 +447,7 @@ public class ReportsController : ControllerBase
     private async Task<List<ReservedEquipmentRow>> GetReservedEquipmentAsync(
         IReadOnlyCollection<Equipment> equipments,
         DateTime nowUtc,
+        int holdDurationHours,
         CancellationToken cancellationToken)
     {
         var pendingEquipments = equipments
@@ -450,13 +461,16 @@ public class ReportsController : ControllerBase
             .Include(record => record.Equipment)
             .Include(record => record.Details)
                 .ThenInclude(detail => detail.Equipment)
+            .Include(record => record.StatusHistory)
             .Where(record => record.Status == BorrowStatuses.Approved
-                && (!record.HoldExpiresAt.HasValue || record.HoldExpiresAt.Value > nowUtc)
                 && ((record.EquipmentId.HasValue && equipmentIds.Contains(record.EquipmentId.Value))
-                    || record.Details.Any(detail => equipmentIds.Contains(detail.EquipmentId)
-                        && detail.Status == BorrowStatuses.Approved)))
+                    || record.Details.Any(detail => equipmentIds.Contains(detail.EquipmentId))))
             .OrderByDescending(record => record.BorrowDate)
             .ToListAsync(cancellationToken);
+
+        records = records
+            .Where(record => !record.HoldExpiresAt.HasValue || record.HoldExpiresAt.Value > nowUtc)
+            .ToList();
 
         var holders = new Dictionary<int, ReservedHolder>();
         foreach (var record in records)
@@ -464,18 +478,16 @@ public class ReportsController : ControllerBase
             var holder = new ReservedHolder(
                 GetUserDisplayName(record.User),
                 GetUserCode(record.User),
-                record.HoldExpiresAt);
+                ResolveHoldExpiry(record, holdDurationHours));
 
             foreach (var detail in record.Details.Where(detail =>
-                         detail.Status == BorrowStatuses.Approved
-                         && equipmentIds.Contains(detail.EquipmentId)
+                         equipmentIds.Contains(detail.EquipmentId)
                          && detail.Equipment?.Status == EquipmentStatuses.BorrowPending))
             {
                 holders.TryAdd(detail.EquipmentId, holder);
             }
 
-            if (record.Details.Count == 0
-                && record.EquipmentId.HasValue
+            if (record.EquipmentId.HasValue
                 && equipmentIds.Contains(record.EquipmentId.Value)
                 && record.Equipment?.Status == EquipmentStatuses.BorrowPending)
             {
@@ -501,6 +513,25 @@ public class ReportsController : ControllerBase
                     holder?.HoldExpiresAt);
             })
             .ToList();
+    }
+
+    private int GetApprovedHoldHours()
+        => Math.Clamp(_configuration?.GetValue("Borrow:ApprovedHoldHours", 24) ?? 24, 1, 720);
+
+    private static DateTime ResolveHoldExpiry(BorrowRecord record, int holdDurationHours)
+    {
+        if (record.HoldExpiresAt.HasValue)
+        {
+            return DateTime.SpecifyKind(record.HoldExpiresAt.Value, DateTimeKind.Utc);
+        }
+
+        var approvedAt = record.StatusHistory
+            .Where(history => history.ToStatus == BorrowStatuses.Approved)
+            .OrderByDescending(history => history.CreatedAt)
+            .Select(history => (DateTime?)history.CreatedAt)
+            .FirstOrDefault()
+            ?? record.BorrowDate;
+        return DateTime.SpecifyKind(approvedAt, DateTimeKind.Utc).AddHours(holdDurationHours);
     }
 
     private static string? GetUserDisplayName(User? user)
