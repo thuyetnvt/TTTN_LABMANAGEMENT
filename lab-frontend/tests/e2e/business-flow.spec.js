@@ -104,6 +104,7 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
     headers: headers(student.token),
     data: {
       expectedReturnDate: new Date(Date.now() + 7 * 86400000).toISOString(),
+      contactPhone: '0987654321',
       purpose: 'Kiểm thử luồng mượn nhiều tài sản',
       teacherId: teacherUser.id,
       items: equipment.map(item => ({ equipmentId: item.id, note: 'Kiểm thử E2E' }))
