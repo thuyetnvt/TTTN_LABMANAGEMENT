@@ -79,7 +79,7 @@
               Hủy phiếu
             </a-button>
             <a-button
-              v-else-if="record.canConfirmHandover"
+              v-else-if="canOpenHandover(record)"
               type="primary"
               size="small"
               @click="openHandover(record)"
@@ -113,7 +113,7 @@
             <a-button :loading="isReminding(item.id)" @click="handleRemind(item)">Nhắc trả</a-button>
           </div>
           <a-button v-else-if="item.canCancel" danger block @click="openCancelModal(item)">Hủy phiếu</a-button>
-          <a-button v-else-if="item.canConfirmHandover" type="primary" block @click="openHandover(item)">Xem & xác nhận nhận</a-button>
+          <a-button v-else-if="canOpenHandover(item)" type="primary" block @click="openHandover(item)">Xem & xác nhận nhận</a-button>
           <a-button v-else block @click="openDetails(item)"><EyeOutlined /> Xem chi tiết</a-button>
         </template>
       </ResponsiveDataList>
@@ -401,6 +401,13 @@ const borrowWorkflowLabel = record => {
   }
   return ''
 }
+
+const canOpenHandover = record => Boolean(
+  record?.canConfirmHandover
+  || (statusMatches(record?.status, STATUS.APPROVED)
+    && record?.handover
+    && !record.handover.confirmedAt)
+)
 
 const openDetails = record => {
   selectedRecord.value = record

@@ -316,6 +316,15 @@ test('luồng bàn giao cho phép báo sai lệch và khóa xác nhận khi đan
   assert.match(routerSource, /name: 'HandoverIssues'/)
 })
 
+test('người mượn luôn mở được biên bản đang chờ xác nhận nhận tài sản', () => {
+  const source = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /v-else-if="canOpenHandover\(record\)"/)
+  assert.match(source, /v-else-if="canOpenHandover\(item\)"/)
+  assert.match(source, /const canOpenHandover = record => Boolean\([\s\S]*?record\?\.canConfirmHandover[\s\S]*?STATUS\.APPROVED[\s\S]*?record\?\.handover[\s\S]*?!record\.handover\.confirmedAt/)
+  assert.match(source, /selectedHandover\?\.canConfirm[\s\S]*?confirmReceipt/)
+})
+
 test('kiểm kê hiển thị đã đối soát cho tài sản đã quét bình thường', () => {
   const source = readFileSync(new URL('../src/views/InventoryView.vue', import.meta.url), 'utf8')
 
