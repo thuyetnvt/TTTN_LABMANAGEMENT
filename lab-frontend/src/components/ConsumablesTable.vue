@@ -213,7 +213,18 @@
           </a-col>
           <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Nhà cung cấp"><a-input v-model:value="formData.supplier" /></a-form-item></a-col>
           <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Giá nhập mỗi đơn vị"><a-input-number v-model:value="formData.unitCost" :min="0" style="width: 100%" /></a-form-item></a-col>
-          <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Vị trí lưu"><a-input v-model:value="formData.storageLocation" /></a-form-item></a-col>
+          <a-col v-if="!isEditMode" :xs="24" :sm="12">
+            <a-form-item label="Vị trí lưu">
+              <LocationTreeSelect
+                v-model:value="formStorageLocationNodeId"
+                :nodes="activeLocations"
+                show-search
+                tree-default-expand-all
+                placeholder="Chọn vị trí lưu"
+                @change="syncFormStorageLocation"
+              />
+            </a-form-item>
+          </a-col>
           <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Số lô"><a-input v-model:value="formData.lotNumber" placeholder="Bắt buộc khi có số lượng" /></a-form-item></a-col>
           <a-col v-if="!isEditMode" :xs="24" :sm="12"><a-form-item label="Hạn sử dụng"><a-date-picker v-model:value="formData.expiryDate" style="width: 100%" /></a-form-item></a-col>
         </a-row>
@@ -330,7 +341,18 @@
           <a-col :span="12"><a-form-item label="Nhà cung cấp"><a-input v-model:value="lotForm.supplier" /></a-form-item></a-col>
           <a-col :span="12"><a-form-item label="Số hóa đơn"><a-input v-model:value="lotForm.invoiceNumber" /></a-form-item></a-col>
           <a-col :span="12"><a-form-item label="Đơn giá"><a-input-number v-model:value="lotForm.unitCost" :min="0" style="width: 100%" /></a-form-item></a-col>
-          <a-col :span="12"><a-form-item label="Vị trí lưu"><a-input v-model:value="lotForm.storageLocation" /></a-form-item></a-col>
+          <a-col :span="12">
+            <a-form-item label="Vị trí lưu">
+              <LocationTreeSelect
+                v-model:value="lotStorageLocationNodeId"
+                :nodes="activeLocations"
+                show-search
+                tree-default-expand-all
+                placeholder="Chọn vị trí lưu"
+                @change="syncLotStorageLocation"
+              />
+            </a-form-item>
+          </a-col>
         </a-row>
       </a-form>
     </a-modal>
@@ -345,23 +367,26 @@ import { message, Modal } from 'ant-design-vue'
 import { consumableApi } from '../api/consumableApi'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { assetCategoryApi } from '../api/assetCategoryApi'
+import { locationApi } from '../api/locationApi'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../stores/authStore'
 import { isAdminRole, isBorrowerRole, isManagerRole } from '../constants/business'
 import { DatabaseOutlined, DeleteOutlined, EditOutlined, HistoryOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
-import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import { createTablePagination } from '../utils/tablePagination'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatVietnamDate, formatVietnamDateTime as formatVietnamDateTimeValue } from '../utils/dateTime'
+import LocationTreeSelect from './LocationTreeSelect.vue'
 import TableColumnFilter from './TableColumnFilter.vue'
 
+const consumablesPaginationDefaults = { defaultPageSize: 10, pageSize: 10 }
 const tablePagination = reactive({
-  ...createTablePagination(),
+  ...createTablePagination(consumablesPaginationDefaults),
   current: 1,
-  pageSize: TABLE_PAGE_SIZE,
+  pageSize: 10,
   total: 0
 })
-const historyPagination = createTablePagination()
-const lotPagination = createTablePagination()
+const historyPagination = createTablePagination(consumablesPaginationDefaults)
+const lotPagination = createTablePagination(consumablesPaginationDefaults)
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)
@@ -369,6 +394,7 @@ const route = useRoute()
 
 const dataSource = ref([])
 const categories = ref([])
+const locations = ref([])
 const responsibleUsers = ref([])
 const loading = ref(false)
 const submitting = ref(false)
@@ -377,6 +403,7 @@ const stockFilter = ref(undefined)
 const categoryFilter = ref(undefined)
 const sortState = reactive({ field: undefined, order: undefined })
 const availableStock = record => Number(record?.availableQuantity ?? Math.max(0, Number(record?.quantity || 0) - Number(record?.reservedQuantity || 0)))
+const activeLocations = computed(() => locations.value.filter(location => location.isActive))
 
 const columns = computed(() => {
   const commonColumns = [
@@ -460,6 +487,7 @@ const isFormVisible = ref(false)
 const isEditMode = ref(false)
 const currentEditId = ref(null)
 const formData = ref(emptyForm())
+const formStorageLocationNodeId = ref(null)
 
 const isRequestModalVisible = ref(false)
 const requestSubmitting = ref(false)
@@ -477,6 +505,7 @@ const isLotFormVisible = ref(false)
 const isLotEditMode = ref(false)
 const currentLotId = ref(null)
 const lotSubmitting = ref(false)
+const lotStorageLocationNodeId = ref(null)
 
 const emptyLotForm = () => ({
   lotNumber: '',
@@ -494,6 +523,7 @@ onMounted(() => {
   stockFilter.value = typeof route.query.stock === 'string' ? route.query.stock : undefined
   fetchData()
   fetchCategories()
+  fetchLocations()
   if (isManagerRole(role.value)) fetchResponsibleUsers()
 })
 
@@ -508,6 +538,32 @@ const fetchCategories = async () => {
   } catch {
     message.error('Lỗi khi tải danh mục phân loại!')
   }
+}
+
+const fetchLocations = async () => {
+  try {
+    locations.value = await locationApi.getAll() || []
+  } catch {
+    message.error('Lỗi khi tải danh sách vị trí lưu!')
+  }
+}
+
+const locationIdFromName = (name) => {
+  const normalizedName = String(name || '').trim().toLocaleLowerCase('vi-VN')
+  if (!normalizedName) return null
+  return activeLocations.value.find(location =>
+    String(location.name || '').trim().toLocaleLowerCase('vi-VN') === normalizedName
+  )?.id || null
+}
+
+const syncFormStorageLocation = (locationNodeId) => {
+  const location = activeLocations.value.find(item => item.id === locationNodeId)
+  formData.value.storageLocation = location?.name || ''
+}
+
+const syncLotStorageLocation = (locationNodeId) => {
+  const location = activeLocations.value.find(item => item.id === locationNodeId)
+  lotForm.value.storageLocation = location?.name || ''
 }
 
 const fetchResponsibleUsers = async () => {
@@ -562,8 +618,10 @@ const applyColumnSort = (column, order) => {
   fetchData()
 }
 
-const showAddModal = () => {
+const showAddModal = async () => {
+  if (!locations.value.length) await fetchLocations()
   isEditMode.value = false
+  formStorageLocationNodeId.value = null
   formData.value = {
     ...emptyForm(),
     responsibleUserId: currentUserId()
@@ -638,7 +696,8 @@ const showLotsModal = async record => {
   await fetchLots()
 }
 
-const showAddLotModal = () => {
+const showAddLotModal = async () => {
+  if (!locations.value.length) await fetchLocations()
   isLotEditMode.value = false
   currentLotId.value = null
   lotForm.value = {
@@ -646,10 +705,12 @@ const showAddLotModal = () => {
     supplier: currentLotConsumable.value?.supplier || '',
     storageLocation: currentLotConsumable.value?.storageLocation || ''
   }
+  lotStorageLocationNodeId.value = locationIdFromName(lotForm.value.storageLocation)
   isLotFormVisible.value = true
 }
 
-const showEditLotModal = record => {
+const showEditLotModal = async record => {
+  if (!locations.value.length) await fetchLocations()
   isLotEditMode.value = true
   currentLotId.value = record.id
   lotForm.value = {
@@ -662,6 +723,7 @@ const showEditLotModal = record => {
     unitCost: record.unitCost,
     storageLocation: record.storageLocation || ''
   }
+  lotStorageLocationNodeId.value = locationIdFromName(lotForm.value.storageLocation)
   isLotFormVisible.value = true
 }
 

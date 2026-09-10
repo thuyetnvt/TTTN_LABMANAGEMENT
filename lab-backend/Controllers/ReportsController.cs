@@ -218,7 +218,7 @@ public class ReportsController : ControllerBase
         }
 
         var borrowedSheet = package.Workbook.Worksheets.Add("DangMuon");
-        WriteHeaders(borrowedSheet, ["Người mượn", "Số điện thoại", "Thiết bị", "Số seri", "Ngày trả dự kiến", "Quá hạn"]);
+        WriteHeaders(borrowedSheet, ["Người mượn", "Số điện thoại liên hệ", "Thiết bị", "Số seri", "Ngày trả dự kiến", "Quá hạn"]);
         for (var index = 0; index < borrowed.Count; index++)
         {
             var item = borrowed[index];
@@ -419,7 +419,7 @@ public class ReportsController : ControllerBase
                     record.Id,
                     detail.EquipmentId,
                     GetUserDisplayName(record.User) ?? "—",
-                    record.User?.Phone?.Trim() ?? string.Empty,
+                    record.ContactPhone.Trim(),
                     detail.Equipment!.Name,
                     detail.Equipment.Serial,
                     record.ExpectedReturnDate,
@@ -431,7 +431,7 @@ public class ReportsController : ControllerBase
                     record.Id,
                     record.Equipment.Id,
                     GetUserDisplayName(record.User) ?? "—",
-                    record.User?.Phone?.Trim() ?? string.Empty,
+                    record.ContactPhone.Trim(),
                     record.Equipment.Name,
                     record.Equipment.Serial,
                     record.ExpectedReturnDate,

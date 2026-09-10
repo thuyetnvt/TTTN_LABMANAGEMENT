@@ -252,15 +252,15 @@ onMounted(fetchLocations)
   margin-bottom: 16px;
 }
 .location-filter-control {
-  flex: 0 1 220px;
-  width: 220px;
+  flex: 0 0 320px;
+  width: 320px !important;
   min-width: 0;
 }
 @media (max-width: 640px) { .page-heading { flex-direction: column; } }
 @media (max-width: 640px) {
   .location-filter-control {
-    flex-basis: 100%;
-    width: 100%;
+    flex: 1 1 100%;
+    width: 100% !important;
   }
 }
 </style>

@@ -56,7 +56,7 @@
           <div class="mobile-approval-device">{{ item.device }}</div>
           <div v-for="detail in item.details || []" :key="detail.equipmentId" class="detail-line">{{ detail.equipmentName }} — {{ detail.serial }}</div>
           <dl class="mobile-approval-details">
-            <div><dt>Số điện thoại</dt><dd><a v-if="item.borrowerPhone" :href="phoneHref(item.borrowerPhone)">{{ item.borrowerPhone }}</a><span v-else>Chưa cập nhật</span></dd></div>
+            <div><dt>Số điện thoại liên hệ</dt><dd><a v-if="item.borrowerPhone" :href="phoneHref(item.borrowerPhone)">{{ item.borrowerPhone }}</a><span v-else>Chưa cập nhật</span></dd></div>
             <div><dt>Ngày đăng ký</dt><dd>{{ formatDate(item.requestDate) }}</dd></div>
             <div><dt>Dự kiến trả</dt><dd>{{ formatDate(item.returnDate) }}</dd></div>
             <div><dt>Mục đích</dt><dd>{{ item.purpose || '—' }}</dd></div>
@@ -120,7 +120,7 @@ const phoneHref = phone => {
 
 const columns = [
   { title: 'Sinh viên', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm sinh viên...' },
-  { title: 'Số điện thoại', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
+  { title: 'SĐT liên hệ', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true },
   { title: 'Dự kiến trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true },

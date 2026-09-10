@@ -209,6 +209,7 @@ namespace LabManagementAPI.Data
             modelBuilder.Entity<BorrowRecord>(entity =>
             {
                 entity.Property(record => record.Purpose).HasMaxLength(1000);
+                entity.Property(record => record.ContactPhone).HasMaxLength(30);
                 entity.Property(record => record.Status).HasMaxLength(50);
                 entity.Property(record => record.TeacherDecisionNote).HasMaxLength(2000);
                 entity.Property(record => record.ManagerDecisionNote).HasMaxLength(2000);

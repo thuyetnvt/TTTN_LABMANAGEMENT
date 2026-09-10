@@ -334,9 +334,10 @@ import { formatVietnamDate, formatVietnamDateTime } from '../utils/dateTime'
 import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { sortTableRows } from '../utils/tableSort'
 
-const borrowPagination = createTablePagination()
-const responsiblePagination = createTablePagination()
-const consumablePagination = createTablePagination()
+const reportPaginationDefaults = { defaultPageSize: 10, pageSize: 10 }
+const borrowPagination = createTablePagination(reportPaginationDefaults)
+const responsiblePagination = createTablePagination(reportPaginationDefaults)
+const consumablePagination = createTablePagination(reportPaginationDefaults)
 const reportTableFilters = reactive({
   borrowSearch: '',
   borrowStatus: undefined,
@@ -380,7 +381,7 @@ const assetStatusOrder = [
 
 const borrowColumns = [
   { title: 'Người mượn', dataIndex: 'user', key: 'user', width: 150, ellipsis: true, sortable: true, sortKey: 'user', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người mượn...' },
-  { title: 'Số điện thoại', dataIndex: 'phone', key: 'phone', width: 150, sortable: true, sortKey: 'phone', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
+  { title: 'SĐT liên hệ', dataIndex: 'phone', key: 'phone', width: 150, sortable: true, sortKey: 'phone', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'equipment', key: 'equipment', width: 220, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 130, sortable: true, sortKey: 'expectedReturnDate' },
   { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 190, className: 'status-column', sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [

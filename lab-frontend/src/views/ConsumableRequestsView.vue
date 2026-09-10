@@ -275,13 +275,13 @@ import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { STATUS, isManagerRole, statusMatches } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
-import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import { createTablePagination } from '../utils/tablePagination'
 import { formatVietnamDate as formatDate, formatVietnamDateTime as formatDateTime } from '../utils/dateTime'
 
 const tablePagination = reactive({
-  ...createTablePagination(),
+  ...createTablePagination({ defaultPageSize: 10, pageSize: 10 }),
   current: 1,
-  pageSize: TABLE_PAGE_SIZE,
+  pageSize: 10,
   total: 0
 })
 const authStore = useAuthStore()

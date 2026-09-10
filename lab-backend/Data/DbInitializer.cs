@@ -398,6 +398,11 @@ public static class DbInitializer
             return existing;
         }
 
+        var contactPhone = await context.Users
+            .Where(user => user.Id == userId)
+            .Select(user => user.Phone)
+            .FirstOrDefaultAsync() ?? string.Empty;
+
         var record = new BorrowRecord
         {
             UserId = userId,
@@ -407,6 +412,7 @@ public static class DbInitializer
             ExpectedReturnDate = expectedReturnDate,
             ActualReturnDate = actualReturnDate,
             Purpose = purpose,
+            ContactPhone = contactPhone,
             Status = status,
             ReturnCondition = returnCondition,
             ReturnInspectionNote = returnInspectionNote,

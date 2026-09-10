@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using LabManagementAPI.Data;
 using LabManagementAPI.Dtos;
 using LabManagementAPI.Models;
@@ -63,6 +64,7 @@ public class BorrowController : ControllerBase
         public List<BorrowItemDto> Items { get; set; } = new();
         public DateTime ExpectedReturnDate { get; set; }
         public string Purpose { get; set; } = string.Empty;
+        public string ContactPhone { get; set; } = string.Empty;
         public int? TeacherId { get; set; }
     }
 
@@ -110,7 +112,8 @@ public class BorrowController : ControllerBase
     {
         var userId = GetCurrentUserId();
         var role = User.FindFirstValue(ClaimTypes.Role);
-        request.Purpose = request.Purpose.Trim();
+        request.Purpose = request.Purpose?.Trim() ?? string.Empty;
+        request.ContactPhone = request.ContactPhone?.Trim() ?? string.Empty;
         request.Items ??= new();
 
         if (request.EquipmentId.HasValue && request.EquipmentId.Value > 0 && request.Items.Count == 0)
@@ -136,6 +139,12 @@ public class BorrowController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Purpose) || request.Purpose.Length > 1000)
         {
             return BadRequest(new { message = "Mục đích mượn là bắt buộc và không vượt quá 1000 ký tự." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ContactPhone)
+            || !Regex.IsMatch(request.ContactPhone, @"^[0-9]{10}$"))
+        {
+            return BadRequest(new { message = "Số điện thoại liên hệ là bắt buộc và phải gồm đúng 10 chữ số." });
         }
 
         if (role == Roles.Teacher)
@@ -195,6 +204,7 @@ public class BorrowController : ControllerBase
             BorrowDate = DateTime.UtcNow,
             ExpectedReturnDate = request.ExpectedReturnDate,
             Purpose = request.Purpose,
+            ContactPhone = request.ContactPhone,
             Status = initialStatus,
             Details = requestedItems.Select(item => new BorrowRequestDetail
             {
@@ -284,7 +294,7 @@ public class BorrowController : ControllerBase
             serial = item.Equipment?.Serial ?? string.Empty,
             assetCode = item.Equipment?.AssetCode ?? string.Empty,
             borrowerName = item.User!.FullName,
-            borrowerPhone = item.User.Phone,
+            borrowerPhone = item.ContactPhone,
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
             purpose = SeedDisplayText.Clean(item.Purpose),
@@ -336,7 +346,7 @@ public class BorrowController : ControllerBase
             query = query.Where(item =>
                 item.User!.Username.Contains(search)
                 || item.User.FullName.Contains(search)
-                || item.User.Phone.Contains(search)
+                || item.ContactPhone.Contains(search)
                 || item.Purpose.Contains(search)
                 || (item.Equipment != null
                     && (item.Equipment.Name.Contains(search)
@@ -380,7 +390,7 @@ public class BorrowController : ControllerBase
             serial = item.Equipment?.Serial ?? string.Empty,
             assetCode = item.Equipment?.AssetCode ?? string.Empty,
             borrowerName = item.User.FullName,
-            borrowerPhone = item.User.Phone,
+            borrowerPhone = item.ContactPhone,
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
             purpose = SeedDisplayText.Clean(item.Purpose),
@@ -461,7 +471,7 @@ public class BorrowController : ControllerBase
                 id = item.Id,
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
-                borrowerPhone = item.User.Phone,
+                borrowerPhone = item.ContactPhone,
                 device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
                 equipmentId = item.EquipmentId,
                 serial = item.Equipment != null ? item.Equipment.Serial : string.Empty,
@@ -563,7 +573,7 @@ public class BorrowController : ControllerBase
             query = query.Where(item =>
                 item.User!.Username.Contains(search)
                 || item.User.FullName.Contains(search)
-                || item.User.Phone.Contains(search)
+                || item.ContactPhone.Contains(search)
                 || item.Purpose.Contains(search)
                 || (item.Equipment != null
                     && (item.Equipment.Name.Contains(search) || item.Equipment.Serial.Contains(search)))
@@ -633,7 +643,7 @@ public class BorrowController : ControllerBase
                 id = item.Id,
                 student = item.User!.Username,
                 borrowerName = item.User!.FullName,
-                borrowerPhone = item.User.Phone,
+                borrowerPhone = item.ContactPhone,
                 device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
                 equipmentId = item.EquipmentId,
                 serial = item.Equipment?.Serial ?? string.Empty,
@@ -724,7 +734,7 @@ public class BorrowController : ControllerBase
             id = item.Id,
             student = item.User!.Username,
             borrowerName = item.User!.FullName,
-            borrowerPhone = item.User.Phone,
+            borrowerPhone = item.ContactPhone,
             device = item.Equipment != null ? item.Equipment.Name : $"Nhiều tài sản ({item.Details.Count})",
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
@@ -762,7 +772,7 @@ public class BorrowController : ControllerBase
             query = query.Where(item =>
                 item.User!.Username.Contains(search)
                 || item.User.FullName.Contains(search)
-                || item.User.Phone.Contains(search)
+                || item.ContactPhone.Contains(search)
                 || item.Purpose.Contains(search)
                 || (item.Equipment != null && item.Equipment.Name.Contains(search))
                 || item.Details.Any(detail => detail.Equipment != null && detail.Equipment.Name.Contains(search)));
@@ -775,7 +785,7 @@ public class BorrowController : ControllerBase
             id = item.Id,
             student = item.User!.Username,
             borrowerName = item.User!.FullName,
-            borrowerPhone = item.User.Phone,
+            borrowerPhone = item.ContactPhone,
             device = item.Equipment?.Name ?? $"Nhiều tài sản ({item.Details.Count})",
             requestDate = item.BorrowDate,
             returnDate = item.ExpectedReturnDate,
@@ -1536,8 +1546,8 @@ public class BorrowController : ControllerBase
                 ? query.OrderByDescending(item => item.User == null ? string.Empty : item.User.FullName).ThenBy(item => item.Id)
                 : query.OrderBy(item => item.User == null ? string.Empty : item.User.FullName).ThenBy(item => item.Id),
             "borrowerphone" => descending
-                ? query.OrderByDescending(item => item.User == null ? string.Empty : item.User.Phone).ThenBy(item => item.Id)
-                : query.OrderBy(item => item.User == null ? string.Empty : item.User.Phone).ThenBy(item => item.Id),
+                ? query.OrderByDescending(item => item.ContactPhone).ThenBy(item => item.Id)
+                : query.OrderBy(item => item.ContactPhone).ThenBy(item => item.Id),
             "device" => descending
                 ? query.OrderByDescending(item => item.Equipment == null ? string.Empty : item.Equipment.Name).ThenBy(item => item.Id)
                 : query.OrderBy(item => item.Equipment == null ? string.Empty : item.Equipment.Name).ThenBy(item => item.Id),

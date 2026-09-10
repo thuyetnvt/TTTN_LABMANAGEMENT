@@ -384,6 +384,10 @@ public static class FullSampleDataSeeder
             }
 
             DateTime? returnedAt = seed.IsReturned ? now.AddDays(seed.ExpectedReturnOffset) : null;
+            var contactPhone = await context.Users
+                .Where(user => user.Id == userId)
+                .Select(user => user.Phone)
+                .FirstOrDefaultAsync() ?? string.Empty;
             var record = new BorrowRecord
             {
                 UserId = userId,
@@ -393,6 +397,7 @@ public static class FullSampleDataSeeder
                 ExpectedReturnDate = now.AddDays(seed.ExpectedReturnOffset),
                 ActualReturnDate = returnedAt,
                 Purpose = seed.Purpose,
+                ContactPhone = contactPhone,
                 Status = seed.Status,
                 ReturnCondition = seed.Status == BorrowStatuses.ReturnedDamaged ? EquipmentStatuses.Broken : EquipmentStatuses.Available,
                 ReturnInspectionNote = seed.Status == BorrowStatuses.ReturnedDamaged ? "Vỏ thiết bị có vết nứt, cần kiểm tra." : seed.IsReturned ? "Đã kiểm tra, đủ phụ kiện." : string.Empty,

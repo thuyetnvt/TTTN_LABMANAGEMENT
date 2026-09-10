@@ -266,6 +266,7 @@ public sealed class ReportsControllerTests
             Id = 1,
             Username = "sv01",
             FullName = "Nguyễn Văn B",
+            Phone = "0900000000",
             Role = Roles.Student,
             IsActive = true
         });
@@ -287,6 +288,7 @@ public sealed class ReportsControllerTests
             UserId = 1,
             BorrowDate = now.AddDays(-1),
             ExpectedReturnDate = now.AddDays(1),
+            ContactPhone = "0987654321",
             Purpose = "Kiểm thử tên người mượn",
             Status = BorrowStatuses.Borrowed,
             Details = [new BorrowRequestDetail { EquipmentId = 1, Status = BorrowStatuses.Borrowed }]
@@ -299,6 +301,7 @@ public sealed class ReportsControllerTests
             .GetProperty("borrowed")[0];
 
         Assert.Equal("Nguyễn Văn B", row.GetProperty("user").GetString());
+        Assert.Equal("0987654321", row.GetProperty("phone").GetString());
     }
 
     [Fact]

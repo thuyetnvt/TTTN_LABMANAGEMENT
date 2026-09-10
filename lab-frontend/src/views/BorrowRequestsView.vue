@@ -89,7 +89,7 @@
             <span>Hạn trả <strong>{{ formatDate(item.returnDate) }}</strong></span>
           </div>
           <div class="mobile-request-phone">
-            <span>Số điện thoại</span>
+            <span>Số điện thoại liên hệ</span>
             <a v-if="item.borrowerPhone" :href="phoneHref(item.borrowerPhone)">{{ item.borrowerPhone }}</a>
             <span v-else class="muted">Chưa cập nhật</span>
           </div>
@@ -368,7 +368,7 @@ const rejectRecord = ref(null)
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
-  { title: 'Số điện thoại', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
+  { title: 'SĐT liên hệ', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Danh mục', dataIndex: 'category', key: 'category', sortKey: 'category', sortable: true, width: 145, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },

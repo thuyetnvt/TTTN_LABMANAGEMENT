@@ -82,6 +82,17 @@ test('tiêu đề cột của toàn bộ bảng không tự xuống hàng', () =
   assert.match(maintenanceSource, /title: 'Người thực hiện',[\s\S]*?width: 220/)
 })
 
+test('vị trí lưu vật tư được chọn từ cây vị trí có sẵn', () => {
+  const source = readFileSync(new URL('../src/components/ConsumablesTable.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /import LocationTreeSelect from '\.\/LocationTreeSelect\.vue'/)
+  assert.match(source, /import \{ locationApi \} from '\.\.\/api\/locationApi'/)
+  assert.match(source, /locations\.value = await locationApi\.getAll\(\)/)
+  assert.match(source, /v-model:value="formStorageLocationNodeId"[\s\S]*?@change="syncFormStorageLocation"/)
+  assert.match(source, /v-model:value="lotStorageLocationNodeId"[\s\S]*?@change="syncLotStorageLocation"/)
+  assert.doesNotMatch(source, /<a-input v-model:value="(?:formData|lotForm)\.storageLocation"/)
+})
+
 test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {
   const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
   const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
@@ -272,6 +283,18 @@ test('phiếu chờ duyệt hiển thị ngày hạn trả thay vì trạng thá
   assert.ok(source.includes("{ title: 'Hạn trả', dataIndex: 'returnDate', key: 'returnDate'"))
   assert.match(source, /column\.key === 'requestDate' \|\| column\.key === 'returnDate'/)
   assert.doesNotMatch(source, /key: 'dueStatus'/)
+})
+
+test('phiếu mượn bắt buộc nhập số điện thoại liên hệ riêng', () => {
+  const source = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /label="Số điện thoại liên hệ" required/)
+  assert.match(source, /:value="borrowForm\.contactPhone"/)
+  assert.match(source, /:maxlength="10"/)
+  assert.match(source, /@update:value="updateBorrowContactPhone"/)
+  assert.match(source, /replace\(\/\\D\/g, ''\)\.slice\(0, 10\)/)
+  assert.match(source, /\^\[0-9\]\{10\}\$/)
+  assert.match(source, /contactPhone,\s*\n\s*purpose:/)
 })
 
 test('luồng bàn giao cho phép báo sai lệch và khóa xác nhận khi đang chờ xử lý', () => {

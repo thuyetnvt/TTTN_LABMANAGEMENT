@@ -216,6 +216,7 @@ public sealed class MaintenanceScheduleControllerTests
         var result = await controller.CreateRequest(new BorrowController.BorrowRequestDto
         {
             ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+            ContactPhone = "0912345678",
             Purpose = "Thực hành IoT",
             Items = [new() { EquipmentId = 1 }, new() { EquipmentId = 2 }]
         }, CancellationToken.None);
@@ -239,6 +240,7 @@ public sealed class MaintenanceScheduleControllerTests
         var result = await controller.CreateRequest(new BorrowController.BorrowRequestDto
         {
             ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+            ContactPhone = "0987654321",
             Purpose = "Thực hành IoT",
             Items = [new() { EquipmentId = 1 }, new() { EquipmentId = 2 }]
         }, CancellationToken.None);

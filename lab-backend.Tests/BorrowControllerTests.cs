@@ -21,6 +21,32 @@ namespace LabManagementAPI.Tests;
 
 public sealed class BorrowControllerTests
 {
+    [Theory]
+    [InlineData("không hợp lệ")]
+    [InlineData("098765432")]
+    [InlineData("09876543210")]
+    [InlineData("0987 654 321")]
+    public async Task Borrow_request_requires_exactly_ten_phone_digits(string contactPhone)
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User { Id = 1, Username = "teacher", Role = Roles.Teacher, IsActive = true });
+        context.Equipments.Add(CreateEquipment(1));
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, 1, Roles.Teacher);
+        var result = await controller.CreateRequest(new BorrowController.BorrowRequestDto
+        {
+            ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+            ContactPhone = contactPhone,
+            Purpose = "Thực hành mạng IoT",
+            Items = [new() { EquipmentId = 1 }]
+        }, CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("Số điện thoại", badRequest.Value!.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(context.BorrowRecords);
+    }
+
     [Fact]
     public async Task Student_request_with_teacher_is_teacher_pending_and_preserves_all_items()
     {
@@ -36,6 +62,7 @@ public sealed class BorrowControllerTests
         {
             TeacherId = 2,
             ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+            ContactPhone = "0987654321",
             Purpose = "Thực hành mạng IoT",
             Items = [new() { EquipmentId = 1, Note = "Thiết bị chính" }, new() { EquipmentId = 2 }]
         }, CancellationToken.None);
@@ -43,6 +70,7 @@ public sealed class BorrowControllerTests
         Assert.IsType<OkObjectResult>(result);
         var record = await context.BorrowRecords.Include(item => item.Details).SingleAsync();
         Assert.Equal(BorrowStatuses.TeacherPending, record.Status);
+        Assert.Equal("0987654321", record.ContactPhone);
         Assert.Equal(2, record.Details.Count);
         Assert.All(record.Details, detail => Assert.Equal(BorrowStatuses.TeacherPending, detail.Status));
     }

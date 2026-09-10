@@ -198,6 +198,16 @@
       <a-form-item label="Dự kiến trả" required>
         <a-date-picker v-model:value="borrowForm.returnDate" style="width: 100%" :disabled-date="disablePastDate" />
       </a-form-item>
+      <a-form-item label="Số điện thoại liên hệ" required>
+        <a-input
+          :value="borrowForm.contactPhone"
+          inputmode="numeric"
+          autocomplete="tel"
+          :maxlength="10"
+          placeholder="Nhập đúng 10 chữ số"
+          @update:value="updateBorrowContactPhone"
+        />
+      </a-form-item>
       <a-form-item label="Tài sản trong phiếu mượn" required>
         <a-select v-model:value="borrowSelectionToAdd" placeholder="Chọn thêm tài sản đang rảnh" allowClear @change="addBorrowItem">
           <a-select-option v-for="item in availableBorrowOptions" :key="item.id" :value="item.id">
@@ -566,7 +576,7 @@ const isBorrowVisible = ref(false)
 const currentBorrowEquipmentId = ref(null)
 const borrowItems = ref([])
 const borrowSelectionToAdd = ref(null)
-const borrowForm = ref({ returnDate: null, purpose: '', teacherId: null })
+const borrowForm = ref({ returnDate: null, contactPhone: '', purpose: '', teacherId: null })
 
 const availableBorrowOptions = computed(() => dataSource.value.filter(item =>
   statusMatches(item.status, STATUS.AVAILABLE) && !borrowItems.value.some(selected => selected.id === item.id)
@@ -991,6 +1001,7 @@ const handleBorrowClick = (record) => {
   currentBorrowEquipmentId.value = record.id
   borrowItems.value = [{ id: record.id, name: record.name, serial: record.serial }]
   borrowSelectionToAdd.value = null
+  borrowForm.value = { returnDate: null, contactPhone: '', purpose: '', teacherId: null }
   isBorrowVisible.value = true
 }
 
@@ -1021,11 +1032,23 @@ const removeBorrowItem = (id) => {
   borrowItems.value = borrowItems.value.filter(item => item.id !== id)
 }
 
+const updateBorrowContactPhone = (value) => {
+  borrowForm.value.contactPhone = String(value || '').replace(/\D/g, '').slice(0, 10)
+}
+
 const submitBorrowRequest = async () => {
-  if (!borrowForm.value.returnDate || !borrowForm.value.purpose || (isStudentRole(role.value) && !borrowForm.value.teacherId)) {
+  const contactPhone = String(borrowForm.value.contactPhone || '').trim()
+  const hasValidContactPhone = /^[0-9]{10}$/.test(contactPhone)
+
+  if (!borrowForm.value.returnDate || !contactPhone || !borrowForm.value.purpose || (isStudentRole(role.value) && !borrowForm.value.teacherId)) {
     message.warning(isStudentRole(role.value)
-      ? 'Vui lòng nhập ngày trả, mục đích và giảng viên bảo lãnh!'
-      : 'Vui lòng nhập ngày trả và mục đích mượn!')
+      ? 'Vui lòng nhập ngày trả, số điện thoại, mục đích và giảng viên bảo lãnh!'
+      : 'Vui lòng nhập ngày trả, số điện thoại và mục đích mượn!')
+    return
+  }
+
+  if (!hasValidContactPhone) {
+    message.warning('Số điện thoại liên hệ phải gồm đúng 10 chữ số!')
     return
   }
 
@@ -1033,6 +1056,7 @@ const submitBorrowRequest = async () => {
   try {
     await borrowApi.createRequest({
       expectedReturnDate: borrowForm.value.returnDate.endOf('day').toISOString(),
+      contactPhone,
       purpose: borrowForm.value.purpose,
       teacherId: borrowForm.value.teacherId || null,
       equipmentId: borrowItems.value[0]?.id || currentBorrowEquipmentId.value,
@@ -1042,7 +1066,7 @@ const submitBorrowRequest = async () => {
     isBorrowVisible.value = false
     borrowItems.value = []
     borrowSelectionToAdd.value = null
-    borrowForm.value = { returnDate: null, purpose: '', teacherId: null }
+    borrowForm.value = { returnDate: null, contactPhone: '', purpose: '', teacherId: null }
   } catch (err) {
     message.error(err.response?.data?.message || 'Có lỗi xảy ra khi gửi yêu cầu mượn!')
   } finally {

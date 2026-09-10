@@ -18,6 +18,7 @@ namespace LabManagementAPI.Models
         public DateTime? ActualReturnDate { get; set; }
 
         public string Purpose { get; set; } = string.Empty;
+        public string ContactPhone { get; set; } = string.Empty;
 
         public string Status { get; set; } = BorrowStatuses.Pending;
         public string TeacherDecisionNote { get; set; } = string.Empty;
