@@ -265,7 +265,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { EyeOutlined } from '@ant-design/icons-vue'
 import { consumableRequestApi } from '../api/consumableRequestApi'
@@ -285,6 +286,7 @@ const tablePagination = reactive({
   total: 0
 })
 const authStore = useAuthStore()
+const route = useRoute()
 const role = computed(() => authStore.role)
 const isManager = computed(() => isManagerRole(role.value))
 const canApprove = computed(() => isManager.value || Boolean(authStore.approvalPermissions?.canApproveConsumable))
@@ -293,7 +295,11 @@ const canHandover = computed(() => isManager.value || Boolean(authStore.approval
 const dataSource = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
-const statusFilter = ref(undefined)
+const getRouteStatus = value => {
+  const status = Array.isArray(value) ? value[0] : value
+  return typeof status === 'string' && status.trim() ? status : undefined
+}
+const statusFilter = ref(getRouteStatus(route.query.status))
 const sortState = reactive({ field: undefined, order: undefined })
 const detailsVisible = ref(false)
 const selectedRequest = ref(null)
@@ -365,6 +371,15 @@ const applyFilters = () => {
   tablePagination.current = 1
   fetchData()
 }
+
+watch(() => route.query.status, value => {
+  const nextStatus = getRouteStatus(value)
+  if (statusFilter.value === nextStatus) return
+
+  statusFilter.value = nextStatus
+  tablePagination.current = 1
+  fetchData()
+})
 
 const applyColumnFilter = (column, value) => {
   if (column.filterKey === 'status') statusFilter.value = value

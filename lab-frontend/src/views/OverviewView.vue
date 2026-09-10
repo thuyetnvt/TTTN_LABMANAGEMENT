@@ -503,8 +503,8 @@ const managerAttentionItems = computed(() => [
   },
   {
     key: 'pending-consumable-requests', label: 'Cấp phát cần xử lý',
-    value: formatNumber(stats.value.consumableRequestsToProcess),
-    icon: AppstoreOutlined, tone: 'warning', route: { name: 'ConsumableRequests' }
+    value: formatNumber(stats.value.pendingConsumableRequests),
+    icon: AppstoreOutlined, tone: 'warning', route: { name: 'ConsumableRequests', query: { status: STATUS.CONSUMABLE_PENDING } }
   },
   {
     key: 'overdue-borrow-records', label: 'Mượn quá hạn',
