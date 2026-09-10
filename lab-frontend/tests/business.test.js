@@ -438,6 +438,16 @@ test('dashboard quản trị mở đúng các phiếu mượn đang chờ xử l
   assert.match(requestsSource, /statusFilter = ref\(getRouteStatus\(route\.query\.status\)\)/)
 })
 
+test('các thẻ tổng quan quản trị mở đúng danh sách và bộ lọc tương ứng', () => {
+  const source = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /class="manager-kpi-card"[\s\S]*?@click="navigateTo\(item\.route\)"/)
+  assert.match(source, /key: 'total-equipment'[\s\S]*?route: \{ name: 'Devices' \}/)
+  assert.match(source, /key: 'borrowed-equipment'[\s\S]*?status: STATUS\.BORROWED/)
+  assert.match(source, /key: 'pending-work'[\s\S]*?pendingBorrowRequests[\s\S]*?name: 'BorrowRequests'[\s\S]*?status: STATUS\.BORROW_PENDING/)
+  assert.match(source, /key: 'broken-equipment'[\s\S]*?status: STATUS\.BROKEN/)
+})
+
 test('thẻ dashboard sinh viên mở lịch sử theo đúng nhóm trạng thái', () => {
   const overviewSource = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
   const historySource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')

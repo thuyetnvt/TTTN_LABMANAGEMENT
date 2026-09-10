@@ -28,15 +28,22 @@
 
       <section class="manager-section manager-kpi-section" aria-label="Chỉ số tổng quan">
         <div class="manager-kpi-grid">
-          <div v-for="item in managerKpis" :key="item.key" class="manager-kpi-card">
+          <button
+            v-for="item in managerKpis"
+            :key="item.key"
+            type="button"
+            class="manager-kpi-card"
+            :aria-label="`Xem ${item.label}`"
+            @click="navigateTo(item.route)"
+          >
             <span class="manager-kpi-icon" :class="`tone-${item.tone}`" aria-hidden="true">
               <component :is="item.icon" />
             </span>
-            <div class="manager-kpi-copy">
+            <span class="manager-kpi-copy">
               <span class="manager-kpi-label">{{ item.label }}</span>
               <strong>{{ item.value }}</strong>
-            </div>
-          </div>
+            </span>
+          </button>
         </div>
       </section>
 
@@ -411,28 +418,32 @@ const managerKpis = computed(() => [
     label: 'Tổng thiết bị',
     value: formatNumber(stats.value.counts.total),
     icon: AppstoreOutlined,
-    tone: 'primary'
+    tone: 'primary',
+    route: { name: 'Devices' }
   },
   {
     key: 'borrowed-equipment',
     label: 'Thiết bị đang được mượn',
     value: formatNumber(stats.value.counts.borrowed),
     icon: ClockCircleOutlined,
-    tone: 'success'
+    tone: 'success',
+    route: { name: 'Devices', query: { status: STATUS.BORROWED } }
   },
   {
     key: 'pending-work',
     label: 'Chờ xử lý',
-    value: formatNumber(stats.value.advanced?.pendingRequests ?? stats.value.pendingBorrowRequests),
+    value: formatNumber(stats.value.pendingBorrowRequests),
     icon: FileSearchOutlined,
-    tone: 'warning'
+    tone: 'warning',
+    route: { name: 'BorrowRequests', query: { status: STATUS.BORROW_PENDING } }
   },
   {
     key: 'broken-equipment',
     label: 'Thiết bị hỏng',
     value: formatNumber(stats.value.counts.broken),
     icon: WarningOutlined,
-    tone: 'danger'
+    tone: 'danger',
+    route: { name: 'Devices', query: { status: STATUS.BROKEN } }
   }
 ])
 
@@ -767,7 +778,8 @@ onMounted(() => refreshStats(false))
 .manager-header-actions :deep(.ant-btn:hover), .manager-header-actions :deep(.ant-btn:focus) { border-color: #df7657; color: #df7657; }
 .manager-section { margin-top: 20px; }
 .manager-kpi-grid, .quick-actions-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-.manager-kpi-card { display: flex; align-items: center; min-width: 0; gap: 16px; min-height: 112px; padding: 22px 24px; border: 1px solid #e4e8ec; border-radius: 14px; background: #fff; box-shadow: 0 5px 18px rgba(16, 35, 63, .055); }
+.manager-kpi-card { display: flex; align-items: center; width: 100%; min-width: 0; gap: 16px; min-height: 112px; padding: 22px 24px; border: 1px solid #e4e8ec; border-radius: 14px; background: #fff; box-shadow: 0 5px 18px rgba(16, 35, 63, .055); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+.manager-kpi-card:hover, .manager-kpi-card:focus-visible { border-color: #d7b3a7; box-shadow: 0 8px 22px rgba(16, 35, 63, .075); outline: none; transform: translateY(-2px); }
 .manager-kpi-icon, .manager-attention-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 50%; }
 .manager-kpi-icon { width: 54px; height: 54px; font-size: 24px; }
 .manager-kpi-copy { display: flex; min-width: 0; flex-direction: column; gap: 7px; }
