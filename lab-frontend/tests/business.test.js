@@ -84,6 +84,7 @@ test('tiêu đề cột của toàn bộ bảng không tự xuống hàng', () =
 
 test('vị trí lưu vật tư được chọn từ cây vị trí có sẵn', () => {
   const source = readFileSync(new URL('../src/components/ConsumablesTable.vue', import.meta.url), 'utf8')
+  const locationSelectSource = readFileSync(new URL('../src/components/LocationTreeSelect.vue', import.meta.url), 'utf8')
 
   assert.match(source, /import LocationTreeSelect from '\.\/LocationTreeSelect\.vue'/)
   assert.match(source, /import \{ locationApi \} from '\.\.\/api\/locationApi'/)
@@ -91,6 +92,8 @@ test('vị trí lưu vật tư được chọn từ cây vị trí có sẵn', (
   assert.match(source, /v-model:value="formStorageLocationNodeId"[\s\S]*?@change="syncFormStorageLocation"/)
   assert.match(source, /v-model:value="lotStorageLocationNodeId"[\s\S]*?@change="syncLotStorageLocation"/)
   assert.doesNotMatch(source, /<a-input v-model:value="(?:formData|lotForm)\.storageLocation"/)
+  assert.match(locationSelectSource, /title:\s*node\.name/)
+  assert.doesNotMatch(locationSelectSource, /node\.code[^\n]*node\.name/)
 })
 
 test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {

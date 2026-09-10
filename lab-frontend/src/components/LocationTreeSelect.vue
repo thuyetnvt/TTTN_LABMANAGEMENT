@@ -11,7 +11,7 @@ const treeData = computed(() => {
   for (const node of props.nodes) {
     const key = node.parentId ?? null
     if (!byParent.has(key)) byParent.set(key, [])
-    byParent.get(key).push({ value: node.id, key: node.id, title: `${node.code} — ${node.name}`, children: [] })
+    byParent.get(key).push({ value: node.id, key: node.id, title: node.name, children: [] })
   }
   const build = parent => (byParent.get(parent) || []).map(item => ({ ...item, children: build(item.value) }))
   return build(null)
