@@ -27,7 +27,7 @@
             <span class="nowrap-desktop">Chuyển đổi số toàn diện</span> <br/>
             <span class="highlight text-gradient typing-container">{{ typedText }}<span class="cursor">|</span></span>
           </h1>
-          <p class="hero-subtitle">Nền tảng hợp nhất giúp Khoa Công nghệ Thông tin số hóa quy trình quản lý thiết bị, kiểm kê, bảo trì và cấp phát vật tư chuyên nghiệp nhất.</p>
+          <p class="hero-subtitle">Nền tảng hợp nhất giúp Khoa Công nghệ Thông tin số hóa quy trình quản lý thiết bị, kiểm kê và cấp phát vật tư chuyên nghiệp.</p>
           <div class="hero-cta">
             <button class="premium-btn primary-cta" @click="$router.push('/login')">
               <span class="btn-text">Vào hệ thống ngay</span>
@@ -114,7 +114,7 @@
         </div>
         <div class="stat-item premium-glass reveal fade-up reveal-delay-3">
           <h2>Chu kỳ</h2>
-          <p>Bảo trì & Vật tư</p>
+          <p>Kiểm kê & Vật tư</p>
         </div>
       </div>
     </section>
@@ -157,7 +157,7 @@
           <div class="step-circle premium-glass"><sync-outlined /></div>
           <div class="step-content">
             <h3>4. Nhận trả</h3>
-            <p>Ghi nhận tài sản trả về và tự động lên lịch bảo trì nếu phát hiện hỏng hóc.</p>
+            <p>Ghi nhận tài sản trả về và cập nhật tình trạng để người quản lý xử lý hỏng hóc.</p>
           </div>
         </div>
       </div>

@@ -96,6 +96,18 @@ test('vị trí lưu vật tư được chọn từ cây vị trí có sẵn', (
   assert.doesNotMatch(locationSelectSource, /node\.code[^\n]*node\.name/)
 })
 
+test('vị trí được quản lý dạng phẳng và không còn trường vị trí cha', () => {
+  const viewSource = readFileSync(new URL('../src/views/LocationsView.vue', import.meta.url), 'utf8')
+  const locationSelectSource = readFileSync(new URL('../src/components/LocationTreeSelect.vue', import.meta.url), 'utf8')
+  const apiSource = readFileSync(new URL('../src/api/locationApi.js', import.meta.url), 'utf8')
+
+  assert.match(viewSource, /Danh sách vị trí tài sản/)
+  assert.doesNotMatch(viewSource, /Vị trí cha|parentOptions|parentName|form\.parentId/)
+  assert.doesNotMatch(locationSelectSource, /parentId|children:/)
+  assert.match(apiSource, /LAB-ROOT/)
+  assert.match(apiSource, /withoutParent/)
+})
+
 test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {
   const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
   const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
@@ -163,7 +175,7 @@ test('thanh thao tác không làm tràn khung nội dung khi màn hình hẹp', 
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
   assert.equal(statusLabel(STATUS.BORROWED), 'Đang mượn')
-  assert.equal(statusLabel('Hoàn tất'), 'Đã hoàn thành bảo trì')
+  assert.equal(statusLabel('Hoàn tất'), 'Hỏng')
   assert.equal(getReturnConditionLabel(STATUS.AVAILABLE), 'Bình thường')
   assert.equal(getReturnConditionLabel(STATUS.BROKEN), 'Hỏng')
   assert.equal(ROLE_LABELS.STUDENT, 'Sinh viên')
@@ -206,8 +218,8 @@ test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', ()
     [getBorrowStatusLabel, STATUS.RETURN_PROCESSING, 'Đang xử lý trả', 'blue'],
     [getBorrowStatusLabel, STATUS.CANCELLED, 'Đã hủy', 'red'],
     [getBorrowStatusLabel, STATUS.EXPIRED, 'Hết hạn giữ chỗ', 'orange'],
-    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_IN_PROGRESS, 'Đang bảo trì', 'blue'],
-    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_COMPLETING, 'Đang nghiệm thu', 'purple'],
+    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_IN_PROGRESS, 'Hỏng', 'red'],
+    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_COMPLETING, 'Hỏng', 'red'],
     [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_PENDING, 'Chờ duyệt cấp phát', 'orange'],
     [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_ISSUED, 'Đã cấp phát', 'green'],
     [getInventoryStatusLabel, STATUS.INVENTORY_DAMAGED, 'Hư hỏng', 'red'],
@@ -227,12 +239,34 @@ test('báo cáo hiển thị đang mượn và tài sản hỏng riêng', () => 
   assert.match(source, /label:\s*['"]Đang hỏng['"][^]*?value:\s*formatNumber\(report\.value\.totals\.broken\)/)
 })
 
+test('các ô lọc nhật ký hoạt động có cùng kích thước', () => {
+  const source = readFileSync(new URL('../src/views/AuditLogsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /--audit-filter-width:\s*150px/)
+  assert.match(source, /--audit-filter-height:\s*40px/)
+  assert.match(source, /\.filter-control\s*\{[\s\S]*?width:\s*var\(--audit-filter-width\)/)
+  assert.match(source, /\.filter-dates\s*\{\s*width:\s*var\(--audit-filter-width\)/)
+  assert.match(source, /\.filter-search\s*\{[\s\S]*?width:[^;]+!important/)
+  assert.match(source, /\.filter-search :deep\(\.ant-input-affix-wrapper\)\s*\{[\s\S]*?flex:\s*0 0 var\(--audit-filter-width\)/)
+  assert.match(source, /\.filter-control,[\s\S]*?height:\s*var\(--audit-filter-height\)/)
+})
+
+test('các ô lọc quản lý người dùng có kích thước 150 x 40', () => {
+  const source = readFileSync(new URL('../src/views/AdminUsersView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /--user-filter-width:\s*150px/)
+  assert.match(source, /--user-filter-height:\s*40px/)
+  assert.match(source, /class="user-filter-control"/)
+  assert.match(source, /\.user-filter-search\s*\{[\s\S]*?width:[^;]+!important/)
+  assert.match(source, /\.user-filter-search :deep\(\.ant-input-affix-wrapper\)\s*\{[\s\S]*?flex:\s*0 0 var\(--user-filter-width\)/)
+})
+
 test('cảnh báo báo cáo mở trang đích theo đúng trạng thái cảnh báo', () => {
   const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
   const attentionSection = source.slice(source.indexOf('const attentionCards'), source.indexOf('const hasAttention'))
 
   assert.match(attentionSection, /route: \{ name: 'BorrowHistory', query: \{ status: 'OVERDUE' \} \}/)
-  assert.match(attentionSection, /route: \{ name: 'Maintenance', query: \{ status: STATUS\.MAINTENANCE_IN_PROGRESS \} \}/)
+  assert.doesNotMatch(attentionSection, /name: 'Maintenance'|maintenance-cost/)
   assert.match(attentionSection, /route: \{ name: 'Devices', query: \{ status: STATUS\.BROKEN \} \}/)
 })
 
@@ -257,7 +291,20 @@ test('báo cáo đặt chi tiết vận hành lên trước và thay bảo trì 
   assert.ok(source.indexOf('class="detail-card"') < source.indexOf('class="main-grid"'))
   assert.match(source, /key="responsible"\s+tab="Người chịu trách nhiệm"/)
   assert.match(source, /responsibleColumns/)
+  assert.match(source, /title: 'Chi tiết', key: 'details', width: 90/)
+  assert.match(source, /aria-label="Xem chi tiết thiết bị phụ trách"/)
+  assert.doesNotMatch(source, /<template #icon><EyeOutlined \/><\/template>\s*Xem/)
+  assert.match(source, /@click="showResponsibleDetails\(record\)"/)
+  assert.match(source, /v-model:open="responsibleDetailsVisible"/)
+  assert.match(source, /responsibleDetailsItems/)
   assert.doesNotMatch(source, /key="maintenance"\s+tab="Bảo trì"/)
+})
+
+test('báo cáo giữ khoảng cách giữa các khối nội dung bằng nhau', () => {
+  const source = readFileSync(new URL('../src/views/ReportsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /\.reports-content \{ display: flex; flex-direction: column; gap: 24px; \}/)
+  assert.match(source, /\.overview-section, \.main-grid \{ margin-bottom: 0; \}/)
 })
 
 test('báo cáo mở danh sách thiết bị đúng trạng thái ngay trong modal', () => {
@@ -280,12 +327,31 @@ test('báo cáo hiển thị đúng ngày hạn trả và không lệch sang c�
   assert.ok(source.includes("title: 'Trạng thái', dataIndex: 'status', key: 'status'"))
 })
 
-test('phiếu chờ duyệt hiển thị ngày hạn trả thay vì trạng thái trống', () => {
-  const source = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
+test('lịch sử mượn trả chỉ hiển thị tình trạng trả trong chi tiết', () => {
+  const source = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+  const columns = source.match(/const columns = \[([\s\S]*?)\n\]/)?.[1] || ''
+  const mobileSummary = source.slice(source.indexOf('<dl class="mobile-card-details">'), source.indexOf('</dl>', source.indexOf('<dl class="mobile-card-details">')))
 
-  assert.ok(source.includes("{ title: 'Hạn trả', dataIndex: 'returnDate', key: 'returnDate'"))
-  assert.match(source, /column\.key === 'requestDate' \|\| column\.key === 'returnDate'/)
-  assert.doesNotMatch(source, /key: 'dueStatus'/)
+  assert.doesNotMatch(columns, /title: 'Tình trạng trả'/)
+  assert.doesNotMatch(mobileSummary, /Tình trạng trả/)
+  assert.match(source, /<a-descriptions-item label="Tình trạng trả">[\s\S]*?selectedRecord\.returnCondition/)
+  assert.match(source, /title: 'Trạng thái'[\s\S]*?width: 180[\s\S]*?className: 'status-column'/)
+  assert.match(source, /\.status-column\) \{ width: 180px !important;/)
+})
+
+test('phiếu chờ duyệt chỉ hiển thị số điện thoại, seri và ngày trong cửa sổ chi tiết', () => {
+  const source = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
+  const columns = source.match(/const columns = \[([\s\S]*?)\n\]/)?.[1] || ''
+
+  assert.doesNotMatch(columns, /title: 'SĐT liên hệ'/)
+  assert.doesNotMatch(columns, /title: 'Số seri'/)
+  assert.doesNotMatch(columns, /title: 'Ngày đăng ký'/)
+  assert.doesNotMatch(columns, /title: 'Hạn trả'/)
+  assert.match(source, /title="Chi tiết yêu cầu mượn"/)
+  assert.match(source, /label="SĐT liên hệ"/)
+  assert.match(source, /label="Ngày đăng ký"/)
+  assert.match(source, /label="Hạn trả"/)
+  assert.match(source, /Số seri:/)
 })
 
 test('phiếu mượn bắt buộc nhập số điện thoại liên hệ riêng', () => {
@@ -298,6 +364,27 @@ test('phiếu mượn bắt buộc nhập số điện thoại liên hệ riêng
   assert.match(source, /replace\(\/\\D\/g, ''\)\.slice\(0, 10\)/)
   assert.match(source, /\^\[0-9\]\{10\}\$/)
   assert.match(source, /contactPhone,\s*\n\s*purpose:/)
+})
+
+test('bảng thiết bị hiển thị vị trí trước model và chuyển các trường phụ khác vào chi tiết', () => {
+  const source = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
+  const columns = source.match(/const columns = computed\(\(\) => \{([\s\S]*?)const tableScrollX/)?.[1] || ''
+
+  for (const title of ['Số seri', 'Danh mục', 'Ngày nhập', 'Quyết định']) {
+    assert.doesNotMatch(columns, new RegExp(`title: '${title}'`))
+  }
+  assert.match(columns, /title: 'Vị trí'[\s\S]*title: 'Model'/)
+  assert.match(columns, /title: 'Trạng thái'[\s\S]*align: 'center'[\s\S]*width: 140/)
+  assert.match(source, /\.device-table :deep\(th\.status-column\)[\s\S]*text-align: center !important/)
+  assert.doesNotMatch(source, />Khấu hao \(%\)</)
+  assert.doesNotMatch(source, /Thời gian khấu hao \(tháng\)/)
+  assert.doesNotMatch(source, /Tài chính & Khấu hao/)
+  assert.doesNotMatch(source, /Đã khấu hao/)
+  assert.match(source, /detailField\('categoryName', 'Danh mục'/)
+  assert.match(source, /detailField\('serial', 'Số seri'/)
+  assert.match(source, /detailField\('entryDate', 'Ngày nhập'/)
+  assert.match(source, /detailField\('location', 'Vị trí lưu trữ'/)
+  assert.match(source, /detailField\('decisionFile', 'Quyết định'/)
 })
 
 test('luồng bàn giao cho phép báo sai lệch và khóa xác nhận khi đang chờ xử lý', () => {
@@ -430,6 +517,20 @@ test('dashboard giảng viên dùng dữ liệu và tác vụ riêng theo vai tr
   assert.match(source, /name:\s*'TeacherApproval'/)
 })
 
+test('dashboard giảng viên đưa thao tác nhanh lên đầu và không hiện mũi tên', () => {
+  const source = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
+  const teacherStart = source.indexOf('<template v-else-if="isTeacher">')
+  const teacherEnd = source.indexOf('<template v-else-if="isStudent">')
+  const teacherSection = source.slice(teacherStart, teacherEnd)
+  const quickSection = teacherSection.slice(
+    teacherSection.indexOf('<section class="teacher-quick-section"'),
+    teacherSection.indexOf('</section>', teacherSection.indexOf('<section class="teacher-quick-section"'))
+  )
+
+  assert.ok(teacherSection.indexOf('teacher-quick-section') < teacherSection.indexOf('teacher-kpi-grid'))
+  assert.doesNotMatch(quickSection, /ArrowRightOutlined/)
+})
+
 test('dashboard sinh viên dùng thống kê cá nhân, không dùng số liệu toàn lab', () => {
   const source = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
 
@@ -458,6 +559,35 @@ test('dashboard quản trị mở đúng các yêu cầu cấp phát đang chờ
   assert.match(requestsSource, /const route = useRoute\(\)/)
   assert.match(requestsSource, /statusFilter = ref\(getRouteStatus\(route\.query\.status\)\)/)
   assert.match(requestsSource, /watch\(\(\) => route\.query\.status/)
+})
+
+test('yêu cầu cấp phát lọc theo khoảng ngày gửi', () => {
+  const source = readFileSync(new URL('../src/views/ConsumableRequestsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /<a-range-picker[\s\S]*?v-model:value="requestDateRange"/)
+  assert.match(source, /from:\s*requestDateRange\.value\?\.\[0\]\?\.format\('YYYY-MM-DD'\)/)
+  assert.match(source, /to:\s*requestDateRange\.value\?\.\[1\]\?\.format\('YYYY-MM-DD'\)/)
+})
+
+test('bảng yêu cầu cấp phát thu gọn cột số lượng và hành động', () => {
+  const source = readFileSync(new URL('../src/views/ConsumableRequestsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /title: 'Số lượng'[\s\S]*?width: 120[\s\S]*?className: 'quantity-column'/)
+  assert.match(source, /title: 'Trạng thái'[\s\S]*?width: 190[\s\S]*?className: 'status-column'/)
+  assert.match(source, /title: 'Hành động'[\s\S]*?table-sticky-action-column[\s\S]*?width: 190/)
+  assert.match(source, /\.quantity-column\) \{ width: 120px !important;/)
+  assert.match(source, /\.status-column\) \{ width: 190px !important;/)
+  assert.match(source, /\.table-sticky-action-column\) \{ width: 190px !important;/)
+})
+
+test('dashboard không còn hiển thị hoặc điều hướng chức năng bảo trì', () => {
+  const overviewSource = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
+  const shellSource = readFileSync(new URL('../src/views/DashboardView.vue', import.meta.url), 'utf8')
+  const routerSource = readFileSync(new URL('../src/router/index.js', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(overviewSource, /label:\s*['"]Bảo trì['"]/)
+  assert.doesNotMatch(shellSource, /MaintenanceSchedules?:/)
+  assert.doesNotMatch(routerSource, /name:\s*['"]Maintenance(?:Schedules)?['"]/)
 })
 
 test('các thẻ tổng quan quản trị mở đúng danh sách và bộ lọc tương ứng', () => {
@@ -498,6 +628,19 @@ test('API không bị quay vô hạn khi backend không phản hồi', () => {
 
   assert.match(source, /timeout:\s*apiTimeoutMs/)
   assert.match(source, /Máy chủ phản hồi quá lâu/)
+})
+
+test('lịch sử mượn trả hỗ trợ nhập và xuất Excel có bước xem trước', () => {
+  const viewSource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+  const apiSource = readFileSync(new URL('../src/api/borrowApi.js', import.meta.url), 'utf8')
+
+  assert.match(viewSource, /Nhập Excel/)
+  assert.match(viewSource, /Xuất Excel/)
+  assert.match(viewSource, /previewHistoryImport/)
+  assert.match(viewSource, /importHistory/)
+  assert.match(apiSource, /\/borrow\/history\/export/)
+  assert.match(apiSource, /\/borrow\/history\/import\/preview/)
+  assert.match(apiSource, /\/borrow\/history\/import/)
 })
 
 test('Vite cho phép đổi đích proxy API khi kiểm thử VPS hoặc backend local', () => {

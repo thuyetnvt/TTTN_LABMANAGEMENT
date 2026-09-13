@@ -17,7 +17,7 @@
       <a-col :xs="24" :sm="12"><a-form-item :label="departmentLabel"><a-input v-model:value="formState.department" /></a-form-item></a-col>
       <a-col v-if="isStudent" :xs="24" :sm="12"><a-form-item label="Lớp" name="className" :rules="studentClassRules"><a-input v-model:value="formState.className" /></a-form-item></a-col>
       <a-col :xs="24" :sm="12">
-        <a-form-item label="Mật khẩu" name="password" :help="isEditing ? 'Để trống nếu không muốn đổi mật khẩu' : ''" :rules="passwordRules">
+        <a-form-item v-if="!isEditing" label="Mật khẩu" name="password" :rules="passwordRules">
           <a-input-password v-model:value="formState.password" placeholder="Nhập mật khẩu..." />
         </a-form-item>
       </a-col>
@@ -80,6 +80,7 @@ const passwordRules = [
     validator: async (_rule, value) => {
       if (!isEditing.value && !value) throw new Error('Vui lòng nhập mật khẩu!')
       if (value && value.length < 8) throw new Error('Mật khẩu phải có ít nhất 8 ký tự!')
+      if (value && (!/[a-z]/.test(value) || !/[A-Z]/.test(value) || !/[0-9]/.test(value))) throw new Error('Mật khẩu phải có chữ hoa, chữ thường và số.')
     }
   }
 ]
@@ -90,7 +91,7 @@ const getFormData = async () => {
   // Updating a user keeps the existing password when the field is blank.
   // Do not send an empty string because the API only validates password
   // length when a new password is actually provided.
-  if (isEditing.value && !data.password.trim()) delete data.password
+  if (isEditing.value) delete data.password
   return data
 }
 

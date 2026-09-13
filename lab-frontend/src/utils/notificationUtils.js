@@ -3,7 +3,6 @@ import {
   BellOutlined,
   CheckCircleOutlined,
   InboxOutlined,
-  ToolOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
 import { formatVietnamDate, parseApiDate } from './dateTime.js'
@@ -20,9 +19,6 @@ const TYPE_LABELS = {
   CONSUMABLE_PENDING: 'Vật tư',
   CONSUMABLE_ISSUED: 'Vật tư',
   CONSUMABLE_REJECTED: 'Vật tư',
-  MAINTENANCE_CREATED: 'Bảo trì',
-  MAINTENANCE_COMPLETED: 'Bảo trì',
-  MAINTENANCE_SCHEDULE_GENERATED: 'Bảo trì',
   INVENTORY_CREATED: 'Kiểm kê',
   INVENTORY_COMPLETED: 'Kiểm kê'
 }
@@ -30,7 +26,6 @@ const TYPE_LABELS = {
 export const notificationTypeLabel = type => TYPE_LABELS[type] || 'Hệ thống'
 
 export const notificationIcon = type => {
-  if (type?.startsWith('MAINTENANCE')) return ToolOutlined
   if (type?.startsWith('INVENTORY')) return AuditOutlined
   if (type?.startsWith('CONSUMABLE')) return InboxOutlined
   if (type?.startsWith('BORROW') || type === 'HANDOVER_CREATED' || type?.startsWith('HANDOVER_ISSUE')) return CheckCircleOutlined

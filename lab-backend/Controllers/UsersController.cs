@@ -83,6 +83,7 @@ public class UsersController : ControllerBase
         [MaxLength(100)] public string? ClassName { get; set; }
 
         [Required, MinLength(8), MaxLength(200)]
+        [RegularExpression(@"(?s)^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).+$", ErrorMessage = "Mật khẩu phải có chữ hoa, chữ thường và số.")]
         public string Password { get; set; } = string.Empty;
 
         [Required]
@@ -116,6 +117,7 @@ public class UsersController : ControllerBase
         public string CurrentPassword { get; set; } = string.Empty;
 
         [Required, MinLength(8), MaxLength(200)]
+        [RegularExpression(@"(?s)^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).+$", ErrorMessage = "Mật khẩu phải có chữ hoa, chữ thường và số.")]
         public string NewPassword { get; set; } = string.Empty;
     }
 
@@ -490,6 +492,7 @@ public class UsersController : ControllerBase
             Department = dto.Department,
             ClassName = dto.ClassName,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            MustChangePassword = true,
             Role = dto.Role,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
@@ -566,7 +569,8 @@ public class UsersController : ControllerBase
             && await _context.Users.AnyAsync(item => item.Id != id && item.UniversityCode == dto.UniversityCode, cancellationToken))
             return Conflict(new { message = "Mã sinh viên/mã cán bộ đã tồn tại." });
 
-        var passwordChanged = !string.IsNullOrWhiteSpace(dto.Password);
+        if (!string.IsNullOrWhiteSpace(dto.Password))
+            return BadRequest(new { message = "Vui lòng sử dụng chức năng đặt lại mật khẩu." });
         var identityChanged = user.Username != username || user.Role != dto.Role;
 
         user.Username = username;
@@ -577,11 +581,7 @@ public class UsersController : ControllerBase
         user.Department = dto.Department;
         user.ClassName = dto.ClassName;
         user.Role = dto.Role;
-        if (passwordChanged)
-        {
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password!);
-        }
-        if (passwordChanged || identityChanged)
+        if (identityChanged)
         {
             // JWT chỉ chứa tên đăng nhập, vai trò và phiên bản token. Thay đổi hồ sơ
             // thông thường không được làm mất phiên; thay đổi danh tính/mật khẩu thì phải có.
@@ -678,6 +678,7 @@ public class UsersController : ControllerBase
         }
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        user.MustChangePassword = false;
         user.TokenVersion += 1;
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.WriteAsync(

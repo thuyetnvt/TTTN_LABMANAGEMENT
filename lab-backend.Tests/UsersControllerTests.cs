@@ -17,7 +17,7 @@ namespace LabManagementAPI.Tests;
 public class UsersControllerTests
 {
     [Fact]
-    public async Task UpdateUser_keeps_session_for_profile_changes_and_invalidates_it_for_password_changes()
+    public async Task UpdateUser_keeps_session_and_rejects_direct_password_changes()
     {
         await using var connection = new SqliteConnection("DataSource=:memory:");
         await connection.OpenAsync();
@@ -52,7 +52,21 @@ public class UsersControllerTests
             CreateUpdateDto(fullName: "Tên mới", password: "NewPassword123!"),
             CancellationToken.None);
 
-        Assert.IsType<NoContentResult>(passwordResult);
+        Assert.IsType<BadRequestObjectResult>(passwordResult);
+        Assert.Equal(4, user.TokenVersion);
+        Assert.True(BCrypt.Net.BCrypt.Verify("Password123!", user.PasswordHash));
+
+        user.MustChangePassword = true;
+        await context.SaveChangesAsync();
+        var invalidResult = await controller.ChangeOwnPassword(new UsersController.ChangePasswordDto
+        { CurrentPassword = "WrongPassword123!", NewPassword = "NewPassword123!" }, CancellationToken.None);
+        Assert.IsType<BadRequestObjectResult>(invalidResult);
+        Assert.True(user.MustChangePassword);
+
+        var changed = await controller.ChangeOwnPassword(new UsersController.ChangePasswordDto
+        { CurrentPassword = "Password123!", NewPassword = "NewPassword123!" }, CancellationToken.None);
+        Assert.IsType<OkObjectResult>(changed);
+        Assert.False(user.MustChangePassword);
         Assert.Equal(5, user.TokenVersion);
         Assert.True(BCrypt.Net.BCrypt.Verify("NewPassword123!", user.PasswordHash));
     }

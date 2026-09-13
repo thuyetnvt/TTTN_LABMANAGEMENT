@@ -97,8 +97,10 @@ public sealed class ReportsControllerTests
         Assert.Equal(1, totals.GetProperty("overdue").GetInt32());
     }
 
-    [Fact]
-    public async Task Summary_reserved_equipment_includes_holder_identity_without_private_contact_data()
+    [Theory]
+    [InlineData(12)]
+    [InlineData(-72)]
+    public async Task Summary_reserved_equipment_includes_holder_identity_without_private_contact_data(int expiryHours)
     {
         await using var context = CreateContext();
         var now = DateTime.UtcNow;
@@ -131,7 +133,7 @@ public sealed class ReportsControllerTests
             UserId = 1,
             BorrowDate = now.AddMinutes(-10),
             ExpectedReturnDate = now.AddDays(2),
-            HoldExpiresAt = now.AddHours(12),
+            HoldExpiresAt = now.AddHours(expiryHours),
             Purpose = "Kiểm thử giữ chỗ",
             Status = BorrowStatuses.Approved,
             Details = [new BorrowRequestDetail { EquipmentId = 1, Status = BorrowStatuses.Approved }]
@@ -349,18 +351,23 @@ public sealed class ReportsControllerTests
         var totals = json.GetProperty("totals");
 
         Assert.Equal(1, totals.GetProperty("assets").GetInt32());
-        Assert.Equal(100, totals.GetProperty("maintenanceCost").GetDecimal());
-        Assert.Equal(1, totals.GetProperty("maintenanceInProgress").GetInt32());
-        Assert.Equal(1, json.GetProperty("maintenance").GetArrayLength());
+        Assert.Equal(1, totals.GetProperty("broken").GetInt32());
+        Assert.False(totals.TryGetProperty("maintenanceCost", out _));
+        Assert.False(totals.TryGetProperty("maintenanceInProgress", out _));
+        Assert.False(json.TryGetProperty("maintenance", out _));
         Assert.Equal(1, json.GetProperty("lowStock").GetArrayLength());
         Assert.Equal(2, json.GetProperty("lowStock")[0].GetProperty("availableQuantity").GetInt32());
         Assert.Equal(1, json.GetProperty("consumables").GetArrayLength());
         Assert.Equal(1, json.GetProperty("responsible").GetArrayLength());
         Assert.Equal("Nguyễn Văn A", json.GetProperty("responsible")[0].GetProperty("responsiblePerson").GetString());
+        var responsibleEquipment = json.GetProperty("responsible")[0].GetProperty("equipmentItems");
+        Assert.Single(responsibleEquipment.EnumerateArray());
+        Assert.Equal("ESP32", responsibleEquipment[0].GetProperty("name").GetString());
+        Assert.Equal("EQ-1", responsibleEquipment[0].GetProperty("assetCode").GetString());
     }
 
     [Fact]
-    public async Task Export_translates_equipment_and_maintenance_statuses_to_vietnamese()
+    public async Task Export_maps_legacy_maintenance_equipment_to_broken_and_omits_maintenance_sheet()
     {
         await using var context = CreateContext();
         var now = DateTime.UtcNow;
@@ -373,7 +380,7 @@ public sealed class ReportsControllerTests
             Serial = "SN-1",
             Model = "M",
             Location = "Lab",
-            Status = EquipmentStatuses.Broken,
+            Status = EquipmentStatuses.MaintenanceInProgress,
             CreatedAt = now
         });
         context.MaintenanceRecords.Add(new MaintenanceRecord
@@ -393,7 +400,7 @@ public sealed class ReportsControllerTests
         using var package = new ExcelPackage(stream);
 
         Assert.Equal("Hỏng", package.Workbook.Worksheets["TaiSan"].Cells[2, 7].Text);
-        Assert.Equal("Đã hoàn thành bảo trì", package.Workbook.Worksheets["BaoTri"].Cells[2, 6].Text);
+        Assert.Null(package.Workbook.Worksheets["BaoTri"]);
     }
 
     private static AppDbContext CreateContext()

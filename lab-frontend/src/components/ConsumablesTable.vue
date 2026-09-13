@@ -6,7 +6,7 @@
         <a-select v-model:value="stockFilter" allow-clear placeholder="Tình trạng tồn" class="status-filter" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
           <a-select-option value="AVAILABLE">Đủ dùng</a-select-option>
-          <a-select-option value="LOW_STOCK">Cần nhập thêm</a-select-option>
+          <a-select-option value="LOW_STOCK">Sắp hết</a-select-option>
         </a-select>
         <a-select v-model:value="categoryFilter" allow-clear placeholder="Danh mục" style="width: 170px" @change="applyFilters">
           <a-select-option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</a-select-option>
@@ -56,7 +56,7 @@
         </template>
         <template v-else-if="column.key === 'status'">
           <a-tag :color="availableStock(record) <= record.minQuantity ? 'red' : 'green'">
-            {{ availableStock(record) <= record.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
+            {{ availableStock(record) <= record.minQuantity ? 'Sắp hết' : 'Đủ dùng' }}
           </a-tag>
         </template>
         <template v-else-if="column.key === 'action'">
@@ -109,7 +109,7 @@
               <div v-if="isManagerRole(role)"><dt>Người chịu trách nhiệm</dt><dd>{{ item.responsibleName || item.responsiblePerson || 'Chưa có dữ liệu' }}</dd></div>
             </dl>
             <a-tag :color="availableStock(item) <= item.minQuantity ? 'red' : 'green'">
-              {{ availableStock(item) <= item.minQuantity ? 'Cần nhập thêm' : 'Đủ dùng' }}
+              {{ availableStock(item) <= item.minQuantity ? 'Sắp hết' : 'Đủ dùng' }}
             </a-tag>
           </div>
           <div class="consumable-mobile-actions">
@@ -198,7 +198,6 @@
                   {{ responsibleUserLabel(person) }}
                 </a-select-option>
               </a-select>
-              <div class="form-help">Mặc định là tài khoản đang đăng nhập.</div>
             </a-form-item>
           </a-col>
           <a-col v-if="!isEditMode" :xs="24" :sm="12">
@@ -423,7 +422,7 @@ const columns = computed(() => {
   return [...commonColumns, ...managerColumns,
   { title: 'Trạng thái', key: 'status', sortable: true, sortKey: 'status', align: 'center', width: 145, className: 'status-column', filterType: 'select', filterKey: 'stock', filterOptions: [
     { value: 'AVAILABLE', label: 'Đủ dùng' },
-    { value: 'LOW_STOCK', label: 'Cần nhập thêm' }
+    { value: 'LOW_STOCK', label: 'Sắp hết' }
   ] },
   { 
     title: 'Hành động', 

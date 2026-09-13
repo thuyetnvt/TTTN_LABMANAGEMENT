@@ -52,12 +52,6 @@
           </a-menu-item-group>
 
           <a-menu-item-group v-if="isManagerRole(role) || isTeacherRole(role)" title="Vận hành">
-            <a-menu-item v-if="isManagerRole(role)" key="m3" @click="$router.push({ name: 'Maintenance' })">
-              <tool-outlined /><span>{{ $t('menu.maintenanceHistory') }}</span>
-            </a-menu-item>
-            <a-menu-item v-if="isManagerRole(role)" key="m_schedule" @click="$router.push({ name: 'MaintenanceSchedules' })">
-              <calendar-outlined /><span>Lịch bảo trì</span>
-            </a-menu-item>
             <a-menu-item v-if="isManagerRole(role) || (isTeacherRole(role) && approvalPermissions.canApproveConsumable)" key="g1_2" @click="$router.push({ name: 'ConsumableRequests' })">
               <experiment-outlined /><span>Yêu cầu cấp phát</span>
             </a-menu-item>
@@ -388,8 +382,6 @@ const routeMenuKeys = {
   BorrowHistory: '3',
   Profile: 'profile',
   TeacherApproval: 'm_teacher',
-  Maintenance: 'm3',
-  MaintenanceSchedules: 'm_schedule',
   Reports: 'm_reports',
   Locations: 'm_location',
   Inventory: 'm_inventory',
@@ -546,10 +538,10 @@ const handleLogout = () => {
 
 const submitChangePassword = async () => {
   const { currentPassword, newPassword, confirmPassword } = passwordForm.value
-  if (!currentPassword || newPassword.length < 8) {
+  if (!currentPassword || newPassword.length < 8 || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
     notification.warning({
       message: 'Thông tin chưa hợp lệ',
-      description: 'Mật khẩu mới phải có ít nhất 8 ký tự.'
+      description: 'Mật khẩu mới phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường và số.'
     })
     return
   }

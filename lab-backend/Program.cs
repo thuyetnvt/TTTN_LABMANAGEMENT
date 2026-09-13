@@ -281,6 +281,19 @@ if (builder.Configuration.GetValue("Security:UseHttpsRedirection", true))
 app.UseCors("VueApp");
 app.UseRateLimiter();
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true
+        && context.User.FindFirstValue("must_change_password") == "true"
+        && !(HttpMethods.IsPut(context.Request.Method)
+            && context.Request.Path.Equals(new PathString("/api/users/me/password"))))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new { code = "PASSWORD_CHANGE_REQUIRED", message = "Vui lòng đổi mật khẩu lần đầu trước khi sử dụng hệ thống." });
+        return;
+    }
+    await next(context);
+});
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");

@@ -76,7 +76,6 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
         name: `Thiết bị E2E ${suffix}`,
         model: 'E2E-MODEL',
         serial,
-        serialName: serial,
         location: location.name,
         locationNodeId: String(location.id),
         assetCategoryId: String(category.id),

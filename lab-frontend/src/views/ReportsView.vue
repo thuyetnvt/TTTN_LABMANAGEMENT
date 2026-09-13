@@ -53,6 +53,7 @@
     </section>
 
     <a-spin :spinning="loading" class="reports-spin">
+      <div class="reports-content">
       <section class="overview-section" aria-label="Tổng quan vận hành">
         <div class="overview-grid">
           <a-card v-for="item in summaryCards" :key="item.label" :bordered="false" class="summary-card">
@@ -147,9 +148,23 @@
                 <span v-else>{{ column.title }}</span>
               </template>
               <template #bodyCell="{ column, record }">
-                <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
-                  {{ cellText(record[column.dataIndex]) }}
-                </span>
+                <template v-if="column.key === 'details'">
+                  <a-tooltip title="Xem chi tiết thiết bị phụ trách">
+                    <a-button
+                      type="link"
+                      class="responsible-detail-button"
+                      aria-label="Xem chi tiết thiết bị phụ trách"
+                      @click="showResponsibleDetails(record)"
+                    >
+                      <template #icon><EyeOutlined /></template>
+                    </a-button>
+                  </a-tooltip>
+                </template>
+                <template v-else>
+                  <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
+                    {{ cellText(record[column.dataIndex]) }}
+                  </span>
+                </template>
               </template>
             </a-table>
             <a-empty v-else description="Chưa có dữ liệu người chịu trách nhiệm" />
@@ -252,7 +267,43 @@
           <a-empty v-else description="Không có cảnh báo" />
         </a-card>
       </section>
+      </div>
     </a-spin>
+
+    <a-modal
+      v-model:open="responsibleDetailsVisible"
+      :title="responsibleDetailsTitle"
+      :footer="null"
+      width="1000px"
+      @cancel="closeResponsibleDetails"
+    >
+      <p class="responsible-details-description">
+        {{ responsibleDetailsItems.length }} thiết bị do {{ selectedResponsibleName }} chịu trách nhiệm.
+      </p>
+      <a-table
+        v-if="responsibleDetailsItems.length"
+        :data-source="responsibleDetailsItems"
+        :columns="responsibleDetailsColumns"
+        :pagination="false"
+        row-key="id"
+        size="small"
+        :scroll="{ x: 1000, y: 460 }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'status'">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getEquipmentStatusLabel(record.status) }}
+            </a-tag>
+          </template>
+          <template v-else>
+            <span class="cell-ellipsis" :title="cellText(record[column.dataIndex])">
+              {{ cellText(record[column.dataIndex]) }}
+            </span>
+          </template>
+        </template>
+      </a-table>
+      <a-empty v-else description="Chưa có thiết bị được phân công" />
+    </a-modal>
 
     <a-modal
       v-model:open="statusDetailsVisible"
@@ -287,6 +338,7 @@
             </template>
             <template v-else-if="column.key === 'holdExpiresAt'">
               {{ formatDateTime(record.holdExpiresAt) }}
+              <a-tag v-if="parseApiDate(record.holdExpiresAt) && parseApiDate(record.holdExpiresAt).getTime() <= Date.now()" color="orange">Đã hết hạn giữ chỗ</a-tag>
             </template>
             <template v-else-if="column.key === 'status'">
               <a-tag :color="getStatusColor(record.status)">
@@ -313,7 +365,7 @@ import {
   AppstoreOutlined,
   ArrowRightOutlined,
   ClockCircleOutlined,
-  DollarOutlined,
+  EyeOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
   ReloadOutlined,
@@ -330,7 +382,7 @@ import { getEquipmentStatusLabel, getStatusColor } from '../utils/statusLabels'
 import { getApiErrorMessage } from '../utils/apiError'
 import router from '../router'
 import { createTablePagination } from '../utils/tablePagination'
-import { formatVietnamDate, formatVietnamDateTime } from '../utils/dateTime'
+import { formatVietnamDate, formatVietnamDateTime, parseApiDate } from '../utils/dateTime'
 import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { sortTableRows } from '../utils/tableSort'
 
@@ -364,7 +416,6 @@ const report = ref({
   byLocation: [],
   borrowed: [],
   lowStock: [],
-  maintenance: [],
   responsible: [],
   consumables: [],
   reservedEquipment: []
@@ -393,7 +444,8 @@ const borrowColumns = [
 const responsibleColumns = [
   { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', width: 260, ellipsis: true, sortable: true, sortKey: 'responsiblePerson', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người phụ trách...' },
   { title: 'Số thiết bị', dataIndex: 'equipmentCount', key: 'equipmentCount', width: 130, sortable: true, sortKey: 'equipmentCount' },
-  { title: 'Thiết bị phụ trách', dataIndex: 'equipment', key: 'equipment', width: 420, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' }
+  { title: 'Thiết bị phụ trách', dataIndex: 'equipment', key: 'equipment', width: 420, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' },
+  { title: 'Chi tiết', key: 'details', width: 90, align: 'center' }
 ]
 const consumableColumns = [
   { title: 'Vật tư', dataIndex: 'name', key: 'name', width: 280, ellipsis: true, sortable: true, sortKey: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm vật tư...' },
@@ -457,12 +509,6 @@ const summaryCards = computed(() => [
     value: formatNumber(report.value.totals.broken),
     icon: ToolOutlined,
     tone: 'warning'
-  },
-  {
-    label: 'Chi phí bảo trì',
-    value: formatCurrency(report.value.totals.maintenanceCost),
-    icon: DollarOutlined,
-    tone: 'success'
   }
 ])
 
@@ -497,6 +543,38 @@ const statusDetailsColumns = computed(() => {
     { title: 'Trạng thái', key: 'status', width: 180, className: 'status-column' }
   ]
 })
+
+const responsibleDetailsVisible = ref(false)
+const selectedResponsible = ref(null)
+const selectedResponsibleName = computed(() => cellText(selectedResponsible.value?.responsiblePerson))
+const responsibleDetailsTitle = computed(() => `Thiết bị do ${selectedResponsibleName.value} phụ trách`)
+const responsibleDetailsItems = computed(() => {
+  const items = selectedResponsible.value?.equipmentItems
+  if (Array.isArray(items)) return items
+
+  return String(selectedResponsible.value?.equipment || '')
+    .replace(/,\s*\.\.\.$/, '')
+    .split(',')
+    .map(name => name.trim())
+    .filter(Boolean)
+    .map((name, index) => ({ id: `summary-${index}`, name }))
+})
+const responsibleDetailsColumns = [
+  { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', width: 220, ellipsis: true },
+  { title: 'Mã tài sản', dataIndex: 'assetCode', key: 'assetCode', width: 140, ellipsis: true },
+  { title: 'Model', dataIndex: 'model', key: 'model', width: 170, ellipsis: true },
+  { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 150, ellipsis: true },
+  { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 160, ellipsis: true },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160 }
+]
+const showResponsibleDetails = record => {
+  selectedResponsible.value = record
+  responsibleDetailsVisible.value = true
+}
+const closeResponsibleDetails = () => {
+  responsibleDetailsVisible.value = false
+  selectedResponsible.value = null
+}
 const selectedStatusLabel = computed(() => selectedStatus.value ? getEquipmentStatusLabel(selectedStatus.value) : '')
 const statusDetailsTitle = computed(() => selectedStatusLabel.value
   ? `${selectedStatusLabel.value} (${formatNumber(selectedStatusCount.value)} thiết bị)`
@@ -536,14 +614,6 @@ const closeStatusDetails = () => {
 
 const statusTotal = computed(() => statusRows.value.reduce((total, item) => total + item.count, 0))
 
-const maintenanceInProgressCount = computed(() => Number(
-  report.value.totals.maintenanceInProgress
-    ?? report.value.maintenance.filter(item => {
-      const status = normalizeStatus(item.status)
-      return status === 'IN_PROGRESS' || status === STATUS.MAINTENANCE_IN_PROGRESS
-    }).length
-))
-
 const attentionCards = computed(() => [
   {
     key: 'overdue',
@@ -556,16 +626,6 @@ const attentionCards = computed(() => [
     route: { name: 'BorrowHistory', query: { status: 'OVERDUE' } }
   },
   {
-    key: 'maintenance',
-    title: 'Thiết bị đang bảo trì',
-    count: maintenanceInProgressCount.value,
-    value: formatNumber(maintenanceInProgressCount.value),
-    description: 'Thiết bị đang trong quá trình bảo trì.',
-    icon: ToolOutlined,
-    tone: 'warning',
-    route: { name: 'Maintenance', query: { status: STATUS.MAINTENANCE_IN_PROGRESS } }
-  },
-  {
     key: 'broken',
     title: 'Thiết bị hỏng',
     count: Number(report.value.totals.broken || 0),
@@ -574,16 +634,6 @@ const attentionCards = computed(() => [
     icon: WarningOutlined,
     tone: 'danger',
     route: { name: 'Devices', query: { status: STATUS.BROKEN } }
-  },
-  {
-    key: 'maintenance-cost',
-    title: 'Chi phí bảo trì trong kỳ',
-    count: Number(report.value.totals.maintenanceCost || 0),
-    value: formatCurrency(report.value.totals.maintenanceCost),
-    description: 'Tổng chi phí phát sinh trong kỳ.',
-    icon: DollarOutlined,
-    tone: 'success',
-    route: { name: 'Maintenance' }
   }
 ])
 
@@ -592,7 +642,6 @@ const hasAttention = computed(() => attentionCards.value.some(item => item.count
 const formatDate = value => formatVietnamDate(value)
 const formatDateTime = value => formatVietnamDateTime(value)
 const formatNumber = value => Number(value || 0).toLocaleString('vi-VN')
-const formatCurrency = value => `${Number(value || 0).toLocaleString('vi-VN')} ₫`
 const cellText = value => value === null || value === undefined || value === '' ? '—' : String(value)
 const phoneHref = phone => {
   const normalized = String(phone || '').replace(/[^\d+]/g, '')
@@ -640,7 +689,6 @@ const load = async () => {
       byLocation: Array.isArray(result?.byLocation) ? result.byLocation : [],
       borrowed: Array.isArray(result?.borrowed) ? result.borrowed : [],
       lowStock: Array.isArray(result?.lowStock) ? result.lowStock : [],
-      maintenance: Array.isArray(result?.maintenance) ? result.maintenance : [],
       responsible: Array.isArray(result?.responsible) ? result.responsible : [],
       consumables: Array.isArray(result?.consumables) ? result.consumables : [],
       reservedEquipment: Array.isArray(result?.reservedEquipment) ? result.reservedEquipment : []
@@ -732,11 +780,9 @@ onMounted(async () => {
 .filter-actions { display: flex; gap: 8px; }
 .filter-actions .ant-btn { min-height: 38px; padding-inline: 14px; white-space: nowrap; }
 .reports-spin { display: block; }
-.reports-spin :deep(.ant-spin-container) { display: block; }
-.overview-section { margin-bottom: 24px; }
-.main-grid { margin-bottom: 24px; }
-.reports-spin :deep(.ant-spin-container > .detail-card) { margin-bottom: 0; }
-.overview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.reports-content { display: flex; flex-direction: column; gap: 24px; }
+.overview-section, .main-grid { margin-bottom: 0; }
+.overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .summary-card :deep(.ant-card-body) { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; }
 .summary-icon { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; border-radius: 10px; font-size: 20px; }
 .summary-icon--primary { color: var(--color-primary); background: #fff1eb; }
@@ -793,6 +839,8 @@ onMounted(async () => {
 .detail-card :deep(.ant-empty) { margin: 12px 0; }
 .cell-ellipsis { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-details-description { margin: 0 0 14px; color: var(--color-secondary); }
+.responsible-details-description { margin: 0 0 14px; color: var(--color-secondary); }
+.responsible-detail-button { padding-inline: 4px; }
 
 @media (max-width: 1199px) {
   .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -802,7 +850,7 @@ onMounted(async () => {
 
 @media (max-width: 767px) {
   .reports-page { gap: 14px; }
-  .overview-section, .main-grid { margin-bottom: 16px; }
+  .reports-content { gap: 16px; }
   .filter-grid, .main-grid { grid-template-columns: 1fr; gap: 12px; }
   .filter-actions { grid-column: auto; }
   .filter-actions .ant-btn { flex: 1; }

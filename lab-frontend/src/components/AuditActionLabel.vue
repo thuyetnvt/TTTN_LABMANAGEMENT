@@ -5,6 +5,8 @@ import { computed } from 'vue'
 
 const props = defineProps({ action: { type: String, default: '' } })
 const labels = {
+  UpdateProfile: 'Cập nhật hồ sơ', Activate: 'Mở khóa tài khoản', Deactivate: 'Khóa tài khoản',
+  SsoRegister: 'Tạo tài khoản SSO', SsoLoginSucceeded: 'Đăng nhập SSO thành công',
   Create: 'Tạo mới', Update: 'Cập nhật', Delete: 'Xóa', Approve: 'Duyệt', Reject: 'Từ chối',
   Return: 'Trả', TeacherApprove: 'Giảng viên duyệt', TeacherReject: 'Giảng viên từ chối',
   SendReturnReminder: 'Nhắc trả', LoginSucceeded: 'Đăng nhập thành công', LoginFailed: 'Đăng nhập thất bại',

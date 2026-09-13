@@ -43,12 +43,16 @@ docker build \
   -t labmanagement-frontend .
 ```
 
-## API bổ sung cho đặt lại mật khẩu
+## Phiên đăng nhập và đặt lại mật khẩu
 
 Frontend sử dụng:
 
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
+
+Khi access token hết hạn, frontend dùng refresh token một lần để nhận cặp token mới rồi tự gửi lại request đang dở. Nếu refresh thất bại, phiên được xóa và người dùng quay về trang đăng nhập.
 
 Backend cần gửi liên kết dạng:
 

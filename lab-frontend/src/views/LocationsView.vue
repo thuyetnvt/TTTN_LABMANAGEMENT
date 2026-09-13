@@ -2,8 +2,8 @@
   <div class="locations-page">
     <div class="page-heading">
       <div>
-        <h2>Cây vị trí tài sản</h2>
-        <p>Quản lý phòng lab, khu vực, tủ/kệ/bàn và ngăn bằng dữ liệu thật.</p>
+        <h2>Danh sách vị trí tài sản</h2>
+        <p>Quản lý các vị trí lưu trữ thiết bị và vật tư trong Phòng Lab IoT.</p>
       </div>
       <a-button type="primary" @click="openCreate">Thêm vị trí</a-button>
     </div>
@@ -37,10 +37,7 @@
           <span v-else>{{ column.title }}</span>
         </template>
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'parent'">
-            {{ parentName(record.parentId) }}
-          </template>
-          <template v-else-if="column.key === 'type'">
+          <template v-if="column.key === 'type'">
             {{ locationTypeLabels[record.type] || 'Không xác định' }}
           </template>
           <template v-else-if="column.key === 'status'">
@@ -78,11 +75,6 @@
         <a-form-item label="Loại vị trí" required>
           <a-select v-model:value="form.type" :options="typeOptions" />
         </a-form-item>
-        <a-form-item label="Vị trí cha">
-          <a-select v-model:value="form.parentId" allow-clear placeholder="Không có vị trí cha">
-            <a-select-option v-for="location in parentOptions" :key="location.id" :value="location.id">{{ location.code }} — {{ location.name }}</a-select-option>
-          </a-select>
-        </a-form-item>
         <a-form-item label="Mô tả"><a-textarea v-model:value="form.description" :rows="3" /></a-form-item>
         <a-form-item><a-checkbox v-model:checked="form.isActive">Đang sử dụng</a-checkbox></a-form-item>
       </a-form>
@@ -115,7 +107,7 @@ const searchQuery = ref('')
 const typeFilter = ref(undefined)
 const activeFilter = ref(undefined)
 const sortState = reactive({ field: undefined, order: undefined })
-const form = reactive({ code: '', name: '', type: 'ROOM', parentId: null, description: '', isActive: true })
+const form = reactive({ code: '', name: '', type: 'ROOM', description: '', isActive: true })
 const typeOptions = [
   { value: 'ROOM', label: 'Phòng lab' },
   { value: 'AREA', label: 'Khu vực' },
@@ -135,7 +127,6 @@ const columns = [
   { title: 'Mã', dataIndex: 'code', key: 'code', sortKey: 'code', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vị trí...' },
   { title: 'Tên vị trí', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vị trí...' },
   { title: 'Loại', key: 'type', sortKey: 'type', sortable: true, filterType: 'select', filterKey: 'type', filterOptions: typeOptions },
-  { title: 'Vị trí cha', key: 'parent', sortKey: 'parent', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm vị trí cha...' },
   { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount', sortKey: 'equipmentCount', sortable: true },
   { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 170, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'ACTIVE', label: 'Đang sử dụng' },
@@ -144,8 +135,6 @@ const columns = [
   { title: 'Thao tác', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 120, align: 'center' }
 ]
 
-const parentOptions = computed(() => locations.value.filter(item => item.id !== editing.value?.id && item.isActive))
-const parentName = (id) => locations.value.find(item => item.id === id)?.name || '—'
 const canDeleteLocation = (record) => Number(record.equipmentCount || 0) === 0
 const deleteLocationLabel = (record) => canDeleteLocation(record)
   ? 'Xóa vị trí'
@@ -154,13 +143,12 @@ const deleteLocationLabel = (record) => canDeleteLocation(record)
 const filteredLocations = computed(() => {
   const keyword = searchQuery.value.trim().toLowerCase()
   const filtered = locations.value.filter(location => {
-    const parent = parentName(location.parentId).toLowerCase()
-    const matchesSearch = !keyword || [location.code, location.name, parent].some(value => String(value || '').toLowerCase().includes(keyword))
+    const matchesSearch = !keyword || [location.code, location.name].some(value => String(value || '').toLowerCase().includes(keyword))
     const matchesType = !typeFilter.value || location.type === typeFilter.value
     const matchesStatus = !activeFilter.value || (activeFilter.value === 'ACTIVE' ? location.isActive : !location.isActive)
     return matchesSearch && matchesType && matchesStatus
   })
-  return sortTableRows(filtered, sortState.field, sortState.order, (location, field) => field === 'parent' ? parentName(location.parentId) : location[field])
+  return sortTableRows(filtered, sortState.field, sortState.order)
 })
 
 const applyFilters = () => {
@@ -195,9 +183,27 @@ const fetchLocations = async () => {
   }
 }
 
-const resetForm = () => Object.assign(form, { code: '', name: '', type: 'ROOM', parentId: null, description: '', isActive: true })
+const resetForm = () => Object.assign(form, { code: '', name: '', type: 'ROOM', description: '', isActive: true })
 const openCreate = () => { editing.value = null; resetForm(); modalOpen.value = true }
-const openEdit = (record) => { editing.value = record; Object.assign(form, record); modalOpen.value = true }
+const openEdit = (record) => {
+  editing.value = record
+  Object.assign(form, {
+    code: record.code || '',
+    name: record.name || '',
+    type: record.type || 'ROOM',
+    description: record.description || '',
+    isActive: record.isActive !== false
+  })
+  modalOpen.value = true
+}
+
+const locationPayload = () => ({
+  code: form.code.trim(),
+  name: form.name.trim(),
+  type: form.type,
+  description: form.description?.trim() || '',
+  isActive: form.isActive
+})
 
 const submit = async () => {
   if (!form.code.trim() || !form.name.trim() || !form.type) {
@@ -206,8 +212,8 @@ const submit = async () => {
   }
   saving.value = true
   try {
-    if (editing.value) await locationApi.update(editing.value.id, { ...form })
-    else await locationApi.create({ ...form })
+    if (editing.value) await locationApi.update(editing.value.id, locationPayload())
+    else await locationApi.create(locationPayload())
     message.success(editing.value ? 'Đã cập nhật vị trí.' : 'Đã thêm vị trí.')
     modalOpen.value = false
     await fetchLocations()

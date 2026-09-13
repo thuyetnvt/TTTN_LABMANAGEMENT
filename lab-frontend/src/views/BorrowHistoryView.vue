@@ -2,7 +2,15 @@
   <div class="borrow-history-container">
     <div class="toolbar">
       <h2>Lịch sử mượn/trả</h2>
+      <div class="toolbar-actions">
+        <a-upload v-if="isManager" accept=".xlsx" :show-upload-list="false" :before-upload="previewHistoryImport">
+          <a-button :loading="previewingImport"><UploadOutlined /> Nhập Excel</a-button>
+        </a-upload>
+        <a-button type="primary" :loading="exporting" @click="exportHistory"><FileExcelOutlined /> Xuất Excel</a-button>
+      </div>
       <div class="toolbar-filters">
+        <a-range-picker v-model:value="borrowDates" format="DD/MM/YYYY" :placeholder="['Mượn từ ngày', 'Mượn đến ngày']" @change="applyFilters" />
+        <a-range-picker v-model:value="returnDates" format="DD/MM/YYYY" :placeholder="['Trả thực tế từ ngày', 'Trả thực tế đến ngày']" @change="applyFilters" />
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người mượn, thiết bị..." class="filter-search" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
@@ -57,9 +65,6 @@
             </a>
             <span v-else class="muted">Chưa cập nhật</span>
           </template>
-          <template v-else-if="column.key === 'returnCondition'">
-            <StatusBadge v-if="record.returnCondition" :status="record.returnCondition" type="returnCondition" />
-          </template>
           <template v-else-if="column.key === 'status'">
             <StatusBadge :status="record.status" type="borrow" :color="record.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(record)" />
           </template>
@@ -106,7 +111,6 @@
             <div><dt>Ngày đăng ký</dt><dd>{{ formatDate(item.requestDate) }}</dd></div>
             <div><dt>Hạn trả</dt><dd>{{ formatDate(item.expectedReturnDate) }}</dd></div>
             <div><dt>Ngày trả thực tế</dt><dd>{{ item.actualReturnDate ? formatDate(item.actualReturnDate) : '—' }}</dd></div>
-            <div v-if="item.returnCondition"><dt>Tình trạng trả</dt><dd><StatusBadge :status="item.returnCondition" type="returnCondition" /></dd></div>
           </dl>
           <div v-if="isManager && (statusMatches(item.status, STATUS.BORROWED) || statusMatches(item.status, STATUS.RETURN_PROCESSING))" class="mobile-request-actions">
             <a-button @click="openReturn(item)">Kiểm tra trả</a-button>
@@ -118,6 +122,42 @@
         </template>
       </ResponsiveDataList>
     </a-card>
+
+    <a-modal
+      v-model:open="importVisible"
+      title="Kiểm tra dữ liệu lịch sử mượn/trả"
+      width="1000px"
+      ok-text="Nhập dữ liệu hợp lệ"
+      cancel-text="Đóng"
+      :confirm-loading="importing"
+      :ok-button-props="{ disabled: importPreview.invalidCount > 0 || importPreview.validCount === 0 }"
+      @ok="confirmHistoryImport"
+    >
+      <a-alert
+        :type="importPreview.invalidCount > 0 ? 'error' : 'success'"
+        show-icon
+        :message="`${importPreview.validCount}/${importPreview.total} dòng hợp lệ`"
+        :description="importPreview.invalidCount > 0 ? 'Sửa các dòng báo lỗi trong file rồi chọn lại. Hệ thống chỉ nhận lịch sử đã kết thúc.' : 'Dữ liệu đã sẵn sàng để nhập.'"
+        style="margin-bottom: 16px"
+      />
+      <a-table
+        :data-source="importPreview.rows"
+        :columns="importPreviewColumns"
+        row-key="rowNumber"
+        size="small"
+        :pagination="{ pageSize: 10, hideOnSinglePage: true }"
+        :scroll="{ x: 1050 }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'borrowDate' || column.key === 'expectedReturnDate'">
+            {{ formatDate(record.row?.[column.key]) }}
+          </template>
+          <template v-else-if="column.key === 'valid'">
+            <a-tag :color="record.valid ? 'green' : 'red'">{{ record.valid ? 'Hợp lệ' : record.errors.join('; ') }}</a-tag>
+          </template>
+        </template>
+      </a-table>
+    </a-modal>
 
     <ReturnInspectionModal
       :open="isReturnVisible"
@@ -258,6 +298,10 @@
         <a-descriptions-item label="Thiết bị">{{ selectedRecord.device }}</a-descriptions-item>
         <a-descriptions-item label="Hạn trả">{{ formatDate(selectedRecord.expectedReturnDate) }}</a-descriptions-item>
         <a-descriptions-item label="Ngày trả thực tế">{{ selectedRecord.actualReturnDate ? formatDate(selectedRecord.actualReturnDate) : 'Chưa trả' }}</a-descriptions-item>
+        <a-descriptions-item label="Tình trạng trả">
+          <StatusBadge v-if="selectedRecord.returnCondition" :status="selectedRecord.returnCondition" type="returnCondition" />
+          <span v-else>Chưa ghi nhận</span>
+        </a-descriptions-item>
         <a-descriptions-item label="Trạng thái"><StatusBadge :status="selectedRecord.status" type="borrow" :color="selectedRecord.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(selectedRecord)" /></a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.managerDecisionNote" label="Lý do quản lý từ chối">{{ selectedRecord.managerDecisionNote }}</a-descriptions-item>
         <a-descriptions-item v-if="selectedRecord.teacherDecisionNote" label="Lý do giảng viên từ chối bảo lãnh">{{ selectedRecord.teacherDecisionNote }}</a-descriptions-item>
@@ -295,8 +339,9 @@
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { message, Upload } from 'ant-design-vue'
-import { EyeOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, FileExcelOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { borrowApi } from '../api/borrowApi'
+import { borrowDeviceLabel } from '../utils/borrowDeviceLabel'
 import { handoverApi } from '../api/handoverApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -321,7 +366,14 @@ const authStore = useAuthStore()
 const role = computed(() => authStore.role)
 const isManager = computed(() => isManagerRole(role.value))
 const loading = ref(false)
+const exporting = ref(false)
+const previewingImport = ref(false)
+const importing = ref(false)
+const importVisible = ref(false)
+const importPreview = reactive({ rows: [], total: 0, validCount: 0, invalidCount: 0 })
 const searchQuery = ref('')
+const borrowDates = ref(null)
+const returnDates = ref(null)
 const statusFilter = ref(undefined)
 const sortState = reactive({ field: undefined, order: undefined })
 const isHandoverVisible = ref(false)
@@ -379,17 +431,92 @@ const borrowStatusOptions = [
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
-  { title: 'SĐT liên hệ', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 175, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
-  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 170 },
-  { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', sortKey: 'expectedReturnDate', sortable: true, width: 155 },
   { title: 'Ngày trả thực tế', dataIndex: 'actualReturnDate', key: 'actualReturnDate', sortKey: 'actualReturnDate', sortable: true, width: 175 },
-  { title: 'Tình trạng trả', dataIndex: 'returnCondition', key: 'returnCondition', sortKey: 'returnCondition', sortable: true, width: 180, className: 'status-column' },
   { title: 'Ghi chú kiểm tra', dataIndex: 'returnInspectionNote', key: 'returnInspectionNote', sortKey: 'returnInspectionNote', sortable: true, width: 200 },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 255, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: borrowStatusOptions },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 180, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: borrowStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190 }
 ]
+
+const importPreviewColumns = [
+  { title: 'Dòng', dataIndex: 'rowNumber', key: 'rowNumber', width: 70 },
+  { title: 'Tài khoản', dataIndex: ['row', 'username'], key: 'username', width: 130 },
+  { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', width: 170 },
+  { title: 'Thiết bị', dataIndex: 'equipmentName', key: 'equipmentName', width: 180 },
+  { title: 'Số seri', dataIndex: ['row', 'serial'], key: 'serial', width: 130 },
+  { title: 'Ngày đăng ký', key: 'borrowDate', width: 130 },
+  { title: 'Hạn trả', key: 'expectedReturnDate', width: 120 },
+  { title: 'Trạng thái', dataIndex: ['row', 'status'], key: 'status', width: 160 },
+  { title: 'Kết quả', key: 'valid', width: 280 }
+]
+
+const currentHistoryFilters = () => ({
+  from: borrowDates.value?.[0]?.format('YYYY-MM-DD'),
+  to: borrowDates.value?.[1]?.format('YYYY-MM-DD'),
+  returnFrom: returnDates.value?.[0]?.format('YYYY-MM-DD'),
+  returnTo: returnDates.value?.[1]?.format('YYYY-MM-DD'),
+  search: searchQuery.value.trim() || undefined,
+  status: statusFilter.value,
+  sortBy: sortState.field,
+  sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
+})
+
+const exportHistory = async () => {
+  exporting.value = true
+  try {
+    const blob = await borrowApi.exportHistory(currentHistoryFilters())
+    if (!(blob instanceof Blob) || blob.size === 0) throw new Error('Tệp Excel rỗng.')
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `LichSuMuonTra_${Date.now()}.xlsx`
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    message.success('Đã xuất lịch sử mượn/trả theo bộ lọc hiện tại.')
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể xuất lịch sử mượn/trả.'))
+  } finally {
+    exporting.value = false
+  }
+}
+
+const previewHistoryImport = async file => {
+  if (!file?.name?.toLowerCase().endsWith('.xlsx')) {
+    message.error('Chỉ chấp nhận file Excel .xlsx.')
+    return Upload.LIST_IGNORE
+  }
+  previewingImport.value = true
+  try {
+    const result = await borrowApi.previewHistoryImport(file)
+    Object.assign(importPreview, {
+      rows: result.rows || [],
+      total: result.total || 0,
+      validCount: result.validCount || 0,
+      invalidCount: result.invalidCount || 0
+    })
+    importVisible.value = true
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể đọc file Excel.'))
+  } finally {
+    previewingImport.value = false
+  }
+  return false
+}
+
+const confirmHistoryImport = async () => {
+  if (importPreview.invalidCount > 0 || importPreview.validCount === 0) return
+  importing.value = true
+  try {
+    const result = await borrowApi.importHistory(importPreview.rows.map(item => item.row))
+    message.success(getApiSuccessMessage(result, 'Đã nhập lịch sử mượn/trả.'))
+    importVisible.value = false
+    await fetchHistory()
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể nhập lịch sử mượn/trả.'))
+  } finally {
+    importing.value = false
+  }
+}
 
 const borrowWorkflowLabel = record => {
   if (record?.isOverdue) {
@@ -512,14 +639,11 @@ const fetchHistory = async () => {
   loading.value = true
   try {
     const response = await borrowApi.getHistoryPaged({
+      ...currentHistoryFilters(),
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
-      search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value,
-      sortBy: sortState.field,
-      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
-    dataSource.value = response.items || []
+    dataSource.value = (response.items || []).map(record => ({ ...record, device: borrowDeviceLabel(record) }))
     tablePagination.total = response.total || 0
   } catch {
     message.error('Lỗi khi tải lịch sử!')
@@ -644,12 +768,14 @@ const handleTableChange = (pager) => {
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 24px;
 }
 
-.toolbar-filters { display: flex; flex-wrap: wrap; gap: 10px; }
+.toolbar h2 { margin: 0 auto 0 0; }
+.toolbar-actions, .toolbar-filters { display: flex; flex-wrap: wrap; gap: 10px; }
+.toolbar-filters { flex-basis: 100%; justify-content: flex-end; }
 
 @media (max-width: 767px) {
   .toolbar { align-items: stretch; flex-direction: column; }
@@ -663,6 +789,7 @@ h2 {
 }
 
 .muted { color: #8c8c8c; font-size: 13px; }
+.desktop-table :deep(.status-column) { width: 180px !important; min-width: 180px !important; max-width: 180px !important; }
 .view-action { color: var(--color-primary); }
 .request-actions { display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
 .mobile-request-actions { display: flex; gap: 8px; }

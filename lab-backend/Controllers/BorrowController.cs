@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Net;
 using System.Security.Claims;
+using System.Text;
 using System.Text.RegularExpressions;
 using LabManagementAPI.Data;
 using LabManagementAPI.Dtos;
@@ -11,6 +13,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 
 namespace LabManagementAPI.Controllers;
 
@@ -546,6 +550,8 @@ public class BorrowController : ControllerBase
         [FromQuery] PageQuery paging,
         CancellationToken cancellationToken)
     {
+        if (paging.From > paging.To || paging.ReturnFrom > paging.ReturnTo)
+            return BadRequest(new { message = "Ngày bắt đầu không được sau ngày kết thúc." });
         var userId = GetCurrentUserId();
         var role = User.FindFirstValue(ClaimTypes.Role);
         var query = _context.BorrowRecords
@@ -616,12 +622,23 @@ public class BorrowController : ControllerBase
         }
         if (paging.From.HasValue)
         {
-            query = query.Where(item => item.BorrowDate >= paging.From.Value);
+            var start = VietnamTime.StartOfDayUtc(paging.From.Value);
+            query = query.Where(item => item.BorrowDate >= start);
         }
         if (paging.To.HasValue)
         {
-            var exclusiveTo = paging.To.Value.Date.AddDays(1);
-            query = query.Where(item => item.BorrowDate < exclusiveTo);
+            var end = VietnamTime.StartOfDayUtc(paging.To.Value.Date.AddDays(1));
+            query = query.Where(item => item.BorrowDate < end);
+        }
+        if (paging.ReturnFrom.HasValue)
+        {
+            var start = VietnamTime.StartOfDayUtc(paging.ReturnFrom.Value);
+            query = query.Where(item => item.ActualReturnDate.HasValue && item.ActualReturnDate >= start);
+        }
+        if (paging.ReturnTo.HasValue)
+        {
+            var end = VietnamTime.StartOfDayUtc(paging.ReturnTo.Value.Date.AddDays(1));
+            query = query.Where(item => item.ActualReturnDate.HasValue && item.ActualReturnDate < end);
         }
 
         var page = await ApplySorting(query, paging)
@@ -712,6 +729,202 @@ public class BorrowController : ControllerBase
         }).ToList();
 
         return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
+    [HttpGet("history/export")]
+    public async Task<IActionResult> ExportHistory(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        if (paging.From > paging.To || paging.ReturnFrom > paging.ReturnTo)
+            return BadRequest(new { message = "Ngày bắt đầu không được sau ngày kết thúc." });
+
+        var query = BuildHistoryQuery(paging, GetCurrentUserId(), User.FindFirstValue(ClaimTypes.Role))
+            .Include(item => item.User)
+            .Include(item => item.Equipment)
+            .Include(item => item.Details)
+                .ThenInclude(detail => detail.Equipment)
+            .AsNoTracking();
+        var records = await ApplySorting(query, paging)
+            .Take(10_000)
+            .ToListAsync(cancellationToken);
+
+        ExcelPackage.License.SetNonCommercialOrganization("LabManagement Educational Project");
+        using var package = new ExcelPackage();
+        var sheet = package.Workbook.Worksheets.Add("LichSuMuonTra");
+        var headers = new[]
+        {
+            "Mã phiếu", "Tài khoản", "Người mượn", "SĐT liên hệ", "Thiết bị", "Số seri",
+            "Ngày đăng ký", "Hạn trả", "Ngày trả thực tế", "Mục đích", "Trạng thái",
+            "Tình trạng trả", "Ghi chú kiểm tra"
+        };
+        for (var column = 0; column < headers.Length; column++)
+            sheet.Cells[1, column + 1].Value = headers[column];
+
+        using (var header = sheet.Cells[1, 1, 1, headers.Length])
+        {
+            header.Style.Font.Bold = true;
+            header.Style.Fill.PatternType = ExcelFillStyle.Solid;
+            header.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(221, 235, 247));
+        }
+
+        var row = 2;
+        foreach (var record in records)
+        {
+            var equipmentRows = record.Details.Count > 0
+                ? record.Details.Select(detail => new { Name = detail.Equipment?.Name ?? string.Empty, Serial = detail.Equipment?.Serial ?? string.Empty })
+                : new[] { new { Name = record.Equipment?.Name ?? string.Empty, Serial = record.Equipment?.Serial ?? string.Empty } };
+            foreach (var equipment in equipmentRows)
+            {
+                WriteHistoryExcelCell(sheet, row, 1, record.Id);
+                WriteHistoryExcelCell(sheet, row, 2, record.User?.Username);
+                WriteHistoryExcelCell(sheet, row, 3, record.User?.FullName);
+                WriteHistoryExcelCell(sheet, row, 4, record.ContactPhone);
+                WriteHistoryExcelCell(sheet, row, 5, equipment.Name);
+                WriteHistoryExcelCell(sheet, row, 6, equipment.Serial);
+                WriteHistoryExcelCell(sheet, row, 7, VietnamTime.Now(record.BorrowDate).ToString("dd/MM/yyyy HH:mm"));
+                WriteHistoryExcelCell(sheet, row, 8, VietnamTime.Date(record.ExpectedReturnDate).ToString("dd/MM/yyyy"));
+                WriteHistoryExcelCell(sheet, row, 9, record.ActualReturnDate.HasValue
+                    ? VietnamTime.Now(record.ActualReturnDate.Value).ToString("dd/MM/yyyy HH:mm")
+                    : string.Empty);
+                WriteHistoryExcelCell(sheet, row, 10, SeedDisplayText.Clean(record.Purpose));
+                WriteHistoryExcelCell(sheet, row, 11, StatusCodeMap.Label(record.Status));
+                WriteHistoryExcelCell(sheet, row, 12, StatusCodeMap.Label(record.ReturnCondition));
+                WriteHistoryExcelCell(sheet, row, 13, SeedDisplayText.Clean(record.ReturnInspectionNote));
+                row++;
+            }
+        }
+
+        sheet.View.FreezePanes(2, 1);
+        sheet.Cells[sheet.Dimension?.Address ?? "A1"].AutoFitColumns(12, 40);
+        var bytes = await package.GetAsByteArrayAsync(cancellationToken);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"LichSuMuonTra_{VietnamTime.Now(DateTime.UtcNow):yyyyMMddHHmm}.xlsx");
+    }
+
+    [HttpPost("history/import/preview")]
+    [Authorize(Roles = Roles.Managers)]
+    [EnableRateLimiting("sensitive")]
+    [RequestSizeLimit(11_000_000)]
+    public async Task<IActionResult> PreviewHistoryImport(
+        [FromForm] IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var extension = Path.GetExtension(Path.GetFileName(file?.FileName ?? string.Empty));
+        if (file is null || file.Length <= 0 || !string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Vui lòng chọn file Excel .xlsx hợp lệ." });
+        if (file.Length > 10 * 1024 * 1024)
+            return BadRequest(new { message = "File Excel không được vượt quá 10 MB." });
+
+        ExcelPackage.License.SetNonCommercialOrganization("LabManagement Educational Project");
+        await using var stream = file.OpenReadStream();
+        using var package = new ExcelPackage(stream);
+        var sheet = package.Workbook.Worksheets.FirstOrDefault();
+        if (sheet?.Dimension is null) return BadRequest(new { message = "File Excel không có dữ liệu." });
+
+        var headers = BuildHistoryImportHeaderMap(sheet);
+        var required = new[] { "Tài khoản", "SĐT liên hệ", "Số seri", "Ngày đăng ký", "Hạn trả", "Mục đích", "Trạng thái" };
+        var missing = required.Where(name => !headers.ContainsKey(NormalizeHistoryHeader(name))).ToArray();
+        if (missing.Length > 0)
+            return BadRequest(new { message = $"Thiếu cột bắt buộc: {string.Join(", ", missing)}." });
+
+        var rows = new List<BorrowHistoryImportRowDto>();
+        var rowNumbers = new List<int>();
+        for (var rowNumber = 2; rowNumber <= Math.Min(sheet.Dimension.End.Row, 501); rowNumber++)
+        {
+            var username = ReadHistoryText(sheet, headers, rowNumber, "Tài khoản");
+            var serial = ReadHistoryText(sheet, headers, rowNumber, "Số seri");
+            if (string.IsNullOrWhiteSpace(username) && string.IsNullOrWhiteSpace(serial)) continue;
+            rows.Add(new BorrowHistoryImportRowDto
+            {
+                Username = username,
+                ContactPhone = ReadHistoryText(sheet, headers, rowNumber, "SĐT liên hệ"),
+                Serial = serial,
+                BorrowDate = ReadHistoryDate(sheet, headers, rowNumber, "Ngày đăng ký") ?? default,
+                ExpectedReturnDate = ReadHistoryDate(sheet, headers, rowNumber, "Hạn trả") ?? default,
+                ActualReturnDate = ReadHistoryDate(sheet, headers, rowNumber, "Ngày trả thực tế"),
+                Purpose = ReadHistoryText(sheet, headers, rowNumber, "Mục đích"),
+                Status = ReadHistoryText(sheet, headers, rowNumber, "Trạng thái"),
+                ReturnCondition = ReadHistoryText(sheet, headers, rowNumber, "Tình trạng trả"),
+                ReturnInspectionNote = ReadHistoryText(sheet, headers, rowNumber, "Ghi chú kiểm tra")
+            });
+            rowNumbers.Add(rowNumber);
+        }
+
+        var validated = await ValidateHistoryImportRowsAsync(rows, cancellationToken);
+        var preview = validated.Select((item, index) => new
+        {
+            rowNumber = rowNumbers[index],
+            row = item.Row,
+            borrowerName = item.User?.FullName,
+            equipmentName = item.Equipment?.Name,
+            errors = item.Errors,
+            valid = item.Errors.Count == 0
+        }).ToList();
+        return Ok(new
+        {
+            rows = preview,
+            total = preview.Count,
+            validCount = preview.Count(item => item.valid),
+            invalidCount = preview.Count(item => !item.valid)
+        });
+    }
+
+    [HttpPost("history/import")]
+    [Authorize(Roles = Roles.Managers)]
+    [EnableRateLimiting("sensitive")]
+    public async Task<IActionResult> ImportHistory(
+        [FromBody] BorrowHistoryImportDto dto,
+        CancellationToken cancellationToken)
+    {
+        var validated = await ValidateHistoryImportRowsAsync(dto.Rows, cancellationToken);
+        var errors = validated.Select((item, index) => new { row = index + 2, item.Errors })
+            .Where(item => item.Errors.Count > 0)
+            .ToList();
+        if (errors.Count > 0)
+            return BadRequest(new { message = "Dữ liệu lịch sử mượn/trả chưa hợp lệ.", errors });
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        var importedAt = DateTime.UtcNow;
+        foreach (var item in validated)
+        {
+            var row = item.Row;
+            var record = new BorrowRecord
+            {
+                UserId = item.User!.Id,
+                EquipmentId = item.Equipment!.Id,
+                BorrowDate = VietnamTime.StartOfDayUtc(row.BorrowDate),
+                ExpectedReturnDate = VietnamTime.StartOfDayUtc(row.ExpectedReturnDate),
+                ActualReturnDate = row.ActualReturnDate.HasValue ? VietnamTime.StartOfDayUtc(row.ActualReturnDate.Value) : null,
+                Purpose = row.Purpose.Trim(),
+                ContactPhone = row.ContactPhone.Trim(),
+                Status = NormalizeHistoryImportStatus(row.Status)!,
+                ReturnCondition = NormalizeHistoryReturnCondition(row.ReturnCondition),
+                ReturnInspectionNote = row.ReturnInspectionNote.Trim(),
+                StatusHistory =
+                [
+                    new BorrowStatusHistory
+                    {
+                        ToStatus = NormalizeHistoryImportStatus(row.Status)!,
+                        Note = "Nhập từ Excel lịch sử mượn/trả",
+                        CreatedAt = importedAt,
+                        ChangedByUserId = GetCurrentUserId()
+                    }
+                ]
+            };
+            _context.BorrowRecords.Add(record);
+        }
+
+        foreach (var group in validated.GroupBy(item => item.Equipment!.Id))
+        {
+            var count = group.Count();
+            await _context.Equipments.Where(item => item.Id == group.Key)
+                .ExecuteUpdateAsync(updates => updates.SetProperty(item => item.BorrowCount, item => item.BorrowCount + count), cancellationToken);
+        }
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.WriteAsync(HttpContext, "Import", nameof(BorrowRecord), details: new { Count = validated.Count }, cancellationToken: cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Ok(new { imported = validated.Count, message = $"Đã nhập {validated.Count} dòng lịch sử mượn/trả." });
     }
 
     [HttpGet("teacher-pending")]
@@ -1305,7 +1518,6 @@ public class BorrowController : ControllerBase
             else
             {
                 equipment.Status = EquipmentStatuses.Broken;
-                AddMaintenance(detail.EquipmentId, note, "Kiểm tra trả");
             }
         }
 
@@ -1522,6 +1734,26 @@ public class BorrowController : ControllerBase
         return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     }
 
+    public sealed class BorrowHistoryImportDto
+    {
+        [Required, MinLength(1), MaxLength(500)]
+        public List<BorrowHistoryImportRowDto> Rows { get; set; } = [];
+    }
+
+    public sealed class BorrowHistoryImportRowDto
+    {
+        [Required, MaxLength(100)] public string Username { get; set; } = string.Empty;
+        [Required, MaxLength(30)] public string ContactPhone { get; set; } = string.Empty;
+        [Required, MaxLength(100)] public string Serial { get; set; } = string.Empty;
+        public DateTime BorrowDate { get; set; }
+        public DateTime ExpectedReturnDate { get; set; }
+        public DateTime? ActualReturnDate { get; set; }
+        [Required, MaxLength(1000)] public string Purpose { get; set; } = string.Empty;
+        [Required, MaxLength(50)] public string Status { get; set; } = string.Empty;
+        [MaxLength(50)] public string ReturnCondition { get; set; } = string.Empty;
+        [MaxLength(2000)] public string ReturnInspectionNote { get; set; } = string.Empty;
+    }
+
     private Task<bool> CanApproveBorrowAsync(CancellationToken cancellationToken)
     {
         return _approvalDelegationService.CanApproveAsync(
@@ -1530,6 +1762,253 @@ public class BorrowController : ControllerBase
             ApprovalDelegationScopes.BorrowRequest,
             cancellationToken);
     }
+
+    private IQueryable<BorrowRecord> BuildHistoryQuery(PageQuery paging, int userId, string? role)
+    {
+        var query = _context.BorrowRecords.AsQueryable();
+        if (role is Roles.Student or Roles.Teacher)
+        {
+            query = query.Where(item => item.UserId == userId);
+        }
+        else
+        {
+            query = query.Where(item => item.Status != Pending
+                && item.Status != TeacherPending
+                && item.Status != Approved);
+        }
+
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(item =>
+                item.User!.Username.Contains(search)
+                || item.User.FullName.Contains(search)
+                || item.ContactPhone.Contains(search)
+                || item.Purpose.Contains(search)
+                || (item.Equipment != null
+                    && (item.Equipment.Name.Contains(search) || item.Equipment.Serial.Contains(search)))
+                || item.Details.Any(detail => detail.Equipment != null
+                    && (detail.Equipment.Name.Contains(search) || detail.Equipment.Serial.Contains(search))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            if (string.Equals(status, "OVERDUE", StringComparison.OrdinalIgnoreCase))
+            {
+                var today = VietnamTime.Today();
+                query = query.Where(item =>
+                    (item.Status == Borrowed || item.Status == ProcessingReturn)
+                    && item.ExpectedReturnDate < today);
+            }
+            else if (string.Equals(status, "PENDING_ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(item => item.Status == Pending
+                    || item.Status == TeacherPending
+                    || item.Status == ProcessingApproval);
+            }
+            else if (string.Equals(status, "ACTIVE_ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(item => item.Status == Borrowed || item.Status == ProcessingReturn);
+            }
+            else if (string.Equals(status, "COMPLETED_ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(item => item.Status == BorrowStatuses.Returned
+                    || item.Status == BorrowStatuses.ReturnedDamaged);
+            }
+            else
+            {
+                query = query.Where(item => item.Status == status);
+            }
+        }
+
+        if (paging.From.HasValue)
+        {
+            var start = VietnamTime.StartOfDayUtc(paging.From.Value);
+            query = query.Where(item => item.BorrowDate >= start);
+        }
+        if (paging.To.HasValue)
+        {
+            var end = VietnamTime.StartOfDayUtc(paging.To.Value.Date.AddDays(1));
+            query = query.Where(item => item.BorrowDate < end);
+        }
+        if (paging.ReturnFrom.HasValue)
+        {
+            var start = VietnamTime.StartOfDayUtc(paging.ReturnFrom.Value);
+            query = query.Where(item => item.ActualReturnDate.HasValue && item.ActualReturnDate >= start);
+        }
+        if (paging.ReturnTo.HasValue)
+        {
+            var end = VietnamTime.StartOfDayUtc(paging.ReturnTo.Value.Date.AddDays(1));
+            query = query.Where(item => item.ActualReturnDate.HasValue && item.ActualReturnDate < end);
+        }
+        return query;
+    }
+
+    private async Task<List<ValidatedHistoryImportRow>> ValidateHistoryImportRowsAsync(
+        IReadOnlyList<BorrowHistoryImportRowDto> rows,
+        CancellationToken cancellationToken)
+    {
+        var usernames = rows.Select(item => item.Username.Trim()).Where(item => item.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var serials = rows.Select(item => item.Serial.Trim()).Where(item => item.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var users = (await _context.Users.AsNoTracking()
+                .Where(item => usernames.Contains(item.Username))
+                .ToListAsync(cancellationToken))
+            .ToDictionary(item => item.Username, StringComparer.OrdinalIgnoreCase);
+        var equipments = (await _context.Equipments.AsNoTracking()
+                .Where(item => serials.Contains(item.Serial))
+                .ToListAsync(cancellationToken))
+            .ToDictionary(item => item.Serial, StringComparer.OrdinalIgnoreCase);
+        var userIds = users.Values.Select(item => item.Id).ToArray();
+        var equipmentIds = equipments.Values.Select(item => item.Id).ToArray();
+        var existing = await _context.BorrowRecords.AsNoTracking()
+            .Include(item => item.Details)
+            .Where(item => userIds.Contains(item.UserId)
+                && ((item.EquipmentId.HasValue && equipmentIds.Contains(item.EquipmentId.Value))
+                    || item.Details.Any(detail => equipmentIds.Contains(detail.EquipmentId))))
+            .ToListAsync(cancellationToken);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<ValidatedHistoryImportRow>(rows.Count);
+
+        foreach (var row in rows)
+        {
+            row.Username = row.Username.Trim();
+            row.ContactPhone = row.ContactPhone.Trim();
+            row.Serial = row.Serial.Trim();
+            row.Purpose = row.Purpose.Trim();
+            row.Status = row.Status.Trim();
+            row.ReturnCondition = row.ReturnCondition.Trim();
+            row.ReturnInspectionNote = row.ReturnInspectionNote.Trim();
+            users.TryGetValue(row.Username, out var user);
+            equipments.TryGetValue(row.Serial, out var equipment);
+            var errors = new List<string>();
+            var status = NormalizeHistoryImportStatus(row.Status);
+            var returnCondition = NormalizeHistoryReturnCondition(row.ReturnCondition);
+
+            if (user is null) errors.Add("Tài khoản không tồn tại");
+            else if (!user.IsActive) errors.Add("Tài khoản đã bị khóa");
+            if (equipment is null) errors.Add("Số seri không tồn tại");
+            if (!Regex.IsMatch(row.ContactPhone, @"^[0-9]{10}$")) errors.Add("SĐT phải gồm đúng 10 số");
+            if (row.BorrowDate == default) errors.Add("Ngày đăng ký không hợp lệ");
+            if (row.ExpectedReturnDate == default) errors.Add("Hạn trả không hợp lệ");
+            if (row.BorrowDate != default && row.ExpectedReturnDate != default
+                && row.ExpectedReturnDate.Date < row.BorrowDate.Date)
+                errors.Add("Hạn trả phải từ ngày đăng ký trở đi");
+            if (string.IsNullOrWhiteSpace(row.Purpose) || row.Purpose.Length > 1000)
+                errors.Add("Mục đích là bắt buộc và tối đa 1000 ký tự");
+            if (status is null)
+                errors.Add("Chỉ nhập trạng thái Đã trả, Đã trả có hư hỏng, Từ chối, Đã hủy hoặc Hết hạn giữ chỗ");
+            if (status is BorrowStatuses.Returned or BorrowStatuses.ReturnedDamaged && !row.ActualReturnDate.HasValue)
+                errors.Add("Trạng thái đã trả phải có ngày trả thực tế");
+            if (row.ActualReturnDate.HasValue && row.BorrowDate != default
+                && row.ActualReturnDate.Value.Date < row.BorrowDate.Date)
+                errors.Add("Ngày trả thực tế không được trước ngày đăng ký");
+            if (row.ReturnInspectionNote.Length > 2000) errors.Add("Ghi chú kiểm tra tối đa 2000 ký tự");
+            if (row.ReturnCondition.Length > 0 && returnCondition.Length == 0)
+                errors.Add("Tình trạng trả chỉ nhận Rảnh, Hỏng hoặc Thất lạc");
+
+            if (user is not null && equipment is not null && row.BorrowDate != default)
+            {
+                var key = $"{user.Id}|{equipment.Id}|{row.BorrowDate:yyyyMMdd}";
+                if (!seen.Add(key)) errors.Add("Dòng bị trùng tài khoản, số seri và ngày đăng ký trong file");
+                if (existing.Any(item => item.UserId == user.Id
+                    && VietnamTime.Date(item.BorrowDate) == row.BorrowDate.Date
+                    && (item.EquipmentId == equipment.Id || item.Details.Any(detail => detail.EquipmentId == equipment.Id))))
+                    errors.Add("Lịch sử này đã tồn tại trong hệ thống");
+            }
+            result.Add(new ValidatedHistoryImportRow(row, user, equipment, errors));
+        }
+        return result;
+    }
+
+    private static string? NormalizeHistoryImportStatus(string? value)
+    {
+        var allowed = new[]
+        {
+            BorrowStatuses.Returned, BorrowStatuses.ReturnedDamaged, BorrowStatuses.Rejected,
+            BorrowStatuses.Cancelled, BorrowStatuses.Expired
+        };
+        var candidate = value?.Trim() ?? string.Empty;
+        return allowed.FirstOrDefault(status => string.Equals(candidate, status, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(candidate, StatusCodeMap.Label(status), StringComparison.OrdinalIgnoreCase)
+            || string.Equals(StatusCodeMap.Normalize(candidate), status, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizeHistoryReturnCondition(string? value)
+    {
+        var candidate = value?.Trim() ?? string.Empty;
+        if (candidate.Length == 0) return string.Empty;
+        var allowed = new[] { EquipmentStatuses.Available, EquipmentStatuses.Broken, EquipmentStatuses.Missing };
+        return allowed.FirstOrDefault(status => string.Equals(candidate, status, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(candidate, StatusCodeMap.Label(status), StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+    }
+
+    private static Dictionary<string, int> BuildHistoryImportHeaderMap(ExcelWorksheet sheet)
+    {
+        var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var column = 1; column <= sheet.Dimension!.End.Column; column++)
+        {
+            var header = NormalizeHistoryHeader(sheet.Cells[1, column].Text);
+            if (header.Length > 0 && !result.ContainsKey(header)) result[header] = column;
+        }
+        return result;
+    }
+
+    private static string NormalizeHistoryHeader(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().Normalize(NormalizationForm.FormD);
+        var chars = normalized.Where(character => CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark);
+        return new string(chars.ToArray()).Normalize(NormalizationForm.FormC)
+            .Replace("đ", "d", StringComparison.OrdinalIgnoreCase)
+            .Replace(" ", string.Empty)
+            .Replace("/", string.Empty)
+            .Replace("_", string.Empty)
+            .ToLowerInvariant();
+    }
+
+    private static string ReadHistoryText(
+        ExcelWorksheet sheet,
+        IReadOnlyDictionary<string, int> headers,
+        int row,
+        string header)
+        => headers.TryGetValue(NormalizeHistoryHeader(header), out var column)
+            ? sheet.Cells[row, column].Text.Trim()
+            : string.Empty;
+
+    private static DateTime? ReadHistoryDate(
+        ExcelWorksheet sheet,
+        IReadOnlyDictionary<string, int> headers,
+        int row,
+        string header)
+    {
+        if (!headers.TryGetValue(NormalizeHistoryHeader(header), out var column)) return null;
+        var cell = sheet.Cells[row, column];
+        if (cell.Value is DateTime date) return date;
+        if (cell.Value is double serialDate)
+        {
+            try { return DateTime.FromOADate(serialDate); }
+            catch (ArgumentException) { return null; }
+        }
+        var text = cell.Text.Trim();
+        var formats = new[] { "d/M/yyyy", "dd/MM/yyyy", "d/M/yyyy H:mm", "dd/MM/yyyy HH:mm", "yyyy-MM-dd", "yyyy-MM-dd HH:mm" };
+        return DateTime.TryParseExact(text, formats, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static void WriteHistoryExcelCell(ExcelWorksheet sheet, int row, int column, object? value)
+    {
+        if (value is string text && text.Length > 0 && "=+-@".Contains(text[0])) text = $"'{text}";
+        sheet.Cells[row, column].Value = value is string safeText ? safeText : value;
+    }
+
+    private sealed record ValidatedHistoryImportRow(
+        BorrowHistoryImportRowDto Row,
+        User? User,
+        Equipment? Equipment,
+        List<string> Errors);
 
     private static IQueryable<BorrowRecord> ApplySorting(
         IQueryable<BorrowRecord> query,
@@ -1603,17 +2082,4 @@ public class BorrowController : ControllerBase
         };
     }
 
-    private void AddMaintenance(int equipmentId, string note, string performedBy)
-    {
-        _context.MaintenanceRecords.Add(new MaintenanceRecord
-        {
-            EquipmentId = equipmentId,
-            MaintenanceDate = DateTime.UtcNow,
-            Description = string.IsNullOrWhiteSpace(note)
-                ? "Kiểm tra tài sản sau khi trả."
-                : note,
-            Cost = 0,
-            PerformedBy = performedBy
-        });
-    }
 }

@@ -13,6 +13,7 @@ namespace LabManagementAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[NonController]
 [Authorize(Roles = Roles.Managers)]
 public class MaintenanceController : ControllerBase
 {

@@ -73,8 +73,8 @@
               <p>Phê duyệt và bàn giao</p>
             </div>
             <div class="stat-box">
-              <h3>Bảo trì</h3>
-              <p>Lịch định kỳ và lịch sử</p>
+              <h3>Kiểm kê</h3>
+              <p>Quét QR và đối soát</p>
             </div>
           </div>
         </div>

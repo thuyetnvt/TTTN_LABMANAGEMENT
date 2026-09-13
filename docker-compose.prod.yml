@@ -38,6 +38,7 @@ services:
       Jwt__Issuer: LabManagementAPI
       Jwt__Audience: LabManagementApp
       Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-30}
+      Jwt__RefreshTokenDays: ${JWT_REFRESH_TOKEN_DAYS:-7}
       App__FrontendBaseUrl: https://${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
       Cors__AllowedOrigins__0: https://${APP_DOMAIN:?Set APP_DOMAIN in .env.production}
       AllowedHosts: ${APP_DOMAIN:?Set APP_DOMAIN in .env.production}

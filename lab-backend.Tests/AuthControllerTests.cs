@@ -43,6 +43,36 @@ public class AuthControllerTests
     }
 
     [Fact]
+    public async Task Refresh_rotates_token_and_rejects_reuse()
+    {
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        await using var context = CreateContext(connection);
+        context.Users.Add(TestUser(1, "refresh-user", "SinhVien", true));
+        await context.SaveChangesAsync();
+        var controller = CreateController(context);
+
+        var loginResult = Assert.IsType<OkObjectResult>(await controller.Login(
+            new AuthController.LoginRequest { Username = "refresh-user", Password = "Password123!" },
+            CancellationToken.None));
+        var firstRefreshToken = GetStringProperty(loginResult.Value, "refreshToken");
+
+        var refreshResult = Assert.IsType<OkObjectResult>(await controller.Refresh(
+            new AuthController.RefreshRequest { RefreshToken = firstRefreshToken },
+            CancellationToken.None));
+        var replacementToken = GetStringProperty(refreshResult.Value, "refreshToken");
+
+        Assert.NotEqual(firstRefreshToken, replacementToken);
+        Assert.Equal(2, await context.RefreshTokens.CountAsync());
+        Assert.Equal(1, await context.RefreshTokens.CountAsync(item => item.RevokedAt != null));
+
+        var replayResult = await controller.Refresh(
+            new AuthController.RefreshRequest { RefreshToken = firstRefreshToken },
+            CancellationToken.None);
+        Assert.IsType<UnauthorizedObjectResult>(replayResult);
+    }
+
+    [Fact]
     public async Task ForgotPassword_keeps_response_generic_for_unknown_email()
     {
         await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
@@ -115,6 +145,7 @@ public class AuthControllerTests
                 ["Jwt:Issuer"] = "LabManagement.Tests",
                 ["Jwt:Audience"] = "LabManagement.Tests",
                 ["Jwt:AccessTokenMinutes"] = "30",
+                ["Jwt:RefreshTokenDays"] = "7",
                 ["App:FrontendBaseUrl"] = "http://localhost:4173"
             })
             .Build();
@@ -143,6 +174,14 @@ public class AuthControllerTests
 
     private static string HashToken(string token)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    private static string GetStringProperty(object? value, string propertyName)
+    {
+        Assert.NotNull(value);
+        var property = value.GetType().GetProperty(propertyName);
+        Assert.NotNull(property);
+        return Assert.IsType<string>(property.GetValue(value));
+    }
 
     private sealed class NoopAuditService : IAuditService
     {

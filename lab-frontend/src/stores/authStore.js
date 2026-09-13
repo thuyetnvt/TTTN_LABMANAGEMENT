@@ -7,6 +7,7 @@ const readStoredValue = (key) => localStorage.getItem(key) || sessionStorage.get
 const clearAuthStorage = () => {
   for (const storage of [localStorage, sessionStorage]) {
     storage.removeItem('token')
+    storage.removeItem('refreshToken')
     storage.removeItem('role')
   }
 }
@@ -65,6 +66,7 @@ export const useAuthStore = defineStore('auth', {
         clearAuthStorage()
         const storage = remember ? localStorage : sessionStorage
         storage.setItem('token', this.token)
+        storage.setItem('refreshToken', data.refreshToken)
         storage.setItem('role', this.role)
         return true
       } catch (error) {
@@ -81,6 +83,7 @@ export const useAuthStore = defineStore('auth', {
         
         clearAuthStorage()
         localStorage.setItem('token', this.token)
+        localStorage.setItem('refreshToken', data.refreshToken)
         localStorage.setItem('role', this.role)
         return true
       } catch (error) {

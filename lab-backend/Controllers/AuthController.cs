@@ -59,7 +59,14 @@ public class AuthController : ControllerBase
         public string Token { get; set; } = string.Empty;
 
         [Required, MinLength(8), MaxLength(200)]
+        [RegularExpression(@"(?s)^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).+$", ErrorMessage = "Mật khẩu phải có chữ hoa, chữ thường và số.")]
         public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public sealed class RefreshRequest
+    {
+        [Required, MaxLength(500)]
+        public string RefreshToken { get; set; } = string.Empty;
     }
 
     [AllowAnonymous]
@@ -137,7 +144,7 @@ public class AuthController : ControllerBase
 
             await _auditService.WriteAsync(HttpContext, "SsoLoginSucceeded", "User", user.Id, cancellationToken: cancellationToken);
 
-            return Ok(CreateLoginResponse(user));
+            return Ok(await CreateLoginResponseAsync(user, cancellationToken));
         }
         catch (InvalidJwtException)
         {
@@ -164,7 +171,6 @@ public class AuthController : ControllerBase
                 cancellationToken);
 
         if (user == null
-            || !user.IsActive
             || !VerifyPassword(request.Password, user.PasswordHash))
         {
             await _auditService.WriteAsync(
@@ -176,6 +182,13 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Sai tài khoản hoặc mật khẩu." });
         }
 
+        if (!user.IsActive)
+        {
+            await _auditService.WriteAsync(HttpContext, "LoginFailed", "User", user.Id,
+                details: new { Reason = "AccountLocked" }, cancellationToken: cancellationToken);
+            return Unauthorized(new { message = "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên." });
+        }
+
         await _auditService.WriteAsync(
             HttpContext,
             "LoginSucceeded",
@@ -183,7 +196,64 @@ public class AuthController : ControllerBase
             user.Id,
             cancellationToken: cancellationToken);
 
-        return Ok(CreateLoginResponse(user));
+        return Ok(await CreateLoginResponseAsync(user, cancellationToken));
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("login")]
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(
+        [FromBody] RefreshRequest request,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var tokenHash = HashToken(request.RefreshToken);
+        var currentToken = await _context.RefreshTokens
+            .AsNoTracking()
+            .Include(item => item.User)
+            .SingleOrDefaultAsync(item => item.TokenHash == tokenHash, cancellationToken);
+
+        if (currentToken == null
+            || currentToken.RevokedAt.HasValue
+            || currentToken.ExpiresAt <= now
+            || currentToken.User == null
+            || !currentToken.User.IsActive
+            || currentToken.TokenVersion != currentToken.User.TokenVersion)
+        {
+            return Unauthorized(new { message = "Phiên đăng nhập không hợp lệ hoặc đã hết hạn." });
+        }
+
+        var rawReplacement = CreateRawToken();
+        var replacementHash = HashToken(rawReplacement);
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        var claimed = await _context.RefreshTokens
+            .Where(item => item.Id == currentToken.Id
+                && item.RevokedAt == null
+                && item.ExpiresAt > now)
+            .ExecuteUpdateAsync(
+                updates => updates
+                    .SetProperty(item => item.RevokedAt, (DateTime?)now)
+                    .SetProperty(item => item.ReplacedByTokenHash, replacementHash),
+                cancellationToken);
+        if (claimed == 0)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return Unauthorized(new { message = "Phiên đăng nhập đã được làm mới hoặc thu hồi." });
+        }
+
+        var refreshTokenDays = GetRefreshTokenDays();
+        _context.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = currentToken.UserId,
+            TokenHash = replacementHash,
+            TokenVersion = currentToken.User.TokenVersion,
+            CreatedAt = now,
+            ExpiresAt = now.AddDays(refreshTokenDays)
+        });
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Ok(CreateSessionResponse(currentToken.User, rawReplacement));
     }
 
     [AllowAnonymous]
@@ -310,6 +380,7 @@ public class AuthController : ControllerBase
             .ExecuteUpdateAsync(
                 updates => updates
                     .SetProperty(item => item.PasswordHash, newPasswordHash)
+                    .SetProperty(item => item.MustChangePassword, false)
                     .SetProperty(item => item.TokenVersion, item => item.TokenVersion + 1),
                 cancellationToken);
         if (updatedUsers == 0)
@@ -329,7 +400,23 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Đặt lại mật khẩu thành công." });
     }
 
-    private object CreateLoginResponse(User user)
+    private async Task<object> CreateLoginResponseAsync(User user, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var rawRefreshToken = CreateRawToken();
+        _context.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = HashToken(rawRefreshToken),
+            TokenVersion = user.TokenVersion,
+            CreatedAt = now,
+            ExpiresAt = now.AddDays(GetRefreshTokenDays())
+        });
+        await _context.SaveChangesAsync(cancellationToken);
+        return CreateSessionResponse(user, rawRefreshToken);
+    }
+
+    private object CreateSessionResponse(User user, string refreshToken)
     {
         var jwtSection = _configuration.GetSection("Jwt");
         var key = Encoding.UTF8.GetBytes(jwtSection["Key"]!);
@@ -345,7 +432,8 @@ public class AuthController : ControllerBase
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Role, user.Role),
-                new Claim("token_version", user.TokenVersion.ToString())
+                new Claim("token_version", user.TokenVersion.ToString()),
+                new Claim("must_change_password", user.MustChangePassword ? "true" : "false")
             ]),
             Expires = DateTime.UtcNow.AddMinutes(accessTokenMinutes),
             SigningCredentials = new SigningCredentials(
@@ -360,10 +448,17 @@ public class AuthController : ControllerBase
         return new
         {
             token = handler.WriteToken(token),
+            refreshToken,
             role = user.Role,
             username = user.Username
         };
     }
+
+    private int GetRefreshTokenDays()
+        => Math.Clamp(_configuration.GetSection("Jwt").GetValue("RefreshTokenDays", 7), 1, 30);
+
+    private static string CreateRawToken()
+        => WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(64));
 
     private static string HashToken(string token)
     {

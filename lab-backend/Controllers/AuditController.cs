@@ -1,5 +1,6 @@
 using LabManagementAPI.Data;
 using LabManagementAPI.Models;
+using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -35,14 +36,27 @@ public class AuditController : ControllerBase
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var query = _context.AuditLogs.AsNoTracking().AsQueryable();
+        var query = _context.AuditLogs
+            .AsNoTracking()
+            .Where(log => log.EntityType != nameof(MaintenanceRecord)
+                && log.EntityType != nameof(MaintenanceSchedule));
         if (!string.IsNullOrWhiteSpace(action))
         {
-            query = query.Where(log => log.Action == action.Trim());
+            if (action.Trim() == "__OTHER__")
+            {
+                string[] listedActions = ["LoginSucceeded", "LoginFailed", "UpdateProfile", "Activate", "Deactivate", "ChangePassword", "SendReturnReminder", "Create", "Update", "Delete", "Approve", "Reject", "Return"];
+                query = query.Where(log => !listedActions.Contains(log.Action));
+            }
+            else query = query.Where(log => log.Action == action.Trim());
         }
         if (!string.IsNullOrWhiteSpace(entityType))
         {
-            query = query.Where(log => log.EntityType == entityType.Trim());
+            if (entityType.Trim() == "__OTHER__")
+            {
+                string[] listedEntities = ["User", "LocationNode", "InventorySession", "Equipment", "Consumable", "BorrowRecord", "ConsumableRequest", "AssetCategory"];
+                query = query.Where(log => !listedEntities.Contains(log.EntityType));
+            }
+            else query = query.Where(log => log.EntityType == entityType.Trim());
         }
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -67,11 +81,12 @@ public class AuditController : ControllerBase
         }
         if (from.HasValue)
         {
-            query = query.Where(log => log.CreatedAt >= from.Value);
+            var start = VietnamTime.StartOfDayUtc(from.Value);
+            query = query.Where(log => log.CreatedAt >= start);
         }
         if (to.HasValue)
         {
-            var exclusiveTo = to.Value.Date.AddDays(1);
+            var exclusiveTo = VietnamTime.StartOfDayUtc(to.Value.Date.AddDays(1));
             query = query.Where(log => log.CreatedAt < exclusiveTo);
         }
 

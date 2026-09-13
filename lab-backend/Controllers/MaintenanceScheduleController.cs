@@ -12,6 +12,7 @@ namespace LabManagementAPI.Controllers;
 
 [Route("api/maintenance-schedules")]
 [ApiController]
+[NonController]
 [Authorize(Roles = Roles.Managers)]
 public class MaintenanceScheduleController : ControllerBase
 {

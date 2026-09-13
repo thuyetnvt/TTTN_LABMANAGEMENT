@@ -13,22 +13,14 @@
 
     <FilterBar class="filter-card">
       <div class="filters">
-        <a-input-search v-model:value="filters.search" allow-clear placeholder="Người thao tác, hành động..." class="filter-control" @search="applySearch" />
+        <a-input-search v-model:value="filters.search" allow-clear placeholder="Người thao tác, hành động..." class="filter-search" @search="applySearch" />
         <a-select v-model:value="filters.action" allowClear placeholder="Hành động" class="filter-control">
-          <a-select-option value="Create">Tạo mới</a-select-option>
-          <a-select-option value="Update">Cập nhật</a-select-option>
-          <a-select-option value="Delete">Xóa</a-select-option>
-          <a-select-option value="Approve">Duyệt</a-select-option>
-          <a-select-option value="Reject">Từ chối</a-select-option>
-          <a-select-option value="Return">Trả thiết bị</a-select-option>
+          <a-select-option v-for="option in auditActionOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
         </a-select>
         <a-select v-model:value="filters.entityType" allowClear placeholder="Đối tượng" class="filter-control">
-          <a-select-option value="Equipment">Thiết bị</a-select-option>
-          <a-select-option value="Consumable">Vật tư</a-select-option>
-          <a-select-option value="BorrowRecord">Phiếu mượn</a-select-option>
-          <a-select-option value="ConsumableRequest">Yêu cầu vật tư</a-select-option>
-          <a-select-option value="AssetCategory">Danh mục</a-select-option>
+          <a-select-option v-for="option in auditEntityOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
         </a-select>
+        <a-range-picker v-model:value="filters.dates" format="DD/MM/YYYY" :placeholder="['Từ ngày', 'Đến ngày']" class="filter-dates" />
         <a-button @click="resetFilters">Xóa lọc</a-button>
       </div>
     </FilterBar>
@@ -73,32 +65,17 @@
           <template v-else-if="column.key === 'entityType'">
             {{ entityLabel(record.entityType) }}
           </template>
-          <template v-else-if="column.key === 'details'">
-            <a-tooltip title="Xem chi tiết">
-              <a-button
-                type="link"
-                class="table-detail-action"
-                aria-label="Xem chi tiết nhật ký"
-                @click="showDetails(record)"
-              >
-                <template #icon><EyeOutlined /></template>
-              </a-button>
-            </a-tooltip>
-          </template>
         </template>
       </DataTable>
     </a-card>
 
-    <a-modal v-model:open="detailsVisible" title="Chi tiết nhật ký" :footer="null" width="760px">
-      <pre class="details-json">{{ selectedDetails }}</pre>
-    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { ReloadOutlined, EyeOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined } from '@ant-design/icons-vue'
 import { auditApi } from '../api/auditApi'
 import AuditActionLabel from '../components/AuditActionLabel.vue'
 import FilterBar from '../components/FilterBar.vue'
@@ -109,12 +86,11 @@ import { TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../utils/tablePaginati
 
 const logs = ref([])
 const loading = ref(false)
-const detailsVisible = ref(false)
-const selectedDetails = ref('')
 const filters = reactive({
   search: '',
   action: undefined,
-  entityType: undefined
+  entityType: undefined,
+  dates: null
 })
 const sortState = reactive({ field: undefined, order: undefined })
 const pagination = reactive({
@@ -128,6 +104,14 @@ const pagination = reactive({
 })
 
 const auditActionOptions = [
+  { value: '__OTHER__', label: 'Khác (ngoài các mục bên dưới)' },
+  { value: 'LoginSucceeded', label: 'Đăng nhập thành công' },
+  { value: 'LoginFailed', label: 'Đăng nhập thất bại' },
+  { value: 'UpdateProfile', label: 'Cập nhật hồ sơ' },
+  { value: 'Activate', label: 'Mở khóa tài khoản' },
+  { value: 'Deactivate', label: 'Khóa tài khoản' },
+  { value: 'ChangePassword', label: 'Đổi mật khẩu' },
+  { value: 'SendReturnReminder', label: 'Nhắc trả' },
   { value: 'Create', label: 'Tạo mới' },
   { value: 'Update', label: 'Cập nhật' },
   { value: 'Delete', label: 'Xóa' },
@@ -136,6 +120,10 @@ const auditActionOptions = [
   { value: 'Return', label: 'Trả thiết bị' }
 ]
 const auditEntityOptions = [
+  { value: '__OTHER__', label: 'Khác (ngoài các mục bên dưới)' },
+  { value: 'User', label: 'Người dùng' },
+  { value: 'LocationNode', label: 'Vị trí' },
+  { value: 'InventorySession', label: 'Đợt kiểm kê' },
   { value: 'Equipment', label: 'Thiết bị' },
   { value: 'Consumable', label: 'Vật tư' },
   { value: 'BorrowRecord', label: 'Phiếu mượn' },
@@ -148,14 +136,15 @@ const columns = [
   { title: 'Người thao tác', dataIndex: 'username', key: 'username', width: 150, sortable: true, sortKey: 'username', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người thao tác...' },
   { title: 'Hành động', dataIndex: 'action', key: 'action', width: 130, sortable: true, sortKey: 'action', filterType: 'select', filterKey: 'action', filterOptions: auditActionOptions },
   { title: 'Đối tượng', dataIndex: 'entityType', key: 'entityType', width: 150, sortable: true, sortKey: 'entityType', filterType: 'select', filterKey: 'entityType', filterOptions: auditEntityOptions },
-  { title: 'IP', dataIndex: 'ipAddress', key: 'ipAddress', width: 150, sortable: true, sortKey: 'ipAddress', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm địa chỉ IP...' },
-  { title: 'Chi tiết', key: 'details', width: 120, align: 'center' }
+  { title: 'IP', dataIndex: 'ipAddress', key: 'ipAddress', width: 150, sortable: true, sortKey: 'ipAddress', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm địa chỉ IP...' }
 ]
 
 const fetchLogs = async () => {
   loading.value = true
   try {
     const res = await auditApi.getLogs({
+      from: filters.dates?.[0]?.format('YYYY-MM-DD'),
+      to: filters.dates?.[1]?.format('YYYY-MM-DD'),
       page: pagination.current,
       pageSize: pagination.pageSize,
       action: filters.action,
@@ -174,7 +163,7 @@ const fetchLogs = async () => {
 }
 
 const resetFilters = () => {
-  if (!filters.search && !filters.action && !filters.entityType) {
+  if (!filters.search && !filters.action && !filters.entityType && !filters.dates) {
     pagination.current = 1
     fetchLogs()
     return
@@ -182,6 +171,7 @@ const resetFilters = () => {
   filters.action = undefined
   filters.entityType = undefined
   filters.search = ''
+  filters.dates = null
 }
 
 const applySearch = () => {
@@ -209,17 +199,6 @@ const handleTableChange = (pager) => {
   pagination.current = pager.pageSize === pagination.pageSize ? pager.current : 1
   pagination.pageSize = pager.pageSize
   fetchLogs()
-}
-
-const showDetails = (record) => {
-  try {
-    selectedDetails.value = record.details
-      ? JSON.stringify(JSON.parse(record.details), null, 2)
-      : 'Không có chi tiết.'
-  } catch {
-    selectedDetails.value = record.details || 'Không có chi tiết.'
-  }
-  detailsVisible.value = true
 }
 
 const entityLabel = (entityType) => ({
@@ -250,7 +229,7 @@ const actorLabel = record => {
 }
 
 watch(
-  () => [filters.action, filters.entityType],
+  () => [filters.action, filters.entityType, filters.dates],
   () => {
     pagination.current = 1
     fetchLogs()
@@ -296,6 +275,9 @@ onMounted(fetchLogs)
 }
 
 .filters {
+  --audit-filter-width: 150px;
+  --audit-filter-height: 40px;
+  --audit-search-button-width: 40px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -303,18 +285,37 @@ onMounted(fetchLogs)
 }
 
 .filter-control {
-  width: 190px;
+  width: var(--audit-filter-width);
 }
 
-.details-json {
-  max-height: 520px;
-  margin: 0;
-  padding: 14px;
-  overflow: auto;
-  border-radius: 8px;
-  background: #0f172a;
-  color: #e5e7eb;
-  font-size: 13px;
-  line-height: 1.5;
+.filter-dates { width: var(--audit-filter-width); }
+.filter-search {
+  width: calc(var(--audit-filter-width) + var(--audit-search-button-width)) !important;
+  min-width: calc(var(--audit-filter-width) + var(--audit-search-button-width));
 }
+
+.filter-control,
+.filter-dates,
+.filters :deep(.ant-select-selector),
+.filter-search :deep(.ant-input-affix-wrapper),
+.filter-search :deep(.ant-input-search-button),
+.filters > .ant-btn {
+  height: var(--audit-filter-height);
+}
+
+.filter-search :deep(.ant-input-affix-wrapper) {
+  flex: 0 0 var(--audit-filter-width);
+}
+
+.filter-search :deep(.ant-input-search-button) {
+  width: var(--audit-search-button-width);
+}
+
+.filters :deep(.ant-select-selector) {
+  align-items: center;
+}
+@media (max-width: 640px) {
+  .filter-search, .filter-control, .filter-dates { width: 100%; }
+}
+
 </style>

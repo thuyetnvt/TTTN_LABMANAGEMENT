@@ -56,7 +56,7 @@ Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có
 - Thông báo lưu trong database và cập nhật realtime bằng SignalR.
 - Nhật ký kiểm toán các thao tác quan trọng.
 - Báo cáo tài sản, mượn trả, kiểm kê, bảo trì và vật tư.
-- Hỗ trợ xuất Excel/PDF theo từng nghiệp vụ.
+- Hỗ trợ nhập/xuất Excel lịch sử mượn/trả và xuất Excel/PDF theo từng nghiệp vụ.
 
 ## Vai trò và quyền hạn
 
@@ -78,7 +78,7 @@ Chi tiết phân quyền xem tại [docs/RBAC_MATRIX.md](docs/RBAC_MATRIX.md).
 | Backend | ASP.NET Core Web API, Entity Framework Core |
 | Database | MySQL 8.4 |
 | Realtime | SignalR |
-| Xác thực | JWT, token version và phân quyền theo vai trò |
+| Xác thực | JWT access token 30 phút, refresh token xoay vòng 7 ngày, token version và phân quyền theo vai trò |
 | File storage | Local volume hoặc S3-compatible (AWS S3/MinIO) |
 | Kiểm thử | .NET Test, Node Test Runner, Playwright |
 | Triển khai | Docker Compose, Nginx, Caddy (production reverse proxy) |
@@ -125,6 +125,7 @@ Mở `.env` và thay tối thiểu các giá trị sau:
 MYSQL_ROOT_PASSWORD=replace_with_strong_root_password
 MYSQL_PASSWORD=replace_with_strong_app_password
 JWT_KEY=replace_with_random_secret_at_least_32_characters
+JWT_REFRESH_TOKEN_DAYS=7
 SEED_DEFAULT_PASSWORD=replace_with_strong_seed_password
 ```
 
@@ -307,13 +308,13 @@ Hướng dẫn chi tiết: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 Workflow GitHub Actions nằm tại [.github/workflows/ci.yml](.github/workflows/ci.yml):
 
 - Pull request vào `main`: chạy kiểm thử backend, frontend, E2E và Docker; bước Deploy VPS được bỏ qua.
-- Push vào `main` hoặc `codex/fix-table-fixed-columns`: sau khi toàn bộ kiểm thử xanh, workflow tự SSH vào VPS, pull đúng nhánh và khởi động lại Docker Compose production.
-- Các secret cần có trong GitHub Actions gồm `VPS_HOST`, `VPS_USER`, `VPS_PORT` và `VPS_SSH_KEY`.
+- Push vào nhánh được phép triển khai trong workflow: sau khi toàn bộ kiểm thử xanh, workflow tự SSH vào VPS, pull đúng nhánh và khởi động lại Docker Compose production.
+- Các secret cần có trong GitHub Actions gồm `VPS_HOST`, `VPS_USER`, `VPS_PORT`, `VPS_SSH_KEY` và `VPS_DEPLOY_DIR`. Máy chủ hiện tại dùng `VPS_DEPLOY_DIR=/hdd1/lab`.
 
 Sau khi sửa code trên nhánh đang deploy, chỉ cần:
 
 ```bash
-git push origin codex/fix-table-fixed-columns
+git push origin main
 ```
 
 Theo dõi kết quả tại tab **Actions**. Chỉ khi job **Deploy VPS** xanh thì phiên bản mới đã được cập nhật trên VPS.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-DEPLOY_DIR="${DEPLOY_DIR:-/opt/labmanagement}"
+DEPLOY_DIR="${DEPLOY_DIR:-/hdd1/lab}"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:?DEPLOY_BRANCH is required}"
 
 # Secrets injected from GitHub Actions secrets (optional, only patch if provided)

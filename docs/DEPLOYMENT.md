@@ -20,6 +20,15 @@ Local cũng dùng key ring mới `backend_data_protection_v2`. Volume key cũ đ
 
 ## Chuẩn bị VPS production
 
+Repository trên máy chủ hiện tại đặt tại `/hdd1/lab`. Sau khi SSH, kiểm tra quyền và thư mục bằng:
+
+```bash
+cd /hdd1/lab
+docker ps
+```
+
+Nếu `docker ps` báo `permission denied`, tài khoản SSH chưa có quyền Docker và cần quản trị viên máy chủ cấp quyền. Không tự dùng `sudo` khi chưa được cho phép.
+
 1. Trỏ bản ghi DNS `A` của domain về IPv4 VPS.
 2. Chỉ mở firewall cho SSH, TCP 80, TCP 443 và UDP 443. Không mở 3306 hoặc 8080.
 3. Sao chép `.env.production.example` thành `.env.production` và thay toàn bộ giá trị mẫu.
@@ -28,17 +37,17 @@ Local cũng dùng key ring mới `backend_data_protection_v2`. Volume key cũ đ
 Ví dụ trên Ubuntu với OpenSSL:
 
 ```bash
-sudo install -d -m 700 /opt/labmanagement/secrets
+sudo install -d -m 700 /hdd1/lab/secrets
 sudo openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
   -subj "/CN=LabManagement Data Protection" \
-  -keyout /opt/labmanagement/secrets/data-protection.key \
-  -out /opt/labmanagement/secrets/data-protection.crt
+  -keyout /hdd1/lab/secrets/data-protection.key \
+  -out /hdd1/lab/secrets/data-protection.crt
 sudo openssl pkcs12 -export \
-  -out /opt/labmanagement/secrets/data-protection.pfx \
-  -inkey /opt/labmanagement/secrets/data-protection.key \
-  -in /opt/labmanagement/secrets/data-protection.crt
-sudo chmod 600 /opt/labmanagement/secrets/data-protection.pfx
-sudo rm /opt/labmanagement/secrets/data-protection.key
+  -out /hdd1/lab/secrets/data-protection.pfx \
+  -inkey /hdd1/lab/secrets/data-protection.key \
+  -in /hdd1/lab/secrets/data-protection.crt
+sudo chmod 600 /hdd1/lab/secrets/data-protection.pfx
+sudo rm /hdd1/lab/secrets/data-protection.key
 ```
 
 Mật khẩu nhập khi export PFX phải trùng với `DATA_PROTECTION_CERTIFICATE_PASSWORD` trong `.env.production`.
@@ -85,6 +94,8 @@ Trước khi cập nhật production:
 5. Kiểm tra đăng nhập, SignalR, upload/download, báo cáo và `/health`.
 
 Production luôn giữ `SEED_ENABLED=false`. SMTP phải được cấu hình nếu sử dụng quên mật khẩu và gửi email nhắc trả.
+
+GitHub Actions cần secret `VPS_DEPLOY_DIR=/hdd1/lab`; nếu bỏ trống, script triển khai cũng dùng đường dẫn này làm mặc định.
 
 ## Tác vụ tự động
 

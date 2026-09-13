@@ -17,7 +17,7 @@ namespace LabManagementAPI.Tests;
 public sealed class OperationalAutomationRunnerTests
 {
     [Fact]
-    public async Task Due_schedule_is_generated_once_and_next_due_moves_to_future()
+    public async Task Due_schedule_is_ignored_when_maintenance_feature_is_disabled()
     {
         await using var context = CreateContext(out var connection);
         await using (connection)
@@ -52,13 +52,13 @@ public sealed class OperationalAutomationRunnerTests
             await runner.RunOnceAsync(now);
             await runner.RunOnceAsync(now.AddMinutes(1));
 
-            Assert.Single(await context.MaintenanceRecords.AsNoTracking().ToListAsync());
-            Assert.Single(await context.AutomationDispatches.AsNoTracking()
+            Assert.Empty(await context.MaintenanceRecords.AsNoTracking().ToListAsync());
+            Assert.Empty(await context.AutomationDispatches.AsNoTracking()
                 .Where(item => item.JobType == "MAINTENANCE_GENERATE").ToListAsync());
-            Assert.True((await context.MaintenanceSchedules.AsNoTracking().SingleAsync()).NextDueAt > now);
-            Assert.Equal(EquipmentStatuses.MaintenanceInProgress,
+            Assert.True((await context.MaintenanceSchedules.AsNoTracking().SingleAsync()).NextDueAt <= now);
+            Assert.Equal(EquipmentStatuses.Available,
                 (await context.Equipments.AsNoTracking().SingleAsync()).Status);
-            Assert.Single(notifications.ManagerNotifications);
+            Assert.Empty(notifications.ManagerNotifications);
         }
     }
 
@@ -114,7 +114,7 @@ public sealed class OperationalAutomationRunnerTests
     }
 
     [Fact]
-    public async Task Due_schedule_for_borrowed_equipment_is_blocked_without_duplicate_daily_alerts()
+    public async Task Due_schedule_for_borrowed_equipment_is_ignored_without_alerts()
     {
         await using var context = CreateContext(out var connection);
         await using (connection)
@@ -161,8 +161,8 @@ public sealed class OperationalAutomationRunnerTests
             await runner.RunOnceAsync(now.AddHours(1));
 
             Assert.Empty(await context.MaintenanceRecords.AsNoTracking().ToListAsync());
-            Assert.Single(notifications.ManagerNotifications);
-            Assert.Single(await context.AutomationDispatches.AsNoTracking()
+            Assert.Empty(notifications.ManagerNotifications);
+            Assert.Empty(await context.AutomationDispatches.AsNoTracking()
                 .Where(item => item.JobType == "MAINTENANCE_BLOCKED").ToListAsync());
         }
     }

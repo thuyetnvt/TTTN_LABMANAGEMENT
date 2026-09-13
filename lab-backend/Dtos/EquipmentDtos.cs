@@ -11,7 +11,6 @@ public class BorrowerEquipmentDto
     public string Name { get; init; } = string.Empty;
     public string Model { get; init; } = string.Empty;
     public string Serial { get; init; } = string.Empty;
-    public string SerialName { get; init; } = string.Empty;
     public string DeviceType { get; init; } = string.Empty;
     public string Manufacturer { get; init; } = string.Empty;
     public string ImagePath { get; init; } = string.Empty;

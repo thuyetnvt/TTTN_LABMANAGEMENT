@@ -22,7 +22,7 @@ services:
       retries: 10
       start_period: 20s
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     networks:
       lab_internal:
         ipv4_address: 172.30.0.30
@@ -38,6 +38,7 @@ services:
       Jwt__Issuer: LabManagementAPI
       Jwt__Audience: LabManagementApp
       Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-30}
+      Jwt__RefreshTokenDays: ${JWT_REFRESH_TOKEN_DAYS:-7}
       App__FrontendBaseUrl: ${APP_ORIGIN:-http://localhost:8080}
       Cors__AllowedOrigins__0: ${APP_ORIGIN:-http://localhost:8080}
       AllowedHosts: "${ALLOWED_HOSTS:-localhost;127.0.0.1}"

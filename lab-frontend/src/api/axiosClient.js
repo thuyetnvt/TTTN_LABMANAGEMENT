@@ -14,6 +14,43 @@ const axiosClient = axios.create({
   },
 });
 
+let refreshPromise = null;
+
+const getSessionStorage = () => {
+  if (localStorage.getItem("refreshToken")) return localStorage;
+  if (sessionStorage.getItem("refreshToken")) return sessionStorage;
+  return null;
+};
+
+const clearSession = () => {
+  for (const storage of [localStorage, sessionStorage]) {
+    storage.removeItem("token");
+    storage.removeItem("refreshToken");
+    storage.removeItem("role");
+  }
+};
+
+const redirectToLogin = () => {
+  clearSession();
+  if (window.location.pathname !== "/login") window.location.assign("/login");
+};
+
+const refreshSession = async () => {
+  const storage = getSessionStorage();
+  const refreshToken = storage?.getItem("refreshToken");
+  if (!storage || !refreshToken) throw new Error("Không có refresh token.");
+
+  const response = await axios.post(
+    `${apiBaseUrl}/auth/refresh`,
+    { refreshToken },
+    { timeout: apiTimeoutMs, headers: { "Content-Type": "application/json" } },
+  );
+  storage.setItem("token", response.data.token);
+  storage.setItem("refreshToken", response.data.refreshToken);
+  if (response.data.role) storage.setItem("role", response.data.role);
+  return response.data.token;
+};
+
 // Interceptors cho request (Tự động gắn Token)
 axiosClient.interceptors.request.use(
   (config) => {
@@ -36,17 +73,26 @@ axiosClient.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     if (error.response) {
       const status = error.response.status;
-      if (status === 401) {
-        for (const storage of [localStorage, sessionStorage]) {
-          storage.removeItem("token");
-          storage.removeItem("role");
+      const originalRequest = error.config || {};
+      const isAuthRequest = String(originalRequest.url || "").includes("/auth/");
+      if (status === 401 && !originalRequest._retry && !isAuthRequest && getSessionStorage()) {
+        originalRequest._retry = true;
+        try {
+          if (!refreshPromise) refreshPromise = refreshSession().finally(() => { refreshPromise = null; });
+          const token = await refreshPromise;
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return axiosClient(originalRequest);
+        } catch {
+          redirectToLogin();
+          error.message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+          return Promise.reject(error);
         }
-        if (window.location.pathname !== "/login") {
-          window.location.assign("/login");
-        }
+      } else if (status === 401) {
+        if (!isAuthRequest) redirectToLogin();
         error.message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
       } else if (status === 400) {
         error.message = error.response.data?.message || "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.";

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using OfficeOpenXml;
 using Xunit;
 
 namespace LabManagementAPI.Tests;
@@ -416,6 +417,32 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task History_date_filters_include_vietnam_day_boundaries_and_exclude_unreturned()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true });
+        context.Equipments.Add(CreateEquipment(1));
+        var date = new DateTime(2026, 9, 12);
+        var start = VietnamTime.StartOfDayUtc(date);
+        for (var i = 0; i < 4; i++)
+            context.BorrowRecords.Add(new BorrowRecord {
+                Id = 100 + i, UserId = 1, EquipmentId = 1, BorrowDate = start,
+                ExpectedReturnDate = start.AddDays(2), Status = BorrowStatuses.Returned,
+                ActualReturnDate = i == 0 ? start : i == 1 ? start.AddDays(1).AddTicks(-1) : i == 2 ? start.AddDays(1) : null
+            });
+        await context.SaveChangesAsync();
+        var controller = CreateController(context, 1, Roles.Student);
+        var result = await controller.GetHistoryPaged(new LabManagementAPI.Dtos.PageQuery {
+            From = date, To = date, ReturnFrom = date, ReturnTo = date
+        }, CancellationToken.None);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        Assert.Equal(2, json.RootElement.GetProperty("total").GetInt32());
+        var ids = json.RootElement.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("id").GetInt32()).OrderBy(x => x).ToArray();
+        Assert.Equal(new[] { 100, 101 }, ids);
+    }
+
+    [Fact]
     public async Task Paged_history_supports_dashboard_status_groups()
     {
         await using var context = CreateInMemoryContext();
@@ -595,7 +622,7 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
-    public async Task Returning_damaged_item_marks_broken_and_creates_maintenance()
+    public async Task Returning_damaged_item_marks_broken_without_creating_maintenance()
     {
         await using var context = CreateSqliteContext(out var connection);
         await using (connection)
@@ -636,7 +663,77 @@ public sealed class BorrowControllerTests
             var equipment = await context.Equipments.AsNoTracking().SingleAsync();
             Assert.Equal(BorrowStatuses.ReturnedDamaged, record.Status);
             Assert.Equal(EquipmentStatuses.Broken, equipment.Status);
-            Assert.Single(context.MaintenanceRecords);
+            Assert.Empty(context.MaintenanceRecords);
+        }
+    }
+
+    [Fact]
+    public async Task History_export_contains_filtered_closed_records()
+    {
+        await using var context = CreateSqliteContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", FullName = "Nguyễn Văn A", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", FullName = "Quản lý", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(CreateEquipment(1));
+            var record = CreateBorrowRecord(70, 1, BorrowStatuses.Returned, 1);
+            record.ContactPhone = "0987654321";
+            record.ActualReturnDate = DateTime.UtcNow;
+            context.BorrowRecords.Add(record);
+            await context.SaveChangesAsync();
+
+            var result = Assert.IsType<FileContentResult>(await CreateController(context, 99, Roles.LabHead)
+                .ExportHistory(new LabManagementAPI.Dtos.PageQuery { Status = BorrowStatuses.Returned }, CancellationToken.None));
+            using var stream = new MemoryStream(result.FileContents);
+            using var package = new ExcelPackage(stream);
+            var sheet = package.Workbook.Worksheets["LichSuMuonTra"];
+
+            Assert.Equal("Nguyễn Văn A", sheet.Cells[2, 3].Text);
+            Assert.Equal("0987654321", sheet.Cells[2, 4].Text);
+            Assert.Equal("Đã trả", sheet.Cells[2, 11].Text);
+        }
+    }
+
+    [Fact]
+    public async Task History_import_adds_closed_record_and_rejects_duplicate()
+    {
+        await using var context = CreateSqliteContext(out var connection);
+        await using (connection)
+        {
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", FullName = "Nguyễn Văn A", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", FullName = "Quản lý", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(CreateEquipment(1));
+            await context.SaveChangesAsync();
+            var controller = CreateController(context, 99, Roles.LabHead);
+            var payload = new BorrowController.BorrowHistoryImportDto
+            {
+                Rows =
+                [
+                    new BorrowController.BorrowHistoryImportRowDto
+                    {
+                        Username = "student",
+                        ContactPhone = "0987654321",
+                        Serial = "SN-001",
+                        BorrowDate = new DateTime(2026, 8, 1),
+                        ExpectedReturnDate = new DateTime(2026, 8, 5),
+                        ActualReturnDate = new DateTime(2026, 8, 4),
+                        Purpose = "Dữ liệu lịch sử",
+                        Status = "Đã trả",
+                        ReturnCondition = "Sẵn sàng"
+                    }
+                ]
+            };
+
+            Assert.IsType<OkObjectResult>(await controller.ImportHistory(payload, CancellationToken.None));
+            var imported = await context.BorrowRecords.AsNoTracking().SingleAsync();
+            Assert.Equal(BorrowStatuses.Returned, imported.Status);
+            Assert.Equal("0987654321", imported.ContactPhone);
+            Assert.Equal(1, (await context.Equipments.AsNoTracking().SingleAsync()).BorrowCount);
+
+            Assert.IsType<BadRequestObjectResult>(await controller.ImportHistory(payload, CancellationToken.None));
+            Assert.Single(await context.BorrowRecords.AsNoTracking().ToListAsync());
         }
     }
 

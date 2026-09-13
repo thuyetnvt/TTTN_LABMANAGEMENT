@@ -13,7 +13,7 @@
     </div>
 
     <a-card :bordered="false" style="border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1830 }" :pagination="tablePagination" @change="handleTableChange">
+      <a-table class="desktop-table" :dataSource="dataSource" :columns="columns" :loading="loading" rowKey="id" bordered :scroll="{ x: 1425 }" :pagination="tablePagination" @change="handleTableChange">
         <template #headerCell="{ column }">
           <TableColumnFilter
             v-if="column.filterType || column.sortable"
@@ -31,21 +31,7 @@
           <span v-else>{{ column.title }}</span>
         </template>
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'requestDate' || column.key === 'returnDate'">
-            {{ formatDate(record[column.key]) }}
-          </template>
-          <template v-else-if="column.key === 'borrowerPhone'">
-            <a
-              v-if="record.borrowerPhone"
-              class="borrower-phone-link"
-              :href="phoneHref(record.borrowerPhone)"
-              :title="`Gọi ${borrowerLabel(record)}`"
-            >
-              {{ record.borrowerPhone }}
-            </a>
-            <span v-else class="muted">Chưa cập nhật</span>
-          </template>
-          <template v-else-if="column.key === 'status'">
+          <template v-if="column.key === 'status'">
             <StatusBadge :status="record.status" type="borrow" :label-override="borrowWorkflowLabel(record)" />
           </template>
           <template v-else-if="column.key === 'details'">
@@ -55,6 +41,11 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <div class="request-actions">
+              <a-tooltip title="Xem chi tiết yêu cầu">
+                <a-button type="text" class="view-action" aria-label="Xem chi tiết yêu cầu" @click="showRequestDetails(record)">
+                  <template #icon><EyeOutlined /></template>
+                </a-button>
+              </a-tooltip>
               <template v-if="canApprove && statusMatches(record.status, STATUS.BORROW_PENDING)">
                 <a-button type="primary" size="small" @click="handleApprove(record)">Duyệt</a-button>
                 <a-button danger size="small" @click="handleReject(record)">Từ chối</a-button>
@@ -81,22 +72,14 @@
       <ResponsiveDataList :items="dataSource" :loading="loading" :pagination="tablePagination" empty-description="Không có phiếu cần xử lý" @change="handleTableChange">
         <template #default="{ item }">
           <div class="mobile-request-heading">
-            <div><strong>{{ item.device }}</strong><span>{{ borrowerLabel(item) }} · {{ item.serial || 'Không có số seri' }}</span></div>
+            <div><strong>{{ item.device }}</strong><span>{{ borrowerLabel(item) }}</span></div>
             <StatusBadge :status="item.status" type="borrow" :label-override="borrowWorkflowLabel(item)" />
-          </div>
-          <div class="mobile-request-dates">
-            <span>Đăng ký <strong>{{ formatDate(item.requestDate) }}</strong></span>
-            <span>Hạn trả <strong>{{ formatDate(item.returnDate) }}</strong></span>
-          </div>
-          <div class="mobile-request-phone">
-            <span>Số điện thoại liên hệ</span>
-            <a v-if="item.borrowerPhone" :href="phoneHref(item.borrowerPhone)">{{ item.borrowerPhone }}</a>
-            <span v-else class="muted">Chưa cập nhật</span>
           </div>
           <div v-if="item.details?.length" class="mobile-request-items">
             <span v-for="detail in item.details" :key="detail.id">{{ detail.equipmentName }} ×{{ detail.quantity }}</span>
           </div>
           <div class="mobile-request-actions">
+            <a-button @click="showRequestDetails(item)"><EyeOutlined /> Chi tiết</a-button>
             <template v-if="canApprove && statusMatches(item.status, STATUS.BORROW_PENDING)">
               <a-button type="primary" @click="handleApprove(item)">Duyệt</a-button>
               <a-button danger @click="handleReject(item)">Từ chối</a-button>
@@ -111,6 +94,30 @@
         </template>
       </ResponsiveDataList>
     </a-card>
+
+    <a-modal v-model:open="requestDetailsVisible" title="Chi tiết yêu cầu mượn" :footer="null" width="720px">
+      <a-descriptions v-if="requestDetailsRecord" bordered size="small" :column="1">
+        <a-descriptions-item label="Người mượn">{{ borrowerLabel(requestDetailsRecord) }}</a-descriptions-item>
+        <a-descriptions-item label="SĐT liên hệ">
+          <a v-if="requestDetailsRecord.borrowerPhone" :href="phoneHref(requestDetailsRecord.borrowerPhone)">{{ requestDetailsRecord.borrowerPhone }}</a>
+          <span v-else class="muted">Chưa cập nhật</span>
+        </a-descriptions-item>
+        <a-descriptions-item label="Ngày đăng ký">{{ formatDate(requestDetailsRecord.requestDate) }}</a-descriptions-item>
+        <a-descriptions-item label="Hạn trả">{{ formatDate(requestDetailsRecord.returnDate) }}</a-descriptions-item>
+        <a-descriptions-item label="Mục đích">{{ requestDetailsRecord.purpose || 'Không có' }}</a-descriptions-item>
+        <a-descriptions-item label="Trạng thái">
+          <StatusBadge :status="requestDetailsRecord.status" type="borrow" :label-override="borrowWorkflowLabel(requestDetailsRecord)" />
+        </a-descriptions-item>
+      </a-descriptions>
+      <div v-if="requestDetailsItems.length" class="request-detail-items">
+        <h4>Tài sản trong phiếu</h4>
+        <a-card v-for="item in requestDetailsItems" :key="item.id || item.equipmentId || item.serial" size="small">
+          <strong>{{ item.equipmentName || requestDetailsRecord?.device || 'Tài sản' }}</strong>
+          <span>Số seri: {{ item.serial || requestDetailsRecord?.serial || '—' }}</span>
+          <span>Số lượng: {{ item.quantity || 1 }}</span>
+        </a-card>
+      </div>
+    </a-modal>
 
     <a-modal
       v-model:open="isHandoverModalVisible"
@@ -305,6 +312,7 @@ import { message, Upload } from 'ant-design-vue'
 import { CloseOutlined, DeleteOutlined, EyeOutlined, FileOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import { useRoute } from 'vue-router'
 import { borrowApi } from '../api/borrowApi'
+import { borrowDeviceLabel } from '../utils/borrowDeviceLabel'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
@@ -365,18 +373,23 @@ const isRejectVisible = ref(false)
 const rejectSubmitting = ref(false)
 const rejectReason = ref('')
 const rejectRecord = ref(null)
+const requestDetailsVisible = ref(false)
+const requestDetailsRecord = ref(null)
+const requestDetailsItems = computed(() => {
+  const record = requestDetailsRecord.value
+  if (!record) return []
+  return record.details?.length
+    ? record.details
+    : [{ id: record.equipmentId || record.id, equipmentName: record.device, serial: record.serial, quantity: 1 }]
+})
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
-  { title: 'SĐT liên hệ', dataIndex: 'borrowerPhone', key: 'borrowerPhone', sortKey: 'borrowerPhone', sortable: true, width: 155, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'device', key: 'device', sortKey: 'device', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Danh mục', dataIndex: 'category', key: 'category', sortKey: 'category', sortable: true, width: 145, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
-  { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 155, filterType: 'search', filterPlaceholder: 'Tìm số seri...' },
   { title: 'Chi tiết yêu cầu', key: 'details', width: 200, filterType: 'search', filterPlaceholder: 'Tìm chi tiết...' },
-  { title: 'Ngày đăng ký', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 155 },
-  { title: 'Hạn trả', dataIndex: 'returnDate', key: 'returnDate', sortKey: 'returnDate', sortable: true, width: 145 },
   { title: 'Mục đích', dataIndex: 'purpose', key: 'purpose', sortKey: 'purpose', sortable: true, width: 180, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 300, className: 'status-column borrow-status-column', customCell: () => ({ class: 'status-column borrow-status-column' }), filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 300, className: 'status-column borrow-status-column', filterType: 'select', filterKey: 'status', filterOptions: borrowRequestStatusOptions },
   { title: 'Hành động', key: 'action', align: 'center', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220 }
 ]
 
@@ -415,6 +428,11 @@ const borrowWorkflowLabel = record => {
   return ''
 }
 
+const showRequestDetails = record => {
+  requestDetailsRecord.value = record
+  requestDetailsVisible.value = true
+}
+
 const showExistingHandover = async record => {
   handoverDetails.value = null
   handoverDetailsVisible.value = true
@@ -440,7 +458,7 @@ const fetchRequests = async () => {
       sortBy: sortState.field,
       sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
-    dataSource.value = response.items || []
+    dataSource.value = (response.items || []).map(record => ({ ...record, device: borrowDeviceLabel(record) }))
     tablePagination.total = response.total || 0
   } catch {
     message.error('Lỗi khi tải danh sách yêu cầu!')
@@ -662,6 +680,9 @@ h2 {
 :deep(.borrow-status-column) { white-space: nowrap; }
 :deep(.borrow-status-column .ant-tag) { white-space: nowrap; }
 .view-action { color: var(--color-primary); }
+.request-detail-items { display: grid; gap: 10px; margin-top: 16px; }
+.request-detail-items h4 { margin: 0; }
+.request-detail-items :deep(.ant-card-body) { display: grid; gap: 5px; }
 .handover-items-readonly { display: grid; gap: 10px; margin-top: 14px; }
 .handover-items-readonly :deep(.ant-card-body) { display: grid; gap: 5px; }
 

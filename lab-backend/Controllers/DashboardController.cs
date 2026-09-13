@@ -31,8 +31,8 @@ public class DashboardController : ControllerBase
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var isManager = role is Roles.Admin or Roles.LabHead or Roles.DeputyLabHead;
         var cacheKey = isManager
-            ? "dashboard:v4:manager"
-            : $"dashboard:v4:{role}:{userId}";
+            ? "dashboard:v5:manager"
+            : $"dashboard:v5:{role}:{userId}";
         var forceRefresh = bool.TryParse(Request.Query["refresh"], out var refreshRequested)
             && refreshRequested;
         if (!forceRefresh
@@ -57,9 +57,9 @@ public class DashboardController : ControllerBase
                     Available = group.Count(item => item.Status == EquipmentStatuses.Available),
                     BorrowPending = group.Count(item => item.Status == EquipmentStatuses.BorrowPending),
                     Borrowed = group.Count(item => item.Status == EquipmentStatuses.Borrowed),
-                    Broken = group.Count(item => item.Status == EquipmentStatuses.Broken),
-                    Missing = group.Count(item => item.Status == EquipmentStatuses.Missing),
-                    Maintenance = group.Count(item => item.Status == EquipmentStatuses.MaintenanceInProgress)
+                    Broken = group.Count(item => item.Status == EquipmentStatuses.Broken
+                        || item.Status == EquipmentStatuses.MaintenanceInProgress),
+                    Missing = group.Count(item => item.Status == EquipmentStatuses.Missing)
                 })
                 .SingleOrDefaultAsync(cancellationToken);
 
@@ -100,24 +100,7 @@ public class DashboardController : ControllerBase
         });
 
         var activities = new List<DashboardActivity>(borrowActivities);
-        if (isManager)
-        {
-            var maintenanceActivities = await _context.MaintenanceRecords
-                .AsNoTracking()
-                .Include(record => record.Equipment)
-                .OrderByDescending(record => record.MaintenanceDate)
-                .Take(5)
-                .Select(record => new DashboardActivity(
-                    "maintenance",
-                    $"{record.Equipment!.Name} được bảo trì ({StatusCodeMap.Label(record.Status)})",
-                    record.MaintenanceDate,
-                    record.Status == MaintenanceStatuses.Completed
-                        ? "green"
-                        : record.Status == MaintenanceStatuses.Completing ? "purple" : "blue"))
-                .ToListAsync(cancellationToken);
-            activities.AddRange(maintenanceActivities);
-        }
-        else if (role == Roles.Teacher)
+        if (!isManager && role == Roles.Teacher)
         {
             var sponsoredRequests = await _context.BorrowRecords
                 .AsNoTracking()
@@ -422,7 +405,6 @@ public class DashboardController : ControllerBase
                     Total = equipmentCounts?.Total ?? 0,
                     Available = equipmentCounts?.Available ?? 0,
                     BorrowPending = equipmentCounts?.BorrowPending ?? 0,
-                    Maintenance = equipmentCounts?.Maintenance ?? 0,
                     Borrowed = equipmentCounts?.Borrowed ?? 0,
                     Broken = equipmentCounts?.Broken ?? 0,
                     Missing = equipmentCounts?.Missing ?? 0,
@@ -469,8 +451,7 @@ public class DashboardController : ControllerBase
             BorrowRequestsToProcess = borrowRequestsToProcess,
             ConsumableRequestsToProcess = consumableRequestsToProcess,
             OverdueBorrowRecords = overdueBorrowRecords,
-            LowStockConsumables = lowStockConsumableCount,
-            MaintenanceInProgress = equipmentCounts?.Maintenance ?? 0
+            LowStockConsumables = lowStockConsumableCount
         };
 
         _cache.Set(cacheKey, payload, new MemoryCacheEntryOptions

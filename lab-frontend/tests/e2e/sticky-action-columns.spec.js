@@ -16,6 +16,7 @@ const responses = {
     returnDate: '2026-09-10T08:00:00Z',
     daysUntilDue: 8,
     purpose: 'Demo thực hành IoT tuần 3',
+    borrowerPhone: '0987654321',
     status: 'BORROW_PENDING'
   }]),
   '/api/borrow/history/paged': paged([{
@@ -40,34 +41,34 @@ const responses = {
     status: 'CONSUMABLE_PENDING',
     requestDate: now
   }]),
-  '/api/maintenance/paged': paged([{
+  '/api/equipment/paged': paged([{
     id: 4,
-    device: 'Máy hiện sóng Rigol DS1054Z',
-    maintenanceDate: now,
-    description: 'Hiệu chuẩn định kỳ và kiểm tra đầu đo',
-    performedBy: 'Kỹ thuật viên',
-    cost: 450000,
-    status: 'MAINTENANCE_IN_PROGRESS',
-    result: ''
+    assetCode: 'TS-E2E-004',
+    name: 'Máy hiện sóng E2E',
+    categoryName: 'Thiết bị đo',
+    model: 'E2E-1000',
+    serial: 'E2E-SERIAL-004',
+    location: 'Phòng IoT A',
+    responsiblePerson: 'Quản trị viên',
+    responsibleName: 'Quản trị viên',
+    entryDate: now,
+    depreciationPercentage: 10,
+    status: 'AVAILABLE'
   }]),
-  '/api/maintenance-schedules/paged': paged([{
-    id: 5,
-    device: 'Máy hiện sóng Hantek 6022BE',
-    name: 'Hiệu chuẩn máy đo hằng quý',
-    intervalDays: 90,
-    intervalUnit: 'DAY',
-    nextDueAt: '2026-09-10T08:00:00Z',
-    isDue: false,
-    isActive: true
-  }]),
+  '/api/assetcategory': [{ id: 1, name: 'Thiết bị đo' }],
+  '/api/location': [
+    { id: 99, code: 'LAB-ROOT', name: 'Phòng Lab IoT', type: 'BUILDING', isActive: true, equipmentCount: 0 },
+    { id: 1, code: 'LAB-IOT-A', name: 'Phòng IoT A', type: 'ROOM', isActive: true, equipmentCount: 1 }
+  ],
+  '/api/users/teachers': [],
+  '/api/users/responsible': [{ id: 1, username: 'admin', fullName: 'Quản trị viên', universityCode: 'ADMIN001' }],
 }
 
 const pages = [
   '/dashboard/borrow-requests',
   '/dashboard/borrow-history',
   '/dashboard/consumable-requests',
-  '/dashboard/maintenance',
-  '/dashboard/maintenance-schedules',
+  '/dashboard/devices',
 ]
 
 test.beforeEach(async ({ page }) => {
@@ -89,6 +90,45 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify(body)
     })
   })
+})
+
+test('các ô lọc nhật ký có kích thước hiển thị đúng 150 x 40', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/dashboard/admin/audit-logs')
+
+  const controls = [
+    page.locator('.filter-search .ant-input-affix-wrapper'),
+    page.locator('.filter-control').nth(0),
+    page.locator('.filter-control').nth(1),
+    page.locator('.filter-dates')
+  ]
+
+  for (const control of controls) {
+    await expect(control).toBeVisible()
+    const box = await control.boundingBox()
+    expect(box).toBeTruthy()
+    expect(Math.round(box.width)).toBe(150)
+    expect(Math.round(box.height)).toBe(40)
+  }
+})
+
+test('các ô lọc quản lý người dùng có kích thước hiển thị đúng 150 x 40', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/dashboard/admin/users')
+
+  const controls = [
+    page.locator('.user-filter-search .ant-input-affix-wrapper'),
+    page.locator('.user-filter-control').nth(0),
+    page.locator('.user-filter-control').nth(1)
+  ]
+
+  for (const control of controls) {
+    await expect(control).toBeVisible()
+    const box = await control.boundingBox()
+    expect(box).toBeTruthy()
+    expect(Math.round(box.width)).toBe(150)
+    expect(Math.round(box.height)).toBe(40)
+  }
 })
 
 test('cột hành động giữ đúng hàng và đúng mép phải khi kéo ngang', async ({ page }) => {
@@ -125,5 +165,84 @@ test('cột hành động giữ đúng hàng và đúng mép phải khi kéo nga
     expect(Math.abs(headerBox.x - bodyBox.x), `${path}: header/body lệch trái`).toBeLessThanOrEqual(1)
     expect(Math.abs((headerBox.x + headerBox.width) - (bodyBox.x + bodyBox.width)), `${path}: header/body lệch phải`).toBeLessThanOrEqual(1)
     expect(Math.abs((bodyBox.x + bodyBox.width) - (scrollBox.x + scrollBox.width)), `${path}: cột hành động không bám mép phải`).toBeLessThanOrEqual(2)
+
+    const headers = (await table.locator('.ant-table-thead > tr > th').allTextContents())
+      .map(value => value.trim())
+    const statusIndex = headers.findIndex(value => value.includes('Trạng thái'))
+    const actionIndex = headers.findIndex(value => value.includes('Hành động'))
+    if (statusIndex >= 0) {
+      expect(statusIndex, `${path}: cột trạng thái phải nằm ngay trước hành động`).toBe(actionIndex - 1)
+    }
   }
+})
+
+test('biểu mẫu thiết bị không còn trường Tên seri', async ({ page }) => {
+  await page.goto('/dashboard/devices')
+  await page.getByRole('button', { name: /Thêm thiết bị/ }).click()
+  const dialog = page.getByRole('dialog', { name: 'Thêm thiết bị' })
+  await expect(dialog.getByText('Tên seri', { exact: true })).toHaveCount(0)
+  await expect(dialog.getByText('Số seri', { exact: true })).toBeVisible()
+})
+
+test('quản lý vị trí không còn vị trí cha và không hiển thị nút gốc phòng lab', async ({ page }) => {
+  await page.goto('/dashboard/locations')
+
+  await expect(page.getByRole('heading', { name: 'Danh sách vị trí tài sản' })).toBeVisible()
+  await expect(page.getByText('LAB-ROOT', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Sửa vị trí' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Sửa vị trí' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('Vị trí cha', { exact: true })).toHaveCount(0)
+})
+
+test('bảng yêu cầu cấp phát hiển thị cột số lượng và hành động đúng độ rộng thu gọn', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 900 })
+  await page.goto('/dashboard/consumable-requests')
+
+  const table = page.locator('.desktop-table')
+  const quantityBox = await table.getByRole('columnheader', { name: /Số lượng/ }).boundingBox()
+  const statusBox = await table.getByRole('columnheader', { name: /Trạng thái/ }).boundingBox()
+  const actionBox = await table.getByRole('columnheader', { name: 'Hành động' }).boundingBox()
+
+  expect(quantityBox).toBeTruthy()
+  expect(statusBox).toBeTruthy()
+  expect(actionBox).toBeTruthy()
+  expect(Math.round(quantityBox.width)).toBeLessThanOrEqual(160)
+  expect(Math.round(statusBox.width)).toBeLessThanOrEqual(250)
+  expect(Math.round(actionBox.width)).toBeLessThanOrEqual(250)
+})
+
+test('lịch sử mượn trả không ghim trạng thái và ẩn các cột chỉ cần trong chi tiết', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/dashboard/borrow-history')
+
+  const table = page.locator('.desktop-table')
+  const statusHeader = table.getByRole('columnheader', { name: /Trạng thái/ })
+
+  await expect(statusHeader).toBeVisible()
+  await expect(table.locator('.table-sticky-status-column')).toHaveCount(0)
+  await expect(table.getByRole('columnheader', { name: /Ngày đăng ký/ })).toHaveCount(0)
+  await expect(table.getByRole('columnheader', { name: /Hạn trả/ })).toHaveCount(0)
+  await expect(table.getByRole('columnheader', { name: /Tình trạng trả/ })).toHaveCount(0)
+
+  expect(await statusHeader.evaluate(element => getComputedStyle(element).position)).not.toBe('sticky')
+})
+
+test('phiếu chờ duyệt chỉ hiện thông tin phụ trong cửa sổ chi tiết', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/dashboard/borrow-requests')
+
+  const table = page.locator('.desktop-table')
+  for (const columnName of ['SĐT liên hệ', 'Số seri', 'Ngày đăng ký', 'Hạn trả']) {
+    await expect(table.getByRole('columnheader', { name: new RegExp(columnName) })).toHaveCount(0)
+  }
+
+  await page.getByRole('button', { name: 'Xem chi tiết yêu cầu' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Chi tiết yêu cầu mượn' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('0987654321', { exact: true })).toBeVisible()
+  await expect(dialog.getByText(/Số seri: ARD-001/)).toBeVisible()
+  await expect(dialog.getByText('Ngày đăng ký', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Hạn trả', { exact: true })).toBeVisible()
 })

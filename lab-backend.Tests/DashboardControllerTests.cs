@@ -166,7 +166,9 @@ public sealed class DashboardControllerTests
         Assert.Equal(1, ReadInt(response.Value!, "PendingConsumableRequests"));
         Assert.Equal(1, ReadInt(response.Value!, "OverdueBorrowRecords"));
         Assert.Equal(1, ReadInt(response.Value!, "LowStockConsumables"));
-        Assert.Equal(1, ReadInt(response.Value!, "MaintenanceInProgress"));
+        var json = JsonSerializer.SerializeToElement(response.Value);
+        Assert.Equal(1, json.GetProperty("Counts").GetProperty("Broken").GetInt32());
+        Assert.False(json.TryGetProperty("MaintenanceInProgress", out _));
     }
 
     [Fact]

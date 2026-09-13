@@ -26,6 +26,8 @@ public sealed class PageQuery
     public int? CategoryId { get; set; }
     public int? LocationNodeId { get; set; }
     public DateTime? From { get; set; }
+    public DateTime? ReturnFrom { get; set; }
+    public DateTime? ReturnTo { get; set; }
     public DateTime? To { get; set; }
 
     public string NormalizedSearch => Search?.Trim() ?? string.Empty;

@@ -14,13 +14,14 @@ Backend ASP.NET Core Web API cho hệ thống quản lý phòng lab.
 
 - Không còn cơ chế đăng nhập dự phòng bằng tài khoản test khi database lỗi.
 - Không lưu mật khẩu MySQL, JWT key hay SMTP credential trong source code.
-- JWT kiểm tra trạng thái tài khoản, vai trò và `TokenVersion` ở mỗi request.
+- JWT kiểm tra trạng thái tài khoản, vai trò và `TokenVersion` ở mỗi request; refresh token được luân chuyển, có hạn mặc định 7 ngày và chống dùng lại.
 - Có đổi mật khẩu, quên mật khẩu bằng token SHA-256, hết hạn 30 phút và chỉ dùng một lần.
 - Xóa tài khoản là khóa mềm, không xóa lịch sử nghiệp vụ.
 - Duyệt mượn và cấp vật tư dùng transaction + atomic update, tránh duyệt trùng và tồn kho âm.
 - Upload quyết định có giới hạn kích thước, whitelist phần mở rộng, tên lưu ngẫu nhiên và đường dẫn tải an toàn.
 - Bảo trì có vòng đời `MAINTENANCE_IN_PROGRESS` → `MAINTENANCE_COMPLETED`; khi hoàn tất người xử lý phải chọn trạng thái thiết bị tiếp theo (`AVAILABLE`, `BROKEN` hoặc tiếp tục bảo trì).
 - Phiếu mượn hỗ trợ nhiều tài sản, lịch sử trạng thái, trả từng món và kiểm kê QR theo đợt.
+- Lịch sử mượn/trả hỗ trợ xuất Excel theo bộ lọc và import hai bước (xem trước rồi ghi), chỉ nhận bản ghi đã kết thúc.
 - Thông báo được lưu database; SignalR chỉ dùng để đẩy cập nhật realtime.
 - Có audit log, rate limit đăng nhập, health check MySQL và SignalR theo đúng người/nhóm quyền.
 - Database được nâng cấp bằng EF migration, không tự `ALTER TABLE` thủ công khi khởi động.
@@ -90,6 +91,7 @@ ConnectionStrings__DefaultConnection=Server=db;Port=3306;Database=lab_management
 Jwt__Key=RANDOM_SECRET_AT_LEAST_32_CHARACTERS
 Jwt__Issuer=LabManagementAPI
 Jwt__Audience=LabManagementApp
+Jwt__RefreshTokenDays=7
 App__FrontendBaseUrl=https://lab.example.edu.vn
 Cors__AllowedOrigins__0=https://lab.example.edu.vn
 Email__Host=smtp.example.edu.vn

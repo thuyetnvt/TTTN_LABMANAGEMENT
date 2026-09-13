@@ -21,7 +21,8 @@
           name="password"
           :rules="[
             { required: true, message: 'Vui lòng nhập mật khẩu mới' },
-            { min: 8, message: 'Mật khẩu phải có ít nhất 8 ký tự' }
+            { min: 8, message: 'Mật khẩu phải có ít nhất 8 ký tự' },
+            { pattern: /^(?=[\s\S]*[a-z])(?=[\s\S]*[A-Z])(?=[\s\S]*[0-9])[\s\S]+$/, message: 'Mật khẩu phải có chữ hoa, chữ thường và số.' }
           ]"
         >
           <a-input-password v-model:value="formState.password" size="large" />

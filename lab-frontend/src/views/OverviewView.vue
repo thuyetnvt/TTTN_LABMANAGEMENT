@@ -26,6 +26,17 @@
         </div>
       </header>
 
+      <section class="manager-section manager-quick-actions" aria-labelledby="quick-actions-heading">
+        <h3 id="quick-actions-heading" class="manager-section-title">Thao tác nhanh</h3>
+        <div class="quick-actions-grid">
+          <a-button v-for="item in managerQuickActions" :key="item.key" class="quick-action-button" @click="navigateTo(item.route)">
+            <template #icon><component :is="item.icon" /></template>
+            <span>{{ item.label }}</span>
+            <ArrowRightOutlined class="quick-action-arrow" />
+          </a-button>
+        </div>
+      </section>
+
       <section class="manager-section manager-kpi-section" aria-label="Chỉ số tổng quan">
         <div class="manager-kpi-grid">
           <button
@@ -119,16 +130,6 @@
         </a-card>
       </section>
 
-      <section class="manager-section manager-quick-actions" aria-labelledby="quick-actions-heading">
-        <h3 id="quick-actions-heading" class="manager-section-title">Thao tác nhanh</h3>
-        <div class="quick-actions-grid">
-          <a-button v-for="item in managerQuickActions" :key="item.key" class="quick-action-button" @click="navigateTo(item.route)">
-            <template #icon><component :is="item.icon" /></template>
-            <span>{{ item.label }}</span>
-            <ArrowRightOutlined class="quick-action-arrow" />
-          </a-button>
-        </div>
-      </section>
     </template>
 
     <template v-else-if="isTeacher">
@@ -143,6 +144,17 @@
           Làm mới
         </a-button>
       </header>
+
+      <section class="teacher-quick-section" aria-labelledby="teacher-quick-heading">
+        <h3 id="teacher-quick-heading">Thao tác nhanh</h3>
+        <div class="teacher-quick-grid">
+          <button v-for="item in teacherQuickActions" :key="item.key" type="button" class="teacher-quick-action" @click="navigateTo(item.route)">
+            <span><component :is="item.icon" /></span>
+            <strong>{{ item.label }}</strong>
+            <small>{{ item.description }}</small>
+          </button>
+        </div>
+      </section>
 
       <section class="teacher-kpi-grid" aria-label="Công việc của giảng viên">
         <button
@@ -224,17 +236,6 @@
         <div v-else class="teacher-inline-empty">Chưa có hoạt động mượn hoặc bảo lãnh gần đây.</div>
       </a-card>
 
-      <section class="teacher-quick-section" aria-labelledby="teacher-quick-heading">
-        <h3 id="teacher-quick-heading">Thao tác nhanh</h3>
-        <div class="teacher-quick-grid">
-          <button v-for="item in teacherQuickActions" :key="item.key" type="button" class="teacher-quick-action" @click="navigateTo(item.route)">
-            <span><component :is="item.icon" /></span>
-            <strong>{{ item.label }}</strong>
-            <small>{{ item.description }}</small>
-            <ArrowRightOutlined />
-          </button>
-        </div>
-      </section>
     </template>
 
     <template v-else-if="isStudent">
@@ -392,8 +393,7 @@ const stats = ref({
   consumableRequestsToProcess: 0,
   overdueBorrowRecords: 0,
   lowStockConsumables: 0,
-  maintenanceInProgress: 0,
-  counts: { total: 0, available: 0, borrowPending: 0, maintenance: 0, borrowed: 0, broken: 0, missing: 0 },
+  counts: { total: 0, available: 0, borrowPending: 0, borrowed: 0, broken: 0, missing: 0 },
   activities: [],
   alerts: [],
   advanced: { pendingRequests: 0, lowStockConsumables: [], borrowTrends: [] },
@@ -423,7 +423,7 @@ const managerKpis = computed(() => [
   },
   {
     key: 'borrowed-equipment',
-    label: 'Thiết bị đang được mượn',
+    label: 'Đang mượn',
     value: formatNumber(stats.value.counts.borrowed),
     icon: ClockCircleOutlined,
     tone: 'success',
@@ -451,7 +451,6 @@ const managerStatusRows = computed(() => [
   { key: 'available', label: 'Rảnh', value: Number(stats.value.counts.available || 0), tone: 'success' },
   { key: 'borrow-pending', label: 'Đã giữ chỗ', value: Number(stats.value.counts.borrowPending || 0), tone: 'warning' },
   { key: 'borrowed', label: 'Đang mượn', value: Number(stats.value.counts.borrowed || 0), tone: 'info' },
-  { key: 'maintenance', label: 'Bảo trì', value: Number(stats.value.counts.maintenance || 0), tone: 'purple' },
   { key: 'broken', label: 'Hỏng', value: Number(stats.value.counts.broken || 0), tone: 'danger' },
   { key: 'missing', label: 'Thất lạc', value: Number(stats.value.counts.missing || 0), tone: 'danger' }
 ])
@@ -461,7 +460,7 @@ const managerDonutSeries = computed(() => managerStatusRows.value.map(item => it
 const managerDonutOptions = computed(() => ({
   chart: { type: 'donut', toolbar: { show: false }, fontFamily: 'inherit' },
   labels: managerStatusRows.value.map(item => item.label),
-  colors: ['#7FBD68', '#F2B24B', '#4D91D8', '#8B5CF6', '#EAB308', '#E35F4E', '#991B1B'],
+  colors: ['#7FBD68', '#F2B24B', '#4D91D8', '#E35F4E', '#991B1B'],
   stroke: { width: 3, colors: ['#fff'] },
   legend: { show: false },
   dataLabels: { enabled: false },
@@ -481,7 +480,12 @@ const managerDonutOptions = computed(() => ({
   }
 }))
 
-const recentActivities = computed(() => stats.value.activities.slice(0, 4))
+const visibleActivities = computed(() => stats.value.activities.filter(activity => {
+  const type = String(activity?.type || activity?.action || '').toUpperCase()
+  const content = String(activity?.message || '').toLowerCase()
+  return !type.includes('MAINTENANCE') && !content.includes('bảo trì')
+}))
+const recentActivities = computed(() => visibleActivities.value.slice(0, 4))
 
 const getActivityIcon = action => ({
   Create: PlusOutlined,
@@ -590,7 +594,7 @@ const teacherTasks = computed(() => [
   }
 ].filter(Boolean))
 
-const teacherActivities = computed(() => stats.value.activities.slice(0, 5))
+const teacherActivities = computed(() => visibleActivities.value.slice(0, 5))
 const teacherQuickActions = computed(() => [
   { key: 'approval', label: 'Duyệt bảo lãnh', description: 'Xử lý yêu cầu sinh viên', icon: FileSearchOutlined, route: { name: 'TeacherApproval' } },
   { key: 'equipment', label: 'Mượn thiết bị', description: 'Xem tài sản đang sẵn sàng', icon: AppstoreOutlined, route: { name: 'Devices' } },
@@ -741,8 +745,7 @@ const normalizeDashboardStats = result => {
     borrowRequestsToProcess: Number(payload.borrowRequestsToProcess ?? payload.pendingBorrowRequests ?? 0),
     consumableRequestsToProcess: Number(payload.consumableRequestsToProcess ?? payload.pendingConsumableRequests ?? 0),
     overdueBorrowRecords: Number(payload.overdueBorrowRecords ?? alerts.filter(alert => alert?.type === 'overdue').length),
-    lowStockConsumables: Number(payload.lowStockConsumables ?? lowStockItems.length),
-    maintenanceInProgress: Number(payload.maintenanceInProgress ?? payload.counts?.maintenance ?? 0)
+    lowStockConsumables: Number(payload.lowStockConsumables ?? lowStockItems.length)
   }
 }
 
@@ -783,7 +786,7 @@ onMounted(() => refreshStats(false))
 .manager-kpi-icon, .manager-attention-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 50%; }
 .manager-kpi-icon { width: 54px; height: 54px; font-size: 24px; }
 .manager-kpi-copy { display: flex; min-width: 0; flex-direction: column; gap: 7px; }
-.manager-kpi-label { overflow: hidden; color: #526276; font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.manager-kpi-label { color: #526276; font-size: 15px; font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
 .manager-kpi-copy strong { color: #10233f; font-size: 36px; line-height: 1; letter-spacing: -.02em; }
 .tone-primary { color: #2376c5; background: #eaf4ff; }
 .tone-success { color: #4d9b3b; background: #edf8e9; }
@@ -900,15 +903,14 @@ onMounted(() => refreshStats(false))
 .teacher-activity-item p { display: -webkit-box; margin: 0; overflow: hidden; color: #334155; font-size: 13px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .teacher-activity-item small { display: block; margin-top: 4px; color: #9aa5b1; font-size: 11px; }
 .teacher-inline-empty { padding: 26px 0; color: #94a3b8; text-align: center; }
-.teacher-quick-section { margin-top: 18px; }
+.teacher-quick-section { margin-bottom: 18px; }
 .teacher-quick-section h3 { margin: 0 0 11px; color: #10233f; font-size: 17px; }
 .teacher-quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.teacher-quick-action { display: grid; grid-template-columns: 38px minmax(0, 1fr) 12px; grid-template-rows: auto auto; align-items: center; min-width: 0; gap: 1px 10px; padding: 13px 14px; border: 1px solid #e4e8ec; border-radius: 11px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.teacher-quick-action { display: grid; grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; min-width: 0; gap: 1px 10px; padding: 13px 14px; border: 1px solid #e4e8ec; border-radius: 11px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .teacher-quick-action:hover, .teacher-quick-action:focus-visible { border-color: #dfb8aa; outline: none; }
 .teacher-quick-action > span { display: inline-flex; grid-row: 1 / 3; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 9px; background: #f5f7f9; color: #d26548; font-size: 17px; }
 .teacher-quick-action strong { overflow: hidden; color: #26384f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .teacher-quick-action small { overflow: hidden; color: #94a3b8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.teacher-quick-action > .anticon { grid-column: 3; grid-row: 1 / 3; color: #aeb7c1; font-size: 10px; }
 .student-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
 .student-header h2 { margin: 8px 0 0; color: #10233f; font-family: var(--font-serif); font-size: 34px; font-weight: 650; line-height: 1.15; letter-spacing: -.025em; }
 .student-eyebrow { color: #d26548; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }

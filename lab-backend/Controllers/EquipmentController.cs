@@ -65,9 +65,6 @@ public class EquipmentController : ControllerBase
         [Required, MaxLength(100)]
         public string Serial { get; set; } = string.Empty;
 
-        [MaxLength(255)]
-        public string SerialName { get; set; } = string.Empty;
-
         [MaxLength(150)]
         public string DeviceType { get; set; } = string.Empty;
 
@@ -126,7 +123,6 @@ public class EquipmentController : ControllerBase
         [Required, MaxLength(255)] public string Name { get; set; } = string.Empty;
         [Required, MaxLength(255)] public string Model { get; set; } = string.Empty;
         [Required, MaxLength(100)] public string Serial { get; set; } = string.Empty;
-        [MaxLength(255)] public string SerialName { get; set; } = string.Empty;
         [Required, MaxLength(255)] public string Location { get; set; } = string.Empty;
         public int? LocationNodeId { get; set; }
         [MaxLength(255)] public string ResponsiblePerson { get; set; } = string.Empty;
@@ -202,7 +198,13 @@ public class EquipmentController : ControllerBase
             if (string.Equals(status, "PROBLEM", StringComparison.OrdinalIgnoreCase))
             {
                 query = query.Where(equipment => equipment.Status == EquipmentStatuses.Broken
+                    || equipment.Status == EquipmentStatuses.MaintenanceInProgress
                     || equipment.Status == EquipmentStatuses.Missing);
+            }
+            else if (string.Equals(status, EquipmentStatuses.Broken, StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(equipment => equipment.Status == EquipmentStatuses.Broken
+                    || equipment.Status == EquipmentStatuses.MaintenanceInProgress);
             }
             else
             {
@@ -255,9 +257,6 @@ public class EquipmentController : ControllerBase
             "serial" => descending
                 ? query.OrderByDescending(equipment => equipment.Serial).ThenBy(equipment => equipment.Id)
                 : query.OrderBy(equipment => equipment.Serial).ThenBy(equipment => equipment.Id),
-            "serialname" => descending
-                ? query.OrderByDescending(equipment => equipment.SerialName).ThenBy(equipment => equipment.Id)
-                : query.OrderBy(equipment => equipment.SerialName).ThenBy(equipment => equipment.Id),
             "location" => descending
                 ? query.OrderByDescending(equipment => equipment.Location).ThenBy(equipment => equipment.Id)
                 : query.OrderBy(equipment => equipment.Location).ThenBy(equipment => equipment.Id),
@@ -428,7 +427,6 @@ public class EquipmentController : ControllerBase
             row.Name = row.Name.Trim();
             row.Model = row.Model.Trim();
             row.Serial = row.Serial.Trim();
-            row.SerialName = row.SerialName.Trim();
             row.Location = row.Location.Trim();
             row.ResponsiblePerson = row.ResponsiblePerson.Trim();
             row.InvoiceNumber = row.InvoiceNumber.Trim();
@@ -490,7 +488,6 @@ public class EquipmentController : ControllerBase
                 Name = row.Name,
                 Model = row.Model,
                 Serial = row.Serial,
-                SerialName = row.SerialName,
                 Location = row.Location,
                 LocationNodeId = row.LocationNodeId,
                 CreatedByUserId = importUser.Id,
@@ -599,7 +596,6 @@ public class EquipmentController : ControllerBase
             Name = dto.Name.Trim(),
             Model = dto.Model.Trim(),
             Serial = serial,
-            SerialName = dto.SerialName.Trim(),
             DeviceType = dto.DeviceType.Trim(),
             MacAddress = dto.MacAddress.Trim(),
             Imei = dto.Imei.Trim(),
@@ -717,17 +713,6 @@ public class EquipmentController : ControllerBase
             });
         }
 
-        var hasActiveMaintenance = await _context.MaintenanceRecords.AnyAsync(
-            record => record.EquipmentId == id && record.Status == MaintenanceStatuses.InProgress,
-            cancellationToken);
-        if (hasActiveMaintenance && dto.Status != existing.Status)
-        {
-            return BadRequest(new
-            {
-                message = "Thiết bị đang bảo trì; hãy hoàn tất phiếu bảo trì để cập nhật trạng thái."
-            });
-        }
-
         if (dto.AssetCategoryId.HasValue
             && !await _context.AssetCategories.AnyAsync(
                 category => category.Id == dto.AssetCategoryId,
@@ -779,7 +764,6 @@ public class EquipmentController : ControllerBase
         existing.Name = dto.Name.Trim();
         existing.Model = dto.Model.Trim();
         existing.Serial = serial;
-        existing.SerialName = dto.SerialName.Trim();
         existing.DeviceType = dto.DeviceType.Trim();
         existing.MacAddress = dto.MacAddress.Trim();
         existing.Imei = dto.Imei.Trim();
@@ -997,7 +981,7 @@ public class EquipmentController : ControllerBase
         var worksheet = package.Workbook.Worksheets.Add("TaiSan");
         var headers = new[]
         {
-            "ID", "Danh mục", "Tên tài sản", "Model", "Số seri", "Tên seri",
+            "ID", "Danh mục", "Tên tài sản", "Model", "Số seri",
             "Vị trí", "Người chịu trách nhiệm", "Ngày nhập",
             "Số hóa đơn", "Trạng thái", "Số lần mượn"
         };
@@ -1023,13 +1007,12 @@ public class EquipmentController : ControllerBase
             worksheet.Cells[row, 3].Value = equipment.Name;
             worksheet.Cells[row, 4].Value = equipment.Model;
             worksheet.Cells[row, 5].Value = equipment.Serial;
-            worksheet.Cells[row, 6].Value = equipment.SerialName;
-            worksheet.Cells[row, 7].Value = equipment.Location;
-            worksheet.Cells[row, 8].Value = equipment.ResponsiblePerson;
-            worksheet.Cells[row, 9].Value = equipment.EntryDate?.ToString("dd/MM/yyyy");
-            worksheet.Cells[row, 10].Value = equipment.InvoiceNumber;
-            worksheet.Cells[row, 11].Value = equipment.Status;
-            worksheet.Cells[row, 12].Value = equipment.BorrowCount;
+            worksheet.Cells[row, 6].Value = equipment.Location;
+            worksheet.Cells[row, 7].Value = equipment.ResponsiblePerson;
+            worksheet.Cells[row, 8].Value = equipment.EntryDate?.ToString("dd/MM/yyyy");
+            worksheet.Cells[row, 9].Value = equipment.InvoiceNumber;
+            worksheet.Cells[row, 10].Value = equipment.Status;
+            worksheet.Cells[row, 11].Value = equipment.BorrowCount;
         }
 
         worksheet.Cells.AutoFitColumns();
@@ -1117,7 +1100,6 @@ public class EquipmentController : ControllerBase
             equipment.Name,
             equipment.Model,
             equipment.Serial,
-            equipment.SerialName,
             equipment.DeviceType,
             equipment.MacAddress,
             equipment.Imei,
@@ -1149,7 +1131,6 @@ public class EquipmentController : ControllerBase
             Name = equipment.Name,
             Model = equipment.Model,
             Serial = equipment.Serial,
-            SerialName = equipment.SerialName,
             DeviceType = equipment.DeviceType,
             Manufacturer = equipment.Manufacturer,
             ImagePath = equipment.ImagePath,
@@ -1185,7 +1166,6 @@ public class EquipmentController : ControllerBase
             Name = equipment.Name,
             Model = equipment.Model,
             Serial = equipment.Serial,
-            SerialName = equipment.SerialName,
             DeviceType = equipment.DeviceType,
             MacAddress = equipment.MacAddress,
             Imei = equipment.Imei,
@@ -1339,7 +1319,6 @@ public class EquipmentController : ControllerBase
             Name = GetImportCell(worksheet, headers, rowNumber, "Tên thiết bị", "Tên tài sản", "Name"),
             Model = GetImportCell(worksheet, headers, rowNumber, "Model"),
             Serial = GetImportCell(worksheet, headers, rowNumber, "Số seri", "Serial"),
-            SerialName = GetImportCell(worksheet, headers, rowNumber, "Tên seri", "SerialName"),
             Location = GetImportCell(worksheet, headers, rowNumber, "Vị trí", "Location"),
             LocationNodeId = null,
             ResponsiblePerson = GetImportCell(worksheet, headers, rowNumber, "Người chịu trách nhiệm", "ResponsiblePerson"),

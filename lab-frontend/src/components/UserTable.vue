@@ -28,6 +28,11 @@
       </template>
       <template v-else-if="column.key === 'action'">
         <div v-if="isAdminRole(role)" class="table-action-buttons">
+          <a-tooltip v-if="record.isActive" title="Đặt lại mật khẩu">
+            <a-button type="link" size="small" aria-label="Đặt lại mật khẩu" @click="emit('reset-password', record)">
+              <template #icon><KeyOutlined /></template>
+            </a-button>
+          </a-tooltip>
           <a-tooltip v-if="record.isActive" title="Sửa người dùng">
             <a-button type="link" size="small" aria-label="Sửa người dùng" @click="$emit('edit', record)">
               <template #icon><EditOutlined /></template>
@@ -57,6 +62,7 @@
       <div class="mobile-user-code">Mã định danh: <strong>{{ item.universityCode || '—' }}</strong></div>
       <a-tag :color="item.isActive ? 'green' : 'red'">{{ item.isActive ? 'Hoạt động' : 'Đã khóa' }}</a-tag>
       <div v-if="isAdminRole(role)" class="mobile-user-actions">
+        <a-button v-if="item.isActive" @click="emit('reset-password', item)">Đặt lại mật khẩu</a-button>
         <a-button v-if="item.isActive" @click="emit('edit', item)"><template #icon><EditOutlined /></template>Sửa</a-button>
         <a-button v-if="item.isActive && item.username !== 'admin'" danger @click="emit('delete', item)"><template #icon><LockOutlined /></template>Khóa</a-button>
         <a-button v-else-if="!item.isActive" @click="emit('activate', item)"><template #icon><UnlockOutlined /></template>Mở khóa</a-button>
@@ -68,7 +74,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '../stores/authStore'
-import { EditOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, KeyOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons-vue'
 import { isAdminRole, roleLabel } from '../constants/business'
 import ResponsiveDataList from './ResponsiveDataList.vue'
 import TableColumnFilter from './TableColumnFilter.vue'
@@ -95,7 +101,7 @@ const props = defineProps({
 const filterValues = computed(() => props.filterValues || {})
 const sortState = computed(() => props.sortState || { field: undefined, order: undefined })
 
-const emit = defineEmits(['edit', 'delete', 'activate', 'change', 'column-filter', 'sort'])
+const emit = defineEmits(['edit', 'delete', 'activate', 'change', 'column-filter', 'sort', 'reset-password'])
 
 const authStore = useAuthStore()
 const role = computed(() => authStore.role)

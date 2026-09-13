@@ -22,6 +22,7 @@ namespace LabManagementAPI.Data
         public DbSet<ConsumableRequestLotAllocation> ConsumableRequestLotAllocations { get; set; }
         public DbSet<ConsumableTransaction> ConsumableTransactions { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<LocationNode> LocationNodes { get; set; }
         public DbSet<BorrowStatusHistory> BorrowStatusHistories { get; set; }
@@ -597,6 +598,18 @@ namespace LabManagementAPI.Data
                 entity.Property(token => token.TokenHash).HasMaxLength(64);
                 entity.HasIndex(token => token.TokenHash).IsUnique();
                 entity.HasIndex(token => token.ExpiresAt);
+                entity.HasOne(token => token.User)
+                    .WithMany()
+                    .HasForeignKey(token => token.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.Property(token => token.TokenHash).HasMaxLength(64);
+                entity.Property(token => token.ReplacedByTokenHash).HasMaxLength(64);
+                entity.HasIndex(token => token.TokenHash).IsUnique();
+                entity.HasIndex(token => new { token.UserId, token.ExpiresAt });
                 entity.HasOne(token => token.User)
                     .WithMany()
                     .HasForeignKey(token => token.UserId)

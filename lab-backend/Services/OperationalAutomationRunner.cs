@@ -40,13 +40,10 @@ public sealed class OperationalAutomationRunner
     {
         utcNow = DateTime.SpecifyKind(utcNow, DateTimeKind.Utc);
         await ExpireApprovedHoldsAsync(utcNow, cancellationToken);
-        await CheckUpcomingMaintenanceAsync(utcNow, cancellationToken);
-        await GenerateDueMaintenanceAsync(utcNow, cancellationToken);
         await CreateReturnRemindersAsync(utcNow, cancellationToken);
         if (_configuration.GetValue("Automation:SendEmailReminders", false))
         {
             await SendPendingReminderEmailsAsync(utcNow, cancellationToken);
-            await SendPendingMaintenanceEmailsAsync(utcNow, cancellationToken);
         }
     }
 
@@ -76,6 +73,7 @@ public sealed class OperationalAutomationRunner
             {
                 var record = await _context.BorrowRecords
                     .Include(item => item.Details)
+                    .Include(item => item.StatusHistory)
                     .SingleOrDefaultAsync(item => item.Id == candidate.Id, cancellationToken);
                 if (record is null || record.Status != BorrowStatuses.Approved)
                 {

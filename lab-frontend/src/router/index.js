@@ -3,6 +3,7 @@
 import { BORROWER_ROLES, MANAGER_ROLES, ROLE } from '../constants/business'
 
 const routes = [
+  { path: '/change-first-password', name: 'FirstPasswordChange', component: () => import('../views/FirstPasswordChangeView.vue'), meta: { requiresAuth: true } },
   { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue'), meta: { requiresAuth: false } },
   { path: '/forgot-password', name: 'ForgotPassword', component: () => import('../views/ForgotPasswordView.vue'), meta: { requiresAuth: false } },
   { path: '/reset-password', name: 'ResetPassword', component: () => import('../views/ResetPasswordView.vue'), meta: { requiresAuth: false } },
@@ -25,8 +26,6 @@ const routes = [
       { path: 'admin/audit-logs', name: 'AuditLogs', component: () => import('../views/AuditLogsView.vue'), meta: { allowedRoles: [ROLE.ADMIN] } },
       { path: 'borrow-requests', name: 'BorrowRequests', component: () => import('../views/BorrowRequestsView.vue'), meta: { allowedRoles: [...MANAGER_ROLES, ROLE.TEACHER] } },
       { path: 'borrow-history', name: 'BorrowHistory', component: () => import('../views/BorrowHistoryView.vue') },
-      { path: 'maintenance', name: 'Maintenance', component: () => import('../views/MaintenanceView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
-      { path: 'maintenance-schedules', name: 'MaintenanceSchedules', component: () => import('../views/MaintenanceSchedulesView.vue'), meta: { allowedRoles: MANAGER_ROLES } },
       { path: 'consumable-requests', name: 'ConsumableRequests', component: () => import('../views/ConsumableRequestsView.vue'), meta: { allowedRoles: [...MANAGER_ROLES, ...BORROWER_ROLES] } },
       { path: 'teacher-approval', name: 'TeacherApproval', component: () => import('../views/TeacherApprovalView.vue'), meta: { allowedRoles: [ROLE.TEACHER] } },
       { path: 'approval-delegations', name: 'ApprovalDelegations', component: () => import('../views/ApprovalDelegationsView.vue'), meta: { allowedRoles: MANAGER_ROLES } }
@@ -43,6 +42,12 @@ const router = createRouter({
 router.beforeEach((to) => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token')
   const userRole = localStorage.getItem('role') || sessionStorage.getItem('role')
+  let mustChangePassword = false
+  try {
+    const payload = token?.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/')
+    mustChangePassword = payload ? JSON.parse(atob(payload)).must_change_password === 'true' : false
+  } catch { /* The API validates token authenticity. */ }
+  if (token && mustChangePassword && to.name !== 'FirstPasswordChange') return { name: 'FirstPasswordChange' }
 
   if (to.meta.requiresAuth !== false && !token) {
     return { name: 'Login' }

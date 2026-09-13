@@ -53,3 +53,12 @@ Ngày 25/08/2026 trên branch `codex/iot-lab-asset-upgrade`:
 - Các dữ liệu E2E được tạo có chủ đích để giữ trace/audit; có thể lọc bằng tiền tố `E2E-` khi dọn môi trường kiểm thử, không dùng làm số liệu giao diện.
 
 Các kiểm chứng trên là local/Docker, không thay thế diễn tập restore trên production, triển khai MinIO/S3 hoặc cấu hình certificate mã hóa Data Protection trong môi trường thật.
+
+## Kiểm chứng sau đợt hiệu chỉnh ngày 13/09/2026
+
+- Backend: `dotnet test lab-backend.Tests/LabManagementAPI.Tests.csproj --configuration Release` đạt **111/111**.
+- Frontend: `npm test` đạt **43/43**; `npm run build` đạt.
+- E2E Docker cô lập: `npm run test:e2e` đạt **34/34** trên Chromium desktop và mobile, bao gồm đủ năm vai trò và luồng nghiệp vụ chính.
+- `docker compose config --quiet`, kiểm tra cú pháp `scripts/deploy-vps.sh`, `git diff --check` và sinh migration script idempotent đều đạt.
+- Hai migration mới `RequireInitialPasswordChange` và `AddRefreshTokens` đã được đưa vào migration script; chưa áp dụng trực tiếp lên database VPS trong lần kiểm chứng này.
+- File hướng dẫn Word đã được render và kiểm tra trực quan đủ 5 trang, không có nội dung tràn hoặc bảng vỡ.

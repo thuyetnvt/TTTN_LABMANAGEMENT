@@ -6,6 +6,13 @@ export const borrowApi = {
   getPendingRequestsPaged: (params = {}) => axiosClient.get('/borrow/pending/paged', { params }),
   getHistory: () => axiosClient.get('/borrow/history'),
   getHistoryPaged: (params = {}) => axiosClient.get('/borrow/history/paged', { params }),
+  exportHistory: (params = {}) => axiosClient.get('/borrow/history/export', { params, responseType: 'blob' }),
+  previewHistoryImport: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return axiosClient.post('/borrow/history/import/preview', form)
+  },
+  importHistory: (rows) => axiosClient.post('/borrow/history/import', { rows }),
   approve: (id) => axiosClient.put(`/borrow/${id}/approve`),
   reject: (id, note) => axiosClient.put(`/borrow/${id}/reject`, { note }),
   cancel: (id, reason) => axiosClient.put(`/borrow/${id}/cancel`, { reason }),

@@ -44,6 +44,7 @@
   </div>
 
   <a-table
+    class="device-table"
     :dataSource="dataSource"
     :columns="columns"
     :loading="loading"
@@ -74,29 +75,8 @@
       <template v-if="column.key === 'status'">
         <StatusBadge :status="record.status" />
       </template>
-      <template v-else-if="column.key === 'entryDate'">
-        {{ formatDate(record[column.key]) }}
-      </template>
       <template v-else-if="column.key === 'qrcode'">
         <a-button type="default" size="small" @click="showQR(record)">QR</a-button>
-      </template>
-      <template v-else-if="column.key === 'depreciationPercentage'">
-        <span v-if="record.depreciationPercentage !== undefined && record.depreciationPercentage !== null">
-          <a-progress :percent="record.depreciationPercentage" size="small" :status="record.depreciationPercentage >= 100 ? 'exception' : 'active'" />
-        </span>
-        <span v-else class="muted">N/A</span>
-      </template>
-      <template v-else-if="column.key === 'decisionFile'">
-        <a-button
-          v-if="record.hasDecisionFile && isManagerRole(role)"
-          type="link"
-          size="small"
-          @click="downloadDecisionFile(record)"
-        >
-          Tải file
-        </a-button>
-        <span v-else-if="record.hasDecisionFile" class="muted">Có file</span>
-        <span v-else class="muted">Chưa có</span>
       </template>
       <template v-else-if="column.key === 'action'">
         <a-space class="table-action-buttons">
@@ -268,11 +248,6 @@
 
       <a-row :gutter="16">
         <a-col :span="12">
-          <a-form-item label="Tên seri">
-            <a-input v-model:value="formData.serialName" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
           <a-form-item label="Vị trí" required>
             <LocationTreeSelect
               v-model:value="formData.locationNodeId"
@@ -282,9 +257,6 @@
             />
           </a-form-item>
         </a-col>
-      </a-row>
-
-      <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="Người chịu trách nhiệm">
             <a-select
@@ -305,24 +277,22 @@
                 {{ responsibleUserLabel(person) }}
               </a-select-option>
             </a-select>
-            <div class="form-help">Mặc định là tài khoản đang đăng nhập.</div>
           </a-form-item>
         </a-col>
+      </a-row>
+
+      <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="Trạng thái" required>
             <a-select v-model:value="formData.status">
               <a-select-option :value="STATUS.AVAILABLE">Rảnh</a-select-option>
               <a-select-option v-if="statusMatches(formData.status, STATUS.BORROWED)" :value="STATUS.BORROWED" disabled>Đang mượn</a-select-option>
               <a-select-option v-if="statusMatches(formData.status, STATUS.BORROW_PENDING)" :value="STATUS.BORROW_PENDING" disabled>Đã giữ chỗ</a-select-option>
-              <a-select-option v-if="statusMatches(formData.status, STATUS.MAINTENANCE_IN_PROGRESS)" :value="STATUS.MAINTENANCE_IN_PROGRESS" disabled>Đang bảo trì</a-select-option>
               <a-select-option :value="STATUS.BROKEN">Hỏng</a-select-option>
               <a-select-option :value="STATUS.MISSING">Thất lạc</a-select-option>
             </a-select>
           </a-form-item>
         </a-col>
-      </a-row>
-
-      <a-row :gutter="16">
         <a-col :span="12">
           <a-form-item label="Ngày nhập">
             <a-date-picker v-model:value="formData.entryDate" style="width: 100%" />
@@ -334,11 +304,6 @@
         <a-col :span="12">
           <a-form-item label="Giá mua (VNĐ)">
             <a-input-number v-model:value="formData.purchaseValue" style="width: 100%" :min="0" :formatter="value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')" :parser="value => value.replace(/\$\s?|(,*)/g, '')" />
-          </a-form-item>
-        </a-col>
-        <a-col :span="12">
-          <a-form-item label="Thời gian khấu hao (tháng)">
-            <a-input-number v-model:value="formData.lifespanMonths" style="width: 100%" :min="0" />
           </a-form-item>
         </a-col>
       </a-row>
@@ -376,6 +341,17 @@
           <div v-for="field in section.fields" :key="field.key" class="equipment-detail-field">
             <dt>{{ field.label }}</dt>
             <dd v-if="field.key === 'status'"><StatusBadge :status="viewData.status" /></dd>
+            <dd v-else-if="field.key === 'decisionFile'">
+              <a-button
+                v-if="viewData.hasDecisionFile && isManagerRole(role)"
+                type="link"
+                size="small"
+                @click="downloadDecisionFile(viewData)"
+              >
+                Tải file quyết định
+              </a-button>
+              <span v-else>{{ field.value }}</span>
+            </dd>
             <dd v-else>{{ field.value }}</dd>
           </div>
         </dl>
@@ -432,24 +408,18 @@ const sortState = reactive({ field: undefined, order: undefined })
 const columns = computed(() => {
   const commonColumns = [
     { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, width: 200, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên thiết bị...' },
-    { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', sortKey: 'category', sortable: true, width: 175, filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
-    { title: 'Model', dataIndex: 'model', key: 'model', sortKey: 'model', sortable: true, width: 130, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm model...' },
-    { title: 'Số seri', dataIndex: 'serial', key: 'serial', sortKey: 'serial', sortable: true, width: 160, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số seri...' },
-    { title: 'Tên seri', dataIndex: 'serialName', key: 'serialName', sortKey: 'serialName', sortable: true, width: 160, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên seri...' },
-    { title: 'Vị trí', dataIndex: 'location', key: 'location', sortKey: 'location', sortable: true, width: 155, filterType: 'select', filterKey: 'location', filterOptions: locations.value.map(item => ({ value: item.id, label: `${item.code} — ${item.name}` })) }
+    { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 150 },
+    { title: 'Model', dataIndex: 'model', key: 'model', sortKey: 'model', sortable: true, width: 130, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm model...' }
   ]
   const managerColumns = isManager.value ? [
     { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', sortKey: 'responsiblePerson', sortable: true, width: 260, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người chịu trách nhiệm...' },
-    { title: 'Quyết định', key: 'decisionFile', width: 120 },
-    { title: 'Ngày nhập', dataIndex: 'entryDate', key: 'entryDate', sortKey: 'entryDate', sortable: true, width: 120 },
-    { title: 'Khấu hao (%)', dataIndex: 'depreciationPercentage', key: 'depreciationPercentage', width: 145 },
   ] : []
 
   return [
     ...commonColumns,
     ...managerColumns,
-    { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, width: 195, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: equipmentStatusOptions },
     { title: 'QR', key: 'qrcode', align: 'center', width: 80 },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', sortKey: 'status', sortable: true, align: 'center', width: 140, className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: equipmentStatusOptions },
     {
       title: 'Hành động',
       key: 'action',
@@ -474,7 +444,6 @@ const equipmentStatusOptions = [
   { value: STATUS.AVAILABLE, label: statusLabel(STATUS.AVAILABLE) },
   { value: STATUS.BORROWED, label: statusLabel(STATUS.BORROWED) },
   { value: STATUS.BORROW_PENDING, label: statusLabel(STATUS.BORROW_PENDING) },
-  { value: STATUS.MAINTENANCE_IN_PROGRESS, label: statusLabel(STATUS.MAINTENANCE_IN_PROGRESS) },
   { value: STATUS.BROKEN, label: statusLabel(STATUS.BROKEN) },
   { value: STATUS.MISSING, label: statusLabel(STATUS.MISSING) },
   { value: 'PROBLEM', label: 'Có vấn đề' }
@@ -525,7 +494,6 @@ const emptyForm = () => ({
   name: '',
   model: '',
   serial: '',
-  serialName: '',
   location: '',
   locationNodeId: null,
   locationChangeReason: '',
@@ -752,9 +720,9 @@ const detailSections = computed(() => {
         detailField('categoryName', 'Danh mục', data.categoryName),
         detailField('model', 'Model', data.model),
         detailField('serial', 'Số seri', data.serial),
-        detailField('serialName', 'Tên định danh', data.serialName),
         detailField('invoiceNumber', 'Số hóa đơn', data.invoiceNumber),
-        detailField('entryDate', 'Ngày nhập', detailDate(data.entryDate))
+        detailField('entryDate', 'Ngày nhập', detailDate(data.entryDate)),
+        detailField('decisionFile', 'Quyết định', data.hasDecisionFile ? (data.decisionFileName || 'Có file') : 'Chưa có')
       ]
     },
     {
@@ -772,12 +740,9 @@ const detailSections = computed(() => {
     },
     ...(isManager.value ? [{
       key: 'finance',
-      title: 'Tài chính & Khấu hao',
+      title: 'Tài chính',
       fields: [
-        detailField('purchaseValue', 'Giá mua (VNĐ)', data.purchaseValue ? data.purchaseValue.toLocaleString() : null),
-        detailField('lifespanMonths', 'Thời gian khấu hao (tháng)', data.lifespanMonths),
-        detailField('currentValue', 'Giá trị hiện tại (VNĐ)', data.currentValue ? data.currentValue.toLocaleString() : null),
-        detailField('depreciationPercentage', 'Đã khấu hao', data.depreciationPercentage !== undefined && data.depreciationPercentage !== null ? `${data.depreciationPercentage}%` : null)
+        detailField('purchaseValue', 'Giá mua (VNĐ)', data.purchaseValue ? data.purchaseValue.toLocaleString() : null)
       ]
     }] : [])
   ]
@@ -806,7 +771,6 @@ const buildEquipmentFormData = () => {
   payload.append('name', formData.value.name || '')
   payload.append('model', formData.value.model || '')
   payload.append('serial', formData.value.serial || '')
-  payload.append('serialName', formData.value.serialName || '')
   payload.append('location', formData.value.location || '')
   if (formData.value.locationNodeId !== null && formData.value.locationNodeId !== undefined) {
     payload.append('locationNodeId', formData.value.locationNodeId)
@@ -1151,6 +1115,26 @@ const onScanSuccess = async (decodedText) => {
   justify-content: flex-end;
   max-width: 100%;
   gap: 8px;
+}
+
+.device-table :deep(th.status-column),
+.device-table :deep(td.status-column) {
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  padding-right: 8px !important;
+  padding-left: 8px !important;
+  text-align: center !important;
+}
+
+.device-table :deep(th.status-column .table-column-header) {
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.device-table :deep(th.status-column .table-column-controls) {
+  margin-left: 4px;
 }
 
 .qr-box {

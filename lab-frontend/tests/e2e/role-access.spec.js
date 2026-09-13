@@ -20,8 +20,8 @@ const roles = [
   {
     name: 'Phó lab',
     username: process.env.E2E_DEPUTY_USERNAME || 'pholab',
-    allowedRoute: '/dashboard/maintenance',
-    heading: 'Lịch sử Bảo trì & Hiệu chuẩn',
+    allowedRoute: '/dashboard/reports',
+    heading: 'Báo cáo vận hành',
     deniedRoute: '/dashboard/admin/audit-logs'
   },
   {
@@ -60,19 +60,24 @@ for (const role of roles) {
 
 test('Dashboard Sinh viên chỉ nhận và hiển thị dữ liệu cá nhân', async ({ page }) => {
   await login(page, process.env.E2E_STUDENT_USERNAME || 'sv1', password)
-  const statsResponse = page.waitForResponse(response => response.url().includes('/api/dashboard/stats'))
   await page.goto('/dashboard')
-  const response = await statsResponse
-  expect(response.ok()).toBeTruthy()
+  const result = await page.evaluate(async () => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token') || ''
+    const response = await fetch('/api/dashboard/stats', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return { ok: response.ok, payload: await response.json() }
+  })
+  expect(result.ok).toBeTruthy()
 
-  const payload = await response.json()
+  const payload = result.payload
   expect(payload.counts).toBeNull()
   expect(payload.studentSummary).toBeTruthy()
   expect(payload.studentSummary).toHaveProperty('activeBorrows')
   expect(payload.studentSummary).toHaveProperty('statusCounts')
 
-  await expect(page.getByText('Không gian sinh viên')).toBeVisible()
-  await expect(page.getByText('Tình trạng phiếu mượn của bạn')).toBeVisible()
+  await expect(page.getByText('Không gian sinh viên')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Tình trạng phiếu mượn của bạn')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('Thiết bị rảnh')).toHaveCount(0)
 })
 

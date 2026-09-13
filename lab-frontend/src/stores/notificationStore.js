@@ -16,6 +16,7 @@ const unwrapList = (payload) => {
 }
 
 const getErrorMessage = error => error?.response?.data?.message || error?.message || 'Không tải được thông báo.'
+const isRemovedMaintenanceNotification = item => String(item?.type || '').toUpperCase().startsWith('MAINTENANCE')
 
 export const useNotificationStore = defineStore('notifications', {
   state: () => ({
@@ -59,7 +60,7 @@ export const useNotificationStore = defineStore('notifications', {
           const countPromise = shouldRefreshCount ? this.fetchUnreadCount() : Promise.resolve(this.unreadCount)
           const [payload] = await Promise.all([listPromise, countPromise])
           const result = unwrapList(payload)
-          this.items = result.items
+          this.items = result.items.filter(item => !isRemovedMaintenanceNotification(item))
           if (isFirstPage) {
             this.initialized = true
             this.filterUnreadOnly = unreadOnly
@@ -132,6 +133,7 @@ export const useNotificationStore = defineStore('notifications', {
       const normalized = typeof payload === 'string'
         ? { title: 'Thông báo mới', message: payload, url: '' }
         : payload || {}
+      if (isRemovedMaintenanceNotification(normalized)) return false
       const key = normalized.id
         ? `id:${normalized.id}`
         : `${normalized.title || ''}|${normalized.message || ''}|${normalized.url || ''}`

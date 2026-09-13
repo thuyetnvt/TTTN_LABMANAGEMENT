@@ -21,6 +21,13 @@
           <a-select-option :value="STATUS.CONSUMABLE_RECEIVED">Đã nhận</a-select-option>
           <a-select-option :value="STATUS.REJECTED">Từ chối</a-select-option>
         </a-select>
+        <a-range-picker
+          v-model:value="requestDateRange"
+          class="date-filter"
+          format="DD/MM/YYYY"
+          :placeholder="['Từ ngày', 'Đến ngày']"
+          @change="applyFilters"
+        />
       </div>
     </div>
 
@@ -59,6 +66,9 @@
           <template v-else-if="column.key === 'requestDate'">
             {{ formatDateTime(record.requestDate) }}
           </template>
+          <template v-else-if="column.key === 'reason'">
+            {{ record.reason || '—' }}
+          </template>
           <template v-else-if="column.key === 'action'">
             <div class="action-cell">
               <template v-if="canApprove && statusMatches(record.status, STATUS.CONSUMABLE_PENDING)">
@@ -83,7 +93,7 @@
                 Xem & xác nhận
               </a-button>
 
-              <a-tooltip v-else title="Xem chi tiết">
+              <a-tooltip title="Xem chi tiết">
                 <a-button type="text" class="view-action-button" aria-label="Xem chi tiết yêu cầu" @click="showDetails(record)">
                   <template #icon><EyeOutlined /></template>
                 </a-button>
@@ -162,11 +172,38 @@
     </a-modal>
 
     <a-modal
+      v-model:open="approveVisible"
+      title="Xác nhận duyệt cấp phát"
+      ok-text="Xác nhận duyệt"
+      cancel-text="Hủy"
+      :confirm-loading="approveSubmitting"
+      :closable="!approveSubmitting"
+      :mask-closable="!approveSubmitting"
+      :keyboard="!approveSubmitting"
+      :cancel-button-props="{ disabled: approveSubmitting }"
+      @ok="submitApprove"
+    >
+      <template v-if="approveRequest">
+        <p>Bạn có chắc muốn duyệt yêu cầu cấp phát này?</p>
+        <a-descriptions bordered :column="1" size="small">
+          <a-descriptions-item label="Vật tư">{{ approveRequest.consumableName }}</a-descriptions-item>
+          <a-descriptions-item label="Người yêu cầu">{{ approveRequest.fullName || approveRequest.username || '—' }}</a-descriptions-item>
+          <a-descriptions-item label="Số lượng">{{ approveRequest.quantity }}</a-descriptions-item>
+        </a-descriptions>
+        <p>Sau khi duyệt, số lượng được giữ trong kho để chờ bàn giao.</p>
+      </template>
+    </a-modal>
+
+    <a-modal
       v-model:open="rejectVisible"
       :title="rejectModalTitle"
       ok-text="Xác nhận"
       cancel-text="Hủy"
       :confirm-loading="rejectSubmitting"
+      :closable="!rejectSubmitting"
+      :mask-closable="!rejectSubmitting"
+      :keyboard="!rejectSubmitting"
+      :cancel-button-props="{ disabled: rejectSubmitting }"
       :ok-button-props="{ danger: true, disabled: !rejectReason.trim() }"
       @ok="submitReject"
     >
@@ -300,9 +337,13 @@ const getRouteStatus = value => {
   return typeof status === 'string' && status.trim() ? status : undefined
 }
 const statusFilter = ref(getRouteStatus(route.query.status))
+const requestDateRange = ref(null)
 const sortState = reactive({ field: undefined, order: undefined })
 const detailsVisible = ref(false)
 const selectedRequest = ref(null)
+const approveVisible = ref(false)
+const approveSubmitting = ref(false)
+const approveRequest = ref(null)
 const rejectVisible = ref(false)
 const rejectSubmitting = ref(false)
 const rejectRequest = ref(null)
@@ -326,13 +367,11 @@ const consumableRequestStatusOptions = [
 
 const columns = [
   { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', sortKey: 'consumable', sortable: true, width: 220, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', sortKey: 'category', sortable: true, width: 165, filterType: 'search', filterPlaceholder: 'Tìm danh mục...' },
   { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', sortKey: 'requester', sortable: true, width: 195, filterType: 'search', filterPlaceholder: 'Tìm người yêu cầu...' },
-  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', sortKey: 'quantity', sortable: true, width: 125, align: 'center' },
-  { title: 'Mục đích', dataIndex: 'reason', key: 'reason', sortKey: 'reason', sortable: true, width: 280, filterType: 'search', filterPlaceholder: 'Tìm mục đích...' },
-  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 255, align: 'center', className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: consumableRequestStatusOptions },
-  { title: 'Ngày gửi', dataIndex: 'requestDate', key: 'requestDate', sortKey: 'requestDate', sortable: true, width: 170 },
-  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 220, align: 'center' }
+  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', sortKey: 'quantity', sortable: true, width: 120, align: 'center', className: 'quantity-column' },
+  { title: 'Mục đích', dataIndex: 'reason', key: 'reason', width: 260 },
+  { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 190, align: 'center', className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: consumableRequestStatusOptions },
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190, align: 'center' }
 ]
 
 const allocationTotal = computed(() => Object.values(lotQuantities.value)
@@ -355,6 +394,8 @@ const fetchData = async () => {
       pageSize: tablePagination.pageSize,
       search: searchQuery.value.trim() || undefined,
       status: statusFilter.value,
+      from: requestDateRange.value?.[0]?.format('YYYY-MM-DD'),
+      to: requestDateRange.value?.[1]?.format('YYYY-MM-DD'),
       sortBy: sortState.field,
       sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
@@ -416,17 +457,32 @@ const handleTableChange = (pager) => {
   fetchData()
 }
 
-const handleApprove = async id => {
+const handleApprove = id => {
+  if (approveSubmitting.value) return
+  const record = dataSource.value.find(item => item.id === id)
+  if (!record || !canApprove.value || !statusMatches(record.status, STATUS.CONSUMABLE_PENDING)) return
+  approveRequest.value = record
+  approveVisible.value = true
+}
+
+const submitApprove = async () => {
+  if (!approveRequest.value || approveSubmitting.value) return
+  approveSubmitting.value = true
   try {
-    await consumableRequestApi.approve(id)
+    await consumableRequestApi.approve(approveRequest.value.id)
+    approveVisible.value = false
+    approveRequest.value = null
     message.success('Đã duyệt và giữ số lượng trong kho. Tiếp theo hãy bàn giao theo lô.')
     await fetchData()
   } catch (error) {
     message.error(getApiErrorMessage(error, 'Không thể duyệt yêu cầu.'))
+  } finally {
+    approveSubmitting.value = false
   }
 }
 
 const submitReject = async () => {
+  if (rejectSubmitting.value) return
   const reason = rejectReason.value.trim()
   if (!rejectRequest.value || !reason) {
     message.warning('Vui lòng nhập lý do xử lý.')
@@ -520,7 +576,10 @@ onMounted(async () => {
 <style scoped>
 .asset-requests-container { padding: 0; }
 .request-card { border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
-.action-cell { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: nowrap; white-space: nowrap; }
+.desktop-table :deep(.quantity-column) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
+.desktop-table :deep(.status-column) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
+.desktop-table :deep(.table-sticky-action-column) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
+.action-cell { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
 .view-action-button { color: var(--color-primary, #e27755); }
 .view-action-button:hover { background: rgba(226, 119, 85, 0.1); }
 .waiting-text { color: #94a3b8; font-size: 13px; }
@@ -531,6 +590,7 @@ onMounted(async () => {
 .toolbar h2 { margin: 0 0 8px; font-weight: 600; color: #1f1f1f; }
 .toolbar p { color: #6b7280; }
 .toolbar-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 18px; }
+.date-filter { width: 280px; }
 .mobile-request-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .mobile-request-heading > div { display: grid; gap: 4px; }
 .mobile-request-heading strong { color: var(--color-ink); font-size: 15px; }

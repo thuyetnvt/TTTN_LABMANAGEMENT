@@ -3,15 +3,15 @@
     <div class="toolbar">
       <h2>Quản lý người dùng</h2>
       <div class="toolbar-actions">
-        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm tên, mã, email..." class="filter-search" @search="applyFilters" />
-        <a-select v-model:value="roleFilter" allow-clear placeholder="Vai trò" style="width: 160px" @change="applyFilters">
+        <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm tên, mã, email..." class="filter-search user-filter-search" @search="applyFilters" />
+        <a-select v-model:value="roleFilter" allow-clear placeholder="Vai trò" class="user-filter-control" @change="applyFilters">
           <a-select-option :value="ROLE.ADMIN">Quản trị viên</a-select-option>
           <a-select-option :value="ROLE.LAB_HEAD">Trưởng lab</a-select-option>
           <a-select-option :value="ROLE.DEPUTY_LAB_HEAD">Phó lab</a-select-option>
           <a-select-option :value="ROLE.TEACHER">Giảng viên</a-select-option>
           <a-select-option :value="ROLE.STUDENT">Sinh viên</a-select-option>
         </a-select>
-        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
+        <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="user-filter-control" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
           <a-select-option value="ACTIVE">Hoạt động</a-select-option>
           <a-select-option value="INACTIVE">Đã khóa</a-select-option>
@@ -33,6 +33,7 @@
           @edit="showEditModal"
           @delete="handleDelete"
           @activate="handleActivate"
+          @reset-password="handleResetPassword"
         />
       </a-spin>
     </a-card>
@@ -59,6 +60,7 @@ import { message, Modal } from 'ant-design-vue'
 import UserTable from '../components/UserTable.vue'
 import UserForm from '../components/UserForm.vue'
 import { userApi } from '../api/userApi'
+import authApi from '../api/authApi'
 import { useAuthStore } from '../stores/authStore'
 import { ROLE, isAdminRole } from '../constants/business'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -150,6 +152,29 @@ const showEditModal = (record) => {
   setTimeout(() => userFormRef.value?.setFormData(record), 0)
 }
 
+const handleResetPassword = record => {
+  if (!isAdminRole(role.value) || !record.isActive) return
+  if (!record.email?.trim()) {
+    message.warning('Tài khoản chưa có email. Vui lòng cập nhật email trước.')
+    return
+  }
+  Modal.confirm({
+    title: 'Gửi hướng dẫn đặt lại mật khẩu',
+    content: `Gửi liên kết đặt lại mật khẩu cho ${record.fullName || record.username} qua ${record.email}? Liên kết có hiệu lực trong 30 phút.`,
+    okText: 'Gửi yêu cầu',
+    cancelText: 'Hủy',
+    async onOk() {
+      try {
+        const result = await authApi.forgotPassword({ email: record.email.trim() })
+        message.info(result?.message || 'Đã tiếp nhận yêu cầu đặt lại mật khẩu. Vui lòng kiểm tra email.')
+      } catch (error) {
+        message.error(getApiErrorMessage(error, 'Không thể yêu cầu đặt lại mật khẩu.'))
+        throw error
+      }
+    }
+  })
+}
+
 const handleDelete = (record) => {
   if (!isAdminRole(role.value)) return
   if (record.username === 'admin') {
@@ -221,7 +246,41 @@ const handleModalOk = async () => {
   margin-bottom: 24px;
 }
 
-.toolbar-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.toolbar-actions {
+  --user-filter-width: 150px;
+  --user-filter-height: 40px;
+  --user-search-button-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.user-filter-control {
+  width: var(--user-filter-width);
+  height: var(--user-filter-height);
+}
+
+.user-filter-control :deep(.ant-select-selector) {
+  height: var(--user-filter-height) !important;
+  align-items: center;
+}
+
+.user-filter-search {
+  width: calc(var(--user-filter-width) + var(--user-search-button-width)) !important;
+  min-width: calc(var(--user-filter-width) + var(--user-search-button-width));
+}
+
+.user-filter-search :deep(.ant-input-affix-wrapper) {
+  flex: 0 0 var(--user-filter-width);
+  height: var(--user-filter-height) !important;
+}
+
+.user-filter-search :deep(.ant-input-search-button) {
+  width: var(--user-search-button-width);
+  height: var(--user-filter-height) !important;
+}
 
 @media (max-width: 767px) {
   .toolbar { align-items: stretch; flex-direction: column; gap: 14px; }
