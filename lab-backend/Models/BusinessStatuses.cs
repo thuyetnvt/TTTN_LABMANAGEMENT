@@ -32,13 +32,6 @@ public static class ConsumableRequestRejectionStages
     public const string Handover = "HANDOVER";
 }
 
-public static class MaintenanceStatuses
-{
-    public const string InProgress = "MAINTENANCE_IN_PROGRESS";
-    public const string Completing = "MAINTENANCE_COMPLETING";
-    public const string Completed = "MAINTENANCE_COMPLETED";
-}
-
 public static class InventoryStatuses
 {
     public const string Open = "INVENTORY_OPEN";
@@ -114,9 +107,6 @@ public static class StatusCodeMap
             ["Đã trả"] = BorrowStatuses.Returned,
             ["Đã trả (Hỏng)"] = BorrowStatuses.ReturnedDamaged,
             ["Từ chối"] = BorrowStatuses.Rejected,
-            ["Đang xử lý"] = MaintenanceStatuses.InProgress,
-            ["Hoàn tất"] = MaintenanceStatuses.Completed,
-            ["Hoàn thành"] = MaintenanceStatuses.Completed,
             ["Đã cấp phát"] = ConsumableRequestStatuses.Received
         };
 
@@ -140,15 +130,11 @@ public static class StatusCodeMap
             [ConsumableRequestStatuses.HandedOver] = "Đã bàn giao, chờ xác nhận",
             [ConsumableRequestStatuses.Received] = "Đã nhận vật tư",
             [ConsumableRequestStatuses.Issued] = "Đã cấp phát",
-            [MaintenanceStatuses.InProgress] = "Đang bảo trì",
-            [MaintenanceStatuses.Completing] = "Đang nghiệm thu",
-            [MaintenanceStatuses.Completed] = "Đã hoàn thành bảo trì",
             [InventoryStatuses.Open] = "Đang kiểm kê",
             [InventoryStatuses.Reviewing] = "Đang đối soát",
             [InventoryStatuses.Completed] = "Đã kết thúc kiểm kê",
             [EquipmentStatuses.Available] = "Sẵn sàng",
             [EquipmentStatuses.Borrowed] = "Đang được mượn",
-            [EquipmentStatuses.MaintenanceInProgress] = "Đang bảo trì",
             [EquipmentStatuses.Broken] = "Hỏng",
             [EquipmentStatuses.Missing] = "Thất lạc",
         };

@@ -22,8 +22,6 @@ namespace LabManagementAPI.Models
 
         public int? ConsumableRequestId { get; set; }
         public ConsumableRequest? ConsumableRequest { get; set; }
-        public int? MaintenanceRecordId { get; set; }
-        public MaintenanceRecord? MaintenanceRecord { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

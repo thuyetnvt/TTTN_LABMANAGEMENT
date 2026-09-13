@@ -205,15 +205,13 @@ const entityLabel = (entityType) => ({
   Equipment: 'Tài sản',
   User: 'Người dùng',
   BorrowRecord: 'Phiếu mượn',
-  MaintenanceRecord: 'Phiếu bảo trì',
   Consumable: 'Vật tư',
   ConsumableRequest: 'Yêu cầu vật tư',
   AssetCategory: 'Danh mục',
   Database: 'Cơ sở dữ liệu',
   LocationNode: 'Vị trí',
   InventorySession: 'Đợt kiểm kê',
-  ReturnEvidence: 'Minh chứng trả',
-  MaintenanceSchedule: 'Kế hoạch bảo trì'
+  ReturnEvidence: 'Minh chứng trả'
 }[entityType] || 'Đối tượng khác')
 
 const formatDateTime = value => formatVietnamDateTime(value, '')

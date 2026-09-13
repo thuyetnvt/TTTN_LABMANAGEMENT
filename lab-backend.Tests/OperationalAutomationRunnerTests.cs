@@ -17,52 +17,6 @@ namespace LabManagementAPI.Tests;
 public sealed class OperationalAutomationRunnerTests
 {
     [Fact]
-    public async Task Due_schedule_is_ignored_when_maintenance_feature_is_disabled()
-    {
-        await using var context = CreateContext(out var connection);
-        await using (connection)
-        {
-            var now = new DateTime(2026, 9, 1, 2, 0, 0, DateTimeKind.Utc);
-            context.Users.Add(new User { Id = 7, Username = "manager", Role = Roles.LabHead, IsActive = true });
-            context.Equipments.Add(new Equipment
-            {
-                Id = 1,
-                AssetCode = "EQ-001",
-                QrToken = "qr-001",
-                Name = "Máy hiện sóng",
-                Serial = "SN-001",
-                Model = "M1",
-                Location = "Lab",
-                Status = EquipmentStatuses.Available
-            });
-            context.MaintenanceSchedules.Add(new MaintenanceSchedule
-            {
-                Id = 10,
-                EquipmentId = 1,
-                Name = "Hiệu chuẩn tháng",
-                IntervalDays = 1,
-                IntervalUnit = "MONTH",
-                NextDueAt = now.AddDays(-2),
-                CreatedByUserId = 7
-            });
-            await context.SaveChangesAsync();
-            var notifications = new RecordingNotificationService();
-            var runner = CreateRunner(context, notifications);
-
-            await runner.RunOnceAsync(now);
-            await runner.RunOnceAsync(now.AddMinutes(1));
-
-            Assert.Empty(await context.MaintenanceRecords.AsNoTracking().ToListAsync());
-            Assert.Empty(await context.AutomationDispatches.AsNoTracking()
-                .Where(item => item.JobType == "MAINTENANCE_GENERATE").ToListAsync());
-            Assert.True((await context.MaintenanceSchedules.AsNoTracking().SingleAsync()).NextDueAt <= now);
-            Assert.Equal(EquipmentStatuses.Available,
-                (await context.Equipments.AsNoTracking().SingleAsync()).Status);
-            Assert.Empty(notifications.ManagerNotifications);
-        }
-    }
-
-    [Fact]
     public async Task Overdue_reminder_is_sent_once_per_day()
     {
         await using var context = CreateContext(out var connection);
@@ -110,60 +64,6 @@ public sealed class OperationalAutomationRunnerTests
             Assert.Equal(2, notifications.UserNotifications.Count);
             Assert.Equal(2, await context.AutomationDispatches.AsNoTracking()
                 .CountAsync(item => item.JobType == "RETURN_OVERDUE"));
-        }
-    }
-
-    [Fact]
-    public async Task Due_schedule_for_borrowed_equipment_is_ignored_without_alerts()
-    {
-        await using var context = CreateContext(out var connection);
-        await using (connection)
-        {
-            var now = new DateTime(2026, 9, 1, 2, 0, 0, DateTimeKind.Utc);
-            context.Users.AddRange(
-                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
-                new User { Id = 7, Username = "manager", Role = Roles.LabHead, IsActive = true });
-            context.Equipments.Add(new Equipment
-            {
-                Id = 1,
-                AssetCode = "EQ-001",
-                QrToken = "qr-001",
-                Name = "Gateway",
-                Serial = "SN-001",
-                Model = "M1",
-                Location = "Lab",
-                Status = EquipmentStatuses.Borrowed
-            });
-            context.BorrowRecords.Add(new BorrowRecord
-            {
-                Id = 30,
-                UserId = 1,
-                EquipmentId = 1,
-                BorrowDate = now.AddDays(-1),
-                ExpectedReturnDate = now.AddDays(2),
-                Purpose = "Demo",
-                Status = BorrowStatuses.Borrowed
-            });
-            context.MaintenanceSchedules.Add(new MaintenanceSchedule
-            {
-                Id = 10,
-                EquipmentId = 1,
-                Name = "Kiểm tra định kỳ",
-                IntervalDays = 30,
-                NextDueAt = now.AddDays(-1),
-                CreatedByUserId = 7
-            });
-            await context.SaveChangesAsync();
-            var notifications = new RecordingNotificationService();
-            var runner = CreateRunner(context, notifications);
-
-            await runner.RunOnceAsync(now);
-            await runner.RunOnceAsync(now.AddHours(1));
-
-            Assert.Empty(await context.MaintenanceRecords.AsNoTracking().ToListAsync());
-            Assert.Empty(notifications.ManagerNotifications);
-            Assert.Empty(await context.AutomationDispatches.AsNoTracking()
-                .Where(item => item.JobType == "MAINTENANCE_BLOCKED").ToListAsync());
         }
     }
 

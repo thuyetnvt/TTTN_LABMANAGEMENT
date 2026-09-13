@@ -99,7 +99,7 @@ GitHub Actions cần secret `VPS_DEPLOY_DIR=/hdd1/lab`; nếu bỏ trống, scri
 
 ## Tác vụ tự động
 
-Backend kiểm tra định kỳ để tự sinh phiếu bảo trì đến hạn và tạo thông báo nhắc trả trước hạn/quá hạn. Mỗi lần xử lý được ghi vào `AutomationDispatches` với khóa chống gửi trùng.
+Backend kiểm tra định kỳ để tạo thông báo nhắc trả trước hạn/quá hạn. Mỗi lần xử lý được ghi vào `AutomationDispatches` với khóa chống gửi trùng.
 
 - `AUTOMATION_ENABLED=true`: bật tác vụ nền.
 - `AUTOMATION_POLL_MINUTES=5`: chu kỳ kiểm tra.

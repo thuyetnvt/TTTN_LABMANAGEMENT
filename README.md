@@ -1,5 +1,5 @@
 
-LabManagement là hệ thống full-stack hỗ trợ quản lý tài sản, mượn trả, bàn giao, kiểm kê, bảo trì và vật tư tiêu hao cho Phòng Lab IoT thuộc Khoa Công nghệ Thông tin.
+LabManagement là hệ thống full-stack hỗ trợ quản lý tài sản, mượn trả, bàn giao, kiểm kê và vật tư tiêu hao cho Phòng Lab IoT thuộc Khoa Công nghệ Thông tin.
 
 Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có phân quyền theo vai trò, mã QR cho tài sản, lịch sử thay đổi, thông báo realtime, báo cáo và nhật ký kiểm toán.
 
@@ -9,7 +9,7 @@ Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có
 
 - Quản lý danh mục, mã tài sản, serial, model và thông tin thiết bị IoT.
 - Theo dõi nhà sản xuất, firmware, MAC, IMEI và nhà cung cấp.
-- Tổ chức vị trí theo cấu trúc cây: khu vực → phòng → tủ/kệ → vị trí cụ thể.
+- Quản lý danh sách vị trí sử dụng trực tiếp trong phòng lab, không dùng cấp vị trí cha.
 - Sinh và in mã QR riêng cho từng tài sản hoặc in hàng loạt.
 - Import tài sản từ Excel với bước xem trước và kiểm tra dữ liệu trùng.
 - Lưu lịch sử điều chuyển, người chịu trách nhiệm và trạng thái tài sản.
@@ -32,21 +32,13 @@ Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có
 - Ghi chú và đính kèm bằng chứng cho từng dòng kiểm kê.
 - Theo dõi tiến độ và xuất báo cáo chênh lệch Excel/PDF.
 
-### Bảo trì
-
-- Tạo và theo dõi phiếu bảo trì theo tài sản.
-- Quản lý người thực hiện, nhà cung cấp, chi phí, checklist và vật tư sử dụng.
-- Lập lịch bảo trì theo ngày, tuần, tháng, quý hoặc năm.
-- Tự tính ngày bảo trì tiếp theo và sinh phiếu khi đến hạn.
-- Cho phép chọn trạng thái tài sản sau khi hoàn tất bảo trì.
-
 ### Vật tư tiêu hao
 
 - Quản lý mã vật tư, lô, hạn sử dụng, giá nhập và mức tồn tối thiểu.
 - Tạo yêu cầu cấp phát và quy trình duyệt/từ chối.
 - Ghi nhận tồn trước và sau giao dịch.
 - Không cho xuất kho vượt tồn hoặc làm số lượng âm.
-- Liên kết giao dịch với phiếu cấp phát và phiếu bảo trì.
+- Liên kết giao dịch với phiếu cấp phát và lưu đầy đủ biến động tồn kho.
 
 ### Quản trị và báo cáo
 
@@ -55,7 +47,7 @@ Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có
 - Phân quyền ở cả frontend và backend.
 - Thông báo lưu trong database và cập nhật realtime bằng SignalR.
 - Nhật ký kiểm toán các thao tác quan trọng.
-- Báo cáo tài sản, mượn trả, kiểm kê, bảo trì và vật tư.
+- Báo cáo tài sản, mượn trả, kiểm kê và vật tư.
 - Hỗ trợ nhập/xuất Excel lịch sử mượn/trả và xuất Excel/PDF theo từng nghiệp vụ.
 
 ## Vai trò và quyền hạn
@@ -63,7 +55,7 @@ Hệ thống được xây dựng theo quy trình nghiệp vụ thực tế, có
 | Vai trò | Quyền chính |
 | --- | --- |
 | Admin | Quản lý toàn bộ hệ thống, người dùng, tài sản, báo cáo và audit log |
-| Trưởng lab | Duyệt mượn/trả, bàn giao, kiểm kê, bảo trì, vật tư và báo cáo |
+| Trưởng lab | Duyệt mượn/trả, bàn giao, kiểm kê, vật tư và báo cáo |
 | Phó lab | Thực hiện các nghiệp vụ vận hành lab theo phạm vi được cấp |
 | Giảng viên | Bảo lãnh, duyệt hoặc từ chối yêu cầu của sinh viên |
 | Sinh viên | Xem tài sản, gửi yêu cầu mượn/vật tư và theo dõi lịch sử của mình |
@@ -194,7 +186,6 @@ docker compose down
 
 Backend có worker chạy nền ngay khi khởi động và kiểm tra định kỳ. Mặc định worker chạy mỗi 5 phút:
 
-- Tự sinh phiếu bảo trì khi kế hoạch đến hạn.
 - Gửi thông báo nhắc trả trước hạn, đến hạn và quá hạn.
 - Ghi nhận lần xử lý trong `AutomationDispatches` để không gửi thông báo trùng.
 
@@ -319,6 +310,34 @@ git push origin main
 
 Theo dõi kết quả tại tab **Actions**. Chỉ khi job **Deploy VPS** xanh thì phiên bản mới đã được cập nhật trên VPS.
 
+## Kiểm tra bản Git sạch trước khi đẩy
+
+Chạy từ thư mục gốc của repository:
+
+```powershell
+git status --short
+git diff --check
+dotnet test .\lab-backend.Tests\LabManagementAPI.Tests.csproj --configuration Release
+Set-Location .\lab-frontend
+npm ci
+npm test
+npm run build
+Set-Location ..
+```
+
+Kiểm tra lại danh sách file rồi mới tạo commit:
+
+```powershell
+git add -A
+git diff --cached --check
+git diff --cached --stat
+git commit -m "remove retired maintenance workflow and finalize handoff"
+git status --short
+git push origin main
+```
+
+Sau lệnh `git commit`, `git status --short` phải không in ra dòng nào. Nếu còn file local, file secret hoặc thư mục kết quả test, không đẩy cho đến khi đã kiểm tra hoặc bổ sung quy tắc ignore phù hợp.
+
 ## Tài liệu dự án
 
 | Tài liệu | Nội dung |
@@ -330,6 +349,8 @@ Theo dõi kết quả tại tab **Actions**. Chỉ khi job **Deploy VPS** xanh t
 | [API.md](docs/API.md) | Danh sách API chính |
 | [RBAC_MATRIX.md](docs/RBAC_MATRIX.md) | Ma trận phân quyền |
 | [USER_GUIDE.md](docs/USER_GUIDE.md) | Hướng dẫn sử dụng |
+| [MEETING_ACTIONS_2026-09-10.md](docs/MEETING_ACTIONS_2026-09-10.md) | Đối chiếu yêu cầu cuộc họp |
+| [HUONG_DAN_CAI_DAT_VA_TRIEN_KHAI.docx](docs/HUONG_DAN_CAI_DAT_VA_TRIEN_KHAI.docx) | Hướng dẫn cài đặt và triển khai bản Word |
 | [TEST_PLAN.md](docs/TEST_PLAN.md) | Kế hoạch kiểm thử |
 | [TEST_RESULTS.md](docs/TEST_RESULTS.md) | Kết quả kiểm thử |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Hướng dẫn triển khai |

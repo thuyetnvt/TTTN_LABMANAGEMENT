@@ -33,8 +33,6 @@ public class LocationController : ControllerBase
         [Required, MaxLength(50)]
         public string Type { get; set; } = string.Empty;
 
-        public int? ParentId { get; set; }
-
         [MaxLength(1000)]
         public string Description { get; set; } = string.Empty;
 
@@ -46,6 +44,7 @@ public class LocationController : ControllerBase
     {
         var locations = await _context.LocationNodes
             .AsNoTracking()
+            .Where(location => location.Type != "BUILDING")
             .OrderBy(location => location.Code)
             .Select(location => new
             {
@@ -53,7 +52,6 @@ public class LocationController : ControllerBase
                 location.Code,
                 location.Name,
                 location.Type,
-                location.ParentId,
                 location.Description,
                 location.IsActive,
                 equipmentCount = _context.Equipments.Count(equipment => equipment.LocationNodeId == location.Id)
@@ -80,14 +78,13 @@ public class LocationController : ControllerBase
             Code = dto.Code.Trim().ToUpperInvariant(),
             Name = dto.Name.Trim(),
             Type = dto.Type.Trim().ToUpperInvariant(),
-            ParentId = dto.ParentId,
             Description = dto.Description.Trim(),
             IsActive = dto.IsActive
         };
         _context.LocationNodes.Add(location);
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.WriteAsync(HttpContext, "Create", nameof(LocationNode), location.Id,
-            new { location.Code, location.ParentId }, cancellationToken);
+            new { location.Code }, cancellationToken);
         return Ok(location);
     }
 
@@ -113,12 +110,11 @@ public class LocationController : ControllerBase
         location.Code = dto.Code.Trim().ToUpperInvariant();
         location.Name = dto.Name.Trim();
         location.Type = dto.Type.Trim().ToUpperInvariant();
-        location.ParentId = dto.ParentId;
         location.Description = dto.Description.Trim();
         location.IsActive = dto.IsActive;
         await _context.SaveChangesAsync(cancellationToken);
         await _auditService.WriteAsync(HttpContext, "Update", nameof(LocationNode), id,
-            new { location.Code, location.ParentId }, cancellationToken);
+            new { location.Code }, cancellationToken);
         return NoContent();
     }
 
@@ -126,11 +122,10 @@ public class LocationController : ControllerBase
     [Authorize(Roles = Roles.Managers)]
     public async Task<IActionResult> DeleteLocation(int id, CancellationToken cancellationToken)
     {
-        var hasChildren = await _context.LocationNodes.AnyAsync(location => location.ParentId == id, cancellationToken);
         var hasEquipment = await _context.Equipments.AnyAsync(equipment => equipment.LocationNodeId == id, cancellationToken);
-        if (hasChildren || hasEquipment)
+        if (hasEquipment)
         {
-            return Conflict(new { message = "Không thể xóa vị trí còn vị trí con hoặc tài sản. Hãy ngừng sử dụng vị trí." });
+            return Conflict(new { message = "Không thể xóa vị trí còn tài sản. Hãy chuyển tài sản hoặc ngừng sử dụng vị trí." });
         }
 
         var location = await _context.LocationNodes.FindAsync(new object[] { id }, cancellationToken);
@@ -165,55 +160,6 @@ public class LocationController : ControllerBase
             return "Mã vị trí đã tồn tại.";
         }
 
-        if (!dto.ParentId.HasValue)
-        {
-            return null;
-        }
-
-        if (currentId == dto.ParentId)
-        {
-            return "Vị trí không thể là cha của chính nó.";
-        }
-
-        var parentExists = await _context.LocationNodes.AnyAsync(
-            location => location.Id == dto.ParentId && location.IsActive,
-            cancellationToken);
-        if (!parentExists)
-        {
-            return "Vị trí cha không tồn tại hoặc đã ngừng sử dụng.";
-        }
-
-        if (currentId.HasValue && await CreatesCycleAsync(currentId.Value, dto.ParentId.Value, cancellationToken))
-        {
-            return "Cấu trúc cha-con tạo thành vòng lặp.";
-        }
-
         return null;
-    }
-
-    private async Task<bool> CreatesCycleAsync(int currentId, int parentId, CancellationToken cancellationToken)
-    {
-        var visited = new HashSet<int>();
-        var cursor = parentId;
-        while (visited.Add(cursor))
-        {
-            if (cursor == currentId)
-            {
-                return true;
-            }
-
-            var next = await _context.LocationNodes
-                .Where(location => location.Id == cursor)
-                .Select(location => location.ParentId)
-                .SingleOrDefaultAsync(cancellationToken);
-            if (!next.HasValue)
-            {
-                return false;
-            }
-
-            cursor = next.Value;
-        }
-
-        return true;
     }
 }

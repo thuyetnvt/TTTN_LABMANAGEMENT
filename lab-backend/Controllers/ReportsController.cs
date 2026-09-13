@@ -120,13 +120,10 @@ public class ReportsController : ControllerBase
                 assets = equipments.Count,
                 borrowed = borrowedAssets.Count,
                 overdue = borrowedAssets.Count(item => item.ExpectedReturnDate < now),
-                broken = equipments.Count(item => item.Status == EquipmentStatuses.Broken
-                    || item.Status == EquipmentStatuses.MaintenanceInProgress),
+                broken = equipments.Count(item => item.Status == EquipmentStatuses.Broken),
                 lowStock = lowStock.Count
             },
-            byStatus = equipments.GroupBy(item => item.Status == EquipmentStatuses.MaintenanceInProgress
-                    ? EquipmentStatuses.Broken
-                    : item.Status)
+            byStatus = equipments.GroupBy(item => item.Status)
                 .Select(group => new { status = group.Key, count = group.Count() })
                 .OrderByDescending(item => item.count),
             byCategory = equipments.GroupBy(item => item.AssetCategory?.Name ?? "Chưa phân loại")
@@ -272,7 +269,7 @@ public class ReportsController : ControllerBase
             {
                 column.Spacing(10);
                 column.Item().Text($"Tổng tài sản: {equipments.Count}    |    Đang mượn: {borrowedCount}    |    Quá hạn: {overdueCount}").Bold();
-                column.Item().Text($"Hỏng: {equipments.Count(item => item.Status == EquipmentStatuses.Broken || item.Status == EquipmentStatuses.MaintenanceInProgress)}");
+                column.Item().Text($"Hỏng: {equipments.Count(item => item.Status == EquipmentStatuses.Broken)}");
                 column.Item().Text($"Vật tư sắp hết: {lowStockCount}");
                 column.Item().Text("Danh sách tài sản").Bold().FontSize(13);
                 column.Item().Table(table =>
@@ -321,9 +318,7 @@ public class ReportsController : ControllerBase
     }
 
     private static string VisibleEquipmentStatusLabel(string status)
-        => status == EquipmentStatuses.MaintenanceInProgress
-            ? StatusCodeMap.Label(EquipmentStatuses.Broken)
-            : StatusCodeMap.Label(status);
+        => StatusCodeMap.Label(status);
 
     private IQueryable<Equipment> FilterEquipment(DateTime? from, DateTime? to, int? categoryId, int? locationNodeId)
     {

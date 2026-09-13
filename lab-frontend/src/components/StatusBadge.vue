@@ -11,7 +11,6 @@ import {
   getConsumableRequestStatusLabel,
   getEquipmentStatusLabel,
   getInventoryStatusLabel,
-  getMaintenanceStatusLabel,
   getReturnConditionLabel,
   getStatusColor
 } from '../utils/statusLabels'
@@ -38,7 +37,6 @@ const props = defineProps({
 const labelers = {
   equipment: getEquipmentStatusLabel,
   borrow: getBorrowStatusLabel,
-  maintenance: getMaintenanceStatusLabel,
   inventory: getInventoryStatusLabel,
   consumable: getConsumableRequestStatusLabel,
   returnCondition: getReturnConditionLabel

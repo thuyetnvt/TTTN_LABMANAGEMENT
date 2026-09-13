@@ -20,7 +20,7 @@
 - Thay chức năng quên mật khẩu giả bằng API thật và thêm trang đặt lại mật khẩu.
 - Bổ sung Dockerfile, cấu hình Nginx và hướng dẫn chạy.
 - Tự động import component Ant Design Vue để giảm bundle tải ban đầu.
-- Thêm giao diện đổi mật khẩu và hoàn tất phiếu bảo trì.
+- Thêm giao diện đổi mật khẩu và hoàn thiện các luồng mượn/trả.
 - Sửa xử lý ngày trả và giá trị DatePicker khi sửa dữ liệu.
 - Thêm CSP/security headers và bỏ phụ thuộc Google Fonts khi chạy production.
 

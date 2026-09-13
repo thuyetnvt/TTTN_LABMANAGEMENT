@@ -11,7 +11,6 @@ import {
   getConsumableRequestStatusLabel,
   getEquipmentStatusLabel,
   getInventoryStatusLabel,
-  getMaintenanceStatusLabel,
   getReturnConditionLabel,
   getStatusColor
 } from '../src/utils/statusLabels.js'
@@ -29,8 +28,6 @@ const TABLE_FILES_WITH_STICKY_ACTION = [
   '../src/components/ConsumablesTable.vue',
   '../src/components/AssetCategoriesTable.vue',
   '../src/components/UserTable.vue',
-  '../src/views/MaintenanceView.vue',
-  '../src/views/MaintenanceSchedulesView.vue',
   '../src/views/TeacherApprovalView.vue'
 ]
 
@@ -73,13 +70,10 @@ test('tiêu đề cột của toàn bộ bảng không tự xuống hàng', () =
   const globalStyle = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8')
   const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
   const consumablesSource = readFileSync(new URL('../src/components/ConsumablesTable.vue', import.meta.url), 'utf8')
-  const maintenanceSource = readFileSync(new URL('../src/views/MaintenanceView.vue', import.meta.url), 'utf8')
 
   assert.match(globalStyle, /\.ant-table-wrapper \.ant-table-thead > tr > th\s*\{[\s\S]*?white-space:\s*nowrap;/)
   assert.match(filterSource, /\.table-column-title\s*\{[\s\S]*?white-space:\s*nowrap;/)
   assert.match(consumablesSource, /\.consumables-desktop-table :deep\(\.ant-table-thead > tr > th\)[\s\S]*?white-space:\s*nowrap;/)
-  assert.match(maintenanceSource, /title: 'Ngày thực hiện',[\s\S]*?width: 175/)
-  assert.match(maintenanceSource, /title: 'Người thực hiện',[\s\S]*?width: 220/)
 })
 
 test('vị trí lưu vật tư được chọn từ cây vị trí có sẵn', () => {
@@ -104,8 +98,7 @@ test('vị trí được quản lý dạng phẳng và không còn trường v�
   assert.match(viewSource, /Danh sách vị trí tài sản/)
   assert.doesNotMatch(viewSource, /Vị trí cha|parentOptions|parentName|form\.parentId/)
   assert.doesNotMatch(locationSelectSource, /parentId|children:/)
-  assert.match(apiSource, /LAB-ROOT/)
-  assert.match(apiSource, /withoutParent/)
+  assert.doesNotMatch(apiSource, /LAB-ROOT|parentId|withoutParent/)
 })
 
 test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {
@@ -143,8 +136,6 @@ test('mọi bảng nghiệp vụ của các vai trò đều có lọc hoặc s�
     '../src/views/TeacherApprovalView.vue',
     '../src/views/ConsumableRequestsView.vue',
     '../src/views/InventoryView.vue',
-    '../src/views/MaintenanceView.vue',
-    '../src/views/MaintenanceSchedulesView.vue',
     '../src/views/AuditLogsView.vue',
     '../src/views/ApprovalDelegationsView.vue',
     '../src/views/LocationsView.vue',
@@ -175,7 +166,7 @@ test('thanh thao tác không làm tràn khung nội dung khi màn hình hẹp', 
 test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(roleLabel('Admin'), 'Quản trị viên')
   assert.equal(statusLabel(STATUS.BORROWED), 'Đang mượn')
-  assert.equal(statusLabel('Hoàn tất'), 'Hỏng')
+  assert.equal(statusLabel(STATUS.BROKEN), 'Hỏng')
   assert.equal(getReturnConditionLabel(STATUS.AVAILABLE), 'Bình thường')
   assert.equal(getReturnConditionLabel(STATUS.BROKEN), 'Hỏng')
   assert.equal(ROLE_LABELS.STUDENT, 'Sinh viên')
@@ -218,8 +209,6 @@ test('mọi trạng thái nghiệp vụ đều có nhãn và màu rõ ràng', ()
     [getBorrowStatusLabel, STATUS.RETURN_PROCESSING, 'Đang xử lý trả', 'blue'],
     [getBorrowStatusLabel, STATUS.CANCELLED, 'Đã hủy', 'red'],
     [getBorrowStatusLabel, STATUS.EXPIRED, 'Hết hạn giữ chỗ', 'orange'],
-    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_IN_PROGRESS, 'Hỏng', 'red'],
-    [getMaintenanceStatusLabel, STATUS.MAINTENANCE_COMPLETING, 'Hỏng', 'red'],
     [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_PENDING, 'Chờ duyệt cấp phát', 'orange'],
     [getConsumableRequestStatusLabel, STATUS.CONSUMABLE_ISSUED, 'Đã cấp phát', 'green'],
     [getInventoryStatusLabel, STATUS.INVENTORY_DAMAGED, 'Hư hỏng', 'red'],

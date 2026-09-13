@@ -12,8 +12,6 @@ Tất cả endpoint dưới đây có tiền tố `/api` và yêu cầu JWT tr�
 | Minh chứng bàn giao | `POST/GET/DELETE /handover/{borrowRecordId}/evidence...` | quản lý |
 | Bảo lãnh | `GET /borrow/teacher-pending`, `PUT /borrow/{id}/teacher-approve` | giảng viên |
 | Kiểm kê | `GET/POST /inventory`, `POST /inventory/{id}/scan`, `/complete` | quản lý |
-| Bảo trì | `GET/POST /maintenance`, `PUT /maintenance/{id}/complete` | quản lý |
-| Lịch bảo trì | `GET/POST /maintenance-schedules`, `PUT/DELETE /maintenance-schedules/{id}`, `POST /maintenance-schedules/{id}/generate` | quản lý |
 | Báo cáo | `GET /reports/summary`, `GET /reports/export`, `GET /reports/export.pdf` | quản lý |
 | Import tài sản | `POST /equipment/import/preview`, `POST /equipment/import` | quản lý |
 | Vật tư | `/consumable`, `/consumable-request` | theo vai trò |

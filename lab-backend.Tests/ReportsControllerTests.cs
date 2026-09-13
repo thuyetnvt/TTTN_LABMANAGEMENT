@@ -318,7 +318,7 @@ public sealed class ReportsControllerTests
             new Equipment
             {
                 Id = 1, AssetCode = "EQ-1", QrToken = "qr-1", Name = "ESP32", Serial = "SN-1",
-                Model = "M", Location = "Lab", Status = EquipmentStatuses.MaintenanceInProgress,
+                Model = "M", Location = "Lab", Status = EquipmentStatuses.Broken,
                 ResponsiblePerson = "Nguyễn Văn A",
                 AssetCategoryId = 1, CreatedAt = day
             },
@@ -328,9 +328,6 @@ public sealed class ReportsControllerTests
                 Model = "M", Location = "Lab", Status = EquipmentStatuses.Available,
                 AssetCategoryId = 2, CreatedAt = day
             });
-        context.MaintenanceRecords.AddRange(
-            new MaintenanceRecord { Id = 1, EquipmentId = 1, MaintenanceDate = day, Cost = 100, Status = MaintenanceStatuses.InProgress },
-            new MaintenanceRecord { Id = 2, EquipmentId = 2, MaintenanceDate = day, Cost = 900, Status = MaintenanceStatuses.Completed });
         context.Consumables.Add(new Consumable
         {
             Id = 1,
@@ -352,9 +349,6 @@ public sealed class ReportsControllerTests
 
         Assert.Equal(1, totals.GetProperty("assets").GetInt32());
         Assert.Equal(1, totals.GetProperty("broken").GetInt32());
-        Assert.False(totals.TryGetProperty("maintenanceCost", out _));
-        Assert.False(totals.TryGetProperty("maintenanceInProgress", out _));
-        Assert.False(json.TryGetProperty("maintenance", out _));
         Assert.Equal(1, json.GetProperty("lowStock").GetArrayLength());
         Assert.Equal(2, json.GetProperty("lowStock")[0].GetProperty("availableQuantity").GetInt32());
         Assert.Equal(1, json.GetProperty("consumables").GetArrayLength());
@@ -367,7 +361,7 @@ public sealed class ReportsControllerTests
     }
 
     [Fact]
-    public async Task Export_maps_legacy_maintenance_equipment_to_broken_and_omits_maintenance_sheet()
+    public async Task Export_writes_broken_equipment_without_removed_feature_sheet()
     {
         await using var context = CreateContext();
         var now = DateTime.UtcNow;
@@ -380,17 +374,8 @@ public sealed class ReportsControllerTests
             Serial = "SN-1",
             Model = "M",
             Location = "Lab",
-            Status = EquipmentStatuses.MaintenanceInProgress,
+            Status = EquipmentStatuses.Broken,
             CreatedAt = now
-        });
-        context.MaintenanceRecords.Add(new MaintenanceRecord
-        {
-            Id = 1,
-            EquipmentId = 1,
-            MaintenanceDate = now,
-            Status = MaintenanceStatuses.Completed,
-            Description = "Đã sửa",
-            PerformedBy = "Kỹ thuật viên"
         });
         await context.SaveChangesAsync();
 

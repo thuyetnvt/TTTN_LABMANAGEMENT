@@ -14,10 +14,6 @@ namespace LabManagementAPI.Data
         public DbSet<ConsumableLot> ConsumableLots { get; set; }
         public DbSet<BorrowRecord> BorrowRecords { get; set; }
         public DbSet<BorrowRequestDetail> BorrowRequestDetails { get; set; }
-        public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; }
-        public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
-        public DbSet<MaintenancePartUsage> MaintenancePartUsages { get; set; }
-        public DbSet<MaintenanceEvidence> MaintenanceEvidence { get; set; }
         public DbSet<ConsumableRequest> ConsumableRequests { get; set; }
         public DbSet<ConsumableRequestLotAllocation> ConsumableRequestLotAllocations { get; set; }
         public DbSet<ConsumableTransaction> ConsumableTransactions { get; set; }
@@ -140,10 +136,6 @@ namespace LabManagementAPI.Data
                 entity.Property(location => location.Type).HasMaxLength(50);
                 entity.Property(location => location.Description).HasMaxLength(1000);
                 entity.HasIndex(location => location.Code).IsUnique();
-                entity.HasOne(location => location.Parent)
-                    .WithMany(location => location!.Children)
-                    .HasForeignKey(location => location.ParentId)
-                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<Consumable>(entity =>
@@ -520,77 +512,6 @@ namespace LabManagementAPI.Data
                     .WithMany()
                     .HasForeignKey(transaction => transaction.ConsumableRequestId)
                     .OnDelete(DeleteBehavior.SetNull);
-                entity.HasOne(transaction => transaction.MaintenanceRecord)
-                    .WithMany()
-                    .HasForeignKey(transaction => transaction.MaintenanceRecordId)
-                    .OnDelete(DeleteBehavior.SetNull);
-            });
-
-            modelBuilder.Entity<MaintenanceRecord>(entity =>
-            {
-                entity.Property(record => record.Description).HasMaxLength(2000);
-                entity.Property(record => record.PerformedBy).HasMaxLength(255);
-                entity.Property(record => record.Status).HasMaxLength(50);
-                entity.Property(record => record.Result).HasMaxLength(2000);
-                entity.Property(record => record.ResultStatus).HasMaxLength(50);
-                entity.Property(record => record.ActiveEquipmentKey).HasMaxLength(64);
-                entity.Property(record => record.Supplier).HasMaxLength(255);
-                entity.Property(record => record.Checklist).HasMaxLength(4000);
-                entity.Property(record => record.ChecklistResult).HasMaxLength(4000);
-                entity.Property(record => record.Cost).HasPrecision(18, 2);
-                entity.HasIndex(record => record.Status);
-                entity.HasIndex(record => record.MaintenanceDate);
-                entity.HasIndex(record => record.ActiveEquipmentKey).IsUnique();
-                entity.HasOne(record => record.Equipment)
-                    .WithMany()
-                    .HasForeignKey(record => record.EquipmentId)
-                    .OnDelete(DeleteBehavior.Restrict);
-                entity.HasMany(record => record.Parts)
-                    .WithOne(part => part.MaintenanceRecord)
-                    .HasForeignKey(part => part.MaintenanceRecordId)
-                    .OnDelete(DeleteBehavior.Cascade);
-                entity.HasMany(record => record.Evidence)
-                    .WithOne(evidence => evidence.MaintenanceRecord)
-                    .HasForeignKey(evidence => evidence.MaintenanceRecordId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            modelBuilder.Entity<MaintenancePartUsage>(entity =>
-            {
-                entity.Property(part => part.Note).HasMaxLength(1000);
-                entity.Property(part => part.UnitCost).HasPrecision(18, 2);
-                entity.HasIndex(part => part.ConsumableId);
-                entity.HasOne(part => part.Consumable).WithMany()
-                    .HasForeignKey(part => part.ConsumableId).OnDelete(DeleteBehavior.Restrict);
-            });
-
-            modelBuilder.Entity<MaintenanceEvidence>(entity =>
-            {
-                entity.Property(item => item.EvidenceType).HasMaxLength(50);
-                entity.Property(item => item.OriginalFileName).HasMaxLength(255);
-                entity.Property(item => item.StoredPath).HasMaxLength(1000);
-                entity.Property(item => item.ContentType).HasMaxLength(150);
-                entity.HasIndex(item => item.MaintenanceRecordId);
-                entity.HasOne(item => item.UploadedByUser).WithMany()
-                    .HasForeignKey(item => item.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
-            });
-
-            modelBuilder.Entity<MaintenanceSchedule>(entity =>
-            {
-                entity.Property(schedule => schedule.Name).HasMaxLength(255);
-                entity.Property(schedule => schedule.IntervalUnit).HasMaxLength(20);
-                entity.Property(schedule => schedule.Notes).HasMaxLength(2000);
-                entity.Property(schedule => schedule.Checklist).HasMaxLength(4000);
-                entity.HasIndex(schedule => new { schedule.IsActive, schedule.NextDueAt });
-                entity.HasIndex(schedule => schedule.EquipmentId);
-                entity.HasOne(schedule => schedule.Equipment)
-                    .WithMany()
-                    .HasForeignKey(schedule => schedule.EquipmentId)
-                    .OnDelete(DeleteBehavior.Restrict);
-                entity.HasOne(schedule => schedule.CreatedByUser)
-                    .WithMany()
-                    .HasForeignKey(schedule => schedule.CreatedByUserId)
-                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<PasswordResetToken>(entity =>

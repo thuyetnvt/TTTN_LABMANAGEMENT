@@ -31,11 +31,11 @@ pwsh ./scripts/restore.ps1 `
   -ConfirmRestore
 ```
 
-Không chạy trên production nếu chưa xác nhận file backup, tên volume và cửa sổ bảo trì.
+Không chạy trên production nếu chưa xác nhận file backup, tên volume và cửa sổ triển khai.
 
 ## S3/MinIO
 
-Khi `STORAGE_PROVIDER=S3`, file quyết định, evidence bảo trì, kiểm kê, bàn giao và nhận trả được lưu dưới prefix `STORAGE_S3_KEY_PREFIX` trong bucket S3-compatible. Có thể dùng AWS S3 hoặc MinIO bằng `STORAGE_S3_SERVICE_URL` và `STORAGE_S3_FORCE_PATH_STYLE=true`. Credentials chỉ truyền qua secret manager/environment, không commit vào `.env` hoặc log.
+Khi `STORAGE_PROVIDER=S3`, file quyết định, minh chứng kiểm kê, bàn giao và nhận trả được lưu dưới prefix `STORAGE_S3_KEY_PREFIX` trong bucket S3-compatible. Có thể dùng AWS S3 hoặc MinIO bằng `STORAGE_S3_SERVICE_URL` và `STORAGE_S3_FORCE_PATH_STYLE=true`. Credentials chỉ truyền qua secret manager/environment, không commit vào `.env` hoặc log.
 
 Backup database không bao gồm object trong bucket. Cấu hình versioning, retention và replication theo chính sách lưu trữ; trước restore phải khôi phục bucket/object tương ứng rồi mới import SQL để các đường dẫn evidence trong database còn hợp lệ.
 

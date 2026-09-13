@@ -312,36 +312,6 @@ public static class DbInitializer
                 users.GetValueOrDefault("truonglab"));
         }
 
-        if (equipments.TryGetValue("LAB-AI-CAM-001", out var camera)
-            && !await context.MaintenanceRecords.AnyAsync(record => record.EquipmentId == camera.Id))
-        {
-            context.MaintenanceRecords.Add(new MaintenanceRecord
-            {
-                EquipmentId = camera.Id,
-                MaintenanceDate = now.AddDays(-3),
-                Description = "Camera mất tín hiệu depth, gửi kiểm tra.",
-                Cost = 0,
-                PerformedBy = "Kỹ thuật viên lab",
-                Status = MaintenanceStatuses.InProgress
-            });
-        }
-
-        if (equipments.TryGetValue("LAB-IOT-SEN-001", out var sensorKit)
-            && !await context.MaintenanceRecords.AnyAsync(record => record.EquipmentId == sensorKit.Id))
-        {
-            context.MaintenanceRecords.Add(new MaintenanceRecord
-            {
-                EquipmentId = sensorKit.Id,
-                MaintenanceDate = now.AddDays(-8),
-                Description = "Hiệu chuẩn cảm biến ánh sáng sau khi trả.",
-                Cost = 120000,
-                PerformedBy = "Kỹ thuật lab",
-                Status = MaintenanceStatuses.Completed,
-                CompletedAt = now.AddDays(-7),
-                Result = "Cảm biến hoạt động ổn định."
-            });
-        }
-
         if (users.TryGetValue("sv1", out var requestUserId))
         {
             await AddConsumableRequestAsync(

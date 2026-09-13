@@ -9,8 +9,6 @@ public static class EquipmentStatuses
     public const string ReturnedDamaged = "RETURNED_DAMAGED";
     public const string Broken = "BROKEN";
     public const string Missing = "MISSING";
-    public const string MaintenanceInProgress = "MAINTENANCE_IN_PROGRESS";
-    public const string MaintenanceCompleted = "MAINTENANCE_COMPLETED";
 
     public static readonly HashSet<string> All =
     [
@@ -20,9 +18,7 @@ public static class EquipmentStatuses
         Returned,
         ReturnedDamaged,
         Broken,
-        Missing,
-        MaintenanceInProgress,
-        MaintenanceCompleted
+        Missing
     ];
 
     public static readonly IReadOnlyDictionary<string, string> LegacyMap =
@@ -31,8 +27,7 @@ public static class EquipmentStatuses
             ["Rảnh"] = Available,
             ["Sẵn sàng"] = Available,
             ["Đang mượn"] = Borrowed,
-            ["Hỏng"] = Broken,
-            ["Bảo trì"] = MaintenanceInProgress
+            ["Hỏng"] = Broken
         };
 
     public static string Normalize(string? value)

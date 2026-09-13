@@ -37,9 +37,7 @@ public class AuditController : ControllerBase
         pageSize = Math.Clamp(pageSize, 1, 100);
 
         var query = _context.AuditLogs
-            .AsNoTracking()
-            .Where(log => log.EntityType != nameof(MaintenanceRecord)
-                && log.EntityType != nameof(MaintenanceSchedule));
+            .AsNoTracking();
         if (!string.IsNullOrWhiteSpace(action))
         {
             if (action.Trim() == "__OTHER__")

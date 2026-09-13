@@ -15,3 +15,9 @@ secrets/
 **/logs/
 **/playwright-report/
 **/test-results/
+
+# Local Codex review/build artifacts (never part of the handoff source)
+/.codex-*/
+/.push-export-*/
+/outputs/
+/set workflow and reporting updates*

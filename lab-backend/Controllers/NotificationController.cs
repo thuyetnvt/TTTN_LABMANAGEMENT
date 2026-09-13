@@ -27,7 +27,6 @@ public class NotificationController : ControllerBase
         var query = _context.Notifications
             .AsNoTracking()
             .Where(item => item.UserId == userId)
-            .Where(item => !item.Type.StartsWith("MAINTENANCE"))
             .Where(item => unreadOnly != true || !item.IsRead)
             .OrderByDescending(item => item.CreatedAt);
 
@@ -74,7 +73,7 @@ public class NotificationController : ControllerBase
     {
         var userId = GetCurrentUserId();
         var count = await _context.Notifications.CountAsync(
-            item => item.UserId == userId && !item.IsRead && !item.Type.StartsWith("MAINTENANCE"),
+            item => item.UserId == userId && !item.IsRead,
             cancellationToken);
         return Ok(new { count });
     }
@@ -103,8 +102,7 @@ public class NotificationController : ControllerBase
     {
         var items = await _context.Notifications
             .Where(item => item.UserId == GetCurrentUserId()
-                && !item.IsRead
-                && !item.Type.StartsWith("MAINTENANCE"))
+                && !item.IsRead)
             .ToListAsync(cancellationToken);
         var readAt = DateTime.UtcNow;
         foreach (var item in items)

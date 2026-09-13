@@ -57,8 +57,7 @@ public class DashboardController : ControllerBase
                     Available = group.Count(item => item.Status == EquipmentStatuses.Available),
                     BorrowPending = group.Count(item => item.Status == EquipmentStatuses.BorrowPending),
                     Borrowed = group.Count(item => item.Status == EquipmentStatuses.Borrowed),
-                    Broken = group.Count(item => item.Status == EquipmentStatuses.Broken
-                        || item.Status == EquipmentStatuses.MaintenanceInProgress),
+                    Broken = group.Count(item => item.Status == EquipmentStatuses.Broken),
                     Missing = group.Count(item => item.Status == EquipmentStatuses.Missing)
                 })
                 .SingleOrDefaultAsync(cancellationToken);

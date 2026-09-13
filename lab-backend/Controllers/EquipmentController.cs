@@ -198,13 +198,11 @@ public class EquipmentController : ControllerBase
             if (string.Equals(status, "PROBLEM", StringComparison.OrdinalIgnoreCase))
             {
                 query = query.Where(equipment => equipment.Status == EquipmentStatuses.Broken
-                    || equipment.Status == EquipmentStatuses.MaintenanceInProgress
                     || equipment.Status == EquipmentStatuses.Missing);
             }
             else if (string.Equals(status, EquipmentStatuses.Broken, StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(equipment => equipment.Status == EquipmentStatuses.Broken
-                    || equipment.Status == EquipmentStatuses.MaintenanceInProgress);
+                query = query.Where(equipment => equipment.Status == EquipmentStatuses.Broken);
             }
             else
             {
@@ -941,9 +939,6 @@ public class EquipmentController : ControllerBase
         var hasHistory = await _context.BorrowRecords.AnyAsync(
                 record => record.EquipmentId == id
                     || record.Details.Any(detail => detail.EquipmentId == id),
-                cancellationToken)
-            || await _context.MaintenanceRecords.AnyAsync(
-                record => record.EquipmentId == id,
                 cancellationToken);
         if (hasHistory)
         {

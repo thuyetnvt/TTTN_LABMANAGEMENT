@@ -1,6 +1,6 @@
 # Mô hình dữ liệu
 
-Các nhóm bảng chính: `Users`, `Equipments`, `AssetCategories`, `LocationNodes`, `BorrowRecords`, `BorrowRequestDetails`, `BorrowStatusHistories`, `MaintenanceRecords`, `Consumables`, `ConsumableRequests`, `ConsumableTransactions`, `InventorySessions`, `InventoryItems`, `Notifications`, `AuditLogs`.
+Các nhóm bảng chính: `Users`, `Equipments`, `AssetCategories`, `LocationNodes`, `BorrowRecords`, `BorrowRequestDetails`, `BorrowStatusHistories`, `Consumables`, `ConsumableRequests`, `ConsumableTransactions`, `InventorySessions`, `InventoryItems`, `Notifications`, `AuditLogs`.
 
 ```mermaid
 erDiagram

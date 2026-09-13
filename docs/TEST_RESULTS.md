@@ -62,3 +62,13 @@ Các kiểm chứng trên là local/Docker, không thay thế diễn tập resto
 - `docker compose config --quiet`, kiểm tra cú pháp `scripts/deploy-vps.sh`, `git diff --check` và sinh migration script idempotent đều đạt.
 - Hai migration mới `RequireInitialPasswordChange` và `AddRefreshTokens` đã được đưa vào migration script; chưa áp dụng trực tiếp lên database VPS trong lần kiểm chứng này.
 - File hướng dẫn Word đã được render và kiểm tra trực quan đủ 5 trang, không có nội dung tràn hoặc bảng vỡ.
+
+## Kiểm chứng bản bàn giao ngày 14/09/2026
+
+- Backend: `dotnet test lab-backend.Tests/LabManagementAPI.Tests.csproj --configuration Release --no-restore` đạt **101/101**.
+- Frontend: `npm test` đạt **53/53**; production build trong Docker đạt với **3.398 module** được xử lý.
+- E2E trên stack Docker cô lập đạt **48/48** trên Chromium desktop và mobile, gồm phân quyền năm vai trò và luồng mượn nhiều tài sản, bàn giao, trả, kiểm kê QR.
+- Ba container database/backend/frontend đều đạt trạng thái `Healthy`; backend tự áp dụng toàn bộ migration trên database MySQL 8.4 mới.
+- Kiểm tra trực tiếp schema sau migration xác nhận: không còn dòng `LAB-ROOT`, không còn cột `LocationNodes.ParentId`, không còn bốn bảng nghiệp vụ bảo trì và migration `20260913160619_RemoveMaintenanceAndLocationHierarchy` đã được ghi nhận.
+- Sinh script migration idempotent bằng `dotnet ef migrations script --idempotent` đạt; `git diff --check` và `git diff --cached --check` không có lỗi khoảng trắng.
+- File Word hướng dẫn cài đặt/triển khai đã được xuất PDF bằng Microsoft Word, render đủ **5 trang** và kiểm tra trực quan không có nội dung tràn, cắt hoặc tiêu đề bảng đứng riêng trang.

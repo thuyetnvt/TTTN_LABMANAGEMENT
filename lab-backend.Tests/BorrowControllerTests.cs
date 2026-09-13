@@ -622,7 +622,7 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
-    public async Task Returning_damaged_item_marks_broken_without_creating_maintenance()
+    public async Task Returning_damaged_item_marks_equipment_broken()
     {
         await using var context = CreateSqliteContext(out var connection);
         await using (connection)
@@ -663,7 +663,6 @@ public sealed class BorrowControllerTests
             var equipment = await context.Equipments.AsNoTracking().SingleAsync();
             Assert.Equal(BorrowStatuses.ReturnedDamaged, record.Status);
             Assert.Equal(EquipmentStatuses.Broken, equipment.Status);
-            Assert.Empty(context.MaintenanceRecords);
         }
     }
 

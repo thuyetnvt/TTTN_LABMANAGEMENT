@@ -5,8 +5,8 @@ const username = process.env.E2E_ADMIN_USERNAME || 'admin'
 
 const notificationItems = Array.from({ length: 20 }, (_, index) => ({
   id: index + 1,
-  type: index % 2 ? 'MAINTENANCE_COMPLETED' : 'BORROW_PENDING',
-  title: index % 2 ? 'Phiếu bảo trì đã hoàn tất' : 'Yêu cầu mượn cần duyệt',
+  type: index % 2 ? 'BORROW_RETURNED' : 'BORROW_PENDING',
+  title: index % 2 ? 'Thiết bị đã được trả' : 'Yêu cầu mượn cần duyệt',
   message: `Nội dung thông báo kiểm thử ${index + 1}`,
   url: index === 0 ? '/dashboard/devices' : '',
   isRead: index > 1,

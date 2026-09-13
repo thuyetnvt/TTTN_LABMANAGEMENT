@@ -117,10 +117,10 @@ public sealed class DashboardControllerTests
             new Equipment
             {
                 Id = 3,
-                AssetCode = "EQ-MAINTENANCE",
-                Serial = "SN-MAINTENANCE",
-                Name = "Thiết bị đang bảo trì",
-                Status = EquipmentStatuses.MaintenanceInProgress
+                AssetCode = "EQ-BROKEN",
+                Serial = "SN-BROKEN",
+                Name = "Thiết bị hỏng",
+                Status = EquipmentStatuses.Broken
             });
         context.BorrowRecords.AddRange(
             new BorrowRecord
@@ -168,7 +168,6 @@ public sealed class DashboardControllerTests
         Assert.Equal(1, ReadInt(response.Value!, "LowStockConsumables"));
         var json = JsonSerializer.SerializeToElement(response.Value);
         Assert.Equal(1, json.GetProperty("Counts").GetProperty("Broken").GetInt32());
-        Assert.False(json.TryGetProperty("MaintenanceInProgress", out _));
     }
 
     [Fact]

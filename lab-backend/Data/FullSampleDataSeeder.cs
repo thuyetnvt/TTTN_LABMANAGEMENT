@@ -33,8 +33,6 @@ public static class FullSampleDataSeeder
 
         var borrowRecords = await EnsureBorrowRecordsAsync(context, users, equipment, now);
         await EnsureConsumableRequestsAsync(context, users, consumables, now);
-        var maintenanceRecords = await EnsureMaintenanceRecordsAsync(context, users, equipment, consumables, now);
-        await EnsureMaintenanceSchedulesAsync(context, users, equipment, now);
         await EnsureInventorySessionsAsync(context, users, categories, locations, equipment, now);
         await EnsureHandoversAsync(context, users, equipment, borrowRecords, now);
         await EnsureConsumableTransactionsAsync(context, users, consumables, now);
@@ -142,18 +140,17 @@ public static class FullSampleDataSeeder
     {
         var seeds = new[]
         {
-            new LocationSeed("LAB-ROOT", "Phòng Lab IoT", "BUILDING", null, "Khu vực quản lý chung của phòng lab"),
-            new LocationSeed("LAB-IOT-A", "Phòng IoT A", "ROOM", "LAB-ROOT", "Khu thực hành IoT và vi điều khiển"),
-            new LocationSeed("LAB-ELEC-B", "Phòng Điện tử B", "ROOM", "LAB-ROOT", "Khu mạch điện và hàn linh kiện"),
-            new LocationSeed("LAB-AI-C", "Phòng AI C", "ROOM", "LAB-ROOT", "Khu máy tính và thị giác máy"),
-            new LocationSeed("LAB-NET-D", "Phòng Mạng D", "ROOM", "LAB-ROOT", "Khu mạng và máy chủ"),
-            new LocationSeed("LAB-STORE", "Kho vật tư", "STORE", "LAB-ROOT", "Kho vật tư tiêu hao"),
-            new LocationSeed("LAB-MEAS", "Khu đo lường", "ROOM", "LAB-ROOT", "Khu máy đo và hiệu chuẩn"),
-            new LocationSeed("LAB-SAFE", "Tủ an toàn", "CABINET", "LAB-ROOT", "Tủ lưu thiết bị an toàn")
+            new LocationSeed("LAB-IOT-A", "Phòng IoT A", "ROOM", "Khu thực hành IoT và vi điều khiển"),
+            new LocationSeed("LAB-ELEC-B", "Phòng Điện tử B", "ROOM", "Khu mạch điện và hàn linh kiện"),
+            new LocationSeed("LAB-AI-C", "Phòng AI C", "ROOM", "Khu máy tính và thị giác máy"),
+            new LocationSeed("LAB-NET-D", "Phòng Mạng D", "ROOM", "Khu mạng và máy chủ"),
+            new LocationSeed("LAB-STORE", "Kho vật tư", "STORE", "Kho vật tư tiêu hao"),
+            new LocationSeed("LAB-MEAS", "Khu đo lường", "ROOM", "Khu máy đo và hiệu chuẩn"),
+            new LocationSeed("LAB-SAFE", "Tủ an toàn", "CABINET", "Tủ lưu thiết bị an toàn")
         };
 
         var locations = await context.LocationNodes.ToDictionaryAsync(location => location.Code, location => location);
-        foreach (var seed in seeds.Where(item => item.ParentCode is null))
+        foreach (var seed in seeds)
         {
             if (locations.ContainsKey(seed.Code)) continue;
             var location = new LocationNode
@@ -164,24 +161,6 @@ public static class FullSampleDataSeeder
                 Description = seed.Description,
                 IsActive = true,
                 CreatedAt = now.AddDays(-25)
-            };
-            context.LocationNodes.Add(location);
-            locations[seed.Code] = location;
-        }
-
-        await context.SaveChangesAsync();
-        foreach (var seed in seeds.Where(item => item.ParentCode is not null))
-        {
-            if (locations.ContainsKey(seed.Code)) continue;
-            var location = new LocationNode
-            {
-                Code = seed.Code,
-                Name = seed.Name,
-                Type = seed.Type,
-                ParentId = locations[seed.ParentCode!].Id,
-                Description = seed.Description,
-                IsActive = true,
-                CreatedAt = now.AddDays(-24)
             };
             context.LocationNodes.Add(location);
             locations[seed.Code] = location;
@@ -207,14 +186,14 @@ public static class FullSampleDataSeeder
             new EquipmentSeed("TS-DEMO-006", "Module Zigbee CC2530", "CC2530 Zigbee", "DEMO-SN-0006", "Phòng IoT A", "LAB-IOT-A", "IoT", EquipmentStatuses.BorrowPending, 260000, 7),
             new EquipmentSeed("TS-DEMO-007", "Camera OpenMV H7 Plus", "OpenMV H7 Plus", "DEMO-SN-0007", "Phòng AI C", "LAB-AI-C", "AI", EquipmentStatuses.Available, 3500000, 10),
             new EquipmentSeed("TS-DEMO-008", "Jetson Nano 4GB", "Jetson Nano", "DEMO-SN-0008", "Phòng AI C", "LAB-AI-C", "AI", EquipmentStatuses.Borrowed, 3200000, 8),
-            new EquipmentSeed("TS-DEMO-009", "Intel NUC i5", "NUC 12 Pro", "DEMO-SN-0009", "Phòng AI C", "LAB-AI-C", "AI", EquipmentStatuses.MaintenanceInProgress, 12500000, 6),
+            new EquipmentSeed("TS-DEMO-009", "Intel NUC i5", "NUC 12 Pro", "DEMO-SN-0009", "Phòng AI C", "LAB-AI-C", "AI", EquipmentStatuses.Broken, 12500000, 6),
             new EquipmentSeed("TS-DEMO-010", "Máy hiện sóng Hantek 6022BE", "6022BE", "DEMO-SN-0010", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Broken, 2100000, 12),
             new EquipmentSeed("TS-DEMO-011", "Đồng hồ vạn năng Keysight", "34465A", "DEMO-SN-0011", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Broken, 28000000, 5),
             new EquipmentSeed("TS-DEMO-012", "Máy phân tích logic Saleae", "Logic 8", "DEMO-SN-0012", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Available, 6200000, 8),
             new EquipmentSeed("TS-DEMO-013", "Máy phát tín hiệu Siglent", "SDG1032X", "DEMO-SN-0013", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Borrowed, 11500000, 7),
             new EquipmentSeed("TS-DEMO-014", "Nguồn DC Rigol DP832", "DP832", "DEMO-SN-0014", "Bàn điện tử B1", "LAB-ELEC-B", "Điện tử", EquipmentStatuses.Available, 15000000, 13),
             new EquipmentSeed("TS-DEMO-015", "Camera nhiệt FLIR C5", "FLIR C5", "DEMO-SN-0015", "Khu đo lường", "LAB-MEAS", "Thiết bị đo", EquipmentStatuses.Broken, 22000000, 4),
-            new EquipmentSeed("TS-DEMO-016", "Trạm hàn Hakko FX-888D", "FX-888D", "DEMO-SN-0016", "Phòng Điện tử B", "LAB-ELEC-B", "Điện tử", EquipmentStatuses.MaintenanceInProgress, 4200000, 15),
+            new EquipmentSeed("TS-DEMO-016", "Trạm hàn Hakko FX-888D", "FX-888D", "DEMO-SN-0016", "Phòng Điện tử B", "LAB-ELEC-B", "Điện tử", EquipmentStatuses.Broken, 4200000, 15),
             new EquipmentSeed("TS-DEMO-017", "Máy in 3D Bambu A1", "Bambu Lab A1", "DEMO-SN-0017", "Phòng Điện tử B", "LAB-ELEC-B", "Robotics", EquipmentStatuses.Available, 9500000, 3),
             new EquipmentSeed("TS-DEMO-018", "Cánh tay robot Dobot Magician", "Dobot Magician", "DEMO-SN-0018", "Phòng IoT A", "LAB-IOT-A", "Robotics", EquipmentStatuses.Broken, 28000000, 2),
             new EquipmentSeed("TS-DEMO-019", "Cảm biến LiDAR RPLIDAR A1", "RPLIDAR A1", "DEMO-SN-0019", "Phòng AI C", "LAB-AI-C", "Robotics", EquipmentStatuses.Available, 4200000, 6),
@@ -439,7 +418,7 @@ public static class FullSampleDataSeeder
             new ConsumableRequestSeed("sv6", "VT-SEED-005", 12, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-005] Lắp ráp bộ dây thực hành."),
             new ConsumableRequestSeed("sv7", "VT-SEED-006", 20, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-006] Hoàn thiện mạch nguồn."),
             new ConsumableRequestSeed("sv8", "VT-SEED-007", 5, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-007] Cấp pin cho robot."),
-            new ConsumableRequestSeed("sv9", "VT-SEED-009", 2, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-008] Bảo trì máy tính lab.")
+            new ConsumableRequestSeed("sv9", "VT-SEED-009", 2, ConsumableRequestStatuses.Pending, "[SEED-FULL-REQ-008] Kiểm tra máy tính lab.")
         };
 
         foreach (var seed in requests)
@@ -469,116 +448,6 @@ public static class FullSampleDataSeeder
         await context.SaveChangesAsync();
     }
 
-    private static async Task<List<MaintenanceRecord>> EnsureMaintenanceRecordsAsync(
-        AppDbContext context,
-        IReadOnlyDictionary<string, int> users,
-        IReadOnlyDictionary<string, Equipment> equipment,
-        IReadOnlyDictionary<string, int> consumables,
-        DateTime now)
-    {
-        var seeds = new[]
-        {
-            new MaintenanceSeed("TS-DEMO-009", MaintenanceStatuses.InProgress, 1, 450000, "Kiểm tra ổ cứng và cập nhật môi trường AI.", "Kỹ thuật lab", "Nhà cung cấp thiết bị mẫu"),
-            new MaintenanceSeed("TS-DEMO-016", MaintenanceStatuses.InProgress, 3, 180000, "Thay mũi hàn và kiểm tra nhiệt độ.", "Kỹ thuật điện tử", "Hakko Việt Nam"),
-            new MaintenanceSeed("TS-DEMO-010", MaintenanceStatuses.Completed, 5, 250000, "Hiệu chuẩn máy hiện sóng.", "Kỹ thuật đo lường", "Rigol Service"),
-            new MaintenanceSeed("TS-DEMO-011", MaintenanceStatuses.Completed, 8, 900000, "Kiểm tra và thay cầu chì bảo vệ.", "Kỹ thuật đo lường", "Keysight Service"),
-            new MaintenanceSeed("TS-DEMO-017", MaintenanceStatuses.Completed, 12, 320000, "Vệ sinh đầu phun và cân bàn máy in.", "Kỹ thuật cơ khí", "Bambu Lab Service"),
-            new MaintenanceSeed("TS-DEMO-023", MaintenanceStatuses.Completed, 15, 600000, "Kiểm tra nguồn và ổ đĩa NAS.", "Kỹ thuật mạng", "Synology Service")
-        };
-
-        var records = new List<MaintenanceRecord>();
-        foreach (var seed in seeds)
-        {
-            if (!equipment.TryGetValue(seed.AssetCode, out var item)) continue;
-            var existing = await context.MaintenanceRecords
-                .FirstOrDefaultAsync(record => record.EquipmentId == item.Id && record.Description.StartsWith(Prefix));
-            if (existing is not null)
-            {
-                records.Add(existing);
-                continue;
-            }
-
-            var record = new MaintenanceRecord
-            {
-                EquipmentId = item.Id,
-                MaintenanceDate = now.AddDays(-seed.DaysAgo),
-                Description = $"{Prefix} {seed.Description}",
-                Cost = seed.Cost,
-                PerformedBy = seed.PerformedBy,
-                Supplier = seed.Supplier,
-                Status = seed.Status,
-                CompletedAt = seed.Status == MaintenanceStatuses.Completed ? now.AddDays(-seed.DaysAgo + 1) : null,
-                Result = seed.Status == MaintenanceStatuses.Completed ? "Thiết bị hoạt động ổn định sau bảo trì." : string.Empty,
-                ResultStatus = seed.Status == MaintenanceStatuses.Completed ? EquipmentStatuses.Available : EquipmentStatuses.MaintenanceInProgress,
-                ActiveEquipmentKey = seed.Status == MaintenanceStatuses.Completed ? null : $"SEED-FULL-MAINT-{item.Id}",
-                Checklist = "Kiểm tra nguồn\nKiểm tra kết nối\nVệ sinh thiết bị\nChạy thử chức năng",
-                ChecklistResult = seed.Status == MaintenanceStatuses.Completed ? "Đạt" : string.Empty
-            };
-            context.MaintenanceRecords.Add(record);
-            await context.SaveChangesAsync();
-            records.Add(record);
-
-            if (consumables.TryGetValue("VT-SEED-010", out var consumableId))
-            {
-                context.MaintenancePartUsages.Add(new MaintenancePartUsage
-                {
-                    MaintenanceRecordId = record.Id,
-                    ConsumableId = consumableId,
-                    Quantity = 1,
-                    UnitCost = 25000,
-                    Note = $"{Prefix} Vật tư dùng cho phiếu bảo trì."
-                });
-            }
-        }
-
-        await context.SaveChangesAsync();
-        return records;
-    }
-
-    private static async Task EnsureMaintenanceSchedulesAsync(
-        AppDbContext context,
-        IReadOnlyDictionary<string, int> users,
-        IReadOnlyDictionary<string, Equipment> equipment,
-        DateTime now)
-    {
-        if (!users.TryGetValue("truonglab", out var managerId)) return;
-
-        var seeds = new[]
-        {
-            new ScheduleSeed("TS-DEMO-001", "Kiểm tra kit ESP32 hàng tháng", 30, 5),
-            new ScheduleSeed("TS-DEMO-003", "Kiểm tra Raspberry Pi hàng quý", 90, 20),
-            new ScheduleSeed("TS-DEMO-010", "Hiệu chuẩn máy đo hàng quý", 90, -2),
-            new ScheduleSeed("TS-DEMO-014", "Kiểm tra nguồn DC hàng tháng", 30, 12),
-            new ScheduleSeed("TS-DEMO-017", "Bảo dưỡng máy in 3D", 60, 35),
-            new ScheduleSeed("TS-DEMO-022", "Kiểm tra router và firmware", 90, 70),
-            new ScheduleSeed("TS-DEMO-023", "Kiểm tra NAS và sao lưu", 30, 8),
-            new ScheduleSeed("TS-DEMO-028", "Kiểm tra máy hút ẩm", 30, 3)
-        };
-
-        foreach (var seed in seeds)
-        {
-            if (!equipment.TryGetValue(seed.AssetCode, out var item)) continue;
-            if (await context.MaintenanceSchedules.AnyAsync(schedule => schedule.EquipmentId == item.Id && schedule.Name.StartsWith(Prefix))) continue;
-
-            context.MaintenanceSchedules.Add(new MaintenanceSchedule
-            {
-                EquipmentId = item.Id,
-                Name = $"{Prefix} {seed.Name}",
-                IntervalDays = seed.IntervalDays,
-                IntervalUnit = "DAY",
-                NextDueAt = now.AddDays(seed.NextDueOffset),
-                IsActive = true,
-                Notes = "Lịch mẫu để kiểm thử tạo phiếu và nhắc hạn bảo trì.",
-                Checklist = "Kiểm tra ngoại quan\nKiểm tra nguồn\nGhi nhận kết quả",
-                CreatedByUserId = managerId,
-                CreatedAt = now.AddDays(-18),
-                UpdatedAt = now.AddDays(-2)
-            });
-        }
-
-        await context.SaveChangesAsync();
-    }
-
     private static async Task EnsureInventorySessionsAsync(
         AppDbContext context,
         IReadOnlyDictionary<string, int> users,
@@ -591,7 +460,7 @@ public static class FullSampleDataSeeder
 
         var sessions = new[]
         {
-            new InventorySeed("INV-SEED-OPEN-2026", "Kiểm kê thiết bị tháng 8 - đang thực hiện", InventoryStatuses.Open, -1, null, "LAB-ROOT"),
+            new InventorySeed("INV-SEED-OPEN-2026", "Kiểm kê thiết bị tháng 8 - đang thực hiện", InventoryStatuses.Open, -1, null, null),
             new InventorySeed("INV-SEED-DONE-2026-01", "Kiểm kê thiết bị quý 1", InventoryStatuses.Completed, -90, -88, "LAB-IOT-A"),
             new InventorySeed("INV-SEED-DONE-2026-02", "Kiểm kê khu đo lường", InventoryStatuses.Completed, -45, -43, "LAB-MEAS")
         };
@@ -610,7 +479,10 @@ public static class FullSampleDataSeeder
                     StartedAt = now.AddDays(seed.StartedDaysAgo),
                     CompletedAt = seed.CompletedDaysAgo.HasValue ? now.AddDays(seed.CompletedDaysAgo.Value) : null,
                     CreatedByUserId = adminId,
-                    LocationNodeId = locations.GetValueOrDefault(seed.LocationCode),
+                    LocationNodeId = seed.LocationCode is not null
+                        && locations.TryGetValue(seed.LocationCode, out var locationId)
+                            ? locationId
+                            : null,
                     AssetCategoryId = categories.GetValueOrDefault("IoT")
                 };
                 context.InventorySessions.Add(session);
@@ -804,12 +676,11 @@ public static class FullSampleDataSeeder
         foreach (var item in items)
         {
             if (await context.EquipmentLocationHistories.AnyAsync(history => history.EquipmentId == item.Id)) continue;
-            var from = locations.GetValueOrDefault("LAB-ROOT");
             var to = item.LocationNodeId;
             context.EquipmentLocationHistories.Add(new EquipmentLocationHistory
             {
                 EquipmentId = item.Id,
-                FromLocationNodeId = from == 0 ? null : from,
+                FromLocationNodeId = null,
                 ToLocationNodeId = to,
                 FromLocationName = "Kho tiếp nhận",
                 ToLocationName = item.Location,
@@ -832,7 +703,6 @@ public static class FullSampleDataSeeder
             new NotificationSeed("admin", "WARNING", "Có phiếu mượn quá hạn", "Có 2 phiếu mượn cần kiểm tra.", "/dashboard/borrow-history"),
             new NotificationSeed("admin", "INFO", "Đã tạo đợt kiểm kê", "Đợt kiểm kê mẫu đang chờ hoàn tất.", "/dashboard/inventory"),
             new NotificationSeed("truonglab", "WARNING", "Vật tư dưới mức tối thiểu", "Có 4 loại vật tư cần bổ sung.", "/dashboard/devices"),
-            new NotificationSeed("pholab", "INFO", "Có lịch bảo trì sắp đến hạn", "Vui lòng kiểm tra lịch bảo trì trong tuần này.", "/dashboard/maintenance-schedules"),
             new NotificationSeed("sv2", "SUCCESS", "Phiếu mượn đang chờ duyệt", "Phiếu mượn thiết bị ESP32 đã được tiếp nhận.", "/dashboard/borrow-history"),
             new NotificationSeed("sv3", "INFO", "Yêu cầu vật tư đã được gửi", "Yêu cầu module relay đang được xử lý.", "/dashboard/consumable-requests")
         };
@@ -867,15 +737,13 @@ public static class FullSampleDataSeeder
             ("admin", "Create", "Equipment", "Tạo thiết bị mẫu ESP32"),
             ("admin", "Update", "Equipment", "Cập nhật vị trí thiết bị mẫu"),
             ("truonglab", "Approve", "BorrowRecord", "Duyệt phiếu mượn mẫu"),
-            ("pholab", "Maintenance", "MaintenanceRecord", "Tạo phiếu bảo trì mẫu"),
             ("admin", "Create", "InventorySession", "Tạo đợt kiểm kê mẫu"),
             ("admin", "InventoryScan", "InventoryItem", "Ghi nhận kết quả kiểm kê"),
             ("truonglab", "Issue", "ConsumableRequest", "Cấp phát vật tư mẫu"),
             ("giangvien2", "Create", "BorrowRecord", "Tạo phiếu mượn cho nhóm thực hành"),
             ("sv2", "Create", "ConsumableRequest", "Gửi yêu cầu cấp phát vật tư"),
             ("admin", "Update", "User", "Cập nhật thông tin tài khoản mẫu"),
-            ("pholab", "Return", "BorrowRecord", "Kiểm tra trả thiết bị mẫu"),
-            ("admin", "Create", "MaintenanceSchedule", "Tạo kế hoạch bảo trì mẫu")
+            ("pholab", "Return", "BorrowRecord", "Kiểm tra trả thiết bị mẫu")
         };
 
         var index = 1;
@@ -900,14 +768,12 @@ public static class FullSampleDataSeeder
 
     private sealed record UserSeed(string Username, string Email, string FullName, string UniversityCode, string Department, string? ClassName, string Role);
     private sealed record CategorySeed(string Name, string Description);
-    private sealed record LocationSeed(string Code, string Name, string Type, string? ParentCode, string Description);
+    private sealed record LocationSeed(string Code, string Name, string Type, string Description);
     private sealed record EquipmentSeed(string AssetCode, string Name, string Model, string Serial, string LocationName, string LocationCode, string Category, string Status, decimal PurchaseValue, int BorrowCount, int AgeMonths = 6);
     private sealed record ConsumableSeed(string Code, string Name, string Unit, int Quantity, int MinQuantity, string Category, string StorageLocation);
     private sealed record BorrowSeed(string Username, string AssetCode, string? TeacherUsername, string Status, int BorrowOffset, int ExpectedReturnOffset, string Purpose, bool IsReturned = false);
     private sealed record ConsumableRequestSeed(string Username, string Code, int Quantity, string Status, string Reason);
-    private sealed record MaintenanceSeed(string AssetCode, string Status, int DaysAgo, decimal Cost, string Description, string PerformedBy, string Supplier);
-    private sealed record ScheduleSeed(string AssetCode, string Name, int IntervalDays, int NextDueOffset);
-    private sealed record InventorySeed(string Code, string Name, string Status, int StartedDaysAgo, int? CompletedDaysAgo, string LocationCode);
+    private sealed record InventorySeed(string Code, string Name, string Status, int StartedDaysAgo, int? CompletedDaysAgo, string? LocationCode);
     private sealed record TransactionSeed(string Code, string Type, int Quantity, string Reason, int DaysAgo);
     private sealed record NotificationSeed(string Username, string Type, string Title, string Message, string Url);
 }

@@ -2,8 +2,8 @@ namespace LabManagementAPI.Models;
 
 /// <summary>
 /// Borrow workflow states that still own a reservation or are waiting for a
-/// handover. An equipment item must not be edited, moved, deleted, or sent to
-/// maintenance while one of these requests references it.
+/// handover. An equipment item must not be edited, moved, or deleted while one
+/// of these requests references it.
 /// </summary>
 public static class BorrowLockRules
 {

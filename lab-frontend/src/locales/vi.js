@@ -83,7 +83,6 @@
     devices: 'Thiết bị & Tài sản',
     borrowHistory: 'Lịch sử mượn/trả',
     teacherApproval: 'Giảng viên phê duyệt',
-    maintenanceHistory: 'Thiết bị hỏng',
     userManagement: 'Quản lý người dùng',
     auditLogs: 'Nhật ký hoạt động',
     borrowRequests: 'Phê duyệt mượn trả',
@@ -134,8 +133,7 @@
     qrcode: 'Mã QR',
     scanToBorrow: 'Quét để mượn',
     statusReady: 'Rảnh',
-    statusBorrowing: 'Đang mượn',
-    statusMaintenance: 'Hỏng'
+    statusBorrowing: 'Đang mượn'
   },
   borrow: {
     requestBorrow: 'Yêu cầu mượn',

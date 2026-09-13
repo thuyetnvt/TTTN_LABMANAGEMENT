@@ -480,12 +480,7 @@ const managerDonutOptions = computed(() => ({
   }
 }))
 
-const visibleActivities = computed(() => stats.value.activities.filter(activity => {
-  const type = String(activity?.type || activity?.action || '').toUpperCase()
-  const content = String(activity?.message || '').toLowerCase()
-  return !type.includes('MAINTENANCE') && !content.includes('bảo trì')
-}))
-const recentActivities = computed(() => visibleActivities.value.slice(0, 4))
+const recentActivities = computed(() => stats.value.activities.slice(0, 4))
 
 const getActivityIcon = action => ({
   Create: PlusOutlined,
