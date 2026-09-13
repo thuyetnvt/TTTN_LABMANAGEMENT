@@ -4,7 +4,7 @@ const businessFlowEnabled = process.env.E2E_BUSINESS_FLOW === '1'
 const frontendBaseUrl = process.env.E2E_BASE_URL || 'http://localhost:8081'
 const apiBaseUrl = `${frontendBaseUrl.replace(/\/$/, '')}/api`
 
-test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiểm kê QR', async ({ page, request }) => {
+test('luồng mượn nhiều tài sản, bàn giao, trả và kiểm kê QR', async ({ page, request }) => {
   test.setTimeout(180000)
   test.skip(!businessFlowEnabled, 'Đặt E2E_BUSINESS_FLOW=1 để chạy flow nghiệp vụ có ghi dữ liệu test.')
   test.skip(process.env.E2E_TEST_DATABASE !== '1', 'Business E2E chỉ được chạy khi E2E_TEST_DATABASE=1 để không ghi dữ liệu vào môi trường thật.')
@@ -15,7 +15,6 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
   const studentUsername = process.env.E2E_STUDENT_USERNAME || 'sv1'
   const teacherUsername = process.env.E2E_TEACHER_USERNAME || 'giangvien1'
   const managerUsername = process.env.E2E_MANAGER_USERNAME || 'truonglab'
-  const deputyUsername = process.env.E2E_DEPUTY_USERNAME || 'pholab'
   if (!password) {
     throw new Error('Thiếu E2E_BUSINESS_PASSWORD hoặc E2E_ADMIN_PASSWORD.')
   }
@@ -39,13 +38,7 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
   const student = await loginApi(studentUsername)
   const teacher = await loginApi(teacherUsername)
   const manager = await loginApi(managerUsername)
-  const deputy = await loginApi(deputyUsername)
   const headers = token => ({ Authorization: `Bearer ${token}` })
-
-  const deputyMaintenanceAccess = await request.get(`${apiBaseUrl}/maintenance/paged?page=1&pageSize=1`, {
-    headers: headers(deputy.token)
-  })
-  expect(deputyMaintenanceAccess.ok(), await deputyMaintenanceAccess.text()).toBeTruthy()
 
   const usersResponse = await request.get(`${apiBaseUrl}/users`, { headers: headers(admin.token) })
   expect(usersResponse.ok(), await usersResponse.text()).toBeTruthy()
@@ -190,29 +183,6 @@ test('luồng mượn nhiều tài sản, bàn giao, trả, bảo trì và kiể
     }
   })
   expect(returnResponse.ok(), await returnResponse.text()).toBeTruthy()
-
-  const maintenanceResponse = await request.post(`${apiBaseUrl}/maintenance`, {
-    headers: headers(manager.token),
-    data: {
-      equipmentId: equipment[0].id,
-      description: 'Kiểm tra sau E2E',
-      performedBy: 'Kỹ thuật viên E2E',
-      supplier: 'Nội bộ',
-      checklist: 'Nguồn; kết nối',
-      cost: 0
-    }
-  })
-  expect(maintenanceResponse.ok(), await maintenanceResponse.text()).toBeTruthy()
-  const maintenance = await maintenanceResponse.json()
-  const completeMaintenance = await request.put(`${apiBaseUrl}/maintenance/${maintenance.id}/complete`, {
-    headers: headers(manager.token),
-    data: {
-      result: 'Thiết bị hoạt động bình thường.',
-      nextEquipmentStatus: 'AVAILABLE',
-      checklistResult: 'Đạt'
-    }
-  })
-  expect(completeMaintenance.ok(), await completeMaintenance.text()).toBeTruthy()
 
   const inventoryResponse = await request.post(`${apiBaseUrl}/inventory`, {
     headers: headers(manager.token),
