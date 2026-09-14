@@ -127,7 +127,7 @@ const columns = [
   { title: 'Mã', dataIndex: 'code', key: 'code', sortKey: 'code', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vị trí...' },
   { title: 'Tên vị trí', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vị trí...' },
   { title: 'Loại', key: 'type', sortKey: 'type', sortable: true, filterType: 'select', filterKey: 'type', filterOptions: typeOptions },
-  { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount', sortKey: 'equipmentCount', sortable: true },
+  { title: 'Số tài sản', dataIndex: 'equipmentCount', key: 'equipmentCount', sortKey: 'equipmentCount', sortable: true, width: 130, align: 'center', className: 'location-asset-count-column' },
   { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 170, align: 'center', className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'ACTIVE', label: 'Đang sử dụng' },
     { value: 'INACTIVE', label: 'Ngừng sử dụng' }
@@ -261,6 +261,22 @@ onMounted(fetchLocations)
   flex: 0 0 320px;
   width: 320px !important;
   min-width: 0;
+}
+.locations-page :deep(.location-asset-count-column) {
+  width: 130px !important;
+  min-width: 130px !important;
+  max-width: 130px !important;
+  padding-right: 8px !important;
+  padding-left: 8px !important;
+  text-align: center !important;
+}
+.locations-page :deep(th.location-asset-count-column .table-column-header) {
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+}
+.locations-page :deep(th.location-asset-count-column .table-column-controls) {
+  margin-left: 4px;
 }
 @media (max-width: 640px) { .page-heading { flex-direction: column; } }
 @media (max-width: 640px) {

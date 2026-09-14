@@ -137,6 +137,14 @@ test('vị trí được quản lý dạng phẳng và không còn trường v�
   assert.doesNotMatch(apiSource, /LAB-ROOT|parentId|withoutParent/)
 })
 
+test('bảng vị trí giữ cột số tài sản gọn và căn giữa', () => {
+  const source = readFileSync(new URL('../src/views/LocationsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /title: 'Số tài sản'[\s\S]*?width: 130[\s\S]*?align: 'center'[\s\S]*?className: 'location-asset-count-column'/)
+  assert.match(source, /\.location-asset-count-column\) \{[\s\S]*?width: 130px !important;[\s\S]*?text-align: center !important;/)
+  assert.match(source, /th\.location-asset-count-column \.table-column-header\) \{[\s\S]*?justify-content: center;/)
+})
+
 test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {
   const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
   const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')

@@ -261,6 +261,24 @@ test('cột trạng thái căn giữa cả tiêu đề, bộ điều khiển và
   expect(await statusCell.evaluate(element => getComputedStyle(element).textAlign)).toBe('center')
 })
 
+test('cột số tài sản của bảng vị trí thu gọn và căn giữa', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 900 })
+  await page.goto('/dashboard/locations')
+
+  const assetCountHeader = page.locator('th.location-asset-count-column')
+  const assetCountHeaderContent = assetCountHeader.locator('.table-column-header')
+  const assetCountCell = page.locator('td.location-asset-count-column').first()
+  const assetCountBox = await assetCountHeader.boundingBox()
+
+  await expect(assetCountHeader).toBeVisible()
+  await expect(assetCountCell).toBeVisible()
+  expect(assetCountBox).toBeTruthy()
+  expect(Math.round(assetCountBox.width)).toBe(130)
+  expect(await assetCountHeader.evaluate(element => getComputedStyle(element).textAlign)).toBe('center')
+  expect(await assetCountHeaderContent.evaluate(element => getComputedStyle(element).justifyContent)).toBe('center')
+  expect(await assetCountCell.evaluate(element => getComputedStyle(element).textAlign)).toBe('center')
+})
+
 test('bảng yêu cầu cấp phát hiển thị cột số lượng gọn và cột hành động đủ rộng', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
   await page.goto('/dashboard/consumable-requests')
