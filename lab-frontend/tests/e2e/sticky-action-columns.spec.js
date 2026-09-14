@@ -70,6 +70,29 @@ const responses = {
     depreciationPercentage: 10,
     status: 'AVAILABLE'
   }]),
+  '/api/handover/issue-reports': [{
+    id: 41,
+    handoverRecordId: 31,
+    borrowRecordId: 21,
+    handoverCode: 'BG-E2E-041',
+    borrowerName: 'Sinh viên E2E',
+    borrowerUsername: 'sv-e2e',
+    equipmentId: 4,
+    equipmentName: 'Máy hiện sóng E2E',
+    assetCode: 'TS-E2E-004',
+    serial: 'E2E-SERIAL-004',
+    issueType: 'NOT_WORKING',
+    description: 'Thiết bị không hoạt động khi bàn giao.',
+    status: 'HANDOVER_ISSUE_PENDING',
+    reportedAt: now,
+    evidence: [{
+      id: 51,
+      originalFileName: 'bang-chung-e2e.svg',
+      contentType: 'image/svg+xml',
+      fileSize: 256,
+      uploadedAt: now
+    }]
+  }],
   '/api/assetcategory': [{ id: 1, name: 'Thiết bị đo' }],
   '/api/location': [
     { id: 99, code: 'LAB-ROOT', name: 'Phòng Lab IoT', type: 'BUILDING', isActive: true, equipmentCount: 0 },
@@ -94,6 +117,15 @@ test.beforeEach(async ({ page }) => {
 
   await page.route(url => new URL(url).pathname.startsWith('/api/'), async route => {
     const path = new URL(route.request().url()).pathname
+    if (path === '/api/handover/issue-reports/41/evidence/51') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="112" height="84"><rect width="112" height="84" fill="#e27757"/><circle cx="56" cy="42" r="20" fill="#fff"/></svg>'
+      })
+      return
+    }
+
     const body = responses[path]
       || (path === '/api/users/me'
         ? { id: 1, username: 'admin', fullName: 'Quản trị viên', role: 'Admin' }
@@ -239,6 +271,20 @@ test('bảng vật tư tiêu hao ẩn các cột tồn kho phụ', async ({ page
   for (const columnName of ['Mã vật tư', 'Tên vật tư', 'Đơn vị', 'Khả dụng', 'Người chịu trách nhiệm', 'Trạng thái', 'Hành động']) {
     await expect(table.getByRole('columnheader', { name: new RegExp(columnName) })).toBeVisible()
   }
+})
+
+test('báo cáo sai lệch hiển thị ảnh bằng chứng thu nhỏ thay cho số lượng ảnh', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/dashboard/handover-issues')
+
+  const table = page.locator('.desktop-table')
+  const thumbnail = table.locator('img[alt="Bằng chứng của Máy hiện sóng E2E"]')
+  await expect(thumbnail).toBeVisible()
+  const thumbnailBox = await thumbnail.boundingBox()
+  expect(thumbnailBox).toBeTruthy()
+  expect(Math.round(thumbnailBox.width)).toBe(56)
+  expect(Math.round(thumbnailBox.height)).toBe(42)
+  await expect(table.getByText('1 ảnh', { exact: true })).toHaveCount(0)
 })
 
 test('lịch sử mượn trả không ghim trạng thái và ẩn các cột chỉ cần trong chi tiết', async ({ page }) => {

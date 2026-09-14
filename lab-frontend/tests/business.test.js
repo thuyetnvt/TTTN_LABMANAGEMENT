@@ -404,6 +404,9 @@ test('luồng bàn giao cho phép báo sai lệch và khóa xác nhận khi đan
   assert.match(handoverApiSource, /resolveIssueReport/)
   assert.match(issueViewSource, /Báo cáo sai lệch bàn giao/)
   assert.match(issueViewSource, /downloadIssueEvidence/)
+  assert.match(issueViewSource, /class="evidence-thumbnail"/)
+  assert.match(issueViewSource, /loadEvidencePreview\(report, evidence, true\)/)
+  assert.doesNotMatch(issueViewSource, /record\.evidence\?\.length \|\| 0 \}\} ảnh/)
   assert.match(routerSource, /name: 'HandoverIssues'/)
 })
 

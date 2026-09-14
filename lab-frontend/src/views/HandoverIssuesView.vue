@@ -34,7 +34,32 @@
             {{ formatDateTime(record.reportedAt) }}
           </template>
           <template v-else-if="column.key === 'evidence'">
-            {{ record.evidence?.length || 0 }} ảnh
+            <div class="evidence-thumbnail-cell">
+              <span v-if="!firstEvidence(record)" class="evidence-empty">—</span>
+              <a-spin
+                v-else-if="evidenceLoading[evidenceKey(record, firstEvidence(record))]"
+                size="small"
+              />
+              <a-image
+                v-else-if="evidencePreviewUrls[evidenceKey(record, firstEvidence(record))]"
+                class="evidence-thumbnail"
+                :src="evidencePreviewUrls[evidenceKey(record, firstEvidence(record))]"
+                :width="56"
+                :height="42"
+                :preview="true"
+                :alt="`Bằng chứng của ${record.equipmentName || 'thiết bị'}`"
+              />
+              <a-tooltip v-else title="Không tải được ảnh. Bấm để thử lại">
+                <a-button
+                  type="text"
+                  class="evidence-retry"
+                  aria-label="Tải lại ảnh bằng chứng"
+                  @click="loadEvidencePreview(record, firstEvidence(record))"
+                >
+                  <template #icon><PictureOutlined /></template>
+                </a-button>
+              </a-tooltip>
+            </div>
           </template>
           <template v-else-if="column.key === 'description'">
             <span class="description-cell">{{ record.description }}</span>
@@ -129,7 +154,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { EyeOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, PictureOutlined } from '@ant-design/icons-vue'
 import EmptyState from '../components/EmptyState.vue'
 import { handoverApi } from '../api/handoverApi'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -178,18 +203,8 @@ const statusColor = status => ({
   HANDOVER_ISSUE_REJECTED: 'red'
 }[status] || 'default')
 
-const fetchReports = async () => {
-  loading.value = true
-  try {
-    reports.value = await handoverApi.getIssueReports(statusFilter.value)
-  } catch (error) {
-    message.error(getApiErrorMessage(error, 'Không thể tải báo cáo sai lệch.'))
-  } finally {
-    loading.value = false
-  }
-}
-
 const evidenceKey = (report, evidence) => `${report.id}-${evidence.id}`
+const firstEvidence = report => report?.evidence?.[0] || null
 
 const formatFileSize = bytes => {
   if (!bytes) return '0 KB'
@@ -197,7 +212,8 @@ const formatFileSize = bytes => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const loadEvidencePreview = async (report, evidence) => {
+const loadEvidencePreview = async (report, evidence, silent = false) => {
+  if (!report || !evidence) return
   const key = evidenceKey(report, evidence)
   if (evidencePreviewUrls[key] || evidenceLoading[key]) return
   evidenceLoading[key] = true
@@ -205,9 +221,25 @@ const loadEvidencePreview = async (report, evidence) => {
     const blob = await handoverApi.downloadIssueEvidence(report.id, evidence.id)
     evidencePreviewUrls[key] = URL.createObjectURL(blob)
   } catch (error) {
-    message.error(getApiErrorMessage(error, 'Không thể tải ảnh bằng chứng.'))
+    if (!silent) message.error(getApiErrorMessage(error, 'Không thể tải ảnh bằng chứng.'))
   } finally {
     evidenceLoading[key] = false
+  }
+}
+
+const fetchReports = async () => {
+  loading.value = true
+  try {
+    const result = await handoverApi.getIssueReports(statusFilter.value)
+    reports.value = Array.isArray(result) ? result : []
+    reports.value.forEach(report => {
+      const evidence = firstEvidence(report)
+      if (evidence) void loadEvidencePreview(report, evidence, true)
+    })
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể tải báo cáo sai lệch.'))
+  } finally {
+    loading.value = false
   }
 }
 
@@ -273,6 +305,11 @@ onBeforeUnmount(() => {
 .handover-issues-card { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
 .description-cell { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .view-action { color: var(--color-primary); }
+.evidence-thumbnail-cell { display: flex; min-height: 42px; align-items: center; justify-content: center; }
+.evidence-thumbnail { overflow: hidden; border: 1px solid var(--color-border, #e5e7eb); border-radius: 6px; cursor: zoom-in; background: #f5f5f5; }
+.evidence-thumbnail :deep(.ant-image-img) { width: 56px; height: 42px; object-fit: cover; }
+.evidence-empty { color: var(--color-secondary); }
+.evidence-retry { color: var(--color-secondary); }
 .issue-evidence-grid { display: grid; gap: 10px; }
 .issue-evidence-card { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; }
 .issue-evidence-card :deep(.ant-image) { flex: 0 0 auto; overflow: hidden; border-radius: 6px; background: #f5f5f5; }
