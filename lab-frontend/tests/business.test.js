@@ -376,6 +376,18 @@ test('bảng thiết bị hiển thị vị trí trước model và chuyển cá
   assert.match(source, /detailField\('decisionFile', 'Quyết định'/)
 })
 
+test('bảng vật tư tiêu hao ẩn các cột tồn kho phụ khỏi danh sách chính', () => {
+  const source = readFileSync(new URL('../src/components/ConsumablesTable.vue', import.meta.url), 'utf8')
+  const columns = source.match(/const columns = computed\(\(\) => \{([\s\S]*?)const tableScrollX/)?.[1] || ''
+
+  for (const title of ['Danh mục', 'Tổng tồn', 'Tồn tối thiểu', 'Đang giữ', 'Số lô']) {
+    assert.doesNotMatch(columns, new RegExp(`title: '${title}'`))
+  }
+  assert.match(columns, /title: 'Mã vật tư'[\s\S]*title: 'Tên vật tư'[\s\S]*title: 'Đơn vị'[\s\S]*title: 'Khả dụng'/)
+  assert.match(columns, /title: 'Người chịu trách nhiệm'/)
+  assert.match(source, /const tableScrollX = computed\(\(\) => columns\.value\.reduce/)
+})
+
 test('luồng bàn giao cho phép báo sai lệch và khóa xác nhận khi đang chờ xử lý', () => {
   const historySource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
   const handoverApiSource = readFileSync(new URL('../src/api/handoverApi.js', import.meta.url), 'utf8')

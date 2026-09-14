@@ -228,6 +228,19 @@ test('bảng yêu cầu cấp phát hiển thị cột số lượng gọn và c
   expect(Math.round(actionBox.width)).toBeGreaterThanOrEqual(290)
 })
 
+test('bảng vật tư tiêu hao ẩn các cột tồn kho phụ', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 900 })
+  await page.goto('/dashboard/devices?tab=consumables')
+
+  const table = page.locator('.consumables-desktop-table')
+  for (const columnName of ['Danh mục', 'Tổng tồn', 'Tồn tối thiểu', 'Đang giữ', 'Số lô']) {
+    await expect(table.getByRole('columnheader', { name: new RegExp(columnName) })).toHaveCount(0)
+  }
+  for (const columnName of ['Mã vật tư', 'Tên vật tư', 'Đơn vị', 'Khả dụng', 'Người chịu trách nhiệm', 'Trạng thái', 'Hành động']) {
+    await expect(table.getByRole('columnheader', { name: new RegExp(columnName) })).toBeVisible()
+  }
+})
+
 test('lịch sử mượn trả không ghim trạng thái và ẩn các cột chỉ cần trong chi tiết', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/dashboard/borrow-history')

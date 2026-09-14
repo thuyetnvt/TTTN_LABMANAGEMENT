@@ -34,12 +34,7 @@
         <span v-else>{{ column.title }}</span>
       </template>
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'quantity'">
-          <span :style="{ color: availableStock(record) <= record.minQuantity ? '#dc2626' : '#16a34a', fontWeight: 700 }">
-            {{ isManagerRole(role) ? record.quantity : availableStock(record) }}
-          </span>
-        </template>
-        <template v-else-if="column.key === 'availableQuantity'">
+        <template v-if="column.key === 'availableQuantity'">
           <strong :style="{ color: availableStock(record) <= record.minQuantity ? '#dc2626' : '#16a34a' }">{{ availableStock(record) }}</strong>
         </template>
         <template v-else-if="column.key === 'entryDate'">
@@ -101,11 +96,7 @@
               <a-tag color="orange">{{ item.code || 'Chưa có mã' }}</a-tag>
             </div>
             <dl class="consumable-mobile-details">
-              <div><dt>Danh mục</dt><dd>{{ item.categoryName || '—' }}</dd></div>
-              <div v-if="isManagerRole(role)"><dt>Tổng tồn</dt><dd>{{ item.quantity }} {{ item.unit }}</dd></div>
-              <div v-if="isManagerRole(role)"><dt>Đang giữ</dt><dd>{{ item.reservedQuantity || 0 }} {{ item.unit }}</dd></div>
               <div><dt>Khả dụng</dt><dd>{{ availableStock(item) }} {{ item.unit }}</dd></div>
-              <div><dt>Tồn tối thiểu</dt><dd>{{ item.minQuantity }} {{ item.unit }}</dd></div>
               <div v-if="isManagerRole(role)"><dt>Người chịu trách nhiệm</dt><dd>{{ item.responsibleName || item.responsiblePerson || 'Chưa có dữ liệu' }}</dd></div>
             </dl>
             <a-tag :color="availableStock(item) <= item.minQuantity ? 'red' : 'green'">
@@ -408,15 +399,10 @@ const columns = computed(() => {
   const commonColumns = [
   { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150, fixed: 'left', sortable: true, sortKey: 'code', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vật tư...' },
   { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240, fixed: 'left', sortable: true, sortKey: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
-  { title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName', width: 140, sortable: true, sortKey: 'category', filterType: 'select', filterKey: 'category', filterOptions: categories.value.map(item => ({ value: item.id, label: item.name })) },
   { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100, sortable: true, sortKey: 'unit', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm đơn vị...' },
-  { title: isManagerRole(role.value) ? 'Tổng tồn' : 'Khả dụng', dataIndex: 'quantity', key: 'quantity', sortable: true, sortKey: isManagerRole(role.value) ? 'quantity' : 'availableQuantity', align: 'center', width: 110 },
-  { title: 'Tồn tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', sortable: true, sortKey: 'minQuantity', align: 'center', width: 120 }
+  { title: 'Khả dụng', dataIndex: 'availableQuantity', key: 'availableQuantity', sortable: true, sortKey: 'availableQuantity', align: 'center', width: 110 }
   ]
   const managerColumns = isManagerRole(role.value) ? [
-    { title: 'Đang giữ', dataIndex: 'reservedQuantity', key: 'reservedQuantity', sortable: true, sortKey: 'reservedQuantity', align: 'center', width: 100 },
-    { title: 'Khả dụng', dataIndex: 'availableQuantity', key: 'availableQuantity', sortable: true, sortKey: 'availableQuantity', align: 'center', width: 100 },
-    { title: 'Số lô', dataIndex: 'lotCount', key: 'lotCount', sortable: true, sortKey: 'lotCount', align: 'center', width: 90 },
     { title: 'Người chịu trách nhiệm', dataIndex: 'responsibleName', key: 'responsibleName', sortable: true, sortKey: 'responsiblePerson', width: 260 }
   ] : []
   return [...commonColumns, ...managerColumns,
@@ -435,13 +421,7 @@ const columns = computed(() => {
   ]
 })
 
-const tableScrollX = computed(() => {
-  const commonWidth = 860
-  const managerWidth = isManagerRole(role.value) ? 470 : 0
-  const actionWidth = isAdminRole(role.value) ? 170 : (isManagerRole(role.value) ? 140 : 70)
-
-  return commonWidth + managerWidth + 120 + actionWidth
-})
+const tableScrollX = computed(() => columns.value.reduce((total, column) => total + (Number(column.width) || 0), 0))
 
 const lotColumns = [
   { title: 'Số lô', dataIndex: 'lotNumber', key: 'lotNumber', width: 150 },
