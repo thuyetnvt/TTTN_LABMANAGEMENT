@@ -446,7 +446,7 @@ const importPreviewColumns = [
   { title: 'Số seri', dataIndex: ['row', 'serial'], key: 'serial', width: 130 },
   { title: 'Ngày đăng ký', key: 'borrowDate', width: 130 },
   { title: 'Hạn trả', key: 'expectedReturnDate', width: 120 },
-  { title: 'Trạng thái', dataIndex: ['row', 'status'], key: 'status', width: 160 },
+  { title: 'Trạng thái', dataIndex: ['row', 'status'], key: 'status', width: 160, align: 'center', className: 'status-column' },
   { title: 'Kết quả', key: 'valid', width: 280 }
 ]
 

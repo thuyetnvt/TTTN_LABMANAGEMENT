@@ -57,11 +57,26 @@ html,
   background: #e6f4ff !important;
 }
 
-/* Các thẻ trạng thái luôn nằm gọn trên một hàng và không bị cắt trong bảng. */
+/* Mọi cột trạng thái căn giữa cả tiêu đề, bộ lọc/sắp xếp và nội dung. */
 .ant-table-wrapper .status-column,
 .ant-table-wrapper .status-column .ant-tag,
 .ant-table-wrapper .status-badge {
   white-space: nowrap;
+}
+
+.ant-table-wrapper th.status-column,
+.ant-table-wrapper td.status-column {
+  text-align: center !important;
+}
+
+.ant-table-wrapper th.status-column .table-column-header {
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.ant-table-wrapper th.status-column .table-column-controls {
+  margin-left: 4px;
 }
 
 .borrower-phone-link {

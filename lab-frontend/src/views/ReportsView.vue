@@ -434,7 +434,7 @@ const borrowColumns = [
   { title: 'SĐT liên hệ', dataIndex: 'phone', key: 'phone', width: 150, sortable: true, sortKey: 'phone', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm số điện thoại...' },
   { title: 'Thiết bị', dataIndex: 'equipment', key: 'equipment', width: 220, ellipsis: true, sortable: true, sortKey: 'equipment', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm thiết bị...' },
   { title: 'Hạn trả', dataIndex: 'expectedReturnDate', key: 'expectedReturnDate', width: 130, sortable: true, sortKey: 'expectedReturnDate' },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 190, className: 'status-column', sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 190, align: 'center', className: 'status-column', sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'BORROWED', label: 'Đang mượn' },
     { value: 'OVERDUE', label: 'Quá hạn' },
     { value: 'RETURN_PROCESSING', label: 'Đang xử lý trả' }
@@ -450,7 +450,7 @@ const consumableColumns = [
   { title: 'Vật tư', dataIndex: 'name', key: 'name', width: 280, ellipsis: true, sortable: true, sortKey: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm vật tư...' },
   { title: 'Khả dụng', key: 'quantity', width: 150, sortable: true, sortKey: 'quantity' },
   { title: 'Mức tối thiểu', dataIndex: 'minQuantity', key: 'minQuantity', width: 150, sortable: true, sortKey: 'minQuantity' },
-  { title: 'Trạng thái', key: 'status', width: 160, className: 'status-column', sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
+  { title: 'Trạng thái', key: 'status', width: 160, align: 'center', className: 'status-column', sortable: true, sortKey: 'status', filterType: 'select', filterKey: 'status', filterOptions: [
     { value: 'LOW_STOCK', label: 'Sắp hết' },
     { value: 'AVAILABLE', label: 'Đủ tồn' }
   ] }
@@ -539,7 +539,7 @@ const statusDetailsColumns = computed(() => {
     { title: 'Model', dataIndex: 'model', key: 'model', width: 180, ellipsis: true },
     { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 150, ellipsis: true },
     { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 150, ellipsis: true },
-    { title: 'Trạng thái', key: 'status', width: 180, className: 'status-column' }
+    { title: 'Trạng thái', key: 'status', width: 180, align: 'center', className: 'status-column' }
   ]
 })
 
@@ -564,7 +564,7 @@ const responsibleDetailsColumns = [
   { title: 'Model', dataIndex: 'model', key: 'model', width: 170, ellipsis: true },
   { title: 'Số seri', dataIndex: 'serial', key: 'serial', width: 150, ellipsis: true },
   { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 160, ellipsis: true },
-  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160 }
+  { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 160, align: 'center', className: 'status-column' }
 ]
 const showResponsibleDetails = record => {
   selectedResponsible.value = record

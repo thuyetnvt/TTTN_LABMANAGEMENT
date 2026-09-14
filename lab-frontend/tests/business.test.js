@@ -31,6 +31,21 @@ const TABLE_FILES_WITH_STICKY_ACTION = [
   '../src/views/TeacherApprovalView.vue'
 ]
 
+const TABLE_FILES_WITH_STATUS_COLUMNS = [
+  '../src/views/ApprovalDelegationsView.vue',
+  '../src/views/BorrowHistoryView.vue',
+  '../src/views/BorrowRequestsView.vue',
+  '../src/views/ConsumableRequestsView.vue',
+  '../src/views/HandoverIssuesView.vue',
+  '../src/views/InventoryView.vue',
+  '../src/views/LocationsView.vue',
+  '../src/views/ReportsView.vue',
+  '../src/views/TeacherApprovalView.vue',
+  '../src/components/ConsumablesTable.vue',
+  '../src/components/DeviceTable.vue',
+  '../src/components/UserTable.vue'
+]
+
 test('ghim cùng một cột hành động cho cả header và body của mọi bảng thao tác', () => {
   for (const relativePath of TABLE_FILES_WITH_STICKY_ACTION) {
     const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
@@ -74,6 +89,27 @@ test('tiêu đề cột của toàn bộ bảng không tự xuống hàng', () =
   assert.match(globalStyle, /\.ant-table-wrapper \.ant-table-thead > tr > th\s*\{[\s\S]*?white-space:\s*nowrap;/)
   assert.match(filterSource, /\.table-column-title\s*\{[\s\S]*?white-space:\s*nowrap;/)
   assert.match(consumablesSource, /\.consumables-desktop-table :deep\(\.ant-table-thead > tr > th\)[\s\S]*?white-space:\s*nowrap;/)
+})
+
+test('tất cả cột trạng thái căn giữa cả tiêu đề và nội dung', () => {
+  for (const relativePath of TABLE_FILES_WITH_STATUS_COLUMNS) {
+    const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+    const declarations = source
+      .split(/\r?\n/)
+      .filter(line => line.includes('{ title:')
+        && (line.includes("title: 'Trạng thái'") || line.includes("key: 'status'")))
+
+    assert.ok(declarations.length > 0, `${relativePath} phải có cột trạng thái`)
+    for (const declaration of declarations) {
+      assert.match(declaration, /align:\s*'center'/, `${relativePath}: ${declaration.trim()}`)
+      assert.match(declaration, /className:\s*'[^']*status-column[^']*'/, `${relativePath}: ${declaration.trim()}`)
+    }
+  }
+
+  const globalStyle = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8')
+  assert.match(globalStyle, /th\.status-column,\s*\n\.ant-table-wrapper td\.status-column\s*\{[\s\S]*?text-align:\s*center\s*!important;/)
+  assert.match(globalStyle, /th\.status-column \.table-column-header\s*\{[\s\S]*?justify-content:\s*center;/)
+  assert.match(globalStyle, /th\.status-column \.table-column-controls\s*\{[\s\S]*?margin-left:\s*4px;/)
 })
 
 test('vị trí lưu vật tư được chọn từ cây vị trí có sẵn', () => {

@@ -243,6 +243,24 @@ test('quản lý vị trí không còn vị trí cha và không hiển thị nú
   await expect(dialog.getByText('Vị trí cha', { exact: true })).toHaveCount(0)
 })
 
+test('cột trạng thái căn giữa cả tiêu đề, bộ điều khiển và nội dung', async ({ page }) => {
+  await page.goto('/dashboard/locations')
+
+  const statusHeader = page.locator('th.status-column')
+  const statusHeaderContent = statusHeader.locator('.table-column-header')
+  const statusHeaderControls = statusHeader.locator('.table-column-controls')
+  const statusCell = page.locator('td.status-column').first()
+
+  await expect(statusHeader).toBeVisible()
+  await expect(statusHeaderContent).toBeVisible()
+  await expect(statusHeaderControls).toBeVisible()
+  await expect(statusCell).toBeVisible()
+  expect(await statusHeader.evaluate(element => getComputedStyle(element).textAlign)).toBe('center')
+  expect(await statusHeaderContent.evaluate(element => getComputedStyle(element).justifyContent)).toBe('center')
+  expect(await statusHeaderControls.evaluate(element => getComputedStyle(element).marginLeft)).toBe('4px')
+  expect(await statusCell.evaluate(element => getComputedStyle(element).textAlign)).toBe('center')
+})
+
 test('bảng yêu cầu cấp phát hiển thị cột số lượng gọn và cột hành động đủ rộng', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
   await page.goto('/dashboard/consumable-requests')
