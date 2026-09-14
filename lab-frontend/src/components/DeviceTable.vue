@@ -408,8 +408,7 @@ const sortState = reactive({ field: undefined, order: undefined })
 const columns = computed(() => {
   const commonColumns = [
     { title: 'Tên thiết bị', dataIndex: 'name', key: 'name', sortKey: 'name', sortable: true, width: 200, fixed: 'left', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên thiết bị...' },
-    { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 150 },
-    { title: 'Model', dataIndex: 'model', key: 'model', sortKey: 'model', sortable: true, width: 130, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm model...' }
+    { title: 'Vị trí', dataIndex: 'location', key: 'location', width: 150 }
   ]
   const managerColumns = isManager.value ? [
     { title: 'Người chịu trách nhiệm', dataIndex: 'responsiblePerson', key: 'responsiblePerson', sortKey: 'responsiblePerson', sortable: true, width: 260, filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm người chịu trách nhiệm...' },

@@ -3,12 +3,12 @@
     <div class="table-actions">
       <div class="left-actions">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Tìm mã, tên vật tư..." class="filter-search" @search="applyFilters" />
-        <a-select v-model:value="stockFilter" allow-clear placeholder="Tình trạng tồn" class="status-filter" @change="applyFilters">
+        <a-select v-model:value="stockFilter" allow-clear placeholder="Tình trạng tồn" class="status-filter stock-filter" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
           <a-select-option value="AVAILABLE">Đủ dùng</a-select-option>
           <a-select-option value="LOW_STOCK">Sắp hết</a-select-option>
         </a-select>
-        <a-select v-model:value="categoryFilter" allow-clear placeholder="Danh mục" style="width: 170px" @change="applyFilters">
+        <a-select v-model:value="categoryFilter" allow-clear placeholder="Danh mục" class="status-filter category-filter" @change="applyFilters">
           <a-select-option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</a-select-option>
         </a-select>
       </div>
@@ -396,16 +396,15 @@ const availableStock = record => Number(record?.availableQuantity ?? Math.max(0,
 const activeLocations = computed(() => locations.value.filter(location => location.isActive))
 
 const columns = computed(() => {
-  const commonColumns = [
-  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150, fixed: 'left', sortable: true, sortKey: 'code', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vật tư...' },
-  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240, fixed: 'left', sortable: true, sortKey: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
-  { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100, sortable: true, sortKey: 'unit', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm đơn vị...' },
-  { title: 'Khả dụng', dataIndex: 'availableQuantity', key: 'availableQuantity', sortable: true, sortKey: 'availableQuantity', align: 'center', width: 110 }
-  ]
   const managerColumns = isManagerRole(role.value) ? [
     { title: 'Người chịu trách nhiệm', dataIndex: 'responsibleName', key: 'responsibleName', sortable: true, sortKey: 'responsiblePerson', width: 260 }
   ] : []
-  return [...commonColumns, ...managerColumns,
+  return [
+  { title: 'Mã vật tư', dataIndex: 'code', key: 'code', width: 150, fixed: 'left', sortable: true, sortKey: 'code', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm mã vật tư...' },
+  { title: 'Tên vật tư', dataIndex: 'name', key: 'name', width: 240, fixed: 'left', sortable: true, sortKey: 'name', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
+  ...managerColumns,
+  { title: 'Khả dụng', dataIndex: 'availableQuantity', key: 'availableQuantity', sortable: true, sortKey: 'availableQuantity', align: 'center', width: 110 },
+  { title: 'Đơn vị', dataIndex: 'unit', key: 'unit', width: 100, sortable: true, sortKey: 'unit', filterType: 'search', filterKey: 'search', filterPlaceholder: 'Tìm đơn vị...' },
   { title: 'Trạng thái', key: 'status', sortable: true, sortKey: 'status', align: 'center', width: 145, className: 'status-column', filterType: 'select', filterKey: 'stock', filterOptions: [
     { value: 'AVAILABLE', label: 'Đủ dùng' },
     { value: 'LOW_STOCK', label: 'Sắp hết' }

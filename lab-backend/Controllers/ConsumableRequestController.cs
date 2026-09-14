@@ -7,6 +7,8 @@ using LabManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 
 namespace LabManagementAPI.Controllers;
 
@@ -78,20 +80,7 @@ public class ConsumableRequestController : ControllerBase
         var userId = GetCurrentUserId();
         var canApprove = await CanApproveConsumableAsync(userId, role, cancellationToken);
 
-        var query = _context.ConsumableRequests
-            .AsNoTracking()
-            .Include(request => request.Consumable)
-                .ThenInclude(consumable => consumable!.AssetCategory)
-            .Include(request => request.User)
-            .Include(request => request.RejectedByUser)
-            .Include(request => request.LotAllocations)
-                .ThenInclude(allocation => allocation.ConsumableLot)
-            .AsQueryable();
-
-        if (!canApprove && (role is Roles.Student or Roles.Teacher))
-        {
-            query = query.Where(request => request.UserId == userId);
-        }
+        var query = BuildVisibleRequestsQuery(userId, role, canApprove);
 
         var requests = await query
             .OrderByDescending(request => request.RequestDate)
@@ -137,44 +126,9 @@ public class ConsumableRequestController : ControllerBase
         var role = User.FindFirstValue(ClaimTypes.Role);
         var userId = GetCurrentUserId();
         var canApprove = await CanApproveConsumableAsync(userId, role, cancellationToken);
-        var query = _context.ConsumableRequests
-            .AsNoTracking()
-            .Include(request => request.Consumable)
-                .ThenInclude(consumable => consumable!.AssetCategory)
-            .Include(request => request.User)
-            .Include(request => request.RejectedByUser)
-            .Include(request => request.LotAllocations)
-                .ThenInclude(allocation => allocation.ConsumableLot)
-            .AsQueryable();
-        if (!canApprove && (role is Roles.Student or Roles.Teacher))
-        {
-            query = query.Where(request => request.UserId == userId);
-        }
-
-        var search = paging.NormalizedSearch;
-        if (search.Length > 0)
-        {
-            query = query.Where(request =>
-                request.Consumable!.Name.Contains(search)
-                || request.Consumable.Code.Contains(search)
-                || request.User!.Username.Contains(search)
-                || request.User.FullName.Contains(search)
-                || request.Reason.Contains(search));
-        }
-        if (!string.IsNullOrWhiteSpace(paging.Status))
-        {
-            var status = paging.Status.Trim();
-            query = query.Where(request => request.Status == status);
-        }
-        if (paging.From.HasValue)
-        {
-            query = query.Where(request => request.RequestDate >= paging.From.Value);
-        }
-        if (paging.To.HasValue)
-        {
-            var exclusiveTo = paging.To.Value.Date.AddDays(1);
-            query = query.Where(request => request.RequestDate < exclusiveTo);
-        }
+        var query = ApplyRequestFilters(
+            BuildVisibleRequestsQuery(userId, role, canApprove),
+            paging);
 
         var page = await ApplySorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
@@ -209,6 +163,155 @@ public class ConsumableRequestController : ControllerBase
             })
         }).ToList();
         return Ok(new PagedResult<object>(items, page.Total, page.Page, page.PageSize, page.TotalPages));
+    }
+
+    [HttpGet("export")]
+    [Authorize(Roles = Roles.Managers)]
+    public async Task<IActionResult> ExportRequests(
+        [FromQuery] PageQuery paging,
+        CancellationToken cancellationToken)
+    {
+        if (paging.From > paging.To)
+        {
+            return BadRequest(new { message = "Ngày bắt đầu không được sau ngày kết thúc." });
+        }
+
+        var query = ApplyRequestFilters(
+            BuildVisibleRequestsQuery(
+                GetCurrentUserId(),
+                User.FindFirstValue(ClaimTypes.Role),
+                canApprove: true),
+            paging);
+        var requests = await ApplySorting(query, paging)
+            .Take(10_000)
+            .ToListAsync(cancellationToken);
+
+        ExcelPackage.License.SetNonCommercialOrganization("LabManagement Educational Project");
+        using var package = new ExcelPackage();
+        var sheet = package.Workbook.Worksheets.Add("YeuCauVatTu");
+        var headers = new[]
+        {
+            "Mã yêu cầu", "Mã vật tư", "Tên vật tư", "Danh mục", "Tài khoản",
+            "Người yêu cầu", "Số lượng", "Đơn vị", "Mục đích", "Trạng thái",
+            "Ngày gửi", "Ngày duyệt", "Ngày bàn giao", "Ngày xác nhận nhận",
+            "Các lô đã giao", "Lý do xử lý", "Người xử lý", "Thời gian xử lý"
+        };
+
+        for (var column = 0; column < headers.Length; column++)
+        {
+            sheet.Cells[1, column + 1].Value = headers[column];
+        }
+
+        using (var header = sheet.Cells[1, 1, 1, headers.Length])
+        {
+            header.Style.Font.Bold = true;
+            header.Style.Fill.PatternType = ExcelFillStyle.Solid;
+            header.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(221, 235, 247));
+            header.AutoFilter = true;
+        }
+
+        for (var index = 0; index < requests.Count; index++)
+        {
+            var request = requests[index];
+            var row = index + 2;
+            sheet.Cells[row, 1].Value = request.Id;
+            sheet.Cells[row, 2].Value = request.Consumable?.Code ?? string.Empty;
+            sheet.Cells[row, 3].Value = request.Consumable?.Name ?? string.Empty;
+            sheet.Cells[row, 4].Value = request.Consumable?.AssetCategory?.Name ?? string.Empty;
+            sheet.Cells[row, 5].Value = request.User?.Username ?? string.Empty;
+            sheet.Cells[row, 6].Value = request.User?.FullName ?? string.Empty;
+            sheet.Cells[row, 7].Value = request.Quantity;
+            sheet.Cells[row, 8].Value = request.Consumable?.Unit ?? string.Empty;
+            sheet.Cells[row, 9].Value = SeedDisplayText.Clean(request.Reason);
+            sheet.Cells[row, 10].Value = StatusCodeMap.Label(request.Status);
+            sheet.Cells[row, 11].Value = FormatExportDateTime(request.RequestDate);
+            sheet.Cells[row, 12].Value = FormatExportDateTime(request.ApprovalDate);
+            sheet.Cells[row, 13].Value = FormatExportDateTime(request.HandedOverAt);
+            sheet.Cells[row, 14].Value = FormatExportDateTime(request.ReceivedAt);
+            sheet.Cells[row, 15].Value = string.Join("; ", request.LotAllocations
+                .OrderBy(allocation => allocation.ConsumableLot!.LotNumber)
+                .Select(allocation => $"{allocation.ConsumableLot!.LotNumber}: {allocation.Quantity}"));
+            sheet.Cells[row, 16].Value = SeedDisplayText.Clean(request.RejectionReason);
+            sheet.Cells[row, 17].Value = request.RejectedByUser?.FullName
+                ?? request.RejectedByUser?.Username
+                ?? string.Empty;
+            sheet.Cells[row, 18].Value = FormatExportDateTime(request.RejectedAt);
+        }
+
+        sheet.View.FreezePanes(2, 1);
+        if (requests.Count > 0)
+        {
+            sheet.Cells[2, 9, requests.Count + 1, 18].Style.WrapText = true;
+        }
+        sheet.Cells[sheet.Dimension?.Address ?? "A1"].AutoFitColumns(12, 40);
+
+        var bytes = await package.GetAsByteArrayAsync(cancellationToken);
+        return File(
+            bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"BaoCaoYeuCauVatTu_{VietnamTime.Now(DateTime.UtcNow):yyyyMMddHHmm}.xlsx");
+    }
+
+    private IQueryable<ConsumableRequest> BuildVisibleRequestsQuery(
+        int userId,
+        string? role,
+        bool canApprove)
+    {
+        var query = _context.ConsumableRequests
+            .AsNoTracking()
+            .Include(request => request.Consumable)
+                .ThenInclude(consumable => consumable!.AssetCategory)
+            .Include(request => request.User)
+            .Include(request => request.RejectedByUser)
+            .Include(request => request.LotAllocations)
+                .ThenInclude(allocation => allocation.ConsumableLot)
+            .AsQueryable();
+
+        if (!canApprove && (role is Roles.Student or Roles.Teacher))
+        {
+            query = query.Where(request => request.UserId == userId);
+        }
+
+        return query;
+    }
+
+    private static IQueryable<ConsumableRequest> ApplyRequestFilters(
+        IQueryable<ConsumableRequest> query,
+        PageQuery paging)
+    {
+        var search = paging.NormalizedSearch;
+        if (search.Length > 0)
+        {
+            query = query.Where(request =>
+                request.Consumable!.Name.Contains(search)
+                || request.Consumable.Code.Contains(search)
+                || request.User!.Username.Contains(search)
+                || request.User.FullName.Contains(search)
+                || request.Reason.Contains(search));
+        }
+        if (!string.IsNullOrWhiteSpace(paging.Status))
+        {
+            var status = paging.Status.Trim();
+            query = query.Where(request => request.Status == status);
+        }
+        if (paging.From.HasValue)
+        {
+            query = query.Where(request => request.RequestDate >= paging.From.Value);
+        }
+        if (paging.To.HasValue)
+        {
+            var exclusiveTo = paging.To.Value.Date.AddDays(1);
+            query = query.Where(request => request.RequestDate < exclusiveTo);
+        }
+
+        return query;
+    }
+
+    private static string FormatExportDateTime(DateTime? value)
+    {
+        return value.HasValue
+            ? VietnamTime.Now(value.Value).ToString("dd/MM/yyyy HH:mm")
+            : string.Empty;
     }
 
     private static IQueryable<ConsumableRequest> ApplySorting(

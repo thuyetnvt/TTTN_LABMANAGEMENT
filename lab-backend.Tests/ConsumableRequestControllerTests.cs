@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
@@ -14,6 +15,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
 using Xunit;
 
 namespace LabManagementAPI.Tests;
@@ -152,6 +154,72 @@ public sealed class ConsumableRequestControllerTests
             var item = json.RootElement.GetProperty("items")[0];
             Assert.Equal("Phạm Hà My", item.GetProperty("fullName").GetString());
             Assert.Equal("sv5", item.GetProperty("username").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task Export_requests_returns_an_excel_report_using_the_current_filters()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            var requestDate = new DateTime(2026, 9, 12, 3, 30, 0, DateTimeKind.Utc);
+            context.Users.AddRange(
+                new User { Id = 1, Username = "sv1", FullName = "Sinh viên 1", Role = Roles.Student, IsActive = true },
+                new User { Id = 99, Username = "manager", FullName = "Trưởng lab", Role = Roles.LabHead, IsActive = true });
+            context.AssetCategories.Add(new AssetCategory { Id = 7, Name = "Linh kiện" });
+            context.Consumables.AddRange(
+                new Consumable { Id = 1, Code = "VT-001", Name = "Điện trở 220 Ohm", Unit = "cái", Quantity = 50, AssetCategoryId = 7 },
+                new Consumable { Id = 2, Code = "VT-002", Name = "Keo tản nhiệt", Unit = "tuýp", Quantity = 10 });
+            context.ConsumableRequests.AddRange(
+                new ConsumableRequest
+                {
+                    Id = 31,
+                    ConsumableId = 1,
+                    UserId = 1,
+                    Quantity = 30,
+                    Reason = "Làm bài thực hành mạch LED",
+                    Status = ConsumableRequestStatuses.Pending,
+                    RequestDate = requestDate
+                },
+                new ConsumableRequest
+                {
+                    Id = 32,
+                    ConsumableId = 2,
+                    UserId = 1,
+                    Quantity = 2,
+                    Reason = "Vệ sinh máy tính",
+                    Status = ConsumableRequestStatuses.Rejected,
+                    RequestDate = requestDate
+                });
+            await context.SaveChangesAsync();
+
+            var controller = CreateController(context, 99, Roles.LabHead);
+            var result = await controller.ExportRequests(
+                new PageQuery
+                {
+                    Search = "Điện trở",
+                    Status = ConsumableRequestStatuses.Pending,
+                    From = new DateTime(2026, 9, 12),
+                    To = new DateTime(2026, 9, 12)
+                },
+                CancellationToken.None);
+
+            var file = Assert.IsType<FileContentResult>(result);
+            Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", file.ContentType);
+            Assert.EndsWith(".xlsx", file.FileDownloadName);
+            Assert.NotEmpty(file.FileContents);
+
+            using var package = new ExcelPackage(new MemoryStream(file.FileContents));
+            var sheet = package.Workbook.Worksheets["YeuCauVatTu"];
+            Assert.NotNull(sheet);
+            Assert.Equal("Mã yêu cầu", sheet.Cells[1, 1].Text);
+            Assert.Equal("Điện trở 220 Ohm", sheet.Cells[2, 3].Text);
+            Assert.Equal("Linh kiện", sheet.Cells[2, 4].Text);
+            Assert.Equal("Sinh viên 1", sheet.Cells[2, 6].Text);
+            Assert.Equal("30", sheet.Cells[2, 7].Text);
+            Assert.Equal("Chờ duyệt cấp phát", sheet.Cells[2, 10].Text);
+            Assert.Empty(sheet.Cells[3, 3].Text);
         }
     }
 

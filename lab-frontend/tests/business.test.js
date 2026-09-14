@@ -399,20 +399,21 @@ test('phiếu mượn bắt buộc nhập số điện thoại liên hệ riêng
   assert.match(source, /contactPhone,\s*\n\s*purpose:/)
 })
 
-test('bảng thiết bị hiển thị vị trí trước model và chuyển các trường phụ khác vào chi tiết', () => {
+test('bảng thiết bị ẩn model và các trường phụ khỏi danh sách nhưng vẫn giữ trong chi tiết', () => {
   const source = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
   const columns = source.match(/const columns = computed\(\(\) => \{([\s\S]*?)const tableScrollX/)?.[1] || ''
 
-  for (const title of ['Số seri', 'Danh mục', 'Ngày nhập', 'Quyết định']) {
+  for (const title of ['Model', 'Số seri', 'Danh mục', 'Ngày nhập', 'Quyết định']) {
     assert.doesNotMatch(columns, new RegExp(`title: '${title}'`))
   }
-  assert.match(columns, /title: 'Vị trí'[\s\S]*title: 'Model'/)
+  assert.match(columns, /title: 'Vị trí'/)
   assert.match(columns, /title: 'Trạng thái'[\s\S]*align: 'center'[\s\S]*width: 140/)
   assert.match(source, /\.device-table :deep\(th\.status-column\)[\s\S]*text-align: center !important/)
   assert.doesNotMatch(source, />Khấu hao \(%\)</)
   assert.doesNotMatch(source, /Thời gian khấu hao \(tháng\)/)
   assert.doesNotMatch(source, /Tài chính & Khấu hao/)
   assert.doesNotMatch(source, /Đã khấu hao/)
+  assert.match(source, /detailField\('model', 'Model'/)
   assert.match(source, /detailField\('categoryName', 'Danh mục'/)
   assert.match(source, /detailField\('serial', 'Số seri'/)
   assert.match(source, /detailField\('entryDate', 'Ngày nhập'/)
@@ -420,16 +421,24 @@ test('bảng thiết bị hiển thị vị trí trước model và chuyển cá
   assert.match(source, /detailField\('decisionFile', 'Quyết định'/)
 })
 
-test('bảng vật tư tiêu hao ẩn các cột tồn kho phụ khỏi danh sách chính', () => {
+test('bảng vật tư tiêu hao ẩn cột phụ và đặt người phụ trách trước khả dụng, đơn vị', () => {
   const source = readFileSync(new URL('../src/components/ConsumablesTable.vue', import.meta.url), 'utf8')
   const columns = source.match(/const columns = computed\(\(\) => \{([\s\S]*?)const tableScrollX/)?.[1] || ''
 
   for (const title of ['Danh mục', 'Tổng tồn', 'Tồn tối thiểu', 'Đang giữ', 'Số lô']) {
     assert.doesNotMatch(columns, new RegExp(`title: '${title}'`))
   }
-  assert.match(columns, /title: 'Mã vật tư'[\s\S]*title: 'Tên vật tư'[\s\S]*title: 'Đơn vị'[\s\S]*title: 'Khả dụng'/)
-  assert.match(columns, /title: 'Người chịu trách nhiệm'/)
+  assert.match(columns, /title: 'Mã vật tư'[\s\S]*title: 'Tên vật tư'[\s\S]*\.\.\.managerColumns[\s\S]*title: 'Khả dụng'[\s\S]*title: 'Đơn vị'[\s\S]*title: 'Trạng thái'/)
+  assert.match(columns, /managerColumns[\s\S]*title: 'Người chịu trách nhiệm'/)
   assert.match(source, /const tableScrollX = computed\(\(\) => columns\.value\.reduce/)
+})
+
+test('bộ lọc danh mục vật tư bằng kích thước bộ lọc tình trạng tồn', () => {
+  const source = readFileSync(new URL('../src/components/ConsumablesTable.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /placeholder="Tình trạng tồn" class="status-filter stock-filter"/)
+  assert.match(source, /placeholder="Danh mục" class="status-filter category-filter"/)
+  assert.doesNotMatch(source, /placeholder="Danh mục" style="width: 170px"/)
 })
 
 test('luồng bàn giao cho phép báo sai lệch và khóa xác nhận khi đang chờ xử lý', () => {
@@ -615,6 +624,17 @@ test('yêu cầu cấp phát lọc theo khoảng ngày gửi', () => {
   assert.match(source, /<a-range-picker[\s\S]*?v-model:value="requestDateRange"/)
   assert.match(source, /from:\s*requestDateRange\.value\?\.\[0\]\?\.format\('YYYY-MM-DD'\)/)
   assert.match(source, /to:\s*requestDateRange\.value\?\.\[1\]\?\.format\('YYYY-MM-DD'\)/)
+})
+
+test('quản lý xuất báo cáo yêu cầu vật tư theo các bộ lọc hiện tại', () => {
+  const viewSource = readFileSync(new URL('../src/views/ConsumableRequestsView.vue', import.meta.url), 'utf8')
+  const apiSource = readFileSync(new URL('../src/api/consumableRequestApi.js', import.meta.url), 'utf8')
+
+  assert.match(viewSource, /v-if="isManager"[\s\S]*?Xuất báo cáo/)
+  assert.match(viewSource, /const currentFilters = \(\) => \(\{[\s\S]*?search:[\s\S]*?status:[\s\S]*?from:[\s\S]*?to:[\s\S]*?sortBy:[\s\S]*?sortDirection:/)
+  assert.match(viewSource, /consumableRequestApi\.exportReport\(currentFilters\(\)\)/)
+  assert.match(viewSource, /BaoCaoYeuCauVatTu_\$\{Date\.now\(\)\}\.xlsx/)
+  assert.match(apiSource, /\/consumablerequest\/export[\s\S]*?responseType:\s*'blob'/)
 })
 
 test('bảng yêu cầu cấp phát giữ cột số lượng gọn và đủ rộng cho toàn bộ hành động', () => {

@@ -1,16 +1,24 @@
 <template>
   <div class="asset-requests-container">
     <div class="toolbar">
-      <h2>{{ isManager ? 'Duyệt và bàn giao vật tư' : canApprove ? 'Duyệt yêu cầu vật tư được ủy quyền' : 'Yêu cầu cấp phát vật tư của tôi' }}</h2>
-      <p>
-        {{ isManager
-          ? 'Thực hiện đúng quy trình: duyệt giữ kho, chọn lô bàn giao, người nhận xác nhận.'
-          : canApprove
-            ? (canHandover
-              ? 'Bạn có thể duyệt, từ chối và bàn giao yêu cầu trong thời gian được ủy quyền.'
-              : 'Bạn có thể duyệt hoặc từ chối yêu cầu trong thời gian được ủy quyền; việc bàn giao do người có quyền bàn giao thực hiện.')
-            : 'Theo dõi yêu cầu và xác nhận sau khi đã nhận đủ vật tư.' }}
-      </p>
+      <div class="toolbar-heading">
+        <div>
+          <h2>{{ isManager ? 'Duyệt và bàn giao vật tư' : canApprove ? 'Duyệt yêu cầu vật tư được ủy quyền' : 'Yêu cầu cấp phát vật tư của tôi' }}</h2>
+          <p>
+            {{ isManager
+              ? 'Thực hiện đúng quy trình: duyệt giữ kho, chọn lô bàn giao, người nhận xác nhận.'
+              : canApprove
+                ? (canHandover
+                  ? 'Bạn có thể duyệt, từ chối và bàn giao yêu cầu trong thời gian được ủy quyền.'
+                  : 'Bạn có thể duyệt hoặc từ chối yêu cầu trong thời gian được ủy quyền; việc bàn giao do người có quyền bàn giao thực hiện.')
+                : 'Theo dõi yêu cầu và xác nhận sau khi đã nhận đủ vật tư.' }}
+          </p>
+        </div>
+        <a-button v-if="isManager" type="primary" :loading="exporting" @click="exportReport">
+          <template #icon><FileExcelOutlined /></template>
+          Xuất báo cáo
+        </a-button>
+      </div>
       <div class="toolbar-filters">
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Vật tư, người yêu cầu..." class="filter-search" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
@@ -305,7 +313,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { EyeOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, FileExcelOutlined } from '@ant-design/icons-vue'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -331,6 +339,7 @@ const canHandover = computed(() => isManager.value || Boolean(authStore.approval
 
 const dataSource = ref([])
 const loading = ref(false)
+const exporting = ref(false)
 const searchQuery = ref('')
 const getRouteStatus = value => {
   const status = Array.isArray(value) ? value[0] : value
@@ -386,18 +395,22 @@ const showDetails = record => {
   detailsVisible.value = true
 }
 
+const currentFilters = () => ({
+  search: searchQuery.value.trim() || undefined,
+  status: statusFilter.value,
+  from: requestDateRange.value?.[0]?.format('YYYY-MM-DD'),
+  to: requestDateRange.value?.[1]?.format('YYYY-MM-DD'),
+  sortBy: sortState.field,
+  sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
+})
+
 const fetchData = async () => {
   loading.value = true
   try {
     const response = await consumableRequestApi.getPaged({
       page: tablePagination.current,
       pageSize: tablePagination.pageSize,
-      search: searchQuery.value.trim() || undefined,
-      status: statusFilter.value,
-      from: requestDateRange.value?.[0]?.format('YYYY-MM-DD'),
-      to: requestDateRange.value?.[1]?.format('YYYY-MM-DD'),
-      sortBy: sortState.field,
-      sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
+      ...currentFilters()
     })
     dataSource.value = response.items || []
     tablePagination.total = response.total || 0
@@ -504,6 +517,27 @@ const submitReject = async () => {
   }
 }
 
+const exportReport = async () => {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    const blob = await consumableRequestApi.exportReport(currentFilters())
+    if (!(blob instanceof Blob) || blob.size === 0) throw new Error('Tệp báo cáo rỗng.')
+
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `BaoCaoYeuCauVatTu_${Date.now()}.xlsx`
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    message.success('Đã xuất báo cáo yêu cầu vật tư theo bộ lọc hiện tại.')
+  } catch (error) {
+    message.error(getApiErrorMessage(error, 'Không thể xuất báo cáo yêu cầu vật tư.'))
+  } finally {
+    exporting.value = false
+  }
+}
+
 const openHandover = async record => {
   handoverRequest.value = record
   availableLots.value = []
@@ -587,8 +621,10 @@ onMounted(async () => {
 .handover-alert { margin-bottom: 16px; }
 .allocation-summary { margin-top: 14px; text-align: right; color: #15803d; }
 .allocation-summary.invalid { color: #dc2626; }
+.toolbar-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.toolbar-heading > div { min-width: 0; }
 .toolbar h2 { margin: 0 0 8px; font-weight: 600; color: #1f1f1f; }
-.toolbar p { color: #6b7280; }
+.toolbar p { margin: 0; color: #6b7280; }
 .toolbar-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 18px; }
 .date-filter { width: 280px; }
 .mobile-request-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -603,6 +639,8 @@ onMounted(async () => {
 .mobile-request-actions :deep(.ant-btn) { flex: 1; }
 @media (max-width: 767px) {
   .desktop-table { display: none; }
+  .toolbar-heading { flex-direction: column; }
+  .toolbar-heading :deep(.ant-btn) { width: 100%; }
   .toolbar h2 { font-size: 22px; }
   .request-card :deep(.ant-card-body) { padding: 12px; }
   .toolbar-filters > * { width: 100% !important; }

@@ -231,6 +231,19 @@ test('biểu mẫu thiết bị không còn trường Tên seri', async ({ page 
   await expect(dialog.getByText('Số seri', { exact: true })).toBeVisible()
 })
 
+test('bảng thiết bị ẩn cột model nhưng chi tiết vẫn hiển thị model', async ({ page }) => {
+  await page.goto('/dashboard/devices')
+
+  const table = page.locator('.device-table')
+  await expect(table.getByRole('columnheader', { name: 'Model', exact: true })).toHaveCount(0)
+
+  await table.getByRole('button', { name: 'Xem chi tiết thiết bị' }).first().click()
+  const dialog = page.getByRole('dialog', { name: 'Chi tiết thiết bị' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('Model', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('E2E-1000', { exact: true })).toBeVisible()
+})
+
 test('quản lý vị trí không còn vị trí cha và không hiển thị nút gốc phòng lab', async ({ page }) => {
   await page.goto('/dashboard/locations')
 
@@ -296,7 +309,33 @@ test('bảng yêu cầu cấp phát hiển thị cột số lượng gọn và c
   expect(Math.round(actionBox.width)).toBeGreaterThanOrEqual(290)
 })
 
-test('bảng vật tư tiêu hao ẩn các cột tồn kho phụ', async ({ page }) => {
+test('quản lý xuất báo cáo yêu cầu vật tư theo bộ lọc hiện tại', async ({ page }) => {
+  let exportUrl = ''
+  await page.route('**/api/consumablerequest/export**', async route => {
+    exportUrl = route.request().url()
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      body: 'noi-dung-file-excel-e2e'
+    })
+  })
+  await page.goto('/dashboard/consumable-requests')
+
+  await page.locator('.filter-search input').fill('Điện trở')
+  await page.locator('.status-filter').click()
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option-content', { hasText: 'Chờ duyệt cấp phát' }).click()
+
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: /Xuất báo cáo/ }).click()
+  const download = await downloadPromise
+
+  expect(download.suggestedFilename()).toMatch(/^BaoCaoYeuCauVatTu_\d+\.xlsx$/)
+  const query = new URL(exportUrl).searchParams
+  expect(query.get('search')).toBe('Điện trở')
+  expect(query.get('status')).toBe('CONSUMABLE_PENDING')
+})
+
+test('bảng vật tư tiêu hao ẩn cột phụ và sắp đúng thứ tự cột chính', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
   await page.goto('/dashboard/devices?tab=consumables')
 
@@ -307,6 +346,27 @@ test('bảng vật tư tiêu hao ẩn các cột tồn kho phụ', async ({ page
   for (const columnName of ['Mã vật tư', 'Tên vật tư', 'Đơn vị', 'Khả dụng', 'Người chịu trách nhiệm', 'Trạng thái', 'Hành động']) {
     await expect(table.getByRole('columnheader', { name: new RegExp(columnName) })).toBeVisible()
   }
+
+  const headerTexts = (await table.locator('thead th').allTextContents()).map(text => text.trim())
+  const columnIndex = name => headerTexts.findIndex(text => text.includes(name))
+  expect(columnIndex('Người chịu trách nhiệm')).toBeLessThan(columnIndex('Khả dụng'))
+  expect(columnIndex('Khả dụng')).toBeLessThan(columnIndex('Đơn vị'))
+  expect(columnIndex('Đơn vị')).toBeLessThan(columnIndex('Trạng thái'))
+})
+
+test('bộ lọc danh mục vật tư bằng kích thước bộ lọc tình trạng tồn', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 900 })
+  await page.goto('/dashboard/devices?tab=consumables')
+
+  const stockFilterBox = await page.locator('.stock-filter').boundingBox()
+  const categoryFilterBox = await page.locator('.category-filter').boundingBox()
+
+  expect(stockFilterBox).toBeTruthy()
+  expect(categoryFilterBox).toBeTruthy()
+  expect(Math.round(categoryFilterBox.width)).toBe(Math.round(stockFilterBox.width))
+  expect(Math.round(categoryFilterBox.height)).toBe(Math.round(stockFilterBox.height))
+  expect(Math.round(categoryFilterBox.width)).toBe(260)
+  expect(Math.round(categoryFilterBox.height)).toBe(40)
 })
 
 test('báo cáo sai lệch hiển thị ảnh bằng chứng thu nhỏ thay cho số lượng ảnh', async ({ page }) => {
