@@ -107,9 +107,10 @@ public sealed class OperationalAutomationRunnerTests
             await runner.RunOnceAsync(now.AddMinutes(1));
 
             var record = await context.BorrowRecords.AsNoTracking().Include(item => item.Details).SingleAsync();
-            Assert.Equal(BorrowStatuses.Expired, record.Status);
+            Assert.Equal(BorrowStatuses.Cancelled, record.Status);
             Assert.NotEmpty(record.CancellationReason);
-            Assert.Equal(BorrowStatuses.Expired, record.Details.Single().Status);
+            Assert.Null(record.HoldExpiresAt);
+            Assert.Equal(BorrowStatuses.Cancelled, record.Details.Single().Status);
             Assert.Equal(EquipmentStatuses.Available, (await context.Equipments.AsNoTracking().SingleAsync()).Status);
             Assert.Single(notifications.UserNotifications, item => item.Type == "BORROW_HOLD_EXPIRED");
             Assert.Single(await context.AutomationDispatches.AsNoTracking()
@@ -118,7 +119,7 @@ public sealed class OperationalAutomationRunnerTests
     }
 
     [Fact]
-    public async Task Approved_hold_with_handover_is_not_expired()
+    public async Task Approved_hold_with_unconfirmed_handover_is_cancelled()
     {
         await using var context = CreateContext(out var connection);
         await using (connection)
@@ -156,6 +157,64 @@ public sealed class OperationalAutomationRunnerTests
                 BorrowRecordId = 41,
                 HandedOverByUserId = 7,
                 ReceivedByUserId = 1,
+                Items = [new HandoverItem { EquipmentId = 1, Condition = EquipmentStatuses.Available }]
+            });
+            await context.SaveChangesAsync();
+            var notifications = new RecordingNotificationService();
+            var runner = CreateRunner(context, notifications);
+
+            await runner.RunOnceAsync(now);
+
+            var record = await context.BorrowRecords.AsNoTracking().Include(item => item.Details).SingleAsync();
+            Assert.Equal(BorrowStatuses.Cancelled, record.Status);
+            Assert.Null(record.HoldExpiresAt);
+            Assert.Equal(BorrowStatuses.Cancelled, record.Details.Single().Status);
+            Assert.Equal(EquipmentStatuses.Available, (await context.Equipments.AsNoTracking().SingleAsync()).Status);
+            Assert.Single(notifications.UserNotifications, item => item.Type == "BORROW_HOLD_EXPIRED");
+            Assert.Null((await context.HandoverRecords.AsNoTracking().SingleAsync()).ConfirmedAt);
+        }
+    }
+
+    [Fact]
+    public async Task Approved_hold_with_confirmed_handover_is_not_cancelled()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            var now = new DateTime(2026, 9, 1, 2, 0, 0, DateTimeKind.Utc);
+            context.Users.AddRange(
+                new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true },
+                new User { Id = 7, Username = "manager", Role = Roles.LabHead, IsActive = true });
+            context.Equipments.Add(new Equipment
+            {
+                Id = 1,
+                AssetCode = "EQ-001",
+                QrToken = "qr-001",
+                Name = "ESP32",
+                Serial = "SN-001",
+                Model = "M1",
+                Location = "Lab",
+                Status = EquipmentStatuses.BorrowPending
+            });
+            context.BorrowRecords.Add(new BorrowRecord
+            {
+                Id = 42,
+                UserId = 1,
+                BorrowDate = now.AddHours(-5),
+                ExpectedReturnDate = now.AddDays(3),
+                HoldExpiresAt = now.AddMinutes(-1),
+                Purpose = "Đã xác nhận bàn giao",
+                Status = BorrowStatuses.Approved,
+                Details = [new BorrowRequestDetail { EquipmentId = 1, Quantity = 1, Status = BorrowStatuses.Approved }]
+            });
+            context.HandoverRecords.Add(new HandoverRecord
+            {
+                Id = 42,
+                Code = "BH-TEST-42",
+                BorrowRecordId = 42,
+                HandedOverByUserId = 7,
+                ReceivedByUserId = 1,
+                ConfirmedAt = now.AddHours(-1),
                 Items = [new HandoverItem { EquipmentId = 1, Condition = EquipmentStatuses.Available }]
             });
             await context.SaveChangesAsync();

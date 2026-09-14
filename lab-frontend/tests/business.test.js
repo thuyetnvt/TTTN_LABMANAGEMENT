@@ -558,15 +558,24 @@ test('yêu cầu cấp phát lọc theo khoảng ngày gửi', () => {
   assert.match(source, /to:\s*requestDateRange\.value\?\.\[1\]\?\.format\('YYYY-MM-DD'\)/)
 })
 
-test('bảng yêu cầu cấp phát thu gọn cột số lượng và hành động', () => {
+test('bảng yêu cầu cấp phát giữ cột số lượng gọn và đủ rộng cho toàn bộ hành động', () => {
   const source = readFileSync(new URL('../src/views/ConsumableRequestsView.vue', import.meta.url), 'utf8')
 
   assert.match(source, /title: 'Số lượng'[\s\S]*?width: 120[\s\S]*?className: 'quantity-column'/)
   assert.match(source, /title: 'Trạng thái'[\s\S]*?width: 190[\s\S]*?className: 'status-column'/)
-  assert.match(source, /title: 'Hành động'[\s\S]*?table-sticky-action-column[\s\S]*?width: 190/)
+  assert.match(source, /title: 'Hành động'[\s\S]*?table-sticky-action-column[\s\S]*?width: 300/)
   assert.match(source, /\.quantity-column\) \{ width: 120px !important;/)
   assert.match(source, /\.status-column\) \{ width: 190px !important;/)
-  assert.match(source, /\.table-sticky-action-column\) \{ width: 190px !important;/)
+  assert.match(source, /\.table-sticky-action-column\) \{ width: 300px !important;/)
+})
+
+test('phiếu chờ duyệt chỉ dùng một nút xem phù hợp với trạng thái bàn giao', () => {
+  const source = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /@click="openViewAction\(record\)"/)
+  assert.match(source, /record\.hasHandover[\s\S]*?showExistingHandover\(record\)/)
+  assert.doesNotMatch(source, /<a-tooltip v-if="record\.hasHandover"/)
+  assert.doesNotMatch(source, /v-if="item\.hasHandover" block @click="showExistingHandover\(item\)"/)
 })
 
 test('dashboard không còn hiển thị hoặc điều hướng chức năng bảo trì', () => {

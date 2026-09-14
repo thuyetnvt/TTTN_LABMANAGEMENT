@@ -54,7 +54,8 @@ public sealed class OperationalAutomationRunner
                 .ThenInclude(detail => detail.Equipment)
             .Include(record => record.StatusHistory)
             .Where(record => record.Status == BorrowStatuses.Approved
-                && !_context.HandoverRecords.Any(handover => handover.BorrowRecordId == record.Id))
+                && !_context.HandoverRecords.Any(handover => handover.BorrowRecordId == record.Id
+                    && handover.ConfirmedAt != null))
             .OrderBy(record => record.HoldExpiresAt ?? record.BorrowDate)
             .Take(200)
             .ToListAsync(cancellationToken);
@@ -79,7 +80,8 @@ public sealed class OperationalAutomationRunner
                 }
 
                 if (await _context.HandoverRecords.AnyAsync(
-                    handover => handover.BorrowRecordId == record.Id,
+                    handover => handover.BorrowRecordId == record.Id
+                        && handover.ConfirmedAt != null,
                     cancellationToken))
                 {
                     await transaction.RollbackAsync(cancellationToken);
@@ -102,14 +104,15 @@ public sealed class OperationalAutomationRunner
                 var updated = await _context.BorrowRecords
                     .Where(item => item.Id == record.Id
                         && item.Status == BorrowStatuses.Approved
-                        && !_context.HandoverRecords.Any(handover => handover.BorrowRecordId == record.Id))
+                        && !_context.HandoverRecords.Any(handover => handover.BorrowRecordId == record.Id
+                            && handover.ConfirmedAt != null))
                     .ExecuteUpdateAsync(
                         updates => updates
-                            .SetProperty(item => item.Status, BorrowStatuses.Expired)
-                            .SetProperty(item => item.CancellationReason, "Tự động hết hạn giữ chỗ sau khi được duyệt nhưng chưa lập biên bản bàn giao.")
+                            .SetProperty(item => item.Status, BorrowStatuses.Cancelled)
+                            .SetProperty(item => item.CancellationReason, "Tự động hủy do hết hạn giữ chỗ mà người nhận chưa xác nhận bàn giao.")
                             .SetProperty(item => item.CancelledAt, utcNow)
                             .SetProperty(item => item.CancelledByUserId, (int?)null)
-                            .SetProperty(item => item.HoldExpiresAt, expiry),
+                            .SetProperty(item => item.HoldExpiresAt, (DateTime?)null),
                         cancellationToken);
                 if (updated == 0)
                 {
@@ -121,7 +124,7 @@ public sealed class OperationalAutomationRunner
                     .Where(detail => detail.BorrowRecordId == record.Id
                         && detail.Status == BorrowStatuses.Approved)
                     .ExecuteUpdateAsync(
-                        updates => updates.SetProperty(detail => detail.Status, BorrowStatuses.Expired),
+                        updates => updates.SetProperty(detail => detail.Status, BorrowStatuses.Cancelled),
                         cancellationToken);
 
                 if (equipmentIds.Length > 0)
@@ -134,11 +137,11 @@ public sealed class OperationalAutomationRunner
                             cancellationToken);
                     if (released != equipmentIds.Length)
                     {
-                        await transaction.RollbackAsync(cancellationToken);
                         _logger.LogWarning(
-                            "Borrow hold expiration for record {BorrowRecordId} found inconsistent equipment state.",
-                            record.Id);
-                        continue;
+                            "Borrow hold expiration for record {BorrowRecordId} released {ReleasedCount} of {EquipmentCount} referenced equipment items; non-reserved states were left unchanged.",
+                            record.Id,
+                            released,
+                            equipmentIds.Length);
                     }
                 }
 
@@ -146,8 +149,8 @@ public sealed class OperationalAutomationRunner
                 {
                     BorrowRecordId = record.Id,
                     FromStatus = BorrowStatuses.Approved,
-                    ToStatus = BorrowStatuses.Expired,
-                    Note = $"Tự động hết hạn giữ chỗ lúc {expiry:O} vì chưa lập biên bản bàn giao.",
+                    ToStatus = BorrowStatuses.Cancelled,
+                    Note = $"Tự động hủy lúc {expiry:O} do hết hạn giữ chỗ mà người nhận chưa xác nhận bàn giao.",
                     ChangedByUserId = null
                 });
                 var dispatch = AddDispatch(
@@ -157,7 +160,7 @@ public sealed class OperationalAutomationRunner
                     expiry.ToString("O"),
                     record.UserId);
                 AddSystemAudit(
-                    "ExpireBorrowHold",
+                    "AutoCancelExpiredBorrowHold",
                     nameof(BorrowRecord),
                     record.Id,
                     new { HoldExpiresAt = expiry, EquipmentIds = equipmentIds },
@@ -168,8 +171,8 @@ public sealed class OperationalAutomationRunner
                 await _notifications.NotifyUserAsync(
                     record.UserId,
                     BorrowHoldExpired,
-                    "Phiếu mượn đã hết hạn giữ chỗ",
-                    "Phiếu mượn đã hết hạn vì chưa lập biên bản bàn giao; tài sản đã được trả về trạng thái sẵn sàng.",
+                    "Phiếu mượn đã tự động hủy",
+                    "Phiếu mượn đã tự động hủy do hết hạn giữ chỗ mà bạn chưa xác nhận bàn giao; tài sản đã được trả về trạng thái sẵn sàng.",
                     "/dashboard/borrow-history",
                     cancellationToken);
                 dispatch.CompletedAt = utcNow;

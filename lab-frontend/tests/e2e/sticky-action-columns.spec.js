@@ -18,6 +18,21 @@ const responses = {
     purpose: 'Demo thực hành IoT tuần 3',
     borrowerPhone: '0987654321',
     status: 'BORROW_PENDING'
+  }, {
+    id: 11,
+    student: 'sv2',
+    device: 'Module LoRa SX1278',
+    category: 'IoT',
+    serial: 'LORA-011',
+    details: [{ id: 11, equipmentName: 'Module LoRa SX1278', quantity: 1 }],
+    requestDate: now,
+    returnDate: '2026-09-11T08:00:00Z',
+    daysUntilDue: 9,
+    purpose: 'Kiểm tra biên bản bàn giao',
+    borrowerPhone: '0987654322',
+    status: 'APPROVED',
+    hasHandover: true,
+    handoverCode: 'BG-E2E-011'
   }]),
   '/api/borrow/history/paged': paged([{
     id: 2,
@@ -196,7 +211,7 @@ test('quản lý vị trí không còn vị trí cha và không hiển thị nú
   await expect(dialog.getByText('Vị trí cha', { exact: true })).toHaveCount(0)
 })
 
-test('bảng yêu cầu cấp phát hiển thị cột số lượng và hành động đúng độ rộng thu gọn', async ({ page }) => {
+test('bảng yêu cầu cấp phát hiển thị cột số lượng gọn và cột hành động đủ rộng', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
   await page.goto('/dashboard/consumable-requests')
 
@@ -210,7 +225,7 @@ test('bảng yêu cầu cấp phát hiển thị cột số lượng và hành �
   expect(actionBox).toBeTruthy()
   expect(Math.round(quantityBox.width)).toBeLessThanOrEqual(160)
   expect(Math.round(statusBox.width)).toBeLessThanOrEqual(250)
-  expect(Math.round(actionBox.width)).toBeLessThanOrEqual(250)
+  expect(Math.round(actionBox.width)).toBeGreaterThanOrEqual(290)
 })
 
 test('lịch sử mượn trả không ghim trạng thái và ẩn các cột chỉ cần trong chi tiết', async ({ page }) => {
@@ -237,6 +252,11 @@ test('phiếu chờ duyệt chỉ hiện thông tin phụ trong cửa sổ chi t
   for (const columnName of ['SĐT liên hệ', 'Số seri', 'Ngày đăng ký', 'Hạn trả']) {
     await expect(table.getByRole('columnheader', { name: new RegExp(columnName) })).toHaveCount(0)
   }
+
+  const rows = table.locator('.ant-table-tbody > tr.ant-table-row')
+  await expect(rows).toHaveCount(2)
+  await expect(rows.nth(0).locator('button.view-action')).toHaveCount(1)
+  await expect(rows.nth(1).locator('button.view-action')).toHaveCount(1)
 
   await page.getByRole('button', { name: 'Xem chi tiết yêu cầu' }).click()
   const dialog = page.getByRole('dialog', { name: 'Chi tiết yêu cầu mượn' })

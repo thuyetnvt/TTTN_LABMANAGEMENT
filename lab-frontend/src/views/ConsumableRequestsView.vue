@@ -371,7 +371,7 @@ const columns = [
   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', sortKey: 'quantity', sortable: true, width: 120, align: 'center', className: 'quantity-column' },
   { title: 'Mục đích', dataIndex: 'reason', key: 'reason', width: 260 },
   { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 190, align: 'center', className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: consumableRequestStatusOptions },
-  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 190, align: 'center' }
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 300, align: 'center' }
 ]
 
 const allocationTotal = computed(() => Object.values(lotQuantities.value)
@@ -578,7 +578,7 @@ onMounted(async () => {
 .request-card { border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
 .desktop-table :deep(.quantity-column) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 .desktop-table :deep(.status-column) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
-.desktop-table :deep(.table-sticky-action-column) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
+.desktop-table :deep(.table-sticky-action-column) { width: 300px !important; min-width: 300px !important; max-width: 300px !important; }
 .action-cell { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
 .view-action-button { color: var(--color-primary, #e27755); }
 .view-action-button:hover { background: rgba(226, 119, 85, 0.1); }

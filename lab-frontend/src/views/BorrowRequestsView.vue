@@ -41,8 +41,8 @@
           </template>
           <template v-else-if="column.key === 'action'">
             <div class="request-actions">
-              <a-tooltip title="Xem chi tiết yêu cầu">
-                <a-button type="text" class="view-action" aria-label="Xem chi tiết yêu cầu" @click="showRequestDetails(record)">
+              <a-tooltip :title="viewActionTitle(record)">
+                <a-button type="text" class="view-action" :aria-label="viewActionTitle(record)" @click="openViewAction(record)">
                   <template #icon><EyeOutlined /></template>
                 </a-button>
               </a-tooltip>
@@ -57,11 +57,6 @@
                 <a-button v-if="isManager && !record.hasHandover" danger size="small" @click="openCancelModal(record)">
                   Hủy
                 </a-button>
-                <a-tooltip v-if="record.hasHandover" :title="`Xem biên bản ${record.handoverCode || ''}`">
-                  <a-button type="text" class="view-action" aria-label="Xem biên bản bàn giao" @click="showExistingHandover(record)">
-                    <template #icon><EyeOutlined /></template>
-                  </a-button>
-                </a-tooltip>
               </template>
               <span v-else-if="canApprove && statusMatches(record.status, STATUS.APPROVED)" class="muted">Chờ người có quyền bàn giao</span>
               <span v-else class="muted">—</span>
@@ -79,7 +74,7 @@
             <span v-for="detail in item.details" :key="detail.id">{{ detail.equipmentName }} ×{{ detail.quantity }}</span>
           </div>
           <div class="mobile-request-actions">
-            <a-button @click="showRequestDetails(item)"><EyeOutlined /> Chi tiết</a-button>
+            <a-button @click="openViewAction(item)"><EyeOutlined /> {{ item.hasHandover ? 'Xem biên bản' : 'Chi tiết' }}</a-button>
             <template v-if="canApprove && statusMatches(item.status, STATUS.BORROW_PENDING)">
               <a-button type="primary" @click="handleApprove(item)">Duyệt</a-button>
               <a-button danger @click="handleReject(item)">Từ chối</a-button>
@@ -87,7 +82,6 @@
             <template v-else-if="canHandover && statusMatches(item.status, STATUS.APPROVED)">
               <a-button v-if="!item.hasHandover" type="primary" block @click="showHandoverModal(item)">Lập bàn giao</a-button>
               <a-button v-if="isManager && !item.hasHandover" danger block @click="openCancelModal(item)">Hủy phiếu</a-button>
-              <a-button v-if="item.hasHandover" block @click="showExistingHandover(item)"><EyeOutlined /> Xem biên bản</a-button>
             </template>
             <span v-else-if="canApprove && statusMatches(item.status, STATUS.APPROVED)" class="muted">Chờ người có quyền bàn giao</span>
           </div>
@@ -476,6 +470,18 @@ const applyColumnFilter = (column, value) => {
   if (column.filterKey === 'status') statusFilter.value = value
   else searchQuery.value = value || ''
   applyFilters()
+}
+
+const viewActionTitle = record => record.hasHandover
+  ? `Xem biên bản ${record.handoverCode || 'bàn giao'}`
+  : 'Xem chi tiết yêu cầu'
+
+const openViewAction = record => {
+  if (record.hasHandover) {
+    showExistingHandover(record)
+    return
+  }
+  showRequestDetails(record)
 }
 
 const applyColumnSort = (column, order) => {

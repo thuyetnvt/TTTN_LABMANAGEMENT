@@ -36,7 +36,7 @@ Thiết bị đang được giữ chỗ, chờ bàn giao hoặc đang mượn kh
 4. Sau khi duyệt, thiết bị chuyển sang `Đã giữ chỗ`. Thời hạn giữ chỗ hiển thị trong chi tiết phiếu.
 5. Lập biên bản bàn giao, ghi tình trạng và phụ kiện của từng thiết bị. Có thể đính kèm ảnh hoặc tài liệu hợp lệ.
 6. Người nhận phải xác nhận đã nhận. Chỉ sau bước này phiếu mới chuyển sang `Đang mượn`.
-7. Nếu hết hạn giữ chỗ mà chưa bàn giao, worker tự động chuyển phiếu sang `Hết hạn giữ chỗ` và trả thiết bị về `Rảnh`.
+7. Nếu hết hạn giữ chỗ mà người nhận chưa xác nhận bàn giao, worker tự động chuyển phiếu sang `Đã hủy` và trả thiết bị về `Rảnh`.
 
 ### Kiểm tra trả
 
