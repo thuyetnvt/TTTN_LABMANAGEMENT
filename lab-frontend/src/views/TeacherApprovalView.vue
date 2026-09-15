@@ -35,9 +35,6 @@
           </template>
           <template v-else-if="column.key === 'device'">
             <div>{{ record.device }}</div>
-            <div v-for="detail in record.details || []" :key="detail.equipmentId" class="detail-line">
-              {{ detail.equipmentName }} — {{ detail.serial }}
-            </div>
           </template>
           <template v-else-if="column.key === 'status'">
             <StatusBadge :status="record.status" type="borrow" />
@@ -54,7 +51,6 @@
         <template #default="{ item }">
           <div class="mobile-approval-heading"><strong>{{ borrowerLabel(item) }}</strong><StatusBadge :status="item.status" type="borrow" /></div>
           <div class="mobile-approval-device">{{ item.device }}</div>
-          <div v-for="detail in item.details || []" :key="detail.equipmentId" class="detail-line">{{ detail.equipmentName }} — {{ detail.serial }}</div>
           <dl class="mobile-approval-details">
             <div><dt>Số điện thoại liên hệ</dt><dd><a v-if="item.borrowerPhone" :href="phoneHref(item.borrowerPhone)">{{ item.borrowerPhone }}</a><span v-else>Chưa cập nhật</span></dd></div>
             <div><dt>Ngày đăng ký</dt><dd>{{ formatDate(item.requestDate) }}</dd></div>
@@ -93,6 +89,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 import ResponsiveDataList from '../components/ResponsiveDataList.vue'
 import TableColumnFilter from '../components/TableColumnFilter.vue'
 import { createTablePagination, TABLE_PAGE_SIZE } from '../utils/tablePagination'
+import { borrowDeviceLabel } from '../utils/borrowDeviceLabel'
 import { formatVietnamDate } from '../utils/dateTime'
 
 const tablePagination = reactive({
@@ -143,7 +140,10 @@ const fetchRequests = async () => {
       sortBy: sortState.field,
       sortDirection: sortState.order === 'descend' ? 'desc' : (sortState.order === 'ascend' ? 'asc' : undefined)
     })
-    dataSource.value = response.items || []
+    dataSource.value = (response.items || []).map(record => ({
+      ...record,
+      device: borrowDeviceLabel(record)
+    }))
     tablePagination.total = response.total || 0
   } catch {
     message.error('Lỗi khi tải danh sách yêu cầu bảo lãnh!')
@@ -225,10 +225,6 @@ const submitDecision = async () => {
   margin-bottom: 24px;
 }
 
-.detail-line {
-  color: #6b7280;
-  font-size: 12px;
-}
 .mobile-approval-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .mobile-approval-heading strong { color: var(--color-ink); font-size: 15px; }
 .mobile-approval-device { margin-top: 8px; font-weight: 600; }

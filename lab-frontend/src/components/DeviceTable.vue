@@ -202,8 +202,10 @@
         </a-list>
       </a-form-item>
       <a-form-item v-if="isStudentRole(role)" label="Giảng viên bảo lãnh" required>
-        <a-select v-model:value="borrowForm.teacherId" placeholder="Chọn giảng viên" allowClear>
-          <a-select-option v-for="t in teachers" :key="t.id" :value="t.id">{{ t.username }}</a-select-option>
+        <a-select v-model:value="borrowForm.teacherId" placeholder="Chọn giảng viên" show-search option-filter-prop="label" allowClear>
+          <a-select-option v-for="t in teachers" :key="t.id" :value="t.id" :label="userOptionLabel(t)">
+            {{ userOptionLabel(t) }}
+          </a-select-option>
         </a-select>
       </a-form-item>
       <a-form-item label="Mục đích mượn" required>
@@ -272,9 +274,9 @@
                 v-for="person in responsibleUsers"
                 :key="person.id"
                 :value="person.id"
-                :label="responsibleUserLabel(person)"
+                :label="userOptionLabel(person)"
               >
-                {{ responsibleUserLabel(person) }}
+                {{ userOptionLabel(person) }}
               </a-select-option>
             </a-select>
           </a-form-item>
@@ -617,7 +619,7 @@ const fetchResponsibleUsers = async () => {
   }
 }
 
-const responsibleUserLabel = (user) => {
+const userOptionLabel = (user) => {
   const name = user?.fullName?.trim() || user?.username || 'Chưa có tên'
   return user?.universityCode ? `${name} (${user.universityCode})` : name
 }

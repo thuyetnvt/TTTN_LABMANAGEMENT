@@ -17,6 +17,7 @@ import {
   getStatusColor
 } from '../src/utils/statusLabels.js'
 import { formatVietnamDateInput, formatVietnamDateTime, vietnamDateInputToUtc } from '../src/utils/dateTime.js'
+import { borrowDeviceLabel } from '../src/utils/borrowDeviceLabel.js'
 import { createTablePagination, TABLE_PAGE_SIZE, TABLE_PAGE_SIZE_OPTIONS } from '../src/utils/tablePagination.js'
 
 const TABLE_FILES_WITH_STICKY_ACTION = [
@@ -449,6 +450,16 @@ test('phiếu mượn bắt buộc nhập số điện thoại liên hệ riêng
   assert.match(source, /contactPhone,\s*\n\s*purpose:/)
 })
 
+test('phiếu mượn hiển thị họ tên giảng viên bảo lãnh thay cho tên đăng nhập', () => {
+  const source = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /Giảng viên bảo lãnh[\s\S]*?option-filter-prop="label"/)
+  assert.match(source, /:label="userOptionLabel\(t\)"/)
+  assert.match(source, /\{\{ userOptionLabel\(t\) \}\}/)
+  assert.match(source, /user\?\.fullName\?\.trim\(\) \|\| user\?\.username/)
+  assert.doesNotMatch(source, /\{\{\s*t\.username\s*\}\}/)
+})
+
 test('bảng thiết bị ẩn model và các trường phụ khỏi danh sách nhưng vẫn giữ trong chi tiết', () => {
   const source = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
   const columns = source.match(/const columns = computed\(\(\) => \{([\s\S]*?)const tableScrollX/)?.[1] || ''
@@ -639,6 +650,18 @@ test('dashboard giảng viên dùng dữ liệu và tác vụ riêng theo vai tr
   assert.match(source, /Chờ bạn bảo lãnh/)
   assert.match(source, /teacherSummary/)
   assert.match(source, /name:\s*'TeacherApproval'/)
+})
+
+test('duyệt bảo lãnh ghi rõ tên tài sản thay cho nhãn nhiều tài sản', () => {
+  const source = readFileSync(new URL('../src/views/TeacherApprovalView.vue', import.meta.url), 'utf8')
+  const record = {
+    device: 'Nhiều tài sản (1)',
+    details: [{ equipmentName: 'NodeMCU ESP8266', quantity: 1 }]
+  }
+
+  assert.equal(borrowDeviceLabel(record), 'NodeMCU ESP8266')
+  assert.match(source, /device:\s*borrowDeviceLabel\(record\)/)
+  assert.doesNotMatch(source, /v-for="detail in record\.details/)
 })
 
 test('dashboard quản trị giữ thao tác nhanh và giảng viên không lặp khối này', () => {
