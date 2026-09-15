@@ -47,8 +47,8 @@
             <div class="floating-card glass-badge card-top-left float-delay-1">
               <div class="card-icon"><desktop-outlined /></div>
               <div class="card-text">
-                <strong>+1,200</strong>
-                <span>Thiết bị IoT</span>
+                <strong>Quản lý tập trung</strong>
+                <span>Thiết bị &amp; vật tư</span>
               </div>
             </div>
             
