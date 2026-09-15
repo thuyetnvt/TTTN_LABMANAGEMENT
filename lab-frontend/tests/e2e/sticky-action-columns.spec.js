@@ -419,7 +419,7 @@ test('cột số tài sản của bảng vị trí thu gọn và căn giữa', a
   expect(await assetCountCell.evaluate(element => getComputedStyle(element).textAlign)).toBe('center')
 })
 
-test('bảng yêu cầu cấp phát hiển thị cột số lượng gọn và cột hành động đủ rộng', async ({ page }) => {
+test('bảng yêu cầu cấp phát thu gọn cột hành động và hiển thị đủ icon', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
   await page.goto('/dashboard/consumable-requests')
 
@@ -433,7 +433,21 @@ test('bảng yêu cầu cấp phát hiển thị cột số lượng gọn và c
   expect(actionBox).toBeTruthy()
   expect(Math.round(quantityBox.width)).toBeLessThanOrEqual(160)
   expect(Math.round(statusBox.width)).toBeLessThanOrEqual(250)
-  expect(Math.round(actionBox.width)).toBeGreaterThanOrEqual(290)
+  expect(Math.round(actionBox.width)).toBe(140)
+
+  const actionCell = table.locator('tbody td.table-sticky-action-column').first()
+  await expect(actionCell.getByRole('button')).toHaveCount(3)
+  const cellBox = await actionCell.boundingBox()
+  expect(cellBox).toBeTruthy()
+  for (const name of ['Duyệt yêu cầu', 'Từ chối yêu cầu', 'Xem chi tiết yêu cầu']) {
+    const button = actionCell.getByRole('button', { name, exact: true })
+    await expect(button).toBeVisible()
+    await expect(button.locator('svg')).toHaveCount(1)
+    const box = await button.boundingBox()
+    expect(box).toBeTruthy()
+    expect(box.x).toBeGreaterThanOrEqual(cellBox.x)
+    expect(box.x + box.width).toBeLessThanOrEqual(cellBox.x + cellBox.width)
+  }
 })
 
 test('cột hành động của giảng viên và sinh viên tự thu gọn khi chỉ còn nút xem', async ({ page }) => {
