@@ -26,6 +26,23 @@
         </div>
       </header>
 
+      <section class="manager-section manager-quick-actions" aria-labelledby="quick-actions-heading">
+        <h3 id="quick-actions-heading" class="manager-section-title">Thao tác nhanh</h3>
+        <div class="quick-actions-grid">
+          <button
+            v-for="item in managerQuickActions"
+            :key="item.key"
+            type="button"
+            class="manager-quick-action"
+            @click="navigateTo(item.route)"
+          >
+            <span class="manager-quick-icon" aria-hidden="true"><component :is="item.icon" /></span>
+            <strong>{{ item.label }}</strong>
+            <small>{{ item.description }}</small>
+          </button>
+        </div>
+      </section>
+
       <section class="manager-section manager-kpi-section" aria-label="Chỉ số tổng quan">
         <div class="manager-kpi-grid">
           <button
@@ -343,6 +360,7 @@ import {
   FileSearchOutlined,
   PlusOutlined,
   ReloadOutlined,
+  TeamOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
 import { dashboardApi } from '../api/dashboardApi'
@@ -522,6 +540,13 @@ const borrowTrendOptions = computed(() => ({
   yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: '#64748b', fontSize: '13px' }, formatter: value => Math.round(value) } },
   tooltip: { y: { formatter: value => `${formatNumber(value)} lượt` } }
 }))
+
+const managerQuickActions = computed(() => [
+  ...(canViewAuditLogs.value ? [{ key: 'users', label: 'Quản lý người dùng', description: 'Tài khoản và phân quyền', icon: TeamOutlined, route: { name: 'AdminUsers' } }] : []),
+  { key: 'borrow-requests', label: 'Duyệt phiếu', description: 'Xử lý yêu cầu đang chờ', icon: FileSearchOutlined, route: { name: 'BorrowRequests' } },
+  { key: 'add-equipment', label: 'Thêm tài sản', description: 'Cập nhật thiết bị phòng lab', icon: PlusOutlined, route: { name: 'Devices' } },
+  { key: 'reports', label: 'Xem báo cáo', description: 'Theo dõi tình trạng vận hành', icon: AppstoreOutlined, route: { name: 'Reports' } }
+])
 
 const teacherSummary = computed(() => stats.value.teacherSummary || {})
 const teacherDisplayName = computed(() => authStore.user?.fullName?.trim() || 'Giảng viên')
@@ -746,7 +771,13 @@ onMounted(() => refreshStats(false))
 .manager-header-actions :deep(.ant-btn) { height: 42px; padding-inline: 18px; border-color: #dfe4e8; border-radius: 9px; color: #10233f; font-size: 15px; }
 .manager-header-actions :deep(.ant-btn:hover), .manager-header-actions :deep(.ant-btn:focus) { border-color: #df7657; color: #df7657; }
 .manager-section { margin-top: 20px; }
-.manager-kpi-section { margin-top: 0; }
+.manager-section-title { margin: 0 0 12px; color: #10233f; font-size: 18px; font-weight: 700; }
+.quick-actions-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.manager-quick-action { display: grid; grid-template-columns: 42px minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; width: 100%; min-width: 0; min-height: 74px; gap: 2px 12px; padding: 14px 16px; border: 1px solid #e4e8ec; border-radius: 12px; background: #fff; color: inherit; font: inherit; text-align: left; box-shadow: 0 4px 14px rgba(16, 35, 63, .04); cursor: pointer; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.manager-quick-action:hover, .manager-quick-action:focus-visible { border-color: #dfb8aa; box-shadow: 0 8px 20px rgba(16, 35, 63, .07); outline: none; transform: translateY(-2px); }
+.manager-quick-icon { display: inline-flex; grid-row: 1 / 3; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 10px; background: #fff2ed; color: #d26548; font-size: 18px; }
+.manager-quick-action strong { overflow: hidden; color: #26384f; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.manager-quick-action small { overflow: hidden; color: #8793a3; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .manager-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .manager-kpi-card { position: relative; display: grid; grid-template-columns: 46px minmax(0, 1fr) 16px; align-items: center; width: 100%; min-width: 0; min-height: 116px; gap: 13px; padding: 18px; overflow: hidden; border: 1px solid #e4e8ec; border-radius: 14px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
 .manager-kpi-card:hover, .manager-kpi-card:focus-visible { border-color: #d7b3a7; box-shadow: 0 8px 22px rgba(16, 35, 63, .075); outline: none; transform: translateY(-2px); }
@@ -936,14 +967,14 @@ onMounted(() => refreshStats(false))
 .borrower-alert.info { border-left-color: #2563eb; background: #eff6ff; }
 .borrower-alert.error { border-left-color: #dc2626; background: #fef2f2; }
 @media (max-width: 1199px) {
-  .manager-kpi-grid, .teacher-kpi-grid, .student-kpi-grid, .dashboard-loading-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manager-kpi-grid, .quick-actions-grid, .teacher-kpi-grid, .student-kpi-grid, .dashboard-loading-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .manager-two-column, .teacher-main-grid, .dashboard-loading-panels { grid-template-columns: 1fr; }
   .student-main-grid, .student-bottom-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 767px) {
   .manager-header, .teacher-header, .student-header { align-items: flex-start; flex-direction: column; }
   .manager-header-actions { align-items: flex-start; }
-  .manager-kpi-grid, .borrower-content-grid, .teacher-kpi-grid, .student-kpi-grid, .teacher-activity-list, .dashboard-loading-kpis { grid-template-columns: 1fr; }
+  .manager-kpi-grid, .quick-actions-grid, .borrower-content-grid, .teacher-kpi-grid, .student-kpi-grid, .teacher-activity-list, .dashboard-loading-kpis { grid-template-columns: 1fr; }
   .manager-donut-layout { grid-template-columns: 1fr; }
   .manager-status-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 10px 7px; }
   .manager-attention-item { grid-template-columns: 30px minmax(0, 1fr) auto auto; }

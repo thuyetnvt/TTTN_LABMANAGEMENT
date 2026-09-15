@@ -641,7 +641,7 @@ test('dashboard giảng viên dùng dữ liệu và tác vụ riêng theo vai tr
   assert.match(source, /name:\s*'TeacherApproval'/)
 })
 
-test('dashboard quản trị và giảng viên không lặp khối thao tác nhanh', () => {
+test('dashboard quản trị giữ thao tác nhanh và giảng viên không lặp khối này', () => {
   const source = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
   const managerStart = source.indexOf('<template v-else-if="isManager">')
   const teacherStart = source.indexOf('<template v-else-if="isTeacher">')
@@ -649,7 +649,11 @@ test('dashboard quản trị và giảng viên không lặp khối thao tác nha
   const managerSection = source.slice(managerStart, teacherStart)
   const teacherSection = source.slice(teacherStart, teacherEnd)
 
-  assert.doesNotMatch(managerSection, /Thao tác nhanh|manager-quick-actions|quick-actions-grid/)
+  assert.match(managerSection, /Thao tác nhanh/)
+  assert.match(managerSection, /manager-quick-actions/)
+  assert.match(managerSection, /managerQuickActions/)
+  assert.match(managerSection, /manager-quick-action/)
+  assert.match(managerSection, /\{\{ item\.description \}\}/)
   assert.doesNotMatch(teacherSection, /Thao tác nhanh|teacher-quick-section|teacher-quick-grid/)
   assert.match(managerSection, /:class="`manager-tone-\$\{item\.tone\}`"/)
   assert.match(managerSection, /\{\{ item\.hint \}\}/)
