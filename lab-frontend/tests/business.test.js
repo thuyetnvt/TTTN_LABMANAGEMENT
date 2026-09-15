@@ -167,7 +167,9 @@ test('các modal nghiệp vụ dùng chung khung hiển thị và bố cục chi
 
   assert.match(globalStyle, /\.app-modal \.ant-modal-content \{[\s\S]*?border-radius: 12px;[\s\S]*?box-shadow:/)
   assert.match(globalStyle, /\.app-modal \.ant-modal-body \{[\s\S]*?max-height: calc\(100vh - 180px\);[\s\S]*?overflow-y: auto;/)
-  assert.match(globalStyle, /\.app-detail-modal \.ant-descriptions-item-label \{[\s\S]*?width: 220px;/)
+  assert.match(globalStyle, /--color-surface-warm:\s*#FFFAF7;/)
+  assert.match(globalStyle, /--color-border-warm:\s*rgba\(217, 119, 87, 0\.16\);/)
+  assert.match(globalStyle, /\.app-detail-modal \.ant-descriptions-item-label \{[\s\S]*?width: 220px;[\s\S]*?background: var\(--color-surface-warm\) !important;/)
   assert.match(borrowSource, /Chi tiết phiếu mượn\/trả[^>]*wrap-class-name="app-modal app-detail-modal"/)
   assert.match(locationSource, /width="620px"[\s\S]*?wrap-class-name="app-modal app-form-modal"/)
   assert.match(consumableSource, /Chi tiết yêu cầu cấp phát[^>]*width="720px"[^>]*wrap-class-name="app-modal app-detail-modal"/)

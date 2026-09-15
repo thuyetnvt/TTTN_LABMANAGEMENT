@@ -307,6 +307,7 @@ test('các modal nghiệp vụ dùng chung khung gọn và bố cục cân đố
   const consumableDialog = page.getByRole('dialog', { name: 'Chi tiết yêu cầu cấp phát' })
   await expect(consumableDialog).toBeVisible()
   await expect.poll(async () => Math.round((await consumableDialog.locator('.ant-descriptions-item-label').first().boundingBox()).width)).toBe(220)
+  expect(await consumableDialog.locator('.ant-descriptions-item-label').first().evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(255, 250, 247)')
   await consumableDialog.locator('.ant-modal-close').click()
 
   await page.goto('/dashboard/handover-issues')

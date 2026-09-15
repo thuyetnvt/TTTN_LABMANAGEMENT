@@ -11,6 +11,8 @@ html,
   --color-on-dark: #FFFFFF;
   --color-primary: #D97757;
   --color-primary-hover: #C26A4D;
+  --color-surface-warm: #FFFAF7;
+  --color-border-warm: rgba(217, 119, 87, 0.16);
   --color-success: #16A34A;
   --color-warning: #F59E0B;
   --color-danger: #DC2626;
@@ -46,7 +48,7 @@ html,
 .app-modal .ant-modal-header {
   margin: 0;
   padding: 20px 64px 16px 24px;
-  border-bottom: 1px solid #eef0f3;
+  border-bottom: 1px solid var(--color-border-warm);
 }
 
 .app-modal .ant-modal-title {
@@ -66,8 +68,8 @@ html,
 }
 
 .app-modal .ant-modal-close:hover {
-  color: var(--color-ink);
-  background: #f1f5f9;
+  color: var(--color-primary);
+  background: var(--color-surface-warm);
 }
 
 .app-modal .ant-modal-body {
@@ -79,21 +81,28 @@ html,
 .app-modal .ant-modal-footer {
   margin: 0;
   padding: 14px 24px 20px;
-  border-top: 1px solid #eef0f3;
+  border-top: 1px solid var(--color-border-warm);
 }
 
 .app-detail-modal .ant-descriptions-view {
   overflow: hidden;
+  border-color: var(--color-border-warm) !important;
   border-radius: 10px;
+}
+
+.app-detail-modal .ant-descriptions-bordered .ant-descriptions-row,
+.app-detail-modal .ant-descriptions-bordered .ant-descriptions-item-label,
+.app-detail-modal .ant-descriptions-bordered .ant-descriptions-item-content {
+  border-color: var(--color-border-warm) !important;
 }
 
 .app-detail-modal .ant-descriptions-item-label {
   width: 220px;
   min-width: 220px;
   padding: 11px 16px !important;
-  color: #475569 !important;
+  color: var(--color-secondary) !important;
   font-weight: 500 !important;
-  background: #f8fafc !important;
+  background: var(--color-surface-warm) !important;
 }
 
 .app-detail-modal .ant-descriptions-item-content {
