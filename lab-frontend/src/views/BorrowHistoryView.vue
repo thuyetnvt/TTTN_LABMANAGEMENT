@@ -288,7 +288,7 @@
       </a-form>
     </a-modal>
 
-    <a-modal v-model:open="isDetailsVisible" title="Chi tiết phiếu mượn/trả" :footer="null" width="760px">
+    <a-modal v-model:open="isDetailsVisible" title="Chi tiết phiếu mượn/trả" :footer="null" width="760px" wrap-class-name="app-modal app-detail-modal">
       <a-descriptions v-if="selectedRecord" bordered size="small" :column="1">
         <a-descriptions-item label="Người mượn">{{ borrowerLabel(selectedRecord) }}</a-descriptions-item>
         <a-descriptions-item label="Số điện thoại liên hệ">

@@ -156,6 +156,27 @@ test('các bộ lọc vị trí có cùng kích thước 280 x 40', () => {
   assert.match(source, /\.ant-select-selector\) \{[\s\S]*?height: var\(--location-filter-height\) !important;/)
 })
 
+test('các modal nghiệp vụ dùng chung khung hiển thị và bố cục chi tiết', () => {
+  const globalStyle = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8')
+  const borrowSource = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+  const locationSource = readFileSync(new URL('../src/views/LocationsView.vue', import.meta.url), 'utf8')
+  const consumableSource = readFileSync(new URL('../src/views/ConsumableRequestsView.vue', import.meta.url), 'utf8')
+  const issueSource = readFileSync(new URL('../src/views/HandoverIssuesView.vue', import.meta.url), 'utf8')
+  const userSource = readFileSync(new URL('../src/views/AdminUsersView.vue', import.meta.url), 'utf8')
+  const userFormSource = readFileSync(new URL('../src/components/UserForm.vue', import.meta.url), 'utf8')
+
+  assert.match(globalStyle, /\.app-modal \.ant-modal-content \{[\s\S]*?border-radius: 12px;[\s\S]*?box-shadow:/)
+  assert.match(globalStyle, /\.app-modal \.ant-modal-body \{[\s\S]*?max-height: calc\(100vh - 180px\);[\s\S]*?overflow-y: auto;/)
+  assert.match(globalStyle, /\.app-detail-modal \.ant-descriptions-item-label \{[\s\S]*?width: 220px;/)
+  assert.match(borrowSource, /Chi tiết phiếu mượn\/trả[^>]*wrap-class-name="app-modal app-detail-modal"/)
+  assert.match(locationSource, /width="620px"[\s\S]*?wrap-class-name="app-modal app-form-modal"/)
+  assert.match(consumableSource, /Chi tiết yêu cầu cấp phát[^>]*width="720px"[^>]*wrap-class-name="app-modal app-detail-modal"/)
+  assert.match(issueSource, /Chi tiết báo cáo sai lệch[^>]*wrap-class-name="app-modal app-detail-modal"/)
+  assert.match(issueSource, /grid-template-columns: 96px minmax\(0, 1fr\) 36px/)
+  assert.match(userSource, /width="760px"[\s\S]*?app-modal app-form-modal user-form-modal/)
+  assert.match(userFormSource, /class="user-role-field"[\s\S]*?width: calc\(50% - 8px\)/)
+})
+
 test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {
   const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
   const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')

@@ -77,7 +77,7 @@
       <EmptyState v-if="!loading && !reports.length" description="Chưa có báo cáo sai lệch." />
     </a-card>
 
-    <a-modal v-model:open="detailsVisible" title="Chi tiết báo cáo sai lệch" :footer="null" width="760px">
+    <a-modal v-model:open="detailsVisible" title="Chi tiết báo cáo sai lệch" :footer="null" width="760px" wrap-class-name="app-modal app-detail-modal">
       <a-descriptions v-if="selectedReport" bordered size="small" :column="1">
         <a-descriptions-item label="Người mượn">
           {{ selectedReport.borrowerName || selectedReport.borrowerUsername || '—' }}
@@ -91,19 +91,39 @@
         <a-descriptions-item v-if="selectedReport.evidence?.length" label="Ảnh bằng chứng">
           <div class="issue-evidence-grid">
             <div v-for="evidence in selectedReport.evidence" :key="evidence.id" class="issue-evidence-card">
-              <a-spin v-if="evidenceLoading[evidenceKey(selectedReport, evidence)]" />
-              <a-image
-                v-else-if="evidencePreviewUrls[evidenceKey(selectedReport, evidence)]"
-                :src="evidencePreviewUrls[evidenceKey(selectedReport, evidence)]"
-                :width="96"
-                :height="72"
-                :preview="true"
-              />
+              <div class="issue-evidence-preview">
+                <a-spin v-if="evidenceLoading[evidenceKey(selectedReport, evidence)]" size="small" />
+                <a-image
+                  v-else-if="evidencePreviewUrls[evidenceKey(selectedReport, evidence)]"
+                  :src="evidencePreviewUrls[evidenceKey(selectedReport, evidence)]"
+                  :width="96"
+                  :height="72"
+                  :preview="true"
+                  :alt="`Ảnh bằng chứng ${evidence.OriginalFileName || evidence.originalFileName || ''}`"
+                />
+                <a-button
+                  v-else
+                  type="text"
+                  aria-label="Tải lại ảnh bằng chứng"
+                  @click="loadEvidencePreview(selectedReport, evidence)"
+                >
+                  <template #icon><PictureOutlined /></template>
+                </a-button>
+              </div>
               <div class="issue-evidence-card-copy">
                 <span>{{ evidence.OriginalFileName || evidence.originalFileName }}</span>
                 <small>{{ formatFileSize(evidence.FileSize ?? evidence.fileSize) }}</small>
-                <a-button type="link" size="small" @click="downloadEvidence(selectedReport, evidence)">Tải ảnh</a-button>
               </div>
+              <a-tooltip title="Tải ảnh">
+                <a-button
+                  type="text"
+                  class="issue-evidence-download"
+                  aria-label="Tải ảnh bằng chứng"
+                  @click="downloadEvidence(selectedReport, evidence)"
+                >
+                  <template #icon><DownloadOutlined /></template>
+                </a-button>
+              </a-tooltip>
             </div>
           </div>
         </a-descriptions-item>
@@ -154,7 +174,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { EyeOutlined, PictureOutlined } from '@ant-design/icons-vue'
+import { DownloadOutlined, EyeOutlined, PictureOutlined } from '@ant-design/icons-vue'
 import EmptyState from '../components/EmptyState.vue'
 import { handoverApi } from '../api/handoverApi'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -311,14 +331,20 @@ onBeforeUnmount(() => {
 .evidence-empty { color: var(--color-secondary); }
 .evidence-retry { color: var(--color-secondary); }
 .issue-evidence-grid { display: grid; gap: 10px; }
-.issue-evidence-card { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; }
-.issue-evidence-card :deep(.ant-image) { flex: 0 0 auto; overflow: hidden; border-radius: 6px; background: #f5f5f5; }
+.issue-evidence-card { display: grid; grid-template-columns: 96px minmax(0, 1fr) 36px; align-items: center; gap: 14px; min-height: 92px; padding: 10px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 10px; background: #fff; }
+.issue-evidence-preview { display: flex; width: 96px; height: 72px; align-items: center; justify-content: center; overflow: hidden; border-radius: 7px; background: #f1f5f9; }
+.issue-evidence-preview :deep(.ant-image) { flex: 0 0 auto; overflow: hidden; border-radius: 7px; background: #f1f5f9; }
+.issue-evidence-preview :deep(.ant-image-img) { width: 96px; height: 72px; object-fit: cover; }
 .issue-evidence-card-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-.issue-evidence-card-copy span { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.issue-evidence-card-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .issue-evidence-card-copy small { color: var(--color-secondary); }
+.issue-evidence-download { color: var(--color-primary); }
 .details-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 @media (max-width: 767px) {
   .toolbar { flex-direction: column; }
   .status-filter { width: 100%; }
+  .issue-evidence-card { grid-template-columns: 72px minmax(0, 1fr) 32px; gap: 10px; min-height: 74px; padding: 8px; }
+  .issue-evidence-preview { width: 72px; height: 54px; }
+  .issue-evidence-preview :deep(.ant-image-img) { width: 72px; height: 54px; }
 }
 </style>

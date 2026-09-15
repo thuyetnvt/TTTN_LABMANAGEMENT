@@ -141,7 +141,7 @@
       </ResponsiveDataList>
     </a-card>
 
-    <a-modal v-model:open="detailsVisible" title="Chi tiết yêu cầu cấp phát" :footer="null" width="680px">
+    <a-modal v-model:open="detailsVisible" title="Chi tiết yêu cầu cấp phát" :footer="null" width="720px" wrap-class-name="app-modal app-detail-modal">
       <a-descriptions v-if="selectedRequest" bordered :column="1" size="small">
         <a-descriptions-item label="Tên vật tư">{{ selectedRequest.consumableName || '—' }}</a-descriptions-item>
         <a-descriptions-item label="Danh mục">{{ selectedRequest.categoryName || '—' }}</a-descriptions-item>

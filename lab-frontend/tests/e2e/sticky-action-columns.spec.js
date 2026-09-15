@@ -123,6 +123,17 @@ const responses = {
   ],
   '/api/users/teachers': [],
   '/api/users/responsible': [{ id: 1, username: 'admin', fullName: 'Quản trị viên', universityCode: 'ADMIN001' }],
+  '/api/users/paged': paged([{
+    id: 7,
+    username: 'admin2',
+    fullName: 'Nguyễn Minh Quân',
+    universityCode: 'CB-ADMIN-002',
+    email: 'admin2@lab.local',
+    phone: '0966776219',
+    department: 'Quản trị hệ thống',
+    role: 'Admin',
+    isActive: true
+  }]),
 }
 
 const pages = [
@@ -277,6 +288,72 @@ test('quản lý vị trí không còn vị trí cha và không hiển thị nú
   const dialog = page.getByRole('dialog', { name: 'Sửa vị trí' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByText('Vị trí cha', { exact: true })).toHaveCount(0)
+})
+
+test('các modal nghiệp vụ dùng chung khung gọn và bố cục cân đối', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  await page.goto('/dashboard/locations')
+  await page.getByRole('button', { name: 'Sửa vị trí' }).click()
+  const locationDialog = page.getByRole('dialog', { name: 'Sửa vị trí' })
+  await expect(locationDialog).toBeVisible()
+  await expect.poll(async () => Math.round((await locationDialog.locator('.ant-modal').boundingBox()).width)).toBe(620)
+  expect(await locationDialog.locator('.ant-modal-content').evaluate(element => getComputedStyle(element).borderRadius)).toBe('12px')
+  expect(Math.round((await locationDialog.locator('textarea').boundingBox()).height)).toBeGreaterThanOrEqual(88)
+  await locationDialog.locator('.ant-modal-close').click()
+
+  await page.goto('/dashboard/consumable-requests')
+  await page.getByRole('button', { name: 'Xem chi tiết yêu cầu' }).click()
+  const consumableDialog = page.getByRole('dialog', { name: 'Chi tiết yêu cầu cấp phát' })
+  await expect(consumableDialog).toBeVisible()
+  await expect.poll(async () => Math.round((await consumableDialog.locator('.ant-descriptions-item-label').first().boundingBox()).width)).toBe(220)
+  await consumableDialog.locator('.ant-modal-close').click()
+
+  await page.goto('/dashboard/handover-issues')
+  await page.getByRole('button', { name: 'Xem chi tiết báo cáo sai lệch' }).click()
+  const issueDialog = page.getByRole('dialog', { name: 'Chi tiết báo cáo sai lệch' })
+  const evidenceCard = issueDialog.locator('.issue-evidence-card')
+  const evidencePreview = issueDialog.locator('.issue-evidence-preview')
+  await expect(issueDialog).toBeVisible()
+  await expect(evidenceCard).toBeVisible()
+  expect(await evidenceCard.evaluate(element => getComputedStyle(element).display)).toBe('grid')
+  await expect.poll(async () => Math.round((await evidencePreview.boundingBox()).width)).toBe(96)
+  await expect.poll(async () => Math.round((await evidencePreview.boundingBox()).height)).toBe(72)
+  await expect(issueDialog.getByRole('button', { name: 'Tải ảnh bằng chứng' })).toBeVisible()
+  await issueDialog.locator('.ant-modal-close').click()
+
+  await page.goto('/dashboard/admin/users')
+  await page.getByRole('button', { name: 'Sửa người dùng' }).click()
+  const userDialog = page.getByRole('dialog', { name: 'Sửa thông tin tài khoản' })
+  await expect(userDialog).toBeVisible()
+  await expect.poll(async () => {
+    const usernameBox = await userDialog.getByLabel('Tài khoản').boundingBox()
+    const roleBox = await userDialog.locator('.user-role-field .ant-select').boundingBox()
+    return Math.round(Math.abs(usernameBox.width - roleBox.width))
+  }).toBeLessThanOrEqual(2)
+
+  await page.route('**/api/borrow/history/paged**', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(paged([{
+      id: 22,
+      student: 'sv2',
+      device: 'Module LoRa SX1278',
+      serial: 'LORA-022',
+      requestDate: now,
+      expectedReturnDate: '2026-09-12T08:00:00Z',
+      actualReturnDate: null,
+      returnCondition: null,
+      returnInspectionNote: '',
+      status: 'CANCELLED',
+      canConfirmHandover: false
+    }]))
+  }))
+  await page.goto('/dashboard/borrow-history')
+  await page.getByRole('button', { name: 'Xem chi tiết phiếu mượn' }).click()
+  const borrowDialog = page.getByRole('dialog', { name: 'Chi tiết phiếu mượn/trả' })
+  await expect(borrowDialog).toBeVisible()
+  await expect.poll(async () => Math.round((await borrowDialog.locator('.ant-descriptions-item-label').first().boundingBox()).width)).toBe(220)
 })
 
 test('cửa sổ tạo kiểm kê giải thích cấu trúc mã đợt dễ đọc', async ({ page }) => {

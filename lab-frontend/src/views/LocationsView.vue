@@ -68,7 +68,16 @@
       </a-table>
     </a-card>
 
-    <a-modal v-model:open="modalOpen" :title="editing ? 'Sửa vị trí' : 'Thêm vị trí'" :confirm-loading="saving" ok-text="Lưu" cancel-text="Hủy" @ok="submit">
+    <a-modal
+      v-model:open="modalOpen"
+      :title="editing ? 'Sửa vị trí' : 'Thêm vị trí'"
+      :confirm-loading="saving"
+      width="620px"
+      wrap-class-name="app-modal app-form-modal"
+      ok-text="Lưu"
+      cancel-text="Hủy"
+      @ok="submit"
+    >
       <a-form layout="vertical">
         <a-form-item label="Mã vị trí" required><a-input v-model:value="form.code" placeholder="VD: LAB-IOT-A1" /></a-form-item>
         <a-form-item label="Tên vị trí" required><a-input v-model:value="form.name" placeholder="VD: Tủ linh kiện A1" /></a-form-item>

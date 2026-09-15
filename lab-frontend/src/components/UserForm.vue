@@ -16,12 +16,12 @@
       <a-col :xs="24" :sm="12"><a-form-item label="Số điện thoại"><a-input v-model:value="formState.phone" /></a-form-item></a-col>
       <a-col :xs="24" :sm="12"><a-form-item :label="departmentLabel"><a-input v-model:value="formState.department" /></a-form-item></a-col>
       <a-col v-if="isStudent" :xs="24" :sm="12"><a-form-item label="Lớp" name="className" :rules="studentClassRules"><a-input v-model:value="formState.className" /></a-form-item></a-col>
-      <a-col :xs="24" :sm="12">
-        <a-form-item v-if="!isEditing" label="Mật khẩu" name="password" :rules="passwordRules">
+      <a-col v-if="!isEditing" :xs="24" :sm="12">
+        <a-form-item label="Mật khẩu" name="password" :rules="passwordRules">
           <a-input-password v-model:value="formState.password" placeholder="Nhập mật khẩu..." />
         </a-form-item>
       </a-col>
-      <a-col :xs="24" :sm="12">
+      <a-col :xs="24" :sm="24" class="user-role-field">
         <a-form-item label="Vai trò" name="role" :rules="[{ required: true, message: 'Vui lòng chọn vai trò!' }]">
           <a-select v-model:value="formState.role" placeholder="Chọn vai trò" :disabled="isProtected">
             <a-select-option value="Admin">Quản trị viên</a-select-option>
@@ -37,7 +37,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, defineExpose } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { isStudentRole, ROLE } from '../constants/business'
 
 const formRef = ref(null)
@@ -97,5 +97,13 @@ const getFormData = async () => {
 
 defineExpose({ setFormData, getFormData })
 </script>
+
+<style scoped>
+@media (min-width: 576px) {
+  .user-role-field :deep(.ant-select) {
+    width: calc(50% - 8px);
+  }
+}
+</style>
 
 

@@ -46,8 +46,8 @@
       okText="Lưu"
       cancelText="Hủy"
       :confirmLoading="submitting"
-      width="700px"
-      wrapClassName="responsive-modal"
+      width="760px"
+      wrapClassName="responsive-modal app-modal app-form-modal user-form-modal"
     >
       <UserForm ref="userFormRef" />
     </a-modal>
