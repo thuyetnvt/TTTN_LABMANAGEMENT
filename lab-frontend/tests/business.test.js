@@ -692,6 +692,16 @@ test('duyệt bảo lãnh ghi rõ tên tài sản thay cho nhãn nhiều tài s�
   assert.doesNotMatch(source, /v-for="detail in record\.details/)
 })
 
+test('lịch sử mượn trả rút gọn còn hai thiết bị và hiển thị đầy đủ trong chi tiết', () => {
+  const source = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /borrowDeviceItems\(record\)\.slice\(0, 2\)/)
+  assert.match(source, /\+\{\{ hiddenBorrowDeviceCount\(record\) \}\} thiết bị khác/)
+  assert.match(source, /@click\.stop="openDetails\(record\)"/)
+  assert.match(source, /v-for="device in selectedDeviceItems"/)
+  assert.match(source, /Số seri:/)
+})
+
 test('dashboard quản trị giữ thao tác nhanh và giảng viên không lặp khối này', () => {
   const source = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
   const managerStart = source.indexOf('<template v-else-if="isManager">')
@@ -759,18 +769,25 @@ test('quản lý xuất báo cáo yêu cầu vật tư theo các bộ lọc hi�
   assert.match(apiSource, /\/consumablerequest\/export[\s\S]*?responseType:\s*'blob'/)
 })
 
-test('bảng yêu cầu cấp phát tự điều chỉnh độ rộng cột hành động theo thao tác hiển thị', () => {
+test('bảng yêu cầu cấp phát dùng icon và tự thu gọn cột hành động', () => {
   const source = readFileSync(new URL('../src/views/ConsumableRequestsView.vue', import.meta.url), 'utf8')
 
   assert.match(source, /title: 'Số lượng'[\s\S]*?width: 120[\s\S]*?className: 'quantity-column'/)
   assert.match(source, /title: 'Trạng thái'[\s\S]*?width: 190[\s\S]*?className: 'status-column'/)
-  assert.match(source, /const actionColumnWidth = computed\(\(\) => \{[\s\S]*?isManager\.value\) return 300/)
-  assert.match(source, /hasApprovalActions[\s\S]*?return 300/)
-  assert.match(source, /hasReceiptConfirmation \? 210 : 110/)
+  assert.match(source, /title="Duyệt yêu cầu"[\s\S]*?<CheckOutlined \/>/)
+  assert.match(source, /title="Từ chối yêu cầu"[\s\S]*?<CloseOutlined \/>/)
+  assert.match(source, /title="Bàn giao vật tư"[\s\S]*?<SwapOutlined \/>/)
+  assert.match(source, /Không thể bàn giao[\s\S]*?<StopOutlined \/>/)
+  assert.match(source, /title="Xem và xác nhận đã nhận"[\s\S]*?<CheckCircleOutlined \/>/)
+  assert.match(source, /title="Xem chi tiết"[\s\S]*?<EyeOutlined \/>/)
+  assert.match(source, /const visibleActionCount = record =>/)
+  assert.match(source, /return maxVisibleActions >= 3 \? 140 : 110/)
+  assert.doesNotMatch(source, /return 300|\? 210 : 110/)
   assert.match(source, /title: 'Hành động'[\s\S]*?table-sticky-action-column[\s\S]*?width: actionColumnWidth\.value/)
   assert.match(source, /\.quantity-column\) \{ width: 120px !important;/)
   assert.match(source, /\.status-column\) \{ width: 190px !important;/)
   assert.match(source, /\.table-sticky-action-column\) \{ width: var\(--request-action-column-width\) !important;/)
+  assert.match(source, /\.action-icon-button \{[\s\S]*?width: 32px;[\s\S]*?height: 32px;/)
 })
 
 test('phiếu chờ duyệt chỉ dùng một nút xem phù hợp với trạng thái bàn giao', () => {

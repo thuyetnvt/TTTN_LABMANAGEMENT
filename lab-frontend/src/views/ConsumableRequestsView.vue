@@ -81,29 +81,46 @@
           <template v-else-if="column.key === 'action'">
             <div class="action-cell">
               <template v-if="canApprove && statusMatches(record.status, STATUS.CONSUMABLE_PENDING)">
-                <a-button type="primary" size="small" @click="handleApprove(record.id)">Duyệt</a-button>
-                <a-button danger size="small" @click="openRejectModal(record)">Từ chối</a-button>
+                <a-tooltip title="Duyệt yêu cầu">
+                  <a-button type="text" class="action-icon-button action-icon-button-primary" aria-label="Duyệt yêu cầu" @click="handleApprove(record.id)">
+                    <template #icon><CheckOutlined /></template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="Từ chối yêu cầu">
+                  <a-button type="text" danger class="action-icon-button" aria-label="Từ chối yêu cầu" @click="openRejectModal(record)">
+                    <template #icon><CloseOutlined /></template>
+                  </a-button>
+                </a-tooltip>
               </template>
 
               <template v-else-if="statusMatches(record.status, STATUS.CONSUMABLE_APPROVED)">
-                <a-button v-if="canHandover" type="primary" size="small" @click="openHandover(record)">Bàn giao</a-button>
-                <a-button v-if="canApprove" danger size="small" @click="openRejectModal(record)">
-                  {{ isApprovedRequest(record) ? 'Không thể bàn giao' : 'Từ chối' }}
-                </a-button>
-                <span v-if="canApprove && !canHandover" class="waiting-text">Chờ người có quyền bàn giao</span>
+                <a-tooltip v-if="canHandover" title="Bàn giao vật tư">
+                  <a-button type="text" class="action-icon-button action-icon-button-primary" aria-label="Bàn giao vật tư" @click="openHandover(record)">
+                    <template #icon><SwapOutlined /></template>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip v-else-if="canApprove" title="Chờ người có quyền bàn giao">
+                  <span class="action-tooltip-trigger">
+                    <a-button type="text" disabled class="action-icon-button" aria-label="Chờ người có quyền bàn giao">
+                      <template #icon><SwapOutlined /></template>
+                    </a-button>
+                  </span>
+                </a-tooltip>
+                <a-tooltip v-if="canApprove" :title="isApprovedRequest(record) ? 'Không thể bàn giao' : 'Từ chối yêu cầu'">
+                  <a-button type="text" danger class="action-icon-button" :aria-label="isApprovedRequest(record) ? 'Không thể bàn giao' : 'Từ chối yêu cầu'" @click="openRejectModal(record)">
+                    <template #icon><StopOutlined /></template>
+                  </a-button>
+                </a-tooltip>
               </template>
 
-              <a-button
-                v-else-if="!canApprove && statusMatches(record.status, STATUS.CONSUMABLE_HANDED_OVER)"
-                type="primary"
-                size="small"
-                @click="openReceiptConfirmation(record)"
-              >
-                Xem & xác nhận
-              </a-button>
+              <a-tooltip v-else-if="!canApprove && statusMatches(record.status, STATUS.CONSUMABLE_HANDED_OVER)" title="Xem và xác nhận đã nhận">
+                <a-button type="text" class="action-icon-button action-icon-button-primary" aria-label="Xem và xác nhận đã nhận" @click="openReceiptConfirmation(record)">
+                  <template #icon><CheckCircleOutlined /></template>
+                </a-button>
+              </a-tooltip>
 
               <a-tooltip title="Xem chi tiết">
-                <a-button type="text" class="view-action-button" aria-label="Xem chi tiết yêu cầu" @click="showDetails(record)">
+                <a-button type="text" class="action-icon-button action-icon-button-primary" aria-label="Xem chi tiết yêu cầu" @click="showDetails(record)">
                   <template #icon><EyeOutlined /></template>
                 </a-button>
               </a-tooltip>
@@ -314,7 +331,15 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { EyeOutlined, FileExcelOutlined } from '@ant-design/icons-vue'
+import {
+  CheckCircleOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  EyeOutlined,
+  FileExcelOutlined,
+  StopOutlined,
+  SwapOutlined
+} from '@ant-design/icons-vue'
 import { consumableRequestApi } from '../api/consumableRequestApi'
 import { useAuthStore } from '../stores/authStore'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -375,19 +400,21 @@ const consumableRequestStatusOptions = [
   { value: STATUS.REJECTED, label: 'Từ chối' }
 ]
 
+const visibleActionCount = record => {
+  if (canApprove.value && statusMatches(record.status, STATUS.CONSUMABLE_PENDING)) return 3
+  if (statusMatches(record.status, STATUS.CONSUMABLE_APPROVED)) {
+    return 1 + Number(canHandover.value || canApprove.value) + Number(canApprove.value)
+  }
+  if (!canApprove.value && statusMatches(record.status, STATUS.CONSUMABLE_HANDED_OVER)) return 2
+  return 1
+}
+
 const actionColumnWidth = computed(() => {
-  if (isManager.value) return 300
-
-  const hasApprovalActions = dataSource.value.some(record => canApprove.value && (
-    statusMatches(record.status, STATUS.CONSUMABLE_PENDING)
-    || statusMatches(record.status, STATUS.CONSUMABLE_APPROVED)
-  ))
-  if (hasApprovalActions) return 300
-
-  const hasReceiptConfirmation = dataSource.value.some(record => (
-    !canApprove.value && statusMatches(record.status, STATUS.CONSUMABLE_HANDED_OVER)
-  ))
-  return hasReceiptConfirmation ? 210 : 110
+  const maxVisibleActions = dataSource.value.reduce(
+    (maximum, record) => Math.max(maximum, visibleActionCount(record)),
+    1
+  )
+  return maxVisibleActions >= 3 ? 140 : 110
 })
 
 const columns = computed(() => [
@@ -630,8 +657,10 @@ onMounted(async () => {
 .desktop-table :deep(.status-column) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
 .desktop-table :deep(.table-sticky-action-column) { width: var(--request-action-column-width) !important; min-width: var(--request-action-column-width) !important; max-width: var(--request-action-column-width) !important; }
 .action-cell { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
-.view-action-button { color: var(--color-primary, #e27755); }
-.view-action-button:hover { background: rgba(226, 119, 85, 0.1); }
+.action-icon-button { display: inline-grid; width: 32px; min-width: 32px; height: 32px; padding: 0; place-items: center; }
+.action-icon-button-primary { color: var(--color-primary, #e27755); }
+.action-icon-button-primary:hover { background: rgba(226, 119, 85, 0.1); }
+.action-tooltip-trigger { display: inline-flex; }
 .waiting-text { color: #94a3b8; font-size: 13px; }
 .allocation-line + .allocation-line { margin-top: 4px; }
 .handover-alert { margin-bottom: 16px; }

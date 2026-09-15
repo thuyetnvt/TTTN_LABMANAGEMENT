@@ -70,6 +70,21 @@
             </a>
             <span v-else class="muted">Chưa cập nhật</span>
           </template>
+          <template v-else-if="column.key === 'device'">
+            <div class="borrow-device-summary">
+              <span v-for="device in visibleBorrowDevices(record)" :key="device.key">{{ device.label }}</span>
+              <a-button
+                v-if="hiddenBorrowDeviceCount(record)"
+                type="link"
+                size="small"
+                class="more-devices-button"
+                :aria-label="`Xem thêm ${hiddenBorrowDeviceCount(record)} thiết bị trong chi tiết phiếu`"
+                @click.stop="openDetails(record)"
+              >
+                +{{ hiddenBorrowDeviceCount(record) }} thiết bị khác
+              </a-button>
+            </div>
+          </template>
           <template v-else-if="column.key === 'status'">
             <StatusBadge :status="record.status" type="borrow" :color="record.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(record)" />
           </template>
@@ -107,7 +122,18 @@
       <ResponsiveDataList :items="dataSource" :loading="loading" :pagination="tablePagination" empty-description="Chưa có lịch sử mượn/trả" @change="handleTableChange">
         <template #default="{ item }">
           <div class="mobile-card-heading">
-            <strong>{{ item.device }}</strong>
+            <div class="mobile-card-heading-copy">
+              <strong v-for="device in visibleBorrowDevices(item)" :key="device.key">{{ device.label }}</strong>
+              <a-button
+                v-if="hiddenBorrowDeviceCount(item)"
+                type="link"
+                size="small"
+                class="more-devices-button"
+                @click.stop="openDetails(item)"
+              >
+                +{{ hiddenBorrowDeviceCount(item) }} thiết bị khác
+              </a-button>
+            </div>
             <StatusBadge :status="item.status" type="borrow" :color="item.isOverdue ? 'red' : ''" :label-override="borrowWorkflowLabel(item)" />
           </div>
           <div class="mobile-card-subtitle">{{ borrowerLabel(item) }} · {{ item.serial || 'Không có số seri' }}</div>
@@ -300,7 +326,14 @@
           <a v-if="selectedRecord.borrowerPhone" :href="phoneHref(selectedRecord.borrowerPhone)">{{ selectedRecord.borrowerPhone }}</a>
           <span v-else>Chưa cập nhật</span>
         </a-descriptions-item>
-        <a-descriptions-item label="Thiết bị">{{ selectedRecord.device }}</a-descriptions-item>
+        <a-descriptions-item label="Thiết bị">
+          <div class="borrow-device-detail-list">
+            <div v-for="device in selectedDeviceItems" :key="device.key" class="borrow-device-detail-item">
+              <strong>{{ device.label }}</strong>
+              <span>Số seri: {{ device.serial || 'Không có' }}</span>
+            </div>
+          </div>
+        </a-descriptions-item>
         <a-descriptions-item label="Hạn trả">{{ formatDate(selectedRecord.expectedReturnDate) }}</a-descriptions-item>
         <a-descriptions-item label="Ngày trả thực tế">{{ selectedRecord.actualReturnDate ? formatDate(selectedRecord.actualReturnDate) : 'Chưa trả' }}</a-descriptions-item>
         <a-descriptions-item label="Tình trạng trả">
@@ -409,6 +442,30 @@ const issueTypeOptions = [
 ]
 
 const borrowerLabel = record => record?.borrowerName?.trim() || record?.student || 'Không xác định'
+const borrowDeviceItems = record => {
+  const details = (record?.details || []).filter(item => item?.equipmentName?.trim())
+  if (details.length) {
+    return details.map((item, index) => {
+      const equipmentName = item.equipmentName.trim()
+      const quantity = Math.max(1, Number(item.quantity || 1))
+      return {
+        ...item,
+        key: item.id || item.equipmentId || `${equipmentName}-${index}`,
+        label: quantity > 1 ? `${equipmentName} ×${quantity}` : equipmentName
+      }
+    })
+  }
+
+  const fallbackLabel = String(record?.device || '').trim() || 'Chưa có thông tin thiết bị'
+  return [{
+    key: record?.id || fallbackLabel,
+    label: fallbackLabel,
+    serial: record?.serial
+  }]
+}
+const visibleBorrowDevices = record => borrowDeviceItems(record).slice(0, 2)
+const hiddenBorrowDeviceCount = record => Math.max(0, borrowDeviceItems(record).length - 2)
+const selectedDeviceItems = computed(() => borrowDeviceItems(selectedRecord.value))
 const phoneHref = phone => {
   const normalized = String(phone || '').replace(/[^\d+]/g, '')
   return normalized ? `tel:${normalized}` : '#'
@@ -794,13 +851,20 @@ h2 {
 .muted { color: #8c8c8c; font-size: 13px; }
 .desktop-table :deep(.status-column) { width: 180px !important; min-width: 180px !important; max-width: 180px !important; }
 .view-action { color: var(--color-primary); }
+.borrow-device-summary { display: grid; gap: 3px; line-height: 1.4; }
+.borrow-device-summary > span { display: block; }
+.more-devices-button { justify-self: start; height: auto; padding: 0; font-size: 12px; line-height: 1.4; }
+.borrow-device-detail-list { display: grid; gap: 8px; width: 100%; }
+.borrow-device-detail-item { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; background: var(--color-surface-soft, #fafafa); }
+.borrow-device-detail-item span { color: var(--color-text-secondary); font-size: 12px; }
 .request-actions { display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
 .mobile-request-actions { display: flex; gap: 8px; }
 .mobile-request-actions :deep(.ant-btn) { flex: 1; }
 .handover-items { display: grid; gap: 10px; margin-top: 16px; }
 .handover-items :deep(.ant-card-body) { display: grid; gap: 6px; }
 .mobile-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.mobile-card-heading strong { color: var(--color-ink); font-size: 15px; }
+.mobile-card-heading-copy { display: grid; min-width: 0; gap: 3px; }
+.mobile-card-heading-copy strong { color: var(--color-ink); font-size: 15px; }
 .mobile-card-subtitle, .mobile-card-note { margin-top: 6px; color: var(--color-text-secondary); font-size: 13px; }
 .mobile-card-details { display: grid; gap: 7px; margin: 12px 0; }
 .mobile-card-details div { display: flex; justify-content: space-between; gap: 12px; }
