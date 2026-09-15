@@ -44,6 +44,7 @@
         class="desktop-table"
         :dataSource="dataSource"
         :columns="columns"
+        :style="{ '--request-action-column-width': `${actionColumnWidth}px` }"
         :loading="loading"
         rowKey="id"
         bordered
@@ -374,14 +375,29 @@ const consumableRequestStatusOptions = [
   { value: STATUS.REJECTED, label: 'Từ chối' }
 ]
 
-const columns = [
+const actionColumnWidth = computed(() => {
+  if (isManager.value) return 300
+
+  const hasApprovalActions = dataSource.value.some(record => canApprove.value && (
+    statusMatches(record.status, STATUS.CONSUMABLE_PENDING)
+    || statusMatches(record.status, STATUS.CONSUMABLE_APPROVED)
+  ))
+  if (hasApprovalActions) return 300
+
+  const hasReceiptConfirmation = dataSource.value.some(record => (
+    !canApprove.value && statusMatches(record.status, STATUS.CONSUMABLE_HANDED_OVER)
+  ))
+  return hasReceiptConfirmation ? 210 : 110
+})
+
+const columns = computed(() => [
   { title: 'Tên vật tư', dataIndex: 'consumableName', key: 'consumableName', sortKey: 'consumable', sortable: true, width: 220, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm tên vật tư...' },
   { title: 'Người yêu cầu', dataIndex: 'fullName', key: 'fullName', sortKey: 'requester', sortable: true, width: 195, filterType: 'search', filterPlaceholder: 'Tìm người yêu cầu...' },
   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity', sortKey: 'quantity', sortable: true, width: 120, align: 'center', className: 'quantity-column' },
-  { title: 'Mục đích', dataIndex: 'reason', key: 'reason', width: 260 },
+  { title: 'Mục đích', dataIndex: 'reason', key: 'reason' },
   { title: 'Trạng thái', key: 'status', sortKey: 'status', sortable: true, width: 190, align: 'center', className: 'status-column', filterType: 'select', filterKey: 'status', filterOptions: consumableRequestStatusOptions },
-  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: 300, align: 'center' }
-]
+  { title: 'Hành động', key: 'action', className: 'table-sticky-action-column', customCell: () => ({ class: 'table-sticky-action-column' }), width: actionColumnWidth.value, align: 'center' }
+])
 
 const allocationTotal = computed(() => Object.values(lotQuantities.value)
   .reduce((sum, value) => sum + (Number(value) || 0), 0))
@@ -612,7 +628,7 @@ onMounted(async () => {
 .request-card { border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
 .desktop-table :deep(.quantity-column) { width: 120px !important; min-width: 120px !important; max-width: 120px !important; }
 .desktop-table :deep(.status-column) { width: 190px !important; min-width: 190px !important; max-width: 190px !important; }
-.desktop-table :deep(.table-sticky-action-column) { width: 300px !important; min-width: 300px !important; max-width: 300px !important; }
+.desktop-table :deep(.table-sticky-action-column) { width: var(--request-action-column-width) !important; min-width: var(--request-action-column-width) !important; max-width: var(--request-action-column-width) !important; }
 .action-cell { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
 .view-action-button { color: var(--color-primary, #e27755); }
 .view-action-button:hover { background: rgba(226, 119, 85, 0.1); }

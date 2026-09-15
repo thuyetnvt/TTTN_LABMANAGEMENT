@@ -775,7 +775,7 @@ const handleTableChange = (pager) => {
 
 .toolbar h2 { margin: 0 auto 0 0; }
 .toolbar-actions, .toolbar-filters { display: flex; flex-wrap: wrap; gap: 10px; }
-.toolbar-filters { flex-basis: 100%; justify-content: flex-end; }
+.toolbar-filters { flex-basis: 100%; justify-content: flex-start; }
 
 @media (max-width: 767px) {
   .toolbar { align-items: stretch; flex-direction: column; }

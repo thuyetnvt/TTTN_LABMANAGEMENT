@@ -117,6 +117,58 @@ public sealed class ConsumableControllerTests
     }
 
     [Fact]
+    public async Task Transaction_history_localizes_legacy_types_and_cleans_internal_seed_text()
+    {
+        await using var context = CreateContext(out var connection);
+        await using (connection)
+        {
+            context.Users.Add(new User
+            {
+                Id = 1,
+                Username = "admin",
+                FullName = "Nguyễn Văn Admin",
+                Role = Roles.Admin
+            });
+            await SeedConsumableAsync(context);
+            context.ConsumableTransactions.AddRange(
+                new ConsumableTransaction
+                {
+                    ConsumableId = 1,
+                    Type = "IN",
+                    Quantity = 10,
+                    BeforeQuantity = 0,
+                    AfterQuantity = 10,
+                    Reason = "[SEED-FULL] Nhập lô vật tư mẫu",
+                    UserId = 1,
+                    CreatedAt = new DateTime(2026, 9, 14, 8, 0, 0, DateTimeKind.Utc)
+                },
+                new ConsumableTransaction
+                {
+                    ConsumableId = 1,
+                    Type = "OUT",
+                    Quantity = 2,
+                    BeforeQuantity = 10,
+                    AfterQuantity = 8,
+                    Reason = "Xuất vật tư cho buổi thực hành",
+                    UserId = 1,
+                    CreatedAt = new DateTime(2026, 9, 13, 8, 0, 0, DateTimeKind.Utc)
+                });
+            await context.SaveChangesAsync();
+
+            var result = Assert.IsType<OkObjectResult>(
+                (await CreateController(context, Roles.Admin)
+                    .GetTransactions(1, CancellationToken.None)).Result);
+            using var document = JsonDocument.Parse(JsonSerializer.Serialize(result.Value));
+            var rows = document.RootElement;
+
+            Assert.Equal("Nhập kho", rows[0].GetProperty("Type").GetString());
+            Assert.Equal("Nhập lô vật tư mẫu", rows[0].GetProperty("Reason").GetString());
+            Assert.Equal("Nguyễn Văn Admin", rows[0].GetProperty("PerformedBy").GetString());
+            Assert.Equal("Xuất kho", rows[1].GetProperty("Type").GetString());
+        }
+    }
+
+    [Fact]
     public async Task Creating_consumable_uses_current_user_and_defaults_responsible_user_to_creator()
     {
         await using var context = CreateContext(out var connection);

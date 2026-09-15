@@ -9,6 +9,8 @@ import { getDashboardAlertTarget } from '../src/utils/dashboardAlerts.js'
 import {
   getBorrowStatusLabel,
   getConsumableRequestStatusLabel,
+  getConsumableTransactionTypeColor,
+  getConsumableTransactionTypeLabel,
   getEquipmentStatusLabel,
   getInventoryStatusLabel,
   getReturnConditionLabel,
@@ -145,6 +147,15 @@ test('bảng vị trí giữ cột số tài sản gọn và căn giữa', () =>
   assert.match(source, /th\.location-asset-count-column \.table-column-header\) \{[\s\S]*?justify-content: center;/)
 })
 
+test('các bộ lọc vị trí có cùng kích thước 280 x 40', () => {
+  const source = readFileSync(new URL('../src/views/LocationsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /--location-filter-width:\s*280px;/)
+  assert.match(source, /--location-filter-height:\s*40px;/)
+  assert.match(source, /\.location-filter-control \{[\s\S]*?width: var\(--location-filter-width\) !important;[\s\S]*?height: var\(--location-filter-height\);/)
+  assert.match(source, /\.ant-select-selector\) \{[\s\S]*?height: var\(--location-filter-height\) !important;/)
+})
+
 test('tiêu đề cột có mũi tên tăng giảm và truyền sắp xếp về API phân trang', () => {
   const filterSource = readFileSync(new URL('../src/components/TableColumnFilter.vue', import.meta.url), 'utf8')
   const deviceSource = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
@@ -214,6 +225,15 @@ test('ánh xạ vai trò và trạng thái sang tiếng Việt', () => {
   assert.equal(getReturnConditionLabel(STATUS.AVAILABLE), 'Bình thường')
   assert.equal(getReturnConditionLabel(STATUS.BROKEN), 'Hỏng')
   assert.equal(ROLE_LABELS.STUDENT, 'Sinh viên')
+})
+
+test('chuẩn hóa loại giao dịch vật tư sang tiếng Việt', () => {
+  assert.equal(getConsumableTransactionTypeLabel('IN'), 'Nhập kho')
+  assert.equal(getConsumableTransactionTypeLabel('OUT'), 'Xuất kho')
+  assert.equal(getConsumableTransactionTypeLabel('HANDOVER'), 'Bàn giao')
+  assert.equal(getConsumableTransactionTypeLabel('ADJUSTMENT'), 'Điều chỉnh')
+  assert.equal(getConsumableTransactionTypeColor('IN'), 'green')
+  assert.equal(getConsumableTransactionTypeColor('OUT'), 'blue')
 })
 
 test('hiển thị timestamp hoạt động theo múi giờ Việt Nam', () => {
@@ -372,6 +392,13 @@ test('lịch sử mượn trả chỉ hiển thị tình trạng trả trong chi
   assert.match(source, /\.status-column\) \{ width: 180px !important;/)
 })
 
+test('thanh lọc lịch sử mượn trả bắt đầu từ mép trái', () => {
+  const source = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /\.toolbar-filters \{ flex-basis: 100%; justify-content: flex-start; \}/)
+  assert.doesNotMatch(source, /\.toolbar-filters \{[^}]*justify-content: flex-end;/)
+})
+
 test('phiếu chờ duyệt chỉ hiển thị số điện thoại, seri và ngày trong cửa sổ chi tiết', () => {
   const source = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
   const columns = source.match(/const columns = \[([\s\S]*?)\n\]/)?.[1] || ''
@@ -477,6 +504,15 @@ test('kiểm kê hiển thị đã đối soát cho tài sản đã quét bình 
 
   assert.match(source, /record\.reviewedAt \|\| isScannedNormally\(record\)/)
   assert.match(source, /const isScannedNormally = record => record\.status === STATUS\.INVENTORY_FOUND && Boolean\(record\.scannedAt\)/)
+})
+
+test('cửa sổ tạo kiểm kê giải thích mã đợt dễ đọc cho người dùng', () => {
+  const source = readFileSync(new URL('../src/views/InventoryView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /Mã đợt được tạo tự động theo mẫu/)
+  assert.match(source, /KK-NGÀY-SỐ THỨ TỰ/)
+  assert.match(source, /KK-20260915-001/)
+  assert.match(source, /Đã tạo đợt kiểm kê \$\{createdSession\.code\}/)
 })
 
 test('landing page dùng ảnh nội bộ để không phụ thuộc URL ảnh ngoài', () => {
@@ -637,15 +673,18 @@ test('quản lý xuất báo cáo yêu cầu vật tư theo các bộ lọc hi�
   assert.match(apiSource, /\/consumablerequest\/export[\s\S]*?responseType:\s*'blob'/)
 })
 
-test('bảng yêu cầu cấp phát giữ cột số lượng gọn và đủ rộng cho toàn bộ hành động', () => {
+test('bảng yêu cầu cấp phát tự điều chỉnh độ rộng cột hành động theo thao tác hiển thị', () => {
   const source = readFileSync(new URL('../src/views/ConsumableRequestsView.vue', import.meta.url), 'utf8')
 
   assert.match(source, /title: 'Số lượng'[\s\S]*?width: 120[\s\S]*?className: 'quantity-column'/)
   assert.match(source, /title: 'Trạng thái'[\s\S]*?width: 190[\s\S]*?className: 'status-column'/)
-  assert.match(source, /title: 'Hành động'[\s\S]*?table-sticky-action-column[\s\S]*?width: 300/)
+  assert.match(source, /const actionColumnWidth = computed\(\(\) => \{[\s\S]*?isManager\.value\) return 300/)
+  assert.match(source, /hasApprovalActions[\s\S]*?return 300/)
+  assert.match(source, /hasReceiptConfirmation \? 210 : 110/)
+  assert.match(source, /title: 'Hành động'[\s\S]*?table-sticky-action-column[\s\S]*?width: actionColumnWidth\.value/)
   assert.match(source, /\.quantity-column\) \{ width: 120px !important;/)
   assert.match(source, /\.status-column\) \{ width: 190px !important;/)
-  assert.match(source, /\.table-sticky-action-column\) \{ width: 300px !important;/)
+  assert.match(source, /\.table-sticky-action-column\) \{ width: var\(--request-action-column-width\) !important;/)
 })
 
 test('phiếu chờ duyệt chỉ dùng một nút xem phù hợp với trạng thái bàn giao', () => {

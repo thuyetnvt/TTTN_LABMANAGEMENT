@@ -63,6 +63,26 @@ const consumableRequestLabels = Object.freeze({
   CONSUMABLE_ISSUED: 'Đã cấp phát'
 })
 
+const consumableTransactionLabels = Object.freeze({
+  IN: 'Nhập kho',
+  IMPORT: 'Nhập kho',
+  STOCK_IN: 'Nhập kho',
+  'NHẬP KHO': 'Nhập kho',
+  OUT: 'Xuất kho',
+  EXPORT: 'Xuất kho',
+  STOCK_OUT: 'Xuất kho',
+  'XUẤT KHO': 'Xuất kho',
+  ISSUE: 'Cấp phát',
+  'CẤP PHÁT': 'Cấp phát',
+  HANDOVER: 'Bàn giao',
+  'BÀN GIAO': 'Bàn giao',
+  RETURN: 'Hoàn trả',
+  'HOÀN TRẢ': 'Hoàn trả',
+  ADJUST: 'Điều chỉnh',
+  ADJUSTMENT: 'Điều chỉnh',
+  'ĐIỀU CHỈNH': 'Điều chỉnh'
+})
+
 const returnConditionLabels = Object.freeze({
   AVAILABLE: 'Bình thường',
   GOOD: 'Tốt',
@@ -78,6 +98,21 @@ export const getBorrowStatusLabel = status => displayLabel(borrowLabels, status)
 export const getInventoryStatusLabel = status => displayLabel(inventoryLabels, status)
 export const getConsumableRequestStatusLabel = status => displayLabel(consumableRequestLabels, status)
 export const getReturnConditionLabel = status => displayLabel(returnConditionLabels, status)
+
+export const getConsumableTransactionTypeLabel = type => {
+  const value = String(type || '').trim()
+  if (!value) return UNKNOWN_STATUS
+  return consumableTransactionLabels[value.toLocaleUpperCase('vi-VN')] || value
+}
+
+export const getConsumableTransactionTypeColor = type => {
+  const label = getConsumableTransactionTypeLabel(type)
+  if (label === 'Nhập kho') return 'green'
+  if (label === 'Xuất kho' || label === 'Cấp phát' || label === 'Bàn giao') return 'blue'
+  if (label === 'Hoàn trả') return 'purple'
+  if (label === 'Điều chỉnh') return 'orange'
+  return 'default'
+}
 
 export const getStatusColor = status => {
   const normalized = normalizeStatus(status)

@@ -251,13 +251,14 @@ public class ConsumableController : ControllerBase
         {
             transaction.Id,
             transaction.ConsumableId,
-            transaction.Type,
+            Type = ConsumableTransactionTypes.Label(transaction.Type),
             transaction.Quantity,
             transaction.BeforeQuantity,
             transaction.AfterQuantity,
-            transaction.Reason,
+            Reason = SeedDisplayText.Clean(transaction.Reason),
             transaction.UserId,
             Username = transaction.User?.Username,
+            PerformedBy = GetUserDisplayName(transaction.User),
             transaction.CreatedAt
         }));
     }
@@ -338,7 +339,7 @@ public class ConsumableController : ControllerBase
             _context.ConsumableTransactions.Add(new ConsumableTransaction
             {
                 ConsumableId = consumable.Id,
-                Type = "Nhập kho",
+                Type = ConsumableTransactionTypes.StockIn,
                 Quantity = consumable.Quantity,
                 BeforeQuantity = 0,
                 AfterQuantity = consumable.Quantity,
@@ -518,7 +519,7 @@ public class ConsumableController : ControllerBase
         _context.ConsumableTransactions.Add(new ConsumableTransaction
         {
             ConsumableId = id,
-            Type = "Nhập kho",
+            Type = ConsumableTransactionTypes.StockIn,
             Quantity = dto.Quantity,
             BeforeQuantity = before,
             AfterQuantity = consumable.Quantity,
@@ -574,7 +575,9 @@ public class ConsumableController : ControllerBase
             _context.ConsumableTransactions.Add(new ConsumableTransaction
             {
                 ConsumableId = id,
-                Type = delta > 0 ? "Nhập kho" : "Điều chỉnh",
+                Type = delta > 0
+                    ? ConsumableTransactionTypes.StockIn
+                    : ConsumableTransactionTypes.Adjustment,
                 Quantity = Math.Abs(delta),
                 BeforeQuantity = before,
                 AfterQuantity = newTotal,

@@ -70,6 +70,29 @@ const responses = {
     depreciationPercentage: 10,
     status: 'AVAILABLE'
   }]),
+  '/api/consumable/paged': paged([{
+    id: 5,
+    code: 'VT-E2E-005',
+    name: 'Điện trở E2E',
+    unit: 'cái',
+    quantity: 30,
+    reservedQuantity: 2,
+    availableQuantity: 28,
+    minQuantity: 10,
+    responsibleName: 'Nguyễn Văn Admin'
+  }]),
+  '/api/consumable/5/transactions': [{
+    id: 6,
+    consumableId: 5,
+    type: 'IN',
+    quantity: 30,
+    beforeQuantity: 0,
+    afterQuantity: 30,
+    reason: 'Nhập lô vật tư thử nghiệm',
+    username: 'admin',
+    performedBy: 'Nguyễn Văn Admin',
+    createdAt: now
+  }],
   '/api/handover/issue-reports': [{
     id: 41,
     handoverRecordId: 31,
@@ -256,6 +279,32 @@ test('quản lý vị trí không còn vị trí cha và không hiển thị nú
   await expect(dialog.getByText('Vị trí cha', { exact: true })).toHaveCount(0)
 })
 
+test('cửa sổ tạo kiểm kê giải thích cấu trúc mã đợt dễ đọc', async ({ page }) => {
+  await page.goto('/dashboard/inventory')
+  await page.getByRole('button', { name: 'Tạo đợt kiểm kê' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Tạo đợt kiểm kê' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText(/Mã đợt được tạo tự động theo mẫu/)).toBeVisible()
+  await expect(dialog.getByText('KK-NGÀY-SỐ THỨ TỰ', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('KK-20260915-001', { exact: true })).toBeVisible()
+})
+
+test('các bộ lọc vị trí có cùng kích thước 280 x 40', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/dashboard/locations')
+
+  const controls = page.locator('.location-filter-control')
+  await expect(controls).toHaveCount(3)
+
+  for (let index = 0; index < 3; index += 1) {
+    const box = await controls.nth(index).boundingBox()
+    expect(box).toBeTruthy()
+    expect(Math.round(box.width)).toBe(280)
+    expect(Math.round(box.height)).toBe(40)
+  }
+})
+
 test('cột trạng thái căn giữa cả tiêu đề, bộ điều khiển và nội dung', async ({ page }) => {
   await page.goto('/dashboard/locations')
 
@@ -309,6 +358,49 @@ test('bảng yêu cầu cấp phát hiển thị cột số lượng gọn và c
   expect(Math.round(actionBox.width)).toBeGreaterThanOrEqual(290)
 })
 
+test('cột hành động của giảng viên và sinh viên tự thu gọn khi chỉ còn nút xem', async ({ page }) => {
+  let activeRole = 'Sinh viên'
+  await page.route('**/api/users/me', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ id: 2, username: 'nguoidung1', fullName: 'Người dùng 1', role: activeRole })
+  }))
+  await page.route('**/api/approval-delegations/me', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      canApproveBorrow: false,
+      canApproveConsumable: false,
+      canHandoverBorrow: false,
+      canHandoverConsumable: false,
+      delegations: []
+    })
+  }))
+  await page.setViewportSize({ width: 1920, height: 900 })
+
+  for (const userRole of ['Sinh viên', 'Giảng viên']) {
+    activeRole = userRole
+    await page.goto('/dashboard/consumable-requests')
+
+    const table = page.locator('.desktop-table')
+    const actionHeader = table.locator('th.table-sticky-action-column')
+    const viewButton = table.getByRole('button', { name: 'Xem chi tiết yêu cầu' })
+    const actionCell = viewButton.locator('xpath=ancestor::td[1]')
+
+    await expect(actionHeader).toBeVisible()
+    await expect(viewButton).toHaveCount(1)
+    await expect(viewButton).toBeVisible()
+    await expect(actionCell.getByRole('button')).toHaveCount(1)
+
+    const actionHeaderBox = await actionHeader.boundingBox()
+    const actionCellBox = await actionCell.boundingBox()
+    expect(actionHeaderBox).toBeTruthy()
+    expect(actionCellBox).toBeTruthy()
+    expect(Math.round(actionHeaderBox.width)).toBe(110)
+    expect(Math.round(actionCellBox.width)).toBe(110)
+  }
+})
+
 test('quản lý xuất báo cáo yêu cầu vật tư theo bộ lọc hiện tại', async ({ page }) => {
   let exportUrl = ''
   await page.route('**/api/consumablerequest/export**', async route => {
@@ -354,6 +446,20 @@ test('bảng vật tư tiêu hao ẩn cột phụ và sắp đúng thứ tự c�
   expect(columnIndex('Đơn vị')).toBeLessThan(columnIndex('Trạng thái'))
 })
 
+test('lịch sử nhập xuất vật tư chỉ hiển thị nội dung tiếng Việt', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/dashboard/devices?tab=consumables')
+
+  await page.getByRole('button', { name: 'Xem lịch sử vật tư' }).click()
+  const dialog = page.getByRole('dialog', { name: /Lịch sử nhập\/xuất: Điện trở E2E/ })
+
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('Nhập kho', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('IN', { exact: true })).toHaveCount(0)
+  await expect(dialog.getByText('Nhập lô vật tư thử nghiệm', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Nguyễn Văn Admin', { exact: true })).toBeVisible()
+})
+
 test('bộ lọc danh mục vật tư bằng kích thước bộ lọc tình trạng tồn', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
   await page.goto('/dashboard/devices?tab=consumables')
@@ -397,6 +503,22 @@ test('lịch sử mượn trả không ghim trạng thái và ẩn các cột ch
   await expect(table.getByRole('columnheader', { name: /Tình trạng trả/ })).toHaveCount(0)
 
   expect(await statusHeader.evaluate(element => getComputedStyle(element).position)).not.toBe('sticky')
+})
+
+test('bộ lọc đầu tiên của lịch sử mượn trả được căn sát mép trái', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/dashboard/borrow-history')
+
+  const toolbar = page.locator('.toolbar')
+  const filters = page.locator('.toolbar-filters')
+  const firstFilter = filters.locator('.ant-picker').first()
+  const toolbarBox = await toolbar.boundingBox()
+  const firstFilterBox = await firstFilter.boundingBox()
+
+  expect(toolbarBox).toBeTruthy()
+  expect(firstFilterBox).toBeTruthy()
+  expect(Math.abs(firstFilterBox.x - toolbarBox.x)).toBeLessThanOrEqual(1)
+  expect(await filters.evaluate(element => getComputedStyle(element).justifyContent)).toBe('flex-start')
 })
 
 test('phiếu chờ duyệt chỉ hiện thông tin phụ trong cửa sổ chi tiết', async ({ page }) => {

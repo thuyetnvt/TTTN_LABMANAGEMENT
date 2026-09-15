@@ -135,6 +135,34 @@ public sealed class InventoryControllerTests
     }
 
     [Fact]
+    public async Task CreateSession_generates_readable_daily_sequence_codes()
+    {
+        await using var context = CreateContext();
+        context.Equipments.Add(CreateEquipment(1, EquipmentStatuses.Available, null));
+        await context.SaveChangesAsync();
+        var controller = CreateController(context);
+
+        var morningResult = await controller.CreateSession(
+            new InventoryController.CreateInventoryDto { Name = "Kiểm kê buổi sáng" },
+            CancellationToken.None);
+        var afternoonResult = await controller.CreateSession(
+            new InventoryController.CreateInventoryDto { Name = "Kiểm kê buổi chiều" },
+            CancellationToken.None);
+        Assert.IsType<OkObjectResult>(morningResult.Result);
+        Assert.IsType<OkObjectResult>(afternoonResult.Result);
+
+        var sessions = await context.InventorySessions
+            .AsNoTracking()
+            .OrderBy(item => item.Id)
+            .ToListAsync();
+        Assert.Equal(2, sessions.Count);
+        var expectedPrefix = $"KK-{VietnamTime.Now(sessions[0].StartedAt):yyyyMMdd}-";
+        Assert.Equal($"{expectedPrefix}001", sessions[0].Code);
+        Assert.Equal($"{expectedPrefix}002", sessions[1].Code);
+        Assert.DoesNotContain(sessions, item => item.Code.Contains("INV-", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Inventory_requires_discrepancy_review_and_syncs_missing_equipment_status()
     {
         await using var context = CreateContext();

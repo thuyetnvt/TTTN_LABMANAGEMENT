@@ -251,6 +251,8 @@ onMounted(fetchLocations)
 .page-heading h2 { margin: 0 0 6px; }
 .page-heading p { margin: 0; color: #64748b; }
 .location-filters {
+  --location-filter-width: 280px;
+  --location-filter-height: 40px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -258,9 +260,15 @@ onMounted(fetchLocations)
   margin-bottom: 16px;
 }
 .location-filter-control {
-  flex: 0 0 320px;
-  width: 320px !important;
+  flex: 0 0 var(--location-filter-width);
+  width: var(--location-filter-width) !important;
+  height: var(--location-filter-height);
   min-width: 0;
+}
+.location-filter-control :deep(.ant-input-affix-wrapper),
+.location-filter-control :deep(.ant-select-selector) {
+  height: var(--location-filter-height) !important;
+  align-items: center;
 }
 .locations-page :deep(.location-asset-count-column) {
   width: 130px !important;
@@ -283,6 +291,7 @@ onMounted(fetchLocations)
   .location-filter-control {
     flex: 1 1 100%;
     width: 100% !important;
+    max-width: 100%;
   }
 }
 </style>

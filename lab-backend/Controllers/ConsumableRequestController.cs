@@ -617,7 +617,7 @@ public class ConsumableRequestController : ControllerBase
         {
             ConsumableId = request.ConsumableId,
             ConsumableRequestId = id,
-            Type = "Bàn giao",
+            Type = ConsumableTransactionTypes.Handover,
             Quantity = request.Quantity,
             BeforeQuantity = beforeQuantity,
             AfterQuantity = beforeQuantity - request.Quantity,

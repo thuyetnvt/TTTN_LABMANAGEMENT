@@ -237,7 +237,7 @@
 
     <a-modal
       v-model:open="isHistoryVisible"
-      :title="`Lịch sử nhập-xuất: ${currentHistoryConsumable?.name || ''}`"
+      :title="`Lịch sử nhập/xuất: ${currentHistoryConsumable?.name || ''}`"
       width="860px"
       :footer="null"
       @cancel="isHistoryVisible = false"
@@ -253,7 +253,9 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'type'">
-            <a-tag :color="getTransactionColor(record.type)">{{ record.type }}</a-tag>
+            <a-tag :color="getConsumableTransactionTypeColor(record.type)">
+              {{ getConsumableTransactionTypeLabel(record.type) }}
+            </a-tag>
           </template>
           <template v-else-if="column.key === 'quantity'">
             <strong>{{ record.quantity }}</strong>
@@ -265,7 +267,7 @@
             {{ formatDateTime(record.createdAt) }}
           </template>
           <template v-else-if="column.key === 'username'">
-            {{ record.username || 'Hệ thống' }}
+            {{ record.performedBy || record.username || 'Hệ thống' }}
           </template>
         </template>
       </a-table>
@@ -365,6 +367,7 @@ import { DatabaseOutlined, DeleteOutlined, EditOutlined, HistoryOutlined, Shoppi
 import { createTablePagination } from '../utils/tablePagination'
 import { getApiErrorMessage } from '../utils/apiError'
 import { formatVietnamDate, formatVietnamDateTime as formatVietnamDateTimeValue } from '../utils/dateTime'
+import { getConsumableTransactionTypeColor, getConsumableTransactionTypeLabel } from '../utils/statusLabels'
 import LocationTreeSelect from './LocationTreeSelect.vue'
 import TableColumnFilter from './TableColumnFilter.vue'
 
@@ -633,7 +636,7 @@ const showHistoryModal = async (record) => {
   try {
     historyData.value = await consumableApi.getTransactions(record.id) || []
   } catch {
-    message.error('Lỗi khi tải lịch sử nhập-xuất!')
+    message.error('Không thể tải lịch sử nhập/xuất vật tư!')
   } finally {
     historyLoading.value = false
   }
@@ -749,13 +752,6 @@ const formatDate = value => formatVietnamDate(value)
 const formatCurrency = value => value === null || value === undefined
   ? '—'
   : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
-
-const getTransactionColor = (type) => {
-  if (type === 'Nhập kho') return 'green'
-  if (type === 'Cấp phát') return 'blue'
-  if (type === 'Hoàn trả') return 'purple'
-  return 'orange'
-}
 
 const submitForm = async () => {
   if (!formData.value.name || !formData.value.unit || formData.value.quantity === null || !formData.value.minQuantity) {

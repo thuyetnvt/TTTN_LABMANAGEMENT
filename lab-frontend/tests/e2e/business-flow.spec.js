@@ -190,6 +190,7 @@ test('luồng mượn nhiều tài sản, bàn giao, trả và kiểm kê QR', a
   })
   expect(inventoryResponse.ok(), await inventoryResponse.text()).toBeTruthy()
   const inventory = await inventoryResponse.json()
+  expect(inventory.code).toMatch(/^KK-\d{8}-\d{3,}$/)
   for (const item of equipment) {
     const scanResponse = await request.post(`${apiBaseUrl}/inventory/${inventory.id}/scan`, {
       headers: headers(manager.token),

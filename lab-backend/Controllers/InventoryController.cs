@@ -20,6 +20,7 @@ namespace LabManagementAPI.Controllers;
 [Authorize(Roles = Roles.Managers)]
 public class InventoryController : ControllerBase
 {
+    private static readonly SemaphoreSlim InventoryCodeLock = new(1, 1);
     private readonly AppDbContext _context;
     private readonly IAuditService _auditService;
     private readonly INotificationService _notificationService;
@@ -370,13 +371,14 @@ public class InventoryController : ControllerBase
             return BadRequest(new { message = "Phạm vi kiểm kê không có tài sản định danh." });
         }
 
+        var startedAt = DateTime.UtcNow;
         var session = new InventorySession
         {
-            Code = $"INV-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..28],
             Name = dto.Name,
             LocationNodeId = dto.LocationNodeId,
             AssetCategoryId = dto.AssetCategoryId,
             CreatedByUserId = GetCurrentUserId(),
+            StartedAt = startedAt,
             Items = equipment.Select(item => new InventoryItem
             {
                 EquipmentId = item.Id,
@@ -385,8 +387,18 @@ public class InventoryController : ControllerBase
                 Status = InventoryItemStatuses.Pending
             }).ToList()
         };
-        _context.InventorySessions.Add(session);
-        await _context.SaveChangesAsync(cancellationToken);
+
+        await InventoryCodeLock.WaitAsync(cancellationToken);
+        try
+        {
+            session.Code = await CreateInventorySessionCodeAsync(startedAt, cancellationToken);
+            _context.InventorySessions.Add(session);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            InventoryCodeLock.Release();
+        }
         await _notificationService.NotifyManagersAsync(
             "INVENTORY_CREATED",
             "Đã tạo đợt kiểm kê",
@@ -401,6 +413,37 @@ public class InventoryController : ControllerBase
             new { session.Code, ItemCount = equipment.Count },
             cancellationToken);
         return Ok(new { session.Id, session.Code, message = "Đã tạo đợt kiểm kê." });
+    }
+
+    private async Task<string> CreateInventorySessionCodeAsync(
+        DateTime startedAt,
+        CancellationToken cancellationToken)
+    {
+        var vietnamDate = VietnamTime.Today(startedAt);
+        var dayStartUtc = VietnamTime.StartOfDayUtc(vietnamDate);
+        var dayEndUtc = dayStartUtc.AddDays(1);
+        var prefix = $"KK-{vietnamDate:yyyyMMdd}-";
+        var sessionsCreatedToday = await _context.InventorySessions
+            .AsNoTracking()
+            .CountAsync(
+                item => item.StartedAt >= dayStartUtc && item.StartedAt < dayEndUtc,
+                cancellationToken);
+        var usedCodes = await _context.InventorySessions
+            .AsNoTracking()
+            .Where(item => item.Code.StartsWith(prefix))
+            .Select(item => item.Code)
+            .ToListAsync(cancellationToken);
+        var usedCodeSet = usedCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var sequence = sessionsCreatedToday + 1;
+        var code = $"{prefix}{sequence:000}";
+
+        while (usedCodeSet.Contains(code))
+        {
+            sequence++;
+            code = $"{prefix}{sequence:000}";
+        }
+
+        return code;
     }
 
     [HttpPost("{id:int}/scan")]

@@ -602,17 +602,19 @@ public static class FullSampleDataSeeder
         var userId = users.GetValueOrDefault("sv4");
         var transactionSeeds = new[]
         {
-            new TransactionSeed("VT-SEED-001", "IN", 60, "Nhập lô cảm biến mẫu", -20),
-            new TransactionSeed("VT-SEED-002", "OUT", 8, "Cấp phát module relay cho nhóm thực hành", -14),
-            new TransactionSeed("VT-SEED-003", "IN", 40, "Nhập lô RFID mẫu", -10),
-            new TransactionSeed("VT-SEED-005", "OUT", 12, "Cấp phát dây jumper cho nhóm sinh viên", -5)
+            new TransactionSeed("VT-SEED-001", ConsumableTransactionTypes.StockIn, 60, "Nhập lô cảm biến mẫu", -20),
+            new TransactionSeed("VT-SEED-002", ConsumableTransactionTypes.StockOut, 8, "Cấp phát module relay cho nhóm thực hành", -14),
+            new TransactionSeed("VT-SEED-003", ConsumableTransactionTypes.StockIn, 40, "Nhập lô RFID mẫu", -10),
+            new TransactionSeed("VT-SEED-005", ConsumableTransactionTypes.StockOut, 12, "Cấp phát dây jumper cho nhóm sinh viên", -5)
         };
 
         foreach (var seed in transactionSeeds)
         {
             if (!consumables.TryGetValue(seed.Code, out var consumableId)) continue;
             var item = await context.Consumables.FirstAsync(consumable => consumable.Id == consumableId);
-            var before = seed.Type == "IN" ? item.Quantity - seed.Quantity : item.Quantity + seed.Quantity;
+            var before = seed.Type == ConsumableTransactionTypes.StockIn
+                ? item.Quantity - seed.Quantity
+                : item.Quantity + seed.Quantity;
             if (before < 0) before = 0;
             context.ConsumableTransactions.Add(new ConsumableTransaction
             {

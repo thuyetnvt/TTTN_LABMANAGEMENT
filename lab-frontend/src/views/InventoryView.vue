@@ -75,6 +75,9 @@
     </ResponsiveDataList>
 
     <a-modal v-model:open="showCreate" title="Tạo đợt kiểm kê" ok-text="Tạo" cancel-text="Hủy" :confirm-loading="creating" @ok="createSession">
+      <p class="inventory-code-hint">
+        Mã đợt được tạo tự động theo mẫu <strong>KK-NGÀY-SỐ THỨ TỰ</strong>, ví dụ <strong>KK-20260915-001</strong>.
+      </p>
       <a-form layout="vertical">
         <a-form-item label="Tên đợt kiểm kê" required><a-input v-model:value="createForm.name" placeholder="Ví dụ: Kiểm kê quý III/2026" /></a-form-item>
         <a-form-item label="Vị trí phạm vi"><a-select v-model:value="createForm.locationNodeId" allow-clear placeholder="Tất cả vị trí"><a-select-option v-for="location in locations" :key="location.id" :value="location.id">{{ location.code }} — {{ location.name }}</a-select-option></a-select></a-form-item>
@@ -411,10 +414,10 @@ const createSession = async () => {
   if (!createForm.value.name.trim()) { message.warning('Vui lòng nhập tên đợt kiểm kê!'); return }
   creating.value = true
   try {
-    await inventoryApi.create(createForm.value)
+    const createdSession = await inventoryApi.create(createForm.value)
     showCreate.value = false
     createForm.value = { name: '', locationNodeId: null, assetCategoryId: null }
-    message.success('Đã tạo đợt kiểm kê.')
+    message.success(`Đã tạo đợt kiểm kê ${createdSession.code}.`)
     await fetchAll()
   } catch (error) { message.error(error.response?.data?.message || 'Không tạo được đợt kiểm kê!') }
   finally { creating.value = false }
@@ -652,6 +655,7 @@ onMounted(fetchAll)
 <style scoped>
 .inventory-container { padding: 0; }
 .inventory-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; }
+.inventory-code-hint { margin: 0 0 16px; color: #64748b; line-height: 1.6; }
 .inventory-item-filters { display: grid; grid-template-columns: minmax(220px, 1fr) 260px; gap: 10px; margin-top: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
 .toolbar h2 { margin: 0; font-weight: 600; }

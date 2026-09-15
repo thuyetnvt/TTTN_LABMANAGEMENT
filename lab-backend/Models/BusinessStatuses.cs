@@ -26,6 +26,45 @@ public static class ConsumableRequestStatuses
     public const string Rejected = "REJECTED";
 }
 
+public static class ConsumableTransactionTypes
+{
+    public const string StockIn = "Nhập kho";
+    public const string StockOut = "Xuất kho";
+    public const string Allocation = "Cấp phát";
+    public const string Handover = "Bàn giao";
+    public const string Return = "Hoàn trả";
+    public const string Adjustment = "Điều chỉnh";
+
+    private static readonly IReadOnlyDictionary<string, string> VietnameseLabels =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["IN"] = StockIn,
+            ["IMPORT"] = StockIn,
+            ["STOCK_IN"] = StockIn,
+            [StockIn] = StockIn,
+            ["OUT"] = StockOut,
+            ["EXPORT"] = StockOut,
+            ["STOCK_OUT"] = StockOut,
+            [StockOut] = StockOut,
+            ["ISSUE"] = Allocation,
+            [Allocation] = Allocation,
+            ["HANDOVER"] = Handover,
+            [Handover] = Handover,
+            ["RETURN"] = Return,
+            [Return] = Return,
+            ["ADJUST"] = Adjustment,
+            ["ADJUSTMENT"] = Adjustment,
+            [Adjustment] = Adjustment
+        };
+
+    public static string Label(string? value)
+    {
+        var type = value?.Trim() ?? string.Empty;
+        if (type.Length == 0) return "Không xác định";
+        return VietnameseLabels.TryGetValue(type, out var label) ? label : type;
+    }
+}
+
 public static class ConsumableRequestRejectionStages
 {
     public const string Approval = "APPROVAL";
