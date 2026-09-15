@@ -234,7 +234,7 @@ doc.add_paragraph(
 
 doc.add_heading("8. Triển khai trên VPS", level=1)
 doc.add_heading("8.1. Kiểm tra quyền truy cập", level=2)
-add_code(doc, "ssh -p <SSH_PORT> <USERNAME>@<SERVER_IP>\ncd /hdd1/lab\ndocker ps")
+add_code(doc, "ssh -p <SSH_PORT> <USERNAME>@<SERVER_IP>\ncd /lab\ndocker ps")
 doc.add_paragraph(
     "Nếu docker ps hiển thị danh sách container thì tài khoản đã có quyền đọc Docker. Nếu báo permission denied, liên hệ quản trị viên máy chủ để cấp quyền; không tự dùng sudo khi chưa được phép."
 )
@@ -248,7 +248,7 @@ add_table(doc, ["Secret", "Ý nghĩa"], [
     ["VPS_USER", "Tài khoản SSH"],
     ["VPS_PORT", "Cổng SSH"],
     ["VPS_SSH_KEY", "Private key dùng riêng cho CI"],
-    ["VPS_DEPLOY_DIR", "Thư mục dự án trên VPS; máy chủ hiện tại dùng /hdd1/lab"],
+    ["VPS_DEPLOY_DIR", "Thư mục dự án trên VPS; máy chủ hiện tại dùng /lab"],
     ["SMTP_USERNAME / SMTP_PASSWORD", "Tài khoản gửi email nếu bật SMTP"],
     ["GOOGLE_CLIENT_ID", "Client ID nếu bật đăng nhập Google"],
 ], widths=[6.2, 10.3])

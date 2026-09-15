@@ -300,7 +300,7 @@ Workflow GitHub Actions nằm tại [.github/workflows/ci.yml](.github/workflows
 
 - Pull request vào `main`: chạy kiểm thử backend, frontend, E2E và Docker; bước Deploy VPS được bỏ qua.
 - Push vào nhánh được phép triển khai trong workflow: sau khi toàn bộ kiểm thử xanh, workflow tự SSH vào VPS, pull đúng nhánh và khởi động lại Docker Compose production.
-- Các secret cần có trong GitHub Actions gồm `VPS_HOST`, `VPS_USER`, `VPS_PORT`, `VPS_SSH_KEY` và `VPS_DEPLOY_DIR`. Máy chủ hiện tại dùng `VPS_DEPLOY_DIR=/hdd1/lab`.
+- Các secret cần có trong GitHub Actions gồm `VPS_HOST`, `VPS_USER`, `VPS_PORT`, `VPS_SSH_KEY` và `VPS_DEPLOY_DIR`. Máy chủ hiện tại dùng `VPS_DEPLOY_DIR=/lab`.
 
 Sau khi sửa code trên nhánh đang deploy, chỉ cần:
 
@@ -348,9 +348,12 @@ Sau lệnh `git commit`, `git status --short` phải không in ra dòng nào. N�
 | [DATABASE.md](docs/DATABASE.md) | Mô hình dữ liệu |
 | [API.md](docs/API.md) | Danh sách API chính |
 | [RBAC_MATRIX.md](docs/RBAC_MATRIX.md) | Ma trận phân quyền |
-| [USER_GUIDE.md](docs/USER_GUIDE.md) | Hướng dẫn sử dụng |
+| [USER_GUIDE.md](docs/USER_GUIDE.md) | Mục lục hướng dẫn sử dụng theo vai trò |
+| [HUONG_DAN_QUAN_TRI_VIEN.md](docs/HUONG_DAN_QUAN_TRI_VIEN.md) | Hướng dẫn dành cho Quản trị viên |
+| [HUONG_DAN_GIANG_VIEN.md](docs/HUONG_DAN_GIANG_VIEN.md) | Hướng dẫn dành cho Giảng viên |
+| [HUONG_DAN_SINH_VIEN.md](docs/HUONG_DAN_SINH_VIEN.md) | Hướng dẫn dành cho Sinh viên |
 | [MEETING_ACTIONS_2026-09-10.md](docs/MEETING_ACTIONS_2026-09-10.md) | Đối chiếu yêu cầu cuộc họp |
-| [HUONG_DAN_CAI_DAT_VA_TRIEN_KHAI.docx](docs/HUONG_DAN_CAI_DAT_VA_TRIEN_KHAI.docx) | Hướng dẫn cài đặt và triển khai bản Word |
+| [HUONG_DAN_CAI_DAT_VA_TRIEN_KHAI.md](docs/HUONG_DAN_CAI_DAT_VA_TRIEN_KHAI.md) | Hướng dẫn cài đặt và triển khai |
 | [TEST_PLAN.md](docs/TEST_PLAN.md) | Kế hoạch kiểm thử |
 | [TEST_RESULTS.md](docs/TEST_RESULTS.md) | Kết quả kiểm thử |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Hướng dẫn triển khai |

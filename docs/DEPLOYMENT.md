@@ -20,10 +20,10 @@ Local cũng dùng key ring mới `backend_data_protection_v2`. Volume key cũ đ
 
 ## Chuẩn bị VPS production
 
-Repository trên máy chủ hiện tại đặt tại `/hdd1/lab`. Sau khi SSH, kiểm tra quyền và thư mục bằng:
+Repository trên máy chủ hiện tại đặt tại `/lab`. Sau khi SSH, kiểm tra quyền và thư mục bằng:
 
 ```bash
-cd /hdd1/lab
+cd /lab
 docker ps
 ```
 
@@ -37,17 +37,17 @@ Nếu `docker ps` báo `permission denied`, tài khoản SSH chưa có quyền D
 Ví dụ trên Ubuntu với OpenSSL:
 
 ```bash
-sudo install -d -m 700 /hdd1/lab/secrets
+sudo install -d -m 700 /lab/secrets
 sudo openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
   -subj "/CN=LabManagement Data Protection" \
-  -keyout /hdd1/lab/secrets/data-protection.key \
-  -out /hdd1/lab/secrets/data-protection.crt
+  -keyout /lab/secrets/data-protection.key \
+  -out /lab/secrets/data-protection.crt
 sudo openssl pkcs12 -export \
-  -out /hdd1/lab/secrets/data-protection.pfx \
-  -inkey /hdd1/lab/secrets/data-protection.key \
-  -in /hdd1/lab/secrets/data-protection.crt
-sudo chmod 600 /hdd1/lab/secrets/data-protection.pfx
-sudo rm /hdd1/lab/secrets/data-protection.key
+  -out /lab/secrets/data-protection.pfx \
+  -inkey /lab/secrets/data-protection.key \
+  -in /lab/secrets/data-protection.crt
+sudo chmod 600 /lab/secrets/data-protection.pfx
+sudo rm /lab/secrets/data-protection.key
 ```
 
 Mật khẩu nhập khi export PFX phải trùng với `DATA_PROTECTION_CERTIFICATE_PASSWORD` trong `.env.production`.
@@ -95,7 +95,7 @@ Trước khi cập nhật production:
 
 Production luôn giữ `SEED_ENABLED=false`. SMTP phải được cấu hình nếu sử dụng quên mật khẩu và gửi email nhắc trả.
 
-GitHub Actions cần secret `VPS_DEPLOY_DIR=/hdd1/lab`; nếu bỏ trống, script triển khai cũng dùng đường dẫn này làm mặc định.
+GitHub Actions cần secret `VPS_DEPLOY_DIR=/lab`; nếu bỏ trống, script triển khai cũng dùng đường dẫn này làm mặc định.
 
 ## Tác vụ tự động
 
