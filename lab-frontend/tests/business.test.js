@@ -423,6 +423,18 @@ test('thanh lọc lịch sử mượn trả bắt đầu từ mép trái', () =>
   assert.doesNotMatch(source, /\.toolbar-filters \{[^}]*justify-content: flex-end;/)
 })
 
+test('lịch sử mượn trả dùng một khoảng ngày chung và không cắt nội dung', () => {
+  const source = readFileSync(new URL('../src/views/BorrowHistoryView.vue', import.meta.url), 'utf8')
+
+  assert.equal([...source.matchAll(/<a-range-picker/g)].length, 1)
+  assert.match(source, /v-model:value="historyDates"/)
+  assert.match(source, /\['Mượn\/trả từ ngày', 'Mượn\/trả đến ngày'\]/)
+  assert.match(source, /\.history-date-filter \{ width: 420px; min-width: 420px; \}/)
+  assert.match(source, /from: historyDates\.value\?\.\[0\]/)
+  assert.match(source, /to: historyDates\.value\?\.\[1\]/)
+  assert.doesNotMatch(source, /borrowDates|returnDates|returnFrom:|returnTo:/)
+})
+
 test('phiếu chờ duyệt chỉ hiển thị số điện thoại, seri và ngày trong cửa sổ chi tiết', () => {
   const source = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
   const columns = source.match(/const columns = \[([\s\S]*?)\n\]/)?.[1] || ''
@@ -436,6 +448,19 @@ test('phiếu chờ duyệt chỉ hiển thị số điện thoại, seri và ng
   assert.match(source, /label="Ngày đăng ký"/)
   assert.match(source, /label="Hạn trả"/)
   assert.match(source, /Số seri:/)
+})
+
+test('duyệt phiếu mượn phải xác nhận trước khi gọi API', () => {
+  const source = readFileSync(new URL('../src/views/BorrowRequestsView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /@click="openApproveModal\(record\)"/)
+  assert.match(source, /@click="openApproveModal\(item\)"/)
+  assert.match(source, /title="Xác nhận duyệt yêu cầu mượn"/)
+  assert.match(source, /message="Tài sản sẽ được giữ chỗ sau khi duyệt\."/)
+  assert.match(source, /@ok="submitApprove"/)
+  assert.match(source, /const submitApprove = async \(\) =>/)
+  assert.match(source, /await borrowApi\.approve\(record\.id\)/)
+  assert.doesNotMatch(source, /@click="handleApprove/)
 })
 
 test('phiếu mượn bắt buộc nhập số điện thoại liên hệ riêng', () => {

@@ -47,7 +47,7 @@
                 </a-button>
               </a-tooltip>
               <template v-if="canApprove && statusMatches(record.status, STATUS.BORROW_PENDING)">
-                <a-button type="primary" size="small" @click="handleApprove(record)">Duyệt</a-button>
+                <a-button type="primary" size="small" @click="openApproveModal(record)">Duyệt</a-button>
                 <a-button danger size="small" @click="handleReject(record)">Từ chối</a-button>
               </template>
               <template v-else-if="canHandover && statusMatches(record.status, STATUS.APPROVED)">
@@ -76,7 +76,7 @@
           <div class="mobile-request-actions">
             <a-button @click="openViewAction(item)"><EyeOutlined /> {{ item.hasHandover ? 'Xem biên bản' : 'Chi tiết' }}</a-button>
             <template v-if="canApprove && statusMatches(item.status, STATUS.BORROW_PENDING)">
-              <a-button type="primary" @click="handleApprove(item)">Duyệt</a-button>
+              <a-button type="primary" @click="openApproveModal(item)">Duyệt</a-button>
               <a-button danger @click="handleReject(item)">Từ chối</a-button>
             </template>
             <template v-else-if="canHandover && statusMatches(item.status, STATUS.APPROVED)">
@@ -111,6 +111,45 @@
           <span>Số lượng: {{ item.quantity || 1 }}</span>
         </a-card>
       </div>
+    </a-modal>
+
+    <a-modal
+      v-model:open="isApproveVisible"
+      title="Xác nhận duyệt yêu cầu mượn"
+      ok-text="Xác nhận duyệt"
+      cancel-text="Hủy"
+      width="620px"
+      :confirm-loading="approveSubmitting"
+      :mask-closable="false"
+      :keyboard="!approveSubmitting"
+      :cancel-button-props="{ disabled: approveSubmitting }"
+      @ok="submitApprove"
+      @cancel="closeApproveModal"
+    >
+      <template v-if="approveRecord">
+        <a-alert
+          type="warning"
+          show-icon
+          message="Tài sản sẽ được giữ chỗ sau khi duyệt."
+          description="Hãy kiểm tra đúng người mượn và tài sản trước khi xác nhận."
+          style="margin-bottom: 16px"
+        />
+        <a-descriptions bordered size="small" :column="1">
+          <a-descriptions-item label="Người mượn">{{ borrowerLabel(approveRecord) }}</a-descriptions-item>
+          <a-descriptions-item label="Ngày đăng ký">{{ formatDate(approveRecord.requestDate) }}</a-descriptions-item>
+          <a-descriptions-item label="Dự kiến trả">{{ formatDate(approveRecord.returnDate) }}</a-descriptions-item>
+          <a-descriptions-item label="Mục đích">{{ approveRecord.purpose || 'Không có' }}</a-descriptions-item>
+        </a-descriptions>
+        <div v-if="approveItems.length" class="request-detail-items approve-request-items">
+          <h4>Tài sản sẽ được giữ chỗ</h4>
+          <a-card v-for="item in approveItems" :key="item.id || item.equipmentId || item.serial" size="small">
+            <strong>{{ item.equipmentName || approveRecord.device || 'Tài sản' }}</strong>
+            <span>Mã tài sản: {{ item.assetCode || '—' }}</span>
+            <span>Số seri: {{ item.serial || approveRecord.serial || '—' }}</span>
+            <span>Số lượng: {{ item.quantity || 1 }}</span>
+          </a-card>
+        </div>
+      </template>
     </a-modal>
 
     <a-modal
@@ -369,13 +408,17 @@ const rejectReason = ref('')
 const rejectRecord = ref(null)
 const requestDetailsVisible = ref(false)
 const requestDetailsRecord = ref(null)
-const requestDetailsItems = computed(() => {
-  const record = requestDetailsRecord.value
+const borrowItemsForRecord = record => {
   if (!record) return []
   return record.details?.length
     ? record.details
     : [{ id: record.equipmentId || record.id, equipmentName: record.device, serial: record.serial, quantity: 1 }]
-})
+}
+const requestDetailsItems = computed(() => borrowItemsForRecord(requestDetailsRecord.value))
+const isApproveVisible = ref(false)
+const approveSubmitting = ref(false)
+const approveRecord = ref(null)
+const approveItems = computed(() => borrowItemsForRecord(approveRecord.value))
 
 const columns = [
   { title: 'Người mượn', dataIndex: 'borrowerName', key: 'borrowerName', sortKey: 'borrower', sortable: true, width: 190, fixed: 'left', filterType: 'search', filterPlaceholder: 'Tìm người mượn...' },
@@ -497,13 +540,32 @@ const handleTableChange = (pager) => {
   fetchRequests()
 }
 
-const handleApprove = async (record) => {
+const openApproveModal = record => {
+  approveRecord.value = record
+  isApproveVisible.value = true
+}
+
+const closeApproveModal = () => {
+  if (approveSubmitting.value) return
+  isApproveVisible.value = false
+  approveRecord.value = null
+}
+
+const submitApprove = async () => {
+  const record = approveRecord.value
+  if (!record || approveSubmitting.value) return
+
+  approveSubmitting.value = true
   try {
     await borrowApi.approve(record.id)
-    message.success(`Đã duyệt cho ${borrowerLabel(record)} mượn tài sản!`)
-    fetchRequests()
+    message.success(`Đã duyệt yêu cầu của ${borrowerLabel(record)} và giữ chỗ tài sản.`)
+    isApproveVisible.value = false
+    approveRecord.value = null
+    await fetchRequests()
   } catch (error) {
     message.error(getApiErrorMessage(error, 'Lỗi duyệt yêu cầu!'))
+  } finally {
+    approveSubmitting.value = false
   }
 }
 

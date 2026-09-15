@@ -620,26 +620,7 @@ public class BorrowController : ControllerBase
                 query = query.Where(item => item.Status == status);
             }
         }
-        if (paging.From.HasValue)
-        {
-            var start = VietnamTime.StartOfDayUtc(paging.From.Value);
-            query = query.Where(item => item.BorrowDate >= start);
-        }
-        if (paging.To.HasValue)
-        {
-            var end = VietnamTime.StartOfDayUtc(paging.To.Value.Date.AddDays(1));
-            query = query.Where(item => item.BorrowDate < end);
-        }
-        if (paging.ReturnFrom.HasValue)
-        {
-            var start = VietnamTime.StartOfDayUtc(paging.ReturnFrom.Value);
-            query = query.Where(item => item.ActualReturnDate.HasValue && item.ActualReturnDate >= start);
-        }
-        if (paging.ReturnTo.HasValue)
-        {
-            var end = VietnamTime.StartOfDayUtc(paging.ReturnTo.Value.Date.AddDays(1));
-            query = query.Where(item => item.ActualReturnDate.HasValue && item.ActualReturnDate < end);
-        }
+        query = ApplyHistoryDateFilters(query, paging);
 
         var page = await ApplySorting(query, paging)
             .ToPagedResultAsync(paging, cancellationToken);
@@ -1822,16 +1803,39 @@ public class BorrowController : ControllerBase
             }
         }
 
-        if (paging.From.HasValue)
+        return ApplyHistoryDateFilters(query, paging);
+    }
+
+    private static IQueryable<BorrowRecord> ApplyHistoryDateFilters(
+        IQueryable<BorrowRecord> query,
+        PageQuery paging)
+    {
+        if (paging.From.HasValue && paging.To.HasValue)
         {
             var start = VietnamTime.StartOfDayUtc(paging.From.Value);
-            query = query.Where(item => item.BorrowDate >= start);
+            var end = VietnamTime.StartOfDayUtc(paging.To.Value.Date.AddDays(1));
+            query = query.Where(item =>
+                (item.BorrowDate >= start && item.BorrowDate < end)
+                || (item.ActualReturnDate.HasValue
+                    && item.ActualReturnDate >= start
+                    && item.ActualReturnDate < end));
         }
-        if (paging.To.HasValue)
+        else if (paging.From.HasValue)
+        {
+            var start = VietnamTime.StartOfDayUtc(paging.From.Value);
+            query = query.Where(item =>
+                item.BorrowDate >= start
+                || (item.ActualReturnDate.HasValue && item.ActualReturnDate >= start));
+        }
+        else if (paging.To.HasValue)
         {
             var end = VietnamTime.StartOfDayUtc(paging.To.Value.Date.AddDays(1));
-            query = query.Where(item => item.BorrowDate < end);
+            query = query.Where(item =>
+                item.BorrowDate < end
+                || (item.ActualReturnDate.HasValue && item.ActualReturnDate < end));
         }
+
+        // Giữ tương thích với các client cũ còn truyền bộ lọc ngày trả riêng.
         if (paging.ReturnFrom.HasValue)
         {
             var start = VietnamTime.StartOfDayUtc(paging.ReturnFrom.Value);
@@ -1842,6 +1846,7 @@ public class BorrowController : ControllerBase
             var end = VietnamTime.StartOfDayUtc(paging.ReturnTo.Value.Date.AddDays(1));
             query = query.Where(item => item.ActualReturnDate.HasValue && item.ActualReturnDate < end);
         }
+
         return query;
     }
 

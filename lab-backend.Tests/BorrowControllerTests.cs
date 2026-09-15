@@ -443,6 +443,62 @@ public sealed class BorrowControllerTests
     }
 
     [Fact]
+    public async Task History_shared_date_filter_matches_borrow_or_actual_return_date()
+    {
+        await using var context = CreateInMemoryContext();
+        context.Users.Add(new User { Id = 1, Username = "student", Role = Roles.Student, IsActive = true });
+        context.Equipments.Add(CreateEquipment(1));
+        var date = new DateTime(2026, 9, 12);
+        var start = VietnamTime.StartOfDayUtc(date);
+        context.BorrowRecords.AddRange(
+            new BorrowRecord
+            {
+                Id = 110,
+                UserId = 1,
+                EquipmentId = 1,
+                BorrowDate = start,
+                ExpectedReturnDate = start.AddDays(3),
+                ActualReturnDate = start.AddDays(2),
+                Status = BorrowStatuses.Returned
+            },
+            new BorrowRecord
+            {
+                Id = 111,
+                UserId = 1,
+                EquipmentId = 1,
+                BorrowDate = start.AddDays(-2),
+                ExpectedReturnDate = start,
+                ActualReturnDate = start.AddHours(8),
+                Status = BorrowStatuses.Returned
+            },
+            new BorrowRecord
+            {
+                Id = 112,
+                UserId = 1,
+                EquipmentId = 1,
+                BorrowDate = start.AddDays(-3),
+                ExpectedReturnDate = start.AddDays(-1),
+                ActualReturnDate = start.AddDays(-1),
+                Status = BorrowStatuses.Returned
+            });
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context, 1, Roles.Student).GetHistoryPaged(
+            new LabManagementAPI.Dtos.PageQuery { From = date, To = date },
+            CancellationToken.None);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(
+            Assert.IsType<OkObjectResult>(result).Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+
+        Assert.Equal(2, json.RootElement.GetProperty("total").GetInt32());
+        var ids = json.RootElement.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("id").GetInt32())
+            .OrderBy(id => id)
+            .ToArray();
+        Assert.Equal(new[] { 110, 111 }, ids);
+    }
+
+    [Fact]
     public async Task Paged_history_supports_dashboard_status_groups()
     {
         await using var context = CreateInMemoryContext();

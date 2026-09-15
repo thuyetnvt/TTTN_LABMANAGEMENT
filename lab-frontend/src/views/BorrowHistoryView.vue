@@ -9,8 +9,13 @@
         <a-button type="primary" :loading="exporting" @click="exportHistory"><FileExcelOutlined /> Xuất Excel</a-button>
       </div>
       <div class="toolbar-filters">
-        <a-range-picker v-model:value="borrowDates" format="DD/MM/YYYY" :placeholder="['Mượn từ ngày', 'Mượn đến ngày']" @change="applyFilters" />
-        <a-range-picker v-model:value="returnDates" format="DD/MM/YYYY" :placeholder="['Trả thực tế từ ngày', 'Trả thực tế đến ngày']" @change="applyFilters" />
+        <a-range-picker
+          v-model:value="historyDates"
+          class="history-date-filter"
+          format="DD/MM/YYYY"
+          :placeholder="['Mượn/trả từ ngày', 'Mượn/trả đến ngày']"
+          @change="applyFilters"
+        />
         <a-input-search v-model:value="searchQuery" allow-clear placeholder="Người mượn, thiết bị..." class="filter-search" @search="applyFilters" />
         <a-select v-model:value="statusFilter" allow-clear placeholder="Trạng thái" class="status-filter" @change="applyFilters">
           <a-select-option value="">Tất cả</a-select-option>
@@ -372,8 +377,7 @@ const importing = ref(false)
 const importVisible = ref(false)
 const importPreview = reactive({ rows: [], total: 0, validCount: 0, invalidCount: 0 })
 const searchQuery = ref('')
-const borrowDates = ref(null)
-const returnDates = ref(null)
+const historyDates = ref(null)
 const statusFilter = ref(undefined)
 const sortState = reactive({ field: undefined, order: undefined })
 const isHandoverVisible = ref(false)
@@ -451,10 +455,8 @@ const importPreviewColumns = [
 ]
 
 const currentHistoryFilters = () => ({
-  from: borrowDates.value?.[0]?.format('YYYY-MM-DD'),
-  to: borrowDates.value?.[1]?.format('YYYY-MM-DD'),
-  returnFrom: returnDates.value?.[0]?.format('YYYY-MM-DD'),
-  returnTo: returnDates.value?.[1]?.format('YYYY-MM-DD'),
+  from: historyDates.value?.[0]?.format('YYYY-MM-DD'),
+  to: historyDates.value?.[1]?.format('YYYY-MM-DD'),
   search: searchQuery.value.trim() || undefined,
   status: statusFilter.value,
   sortBy: sortState.field,
@@ -776,6 +778,7 @@ const handleTableChange = (pager) => {
 .toolbar h2 { margin: 0 auto 0 0; }
 .toolbar-actions, .toolbar-filters { display: flex; flex-wrap: wrap; gap: 10px; }
 .toolbar-filters { flex-basis: 100%; justify-content: flex-start; }
+.history-date-filter { width: 420px; min-width: 420px; }
 
 @media (max-width: 767px) {
   .toolbar { align-items: stretch; flex-direction: column; }
