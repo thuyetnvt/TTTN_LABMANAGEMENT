@@ -18,6 +18,7 @@ public class BorrowerEquipmentDto
     public int? LocationNodeId { get; init; }
     public string LocationName { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
+    public bool IsBorrowedByCurrentUser { get; init; }
     public int? AssetCategoryId { get; init; }
     public string? CategoryName { get; init; }
 }

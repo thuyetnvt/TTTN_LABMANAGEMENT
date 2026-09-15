@@ -163,7 +163,12 @@ public class EquipmentController : ControllerBase
             return Ok(equipments.Select(ToManagerDto));
         }
 
-        return Ok(equipments.Select(ToBorrowerDto));
+        var borrowedEquipmentIds = await GetBorrowedEquipmentIdsForCurrentUserAsync(
+            equipments.Select(equipment => equipment.Id),
+            cancellationToken);
+
+        return Ok(equipments.Select(equipment =>
+            ToBorrowerDto(equipment, borrowedEquipmentIds.Contains(equipment.Id))));
     }
 
     [HttpGet("paged")]
@@ -229,7 +234,12 @@ public class EquipmentController : ControllerBase
             return Ok(page.Map(ToManagerDto));
         }
 
-        return Ok(page.Map(ToBorrowerDto));
+        var borrowedEquipmentIds = await GetBorrowedEquipmentIdsForCurrentUserAsync(
+            page.Items.Select(equipment => equipment.Id),
+            cancellationToken);
+
+        return Ok(page.Map(equipment =>
+            ToBorrowerDto(equipment, borrowedEquipmentIds.Contains(equipment.Id))));
     }
 
     private static IQueryable<Equipment> ApplySorting(
@@ -327,7 +337,10 @@ public class EquipmentController : ControllerBase
         }
 
         // Endpoint quét không bao giờ trả token ngược lại, kể cả cho quản lý.
-        return Ok(ToBorrowerDto(equipment));
+        var borrowedEquipmentIds = await GetBorrowedEquipmentIdsForCurrentUserAsync(
+            [equipment.Id],
+            cancellationToken);
+        return Ok(ToBorrowerDto(equipment, borrowedEquipmentIds.Contains(equipment.Id)));
     }
 
     [HttpPost("import/preview")]
@@ -1117,7 +1130,9 @@ public class EquipmentController : ControllerBase
         };
     }
 
-    private static BorrowerEquipmentDto ToBorrowerDto(Equipment equipment)
+    private static BorrowerEquipmentDto ToBorrowerDto(
+        Equipment equipment,
+        bool isBorrowedByCurrentUser = false)
     {
         return new BorrowerEquipmentDto
         {
@@ -1133,6 +1148,7 @@ public class EquipmentController : ControllerBase
             LocationNodeId = equipment.LocationNodeId,
             LocationName = equipment.LocationNode?.Name ?? equipment.Location,
             Status = equipment.Status,
+            IsBorrowedByCurrentUser = isBorrowedByCurrentUser,
             AssetCategoryId = equipment.AssetCategoryId,
             CategoryName = equipment.AssetCategory?.Name
         };
@@ -1195,6 +1211,42 @@ public class EquipmentController : ControllerBase
             CategoryName = equipment.AssetCategory?.Name,
             CreatedAt = equipment.CreatedAt
         };
+    }
+
+    private async Task<HashSet<int>> GetBorrowedEquipmentIdsForCurrentUserAsync(
+        IEnumerable<int> equipmentIds,
+        CancellationToken cancellationToken)
+    {
+        var currentUserId = GetCurrentUserIdOrNull();
+        var candidateIds = equipmentIds.Distinct().ToArray();
+        if (!currentUserId.HasValue || candidateIds.Length == 0)
+        {
+            return new HashSet<int>();
+        }
+
+        var legacyEquipmentIds = await _context.BorrowRecords
+            .AsNoTracking()
+            .Where(record => record.UserId == currentUserId.Value
+                && (record.Status == BorrowStatuses.Borrowed
+                    || record.Status == BorrowStatuses.ReturnProcessing)
+                && record.EquipmentId.HasValue
+                && candidateIds.Contains(record.EquipmentId.Value))
+            .Select(record => record.EquipmentId!.Value)
+            .ToListAsync(cancellationToken);
+
+        var detailEquipmentIds = await _context.BorrowRequestDetails
+            .AsNoTracking()
+            .Where(detail => detail.BorrowRecord != null
+                && detail.BorrowRecord.UserId == currentUserId.Value
+                && (detail.BorrowRecord.Status == BorrowStatuses.Borrowed
+                    || detail.BorrowRecord.Status == BorrowStatuses.ReturnProcessing)
+                && candidateIds.Contains(detail.EquipmentId))
+            .Select(detail => detail.EquipmentId)
+            .ToListAsync(cancellationToken);
+
+        return legacyEquipmentIds
+            .Concat(detailEquipmentIds)
+            .ToHashSet();
     }
 
     private int GetCurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

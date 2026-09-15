@@ -471,6 +471,14 @@ test('bảng thiết bị ẩn model và các trường phụ khỏi danh sách 
   assert.match(source, /detailField\('decisionFile', 'Quyết định'/)
 })
 
+test('bảng thiết bị phân biệt tài sản mình mượn với tài sản người khác đang mượn', () => {
+  const source = readFileSync(new URL('../src/components/DeviceTable.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /:label-override="equipmentStatusLabel\(record\)"/)
+  assert.match(source, /equipment\?\.isBorrowedByCurrentUser\s*\?\s*'Bạn đang mượn'\s*:\s*'Đang được mượn'/)
+  assert.match(source, /!isBorrowerRole\(role\.value\)/)
+})
+
 test('bảng vật tư tiêu hao ẩn cột phụ và đặt người phụ trách trước khả dụng, đơn vị', () => {
   const source = readFileSync(new URL('../src/components/ConsumablesTable.vue', import.meta.url), 'utf8')
   const columns = source.match(/const columns = computed\(\(\) => \{([\s\S]*?)const tableScrollX/)?.[1] || ''
@@ -633,18 +641,18 @@ test('dashboard giảng viên dùng dữ liệu và tác vụ riêng theo vai tr
   assert.match(source, /name:\s*'TeacherApproval'/)
 })
 
-test('dashboard giảng viên đưa thao tác nhanh lên đầu và không hiện mũi tên', () => {
+test('dashboard quản trị và giảng viên không lặp khối thao tác nhanh', () => {
   const source = readFileSync(new URL('../src/views/OverviewView.vue', import.meta.url), 'utf8')
+  const managerStart = source.indexOf('<template v-else-if="isManager">')
   const teacherStart = source.indexOf('<template v-else-if="isTeacher">')
   const teacherEnd = source.indexOf('<template v-else-if="isStudent">')
+  const managerSection = source.slice(managerStart, teacherStart)
   const teacherSection = source.slice(teacherStart, teacherEnd)
-  const quickSection = teacherSection.slice(
-    teacherSection.indexOf('<section class="teacher-quick-section"'),
-    teacherSection.indexOf('</section>', teacherSection.indexOf('<section class="teacher-quick-section"'))
-  )
 
-  assert.ok(teacherSection.indexOf('teacher-quick-section') < teacherSection.indexOf('teacher-kpi-grid'))
-  assert.doesNotMatch(quickSection, /ArrowRightOutlined/)
+  assert.doesNotMatch(managerSection, /Thao tác nhanh|manager-quick-actions|quick-actions-grid/)
+  assert.doesNotMatch(teacherSection, /Thao tác nhanh|teacher-quick-section|teacher-quick-grid/)
+  assert.match(managerSection, /:class="`manager-tone-\$\{item\.tone\}`"/)
+  assert.match(managerSection, /\{\{ item\.hint \}\}/)
 })
 
 test('dashboard sinh viên dùng thống kê cá nhân, không dùng số liệu toàn lab', () => {

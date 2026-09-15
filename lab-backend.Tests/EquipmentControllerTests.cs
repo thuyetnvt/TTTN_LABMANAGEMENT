@@ -82,6 +82,69 @@ public sealed class EquipmentControllerTests
     }
 
     [Fact]
+    public async Task Borrower_paged_list_marks_only_equipment_borrowed_by_current_user()
+    {
+        await using var context = CreateContext();
+        context.Equipments.AddRange(
+            CreateBorrowedEquipment(1),
+            CreateBorrowedEquipment(2),
+            CreateBorrowedEquipment(3));
+        context.BorrowRecords.AddRange(
+            new BorrowRecord
+            {
+                Id = 11,
+                UserId = 1,
+                Status = BorrowStatuses.Borrowed,
+                BorrowDate = DateTime.UtcNow,
+                ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+                Details =
+                [
+                    new BorrowRequestDetail
+                    {
+                        EquipmentId = 1,
+                        Status = BorrowStatuses.Borrowed
+                    }
+                ]
+            },
+            new BorrowRecord
+            {
+                Id = 12,
+                UserId = 1,
+                EquipmentId = 2,
+                Status = BorrowStatuses.ReturnProcessing,
+                BorrowDate = DateTime.UtcNow,
+                ExpectedReturnDate = DateTime.UtcNow.AddDays(3)
+            },
+            new BorrowRecord
+            {
+                Id = 13,
+                UserId = 2,
+                Status = BorrowStatuses.Borrowed,
+                BorrowDate = DateTime.UtcNow,
+                ExpectedReturnDate = DateTime.UtcNow.AddDays(3),
+                Details =
+                [
+                    new BorrowRequestDetail
+                    {
+                        EquipmentId = 3,
+                        Status = BorrowStatuses.Borrowed
+                    }
+                ]
+            });
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context, Roles.Student).GetEquipmentsPaged(
+            new PageQuery { PageSize = 10 },
+            CancellationToken.None);
+
+        var payload = Assert.IsType<PagedResult<BorrowerEquipmentDto>>(
+            Assert.IsType<OkObjectResult>(result).Value);
+        Assert.True(payload.Items.Single(item => item.Id == 1).IsBorrowedByCurrentUser);
+        Assert.True(payload.Items.Single(item => item.Id == 2).IsBorrowedByCurrentUser);
+        Assert.False(payload.Items.Single(item => item.Id == 3).IsBorrowedByCurrentUser);
+    }
+
+    [Fact]
     public async Task Paged_list_filters_on_server_and_returns_exact_total()
     {
         await using var context = CreateContext();
@@ -225,6 +288,19 @@ public sealed class EquipmentControllerTests
         InvoiceNumber = "INV-SECRET",
         ResponsiblePerson = "CBNV01",
         Notes = "Ghi chú quản trị"
+    };
+
+    private static Equipment CreateBorrowedEquipment(int id) => new()
+    {
+        Id = id,
+        AssetCode = $"EQ-{id:000}",
+        QrToken = $"qr-{id:000}",
+        Name = $"Thiết bị {id}",
+        Model = "M1",
+        Serial = $"SN-{id:000}",
+        Location = "Lab",
+        Status = EquipmentStatuses.Borrowed,
+        CreatedAt = new DateTime(2026, 9, id)
     };
 
     private static EquipmentController CreateController(AppDbContext context, string role)

@@ -73,7 +73,7 @@
     </template>
     <template #bodyCell="{ column, record }">
       <template v-if="column.key === 'status'">
-        <StatusBadge :status="record.status" />
+        <StatusBadge :status="record.status" :label-override="equipmentStatusLabel(record)" />
       </template>
       <template v-else-if="column.key === 'qrcode'">
         <a-button type="default" size="small" @click="showQR(record)">QR</a-button>
@@ -340,7 +340,9 @@
         <dl class="equipment-detail-grid">
           <div v-for="field in section.fields" :key="field.key" class="equipment-detail-field">
             <dt>{{ field.label }}</dt>
-            <dd v-if="field.key === 'status'"><StatusBadge :status="viewData.status" /></dd>
+            <dd v-if="field.key === 'status'">
+              <StatusBadge :status="viewData.status" :label-override="equipmentStatusLabel(viewData)" />
+            </dd>
             <dd v-else-if="field.key === 'decisionFile'">
               <a-button
                 v-if="viewData.hasDecisionFile && isManagerRole(role)"
@@ -565,6 +567,14 @@ onMounted(() => {
 })
 
 const formatDate = value => formatVietnamDate(value, '')
+
+const equipmentStatusLabel = equipment => {
+  if (!isBorrowerRole(role.value) || !statusMatches(equipment?.status, STATUS.BORROWED)) {
+    return statusLabel(equipment?.status)
+  }
+
+  return equipment?.isBorrowedByCurrentUser ? 'Bạn đang mượn' : 'Đang được mượn'
+}
 
 const normalizeDate = (value, endOfDay = false) => {
   if (!value) return null

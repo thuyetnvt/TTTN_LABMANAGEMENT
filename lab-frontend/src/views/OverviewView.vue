@@ -26,17 +26,6 @@
         </div>
       </header>
 
-      <section class="manager-section manager-quick-actions" aria-labelledby="quick-actions-heading">
-        <h3 id="quick-actions-heading" class="manager-section-title">Thao tác nhanh</h3>
-        <div class="quick-actions-grid">
-          <a-button v-for="item in managerQuickActions" :key="item.key" class="quick-action-button" @click="navigateTo(item.route)">
-            <template #icon><component :is="item.icon" /></template>
-            <span>{{ item.label }}</span>
-            <ArrowRightOutlined class="quick-action-arrow" />
-          </a-button>
-        </div>
-      </section>
-
       <section class="manager-section manager-kpi-section" aria-label="Chỉ số tổng quan">
         <div class="manager-kpi-grid">
           <button
@@ -44,16 +33,19 @@
             :key="item.key"
             type="button"
             class="manager-kpi-card"
+            :class="`manager-tone-${item.tone}`"
             :aria-label="`Xem ${item.label}`"
             @click="navigateTo(item.route)"
           >
-            <span class="manager-kpi-icon" :class="`tone-${item.tone}`" aria-hidden="true">
+            <span class="manager-kpi-icon" aria-hidden="true">
               <component :is="item.icon" />
             </span>
             <span class="manager-kpi-copy">
-              <span class="manager-kpi-label">{{ item.label }}</span>
+              <small>{{ item.label }}</small>
               <strong>{{ item.value }}</strong>
+              <span>{{ item.hint }}</span>
             </span>
+            <ArrowRightOutlined class="manager-kpi-arrow" />
           </button>
         </div>
       </section>
@@ -144,17 +136,6 @@
           Làm mới
         </a-button>
       </header>
-
-      <section class="teacher-quick-section" aria-labelledby="teacher-quick-heading">
-        <h3 id="teacher-quick-heading">Thao tác nhanh</h3>
-        <div class="teacher-quick-grid">
-          <button v-for="item in teacherQuickActions" :key="item.key" type="button" class="teacher-quick-action" @click="navigateTo(item.route)">
-            <span><component :is="item.icon" /></span>
-            <strong>{{ item.label }}</strong>
-            <small>{{ item.description }}</small>
-          </button>
-        </div>
-      </section>
 
       <section class="teacher-kpi-grid" aria-label="Công việc của giảng viên">
         <button
@@ -362,7 +343,6 @@ import {
   FileSearchOutlined,
   PlusOutlined,
   ReloadOutlined,
-  TeamOutlined,
   WarningOutlined
 } from '@ant-design/icons-vue'
 import { dashboardApi } from '../api/dashboardApi'
@@ -417,32 +397,36 @@ const managerKpis = computed(() => [
     key: 'total-equipment',
     label: 'Tổng thiết bị',
     value: formatNumber(stats.value.counts.total),
+    hint: 'Tài sản đang quản lý',
     icon: AppstoreOutlined,
-    tone: 'primary',
+    tone: 'blue',
     route: { name: 'Devices' }
   },
   {
     key: 'borrowed-equipment',
     label: 'Đang mượn',
     value: formatNumber(stats.value.counts.borrowed),
+    hint: 'Thiết bị đang sử dụng',
     icon: ClockCircleOutlined,
-    tone: 'success',
+    tone: 'green',
     route: { name: 'Devices', query: { status: STATUS.BORROWED } }
   },
   {
     key: 'pending-work',
     label: 'Chờ xử lý',
     value: formatNumber(stats.value.pendingBorrowRequests),
+    hint: 'Phiếu mượn chờ duyệt',
     icon: FileSearchOutlined,
-    tone: 'warning',
+    tone: 'amber',
     route: { name: 'BorrowRequests', query: { status: STATUS.BORROW_PENDING } }
   },
   {
     key: 'broken-equipment',
     label: 'Thiết bị hỏng',
     value: formatNumber(stats.value.counts.broken),
+    hint: 'Cần kiểm tra, xử lý',
     icon: WarningOutlined,
-    tone: 'danger',
+    tone: 'red',
     route: { name: 'Devices', query: { status: STATUS.BROKEN } }
   }
 ])
@@ -539,13 +523,6 @@ const borrowTrendOptions = computed(() => ({
   tooltip: { y: { formatter: value => `${formatNumber(value)} lượt` } }
 }))
 
-const managerQuickActions = computed(() => [
-  ...(canViewAuditLogs.value ? [{ key: 'users', label: 'Quản lý người dùng', icon: TeamOutlined, route: { name: 'AdminUsers' } }] : []),
-  { key: 'borrow-requests', label: 'Duyệt phiếu', icon: FileSearchOutlined, route: { name: 'BorrowRequests' } },
-  { key: 'add-equipment', label: 'Thêm tài sản', icon: PlusOutlined, route: { name: 'Devices' } },
-  { key: 'reports', label: 'Xem báo cáo', icon: AppstoreOutlined, route: { name: 'Reports' } }
-])
-
 const teacherSummary = computed(() => stats.value.teacherSummary || {})
 const teacherDisplayName = computed(() => authStore.user?.fullName?.trim() || 'Giảng viên')
 const teacherKpis = computed(() => [
@@ -590,12 +567,6 @@ const teacherTasks = computed(() => [
 ].filter(Boolean))
 
 const teacherActivities = computed(() => visibleActivities.value.slice(0, 5))
-const teacherQuickActions = computed(() => [
-  { key: 'approval', label: 'Duyệt bảo lãnh', description: 'Xử lý yêu cầu sinh viên', icon: FileSearchOutlined, route: { name: 'TeacherApproval' } },
-  { key: 'equipment', label: 'Mượn thiết bị', description: 'Xem tài sản đang sẵn sàng', icon: AppstoreOutlined, route: { name: 'Devices' } },
-  { key: 'history', label: 'Lịch sử mượn', description: 'Theo dõi phiếu của bạn', icon: ClockCircleOutlined, route: { name: 'BorrowHistory' } },
-  { key: 'consumable', label: 'Yêu cầu vật tư', description: 'Đăng ký và theo dõi cấp phát', icon: PlusOutlined, route: { name: 'ConsumableRequests' } }
-])
 
 const teacherReturnParts = computed(() => {
   if (!teacherSummary.value.nextReturnDate) return { day: '', month: '' }
@@ -775,14 +746,21 @@ onMounted(() => refreshStats(false))
 .manager-header-actions :deep(.ant-btn) { height: 42px; padding-inline: 18px; border-color: #dfe4e8; border-radius: 9px; color: #10233f; font-size: 15px; }
 .manager-header-actions :deep(.ant-btn:hover), .manager-header-actions :deep(.ant-btn:focus) { border-color: #df7657; color: #df7657; }
 .manager-section { margin-top: 20px; }
-.manager-kpi-grid, .quick-actions-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-.manager-kpi-card { display: flex; align-items: center; width: 100%; min-width: 0; gap: 16px; min-height: 112px; padding: 22px 24px; border: 1px solid #e4e8ec; border-radius: 14px; background: #fff; box-shadow: 0 5px 18px rgba(16, 35, 63, .055); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+.manager-kpi-section { margin-top: 0; }
+.manager-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.manager-kpi-card { position: relative; display: grid; grid-template-columns: 46px minmax(0, 1fr) 16px; align-items: center; width: 100%; min-width: 0; min-height: 116px; gap: 13px; padding: 18px; overflow: hidden; border: 1px solid #e4e8ec; border-radius: 14px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
 .manager-kpi-card:hover, .manager-kpi-card:focus-visible { border-color: #d7b3a7; box-shadow: 0 8px 22px rgba(16, 35, 63, .075); outline: none; transform: translateY(-2px); }
 .manager-kpi-icon, .manager-attention-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 50%; }
-.manager-kpi-icon { width: 54px; height: 54px; font-size: 24px; }
-.manager-kpi-copy { display: flex; min-width: 0; flex-direction: column; gap: 7px; }
-.manager-kpi-label { color: #526276; font-size: 15px; font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
-.manager-kpi-copy strong { color: #10233f; font-size: 36px; line-height: 1; letter-spacing: -.02em; }
+.manager-kpi-icon { width: 46px; height: 46px; border-radius: 12px; font-size: 20px; }
+.manager-kpi-copy { display: flex; min-width: 0; flex-direction: column; }
+.manager-kpi-copy small { overflow: hidden; color: #526276; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.manager-kpi-copy strong { margin-top: 3px; color: #10233f; font-size: 29px; line-height: 1.05; }
+.manager-kpi-copy span { margin-top: 5px; overflow: hidden; color: #7c8999; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.manager-kpi-arrow { color: #a8b2bd; font-size: 12px; }
+.manager-tone-blue { color: #347fc1; background: #edf6ff; }
+.manager-tone-green { color: #4d9b3b; background: #edf8e9; }
+.manager-tone-amber { color: #c77a0a; background: #fff7e7; }
+.manager-tone-red { color: #d34a43; background: #fff0ef; }
 .tone-primary { color: #2376c5; background: #eaf4ff; }
 .tone-success { color: #4d9b3b; background: #edf8e9; }
 .tone-warning { color: #d98b18; background: #fff6e5; }
@@ -827,11 +805,6 @@ onMounted(() => refreshStats(false))
 .activity-copy { min-width: 0; }
 .activity-copy p { display: -webkit-box; margin: 0; overflow: hidden; color: #334155; font-size: 14px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .activity-meta { display: block; margin-top: 4px; overflow: hidden; color: #94a3b8; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.manager-section-title { margin: 0 0 12px; color: #10233f; font-size: 18px; font-weight: 700; }
-.quick-action-button { display: flex; align-items: center; justify-content: flex-start; width: 100%; height: 52px; padding-inline: 16px; border-color: #e4e8ec; border-radius: 10px; color: #10233f; font-size: 15px; text-align: left; }
-.quick-action-button:hover, .quick-action-button:focus { border-color: #df7657; color: #df7657; }
-.quick-action-button > span:not(.ant-btn-icon) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.quick-action-arrow { margin-left: auto; color: #94a3b8; font-size: 11px; }
 .teacher-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
 .teacher-header h2 { margin: 8px 0 0; color: #10233f; font-family: var(--font-serif); font-size: 34px; font-weight: 650; line-height: 1.15; letter-spacing: -.025em; }
 .teacher-eyebrow { display: inline-flex; align-items: center; gap: 7px; color: #c85f42; font-size: 13px; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
@@ -898,14 +871,6 @@ onMounted(() => refreshStats(false))
 .teacher-activity-item p { display: -webkit-box; margin: 0; overflow: hidden; color: #334155; font-size: 13px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .teacher-activity-item small { display: block; margin-top: 4px; color: #9aa5b1; font-size: 11px; }
 .teacher-inline-empty { padding: 26px 0; color: #94a3b8; text-align: center; }
-.teacher-quick-section { margin-bottom: 18px; }
-.teacher-quick-section h3 { margin: 0 0 11px; color: #10233f; font-size: 17px; }
-.teacher-quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.teacher-quick-action { display: grid; grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; min-width: 0; gap: 1px 10px; padding: 13px 14px; border: 1px solid #e4e8ec; border-radius: 11px; background: #fff; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.teacher-quick-action:hover, .teacher-quick-action:focus-visible { border-color: #dfb8aa; outline: none; }
-.teacher-quick-action > span { display: inline-flex; grid-row: 1 / 3; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 9px; background: #f5f7f9; color: #d26548; font-size: 17px; }
-.teacher-quick-action strong { overflow: hidden; color: #26384f; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.teacher-quick-action small { overflow: hidden; color: #94a3b8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .student-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
 .student-header h2 { margin: 8px 0 0; color: #10233f; font-family: var(--font-serif); font-size: 34px; font-weight: 650; line-height: 1.15; letter-spacing: -.025em; }
 .student-eyebrow { color: #d26548; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
@@ -971,22 +936,21 @@ onMounted(() => refreshStats(false))
 .borrower-alert.info { border-left-color: #2563eb; background: #eff6ff; }
 .borrower-alert.error { border-left-color: #dc2626; background: #fef2f2; }
 @media (max-width: 1199px) {
-  .manager-kpi-grid, .quick-actions-grid, .teacher-kpi-grid, .teacher-quick-grid, .student-kpi-grid, .dashboard-loading-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manager-kpi-grid, .teacher-kpi-grid, .student-kpi-grid, .dashboard-loading-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .manager-two-column, .teacher-main-grid, .dashboard-loading-panels { grid-template-columns: 1fr; }
   .student-main-grid, .student-bottom-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 767px) {
   .manager-header, .teacher-header, .student-header { align-items: flex-start; flex-direction: column; }
   .manager-header-actions { align-items: flex-start; }
-  .manager-kpi-grid, .quick-actions-grid, .borrower-content-grid, .teacher-kpi-grid, .teacher-quick-grid, .student-kpi-grid, .teacher-activity-list, .dashboard-loading-kpis { grid-template-columns: 1fr; }
+  .manager-kpi-grid, .borrower-content-grid, .teacher-kpi-grid, .student-kpi-grid, .teacher-activity-list, .dashboard-loading-kpis { grid-template-columns: 1fr; }
   .manager-donut-layout { grid-template-columns: 1fr; }
   .manager-status-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 10px 7px; }
   .manager-attention-item { grid-template-columns: 30px minmax(0, 1fr) auto auto; }
   .borrower-status-panel { grid-column: auto; }
   .manager-header h2, .teacher-header h2, .student-header h2, .header h2 { font-size: 30px; }
   .subtitle { font-size: 15px; }
-  .manager-kpi-card { min-height: 96px; padding: 18px; }
-  .manager-kpi-copy strong { font-size: 32px; }
+  .manager-kpi-card { min-height: 104px; }
   .manager-attention-item { grid-template-columns: 42px minmax(0, 1fr) auto 34px; }
   .teacher-refresh-button { width: 100%; }
   .student-refresh-button { width: 100%; }
